@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+cyrus_history.json
+.env
+.DS_Store
