@@ -53,7 +53,17 @@ Modes: `autonomous` and `supervised`.
 
 ## Demo mode
 
-CYRUS runs a deterministic full seven-agent execution when no model API key is configured. This makes the project immediately demoable without paid services.
+CYRUS runs a deterministic full seven-agent execution when no model API key is configured. The repository also includes a browser fallback bridge so the GitHub Pages build remains interactive even when the Flask API is unavailable. The browser demo can execute an objective, show all seven stages, render execution events, metrics and artifacts, and retain demo history for the session.
+
+### Browser demo
+
+**GitHub Pages:** https://mahitech580.github.io/CYRUS-Autonomous-Agentic-Intelligence-System/
+
+The static demo is designed to degrade gracefully: when the backend cannot be reached, the UI automatically falls back to the deterministic demo runtime rather than displaying a broken application.
+
+### Runtime verification
+
+For the full backend runtime, start Flask locally with `python server.py` and open `http://127.0.0.1:8000/`. The browser bridge only activates when API requests fail, so local backend execution remains the primary runtime.
 
 ## Optional provider variables
 
