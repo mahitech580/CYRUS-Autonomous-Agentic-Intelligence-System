@@ -217,6 +217,13 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(empty.status_code, 400)
         self.assertEqual(invalid_mode.status_code, 400)
 
+    def test_runtime_metrics_counts_approval_waiters_as_active(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-WAITING"] = {"status": "AWAITING_APPROVAL"}
+        payload = self.client.get("/api/metrics").get_json()
+        self.assertEqual(payload["active_tasks"], 1)
+        self.assertEqual(payload["awaiting_approval"], 1)
+
     def test_runtime_metrics_contract(self):
         response = self.client.get("/api/metrics")
         self.assertEqual(response.status_code, 200)
