@@ -104,7 +104,9 @@ function App(){
       await loadTask(task.task_id)
     }catch(error){notify(error.message||'Cancellation failed')}
   }
-  const openTask=async id=>{
+  const openTask=async taskOrId=>{
+    const id=typeof taskOrId==='string'?taskOrId:taskOrId?.task_id
+    if(!id)return notify('Execution record is missing a task ID')
     try{setSelectedTask(await loadTask(id))}catch(error){notify(error.message||'Unable to open execution')}
   }
 
