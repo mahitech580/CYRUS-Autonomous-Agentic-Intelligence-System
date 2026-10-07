@@ -469,7 +469,9 @@ def memory():
 
 @app.post("/api/execute")
 def execute():
-    payload = request.get_json(silent=True) or {}
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 415
+    payload = request.get_json(silent=False) or {}
     prompt = str(payload.get("prompt", "")).strip()
     mode = str(payload.get("mode", "autonomous")).lower()
     if len(prompt) > MAX_PROMPT_CHARS:
@@ -533,6 +535,13 @@ def execute():
         "mode": mode,
         "agents": task["agents"]
     }), 202
+
+@app.errorhandler(413)
+def handle_payload_too_large(error):
+    return jsonify({
+        "error": "Request body exceeds the configured size limit",
+        "request_id": getattr(g, "request_id", "-")
+    }), 413
 
 @app.errorhandler(Exception)
 def handle_error(error):
