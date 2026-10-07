@@ -71,7 +71,7 @@ function App(){
       if(data.status==='AWAITING_APPROVAL'){setBusy(false);clearInterval(timer);loadBase()}
     },650)
     return()=>clearInterval(timer)
-  },[task?.task_id])
+  },[task?.task_id,busy])
   const execute=async()=>{
     const objective=(prompt||seedObjective).trim()
     if(!objective)return notify('Enter an engineering objective first')
