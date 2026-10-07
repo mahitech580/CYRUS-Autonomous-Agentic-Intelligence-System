@@ -56,6 +56,7 @@ TOOLS = [
 
 MAX_CONCURRENT_TASKS = max(1, min(int(os.getenv("CYRUS_MAX_CONCURRENT_TASKS", "4")), 16))
 runtime = {
+    "started_at": time.time(),
     "tasks": {},
     "lock": threading.Lock(),
     "executor": ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TASKS),
@@ -202,7 +203,7 @@ def _run_task(task):
         task["updated_at"] = now_iso()
     persist_task(task)
 
-def create_task(prompt, mode):
+def create_task(prompt, mode, idempotency_key=None):
     task_id = "CYRUS-" + uuid.uuid4().hex[:8].upper()
     task = {
         "task_id": task_id,
@@ -226,6 +227,7 @@ def create_task(prompt, mode):
         "latency_ms": 0,
         "execution_time_ms": 0,
         "summary": "",
+        "idempotency_key": idempotency_key,
         "events": [],
         "agents": [dict(agent, status="QUEUED") for agent in AGENTS]
     }
@@ -257,6 +259,34 @@ def agents():
 @app.get("/api/tools")
 def tools():
     return jsonify(TOOLS)
+
+def runtime_metrics():
+    history = load_history()
+    with runtime["lock"]:
+        live = list(runtime["tasks"].values())
+        active = sum(1 for task in live if task.get("status") == "RUNNING")
+        awaiting = sum(1 for task in live if task.get("status") == "AWAITING_APPROVAL")
+        completed = sum(1 for task in live if task.get("status") == "COMPLETED")
+        failed = sum(1 for task in live if task.get("status") == "FAILED")
+        cancelled = sum(1 for task in live if task.get("status") == "CANCELLED")
+    historical = [item for item in history if item.get("status") in {"COMPLETED", "FAILED", "CANCELLED"}]
+    latencies = [item.get("execution_time_ms", 0) for item in historical if item.get("execution_time_ms")]
+    return {
+        "system": "CYRUS CORE 1.0",
+        "uptime_seconds": round(max(0, time.time() - runtime["started_at"]), 1),
+        "capacity": MAX_CONCURRENT_TASKS,
+        "active_tasks": active,
+        "awaiting_approval": awaiting,
+        "completed_tasks": completed,
+        "failed_tasks": failed,
+        "cancelled_tasks": cancelled,
+        "persisted_tasks": len(history),
+        "average_execution_ms": round(sum(latencies) / len(latencies), 1) if latencies else 0
+    }
+
+@app.get("/api/metrics")
+def metrics():
+    return jsonify(runtime_metrics())
 
 @app.get("/api/tasks")
 def tasks():
@@ -324,9 +354,8 @@ def execute():
                 return jsonify({"error": "Execution with this Idempotency-Key is already being created"}), 409
             runtime["idempotency"][idempotency_key] = {"fingerprint": fingerprint, "task_id": None}
     try:
-        task = create_task(prompt, mode)
+        task = create_task(prompt, mode, idempotency_key=idempotency_key)
         if idempotency_key:
-            task["idempotency_key"] = idempotency_key
             with runtime["lock"]:
                 runtime["idempotency"][idempotency_key]["task_id"] = task["task_id"]
     except CapacityError as exc:
