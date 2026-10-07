@@ -181,6 +181,20 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(bad_limit.status_code, 400)
         self.assertEqual(bad_status.status_code, 400)
 
+    def test_execution_rate_limit_returns_retry_after(self):
+        from collections import deque
+        with server.runtime["lock"]:
+            server.runtime["rate_limits"]["127.0.0.1"] = deque(
+                [__import__("time").monotonic() for _ in range(server.MAX_EXECUTIONS_PER_MINUTE)]
+            )
+        response = self.client.post(
+            "/api/execute",
+            json={"prompt": "Rate limit me", "mode": "autonomous"},
+        )
+        self.assertEqual(response.status_code, 429)
+        self.assertTrue(response.headers.get("Retry-After"))
+        self.assertEqual(response.get_json()["retry_after_seconds"], int(response.headers["Retry-After"]))
+
     def test_execute_requires_json_content_type(self):
         response = self.client.post("/api/execute", data="prompt=x")
         self.assertEqual(response.status_code, 415)
