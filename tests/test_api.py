@@ -154,7 +154,7 @@ class CyrusApiContractTests(unittest.TestCase):
                 server.execute_task(task)
         self.assertEqual(task["status"], "FAILED")
         self.assertEqual(task["failure"]["type"], "RuntimeError")
-        self.assertIn("failed safely", task["summary"])
+        self.assertIn("internal runtime failure", task["summary"])
 
     def test_missing_task_is_explicit(self):
         response = self.client.get("/api/tasks/CYRUS-MISSING")
