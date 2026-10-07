@@ -59,6 +59,15 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(empty.status_code, 400)
         self.assertEqual(invalid_mode.status_code, 400)
 
+    def test_runtime_metrics_contract(self):
+        response = self.client.get("/api/metrics")
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["capacity"], server.MAX_CONCURRENT_TASKS)
+        self.assertIn("uptime_seconds", payload)
+        self.assertIn("average_execution_ms", payload)
+        self.assertIn("persisted_tasks", payload)
+
     def test_execute_is_idempotent_for_repeated_keys(self):
         with patch.object(server, "execute_task", lambda task: None):
             first = self.client.post(
