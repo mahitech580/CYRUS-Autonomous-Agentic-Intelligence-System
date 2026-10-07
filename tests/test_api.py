@@ -72,6 +72,13 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("system", payload)
         self.assertIn("mode", payload)
 
+    def test_backend_does_not_expose_private_repository_files(self):
+        public_css = self.client.get("/styles.css")
+        private_python = self.client.get("/server.py")
+        self.assertEqual(public_css.status_code, 200)
+        self.assertIn(b"var(--", public_css.data[:2000])
+        self.assertEqual(private_python.status_code, 404)
+
     def test_request_id_and_security_headers_are_present(self):
         response = self.client.get("/api/health", headers={"X-Request-ID": "daily-run-12"})
         self.assertEqual(response.headers["X-Request-ID"], "daily-run-12")
