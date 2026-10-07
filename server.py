@@ -481,7 +481,9 @@ def approve_task(task_id):
         approval_event = runtime["approval_events"].get(task_id)
         if approval_event is None:
             return jsonify({"error": "Approval control is unavailable"}), 503
+        task["approval_requested_at"] = now_iso()
         approval_event.set()
+    persist_task(task)
     return jsonify({
         "task_id": task_id,
         "status": "APPROVAL_GRANTED",
@@ -504,7 +506,9 @@ def cancel_task(task_id):
             return jsonify({"error": "Cancellation control is unavailable"}), 503
         task["cancel_requested"] = True
         task["updated_at"] = now_iso()
+        event(task, task.get("current_agent", "ORCHESTRATOR"), "CANCEL_REQUESTED", "Operator requested cooperative cancellation.", 0)
         cancel_event.set()
+    persist_task(task)
     return jsonify({
         "task_id": task_id,
         "status": "CANCELLATION_REQUESTED",
