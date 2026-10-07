@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, g, jsonify, request, send_from_directory
 from datetime import datetime, timezone
 from pathlib import Path
 import json
@@ -7,10 +7,30 @@ import threading
 import time
 import uuid
 import random
+import re
 
 BASE_DIR = Path(__file__).resolve().parent
 STORE = BASE_DIR / "cyrus_history.json"
 app = Flask(__name__, static_folder=str(BASE_DIR), static_url_path="")
+
+REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
+
+@app.before_request
+def establish_request_context():
+    candidate = request.headers.get("X-Request-ID", "").strip()
+    g.request_id = candidate if REQUEST_ID_PATTERN.fullmatch(candidate) else uuid.uuid4().hex
+
+@app.after_request
+def apply_response_hardening(response):
+    request_id = getattr(g, "request_id", uuid.uuid4().hex)
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if request.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 AGENTS = [
     {"id": 1, "name": "ORCHESTRATOR", "role": "coordination", "type": "control", "responsibility": "Owns the execution state and routes work through the agent graph."},
@@ -233,7 +253,8 @@ def execute():
 
 @app.errorhandler(Exception)
 def handle_error(error):
-    return jsonify({"error": "CYRUS runtime error", "detail": str(error)}), 500
+    app.logger.exception("Unhandled CYRUS runtime error", extra={"request_id": getattr(g, "request_id", "-")})
+    return jsonify({"error": "CYRUS runtime error", "request_id": getattr(g, "request_id", "-")}), 500
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8000, debug=True)
