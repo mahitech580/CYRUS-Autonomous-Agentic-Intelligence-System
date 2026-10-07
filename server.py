@@ -387,10 +387,10 @@ def create_task(prompt, mode, idempotency_key=None):
         active = sum(1 for item in runtime["tasks"].values() if item.get("status") in {"RUNNING", "AWAITING_APPROVAL"})
         if active >= MAX_CONCURRENT_TASKS:
             raise CapacityError("CYRUS worker capacity is currently full")
-        prune_live_tasks_locked()
         runtime["tasks"][task_id] = task
         runtime["cancel_events"][task_id] = threading.Event()
         runtime["approval_events"][task_id] = threading.Event()
+        prune_live_tasks_locked()
     try:
         future = runtime["executor"].submit(execute_task, task)
     except Exception:
