@@ -67,7 +67,8 @@ runtime = {
     "executor": ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TASKS),
     "futures": {},
     "idempotency": {},
-    "cancel_events": {}
+    "cancel_events": {},
+    "approval_events": {}
 }
 
 class CapacityError(RuntimeError):
@@ -172,6 +173,17 @@ def cooperative_wait(task, seconds):
             return
         cancel_event.wait(timeout=min(0.1, remaining))
 
+def wait_for_supervised_approval(task):
+    approval_event = runtime["approval_events"].get(task["task_id"])
+    cancel_event = runtime["cancel_events"].get(task["task_id"])
+    if approval_event is None:
+        raise RuntimeError("Supervised approval control is unavailable")
+    while True:
+        if cancel_event and cancel_event.is_set():
+            raise TaskCancelled("Task cancellation requested")
+        if approval_event.wait(timeout=0.1):
+            return
+
 def execute_task(task):
     try:
         _run_task(task)
@@ -195,6 +207,7 @@ def execute_task(task):
     finally:
         runtime["futures"].pop(task["task_id"], None)
         runtime["cancel_events"].pop(task["task_id"], None)
+        runtime["approval_events"].pop(task["task_id"], None)
 
 def _run_task(task):
     started = time.perf_counter()
@@ -232,6 +245,21 @@ def _run_task(task):
             task["quality"] = 94
             task["risk"] = "LOW" if task["mode"] == "autonomous" else "MEDIUM"
             task["confidence"] = 96 if task["mode"] == "autonomous" else 91
+        if agent == "REVIEWER" and task["mode"] == "supervised":
+            with runtime["lock"]:
+                task["status"] = "AWAITING_APPROVAL"
+                task["approval_required"] = True
+                task["updated_at"] = now_iso()
+                event(task, "REVIEWER", "APPROVAL", "Supervised mode paused after review; operator approval is required for release.", 0)
+                persist_task(task)
+            wait_for_supervised_approval(task)
+            with runtime["lock"]:
+                task["status"] = "RUNNING"
+                task["approval_required"] = False
+                task["approved_at"] = now_iso()
+                task["updated_at"] = now_iso()
+                event(task, "ORCHESTRATOR", "APPROVED", "Operator approval received; release stage resumed.", 0)
+
         if agent == "RELEASE":
             task["artifacts"] = [
                 artifact("service.py", "Python", "8.4 KB", "implementation"),
@@ -283,6 +311,7 @@ def create_task(prompt, mode, idempotency_key=None):
             raise CapacityError("CYRUS worker capacity is currently full")
         runtime["tasks"][task_id] = task
         runtime["cancel_events"][task_id] = threading.Event()
+        runtime["approval_events"][task_id] = threading.Event()
     future = runtime["executor"].submit(execute_task, task)
     runtime["futures"][task_id] = future
     return task
@@ -344,15 +373,36 @@ def tasks():
         merged[task["task_id"]] = task
     return jsonify(sorted(merged.values(), key=lambda x: x.get("created_at", ""), reverse=True))
 
+@app.post("/api/tasks/<task_id>/approve")
+def approve_task(task_id):
+    with runtime["lock"]:
+        task = runtime["tasks"].get(task_id)
+        if not task:
+            return jsonify({"error": "Task not found"}), 404
+        if task.get("status") != "AWAITING_APPROVAL":
+            return jsonify({
+                "error": "Task is not awaiting approval",
+                "status": task.get("status")
+            }), 409
+        approval_event = runtime["approval_events"].get(task_id)
+        if approval_event is None:
+            return jsonify({"error": "Approval control is unavailable"}), 503
+        approval_event.set()
+    return jsonify({
+        "task_id": task_id,
+        "status": "APPROVAL_GRANTED",
+        "summary": "CYRUS will resume the release stage."
+    }), 202
+
 @app.post("/api/tasks/<task_id>/cancel")
 def cancel_task(task_id):
     with runtime["lock"]:
         task = runtime["tasks"].get(task_id)
         if not task:
             return jsonify({"error": "Task not found"}), 404
-        if task.get("status") != "RUNNING":
+        if task.get("status") not in {"RUNNING", "AWAITING_APPROVAL"}:
             return jsonify({
-                "error": "Only running tasks can be cancelled",
+                "error": "Only running or approval-pending tasks can be cancelled",
                 "status": task.get("status")
             }), 409
         cancel_event = runtime["cancel_events"].get(task_id)
