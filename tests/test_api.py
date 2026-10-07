@@ -336,7 +336,8 @@ class CyrusApiContractTests(unittest.TestCase):
         with server.runtime["lock"]:
             server.runtime["tasks"]["CYRUS-APPROVE"] = {"status": "AWAITING_APPROVAL"}
             server.runtime["approval_events"]["CYRUS-APPROVE"] = approval_event
-        response = self.client.post("/api/tasks/CYRUS-APPROVE/approve")
+        with patch.object(server, "persist_task"):
+            response = self.client.post("/api/tasks/CYRUS-APPROVE/approve")
         self.assertEqual(response.status_code, 202)
         self.assertTrue(approval_event.is_set())
         self.assertIn("approval_requested_at", server.runtime["tasks"]["CYRUS-APPROVE"])
