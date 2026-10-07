@@ -412,12 +412,22 @@ def metrics():
 
 @app.get("/api/tasks")
 def tasks():
+    try:
+        limit = max(1, min(int(request.args.get("limit", "50")), 100))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
+    status = request.args.get("status", "").strip().upper()
+    if status and status not in {"RUNNING", "AWAITING_APPROVAL", "COMPLETED", "FAILED", "CANCELLED"}:
+        return jsonify({"error": "Unsupported task status filter"}), 400
     live = list(runtime["tasks"].values())
     history = load_history()
     merged = {item["task_id"]: item for item in history}
     for task in live:
         merged[task["task_id"]] = task_summary(task)
-    return jsonify(sorted(merged.values(), key=lambda x: x.get("created_at", ""), reverse=True))
+    results = sorted(merged.values(), key=lambda x: x.get("created_at", ""), reverse=True)
+    if status:
+        results = [item for item in results if item.get("status") == status]
+    return jsonify(results[:limit])
 
 @app.post("/api/tasks/<task_id>/approve")
 def approve_task(task_id):
