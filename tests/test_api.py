@@ -89,6 +89,33 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertTrue(payload["task_id"].startswith("CYRUS-"))
         self.assertEqual(payload["mode"], "autonomous")
 
+    def test_task_listing_supports_status_and_limit_filters(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-ONE"] = {
+                "task_id": "CYRUS-ONE", "created_at": "2026-10-07T00:00:00Z",
+                "status": "COMPLETED", "objective": "done", "mode": "autonomous"
+            }
+            server.runtime["tasks"]["CYRUS-TWO"] = {
+                "task_id": "CYRUS-TWO", "created_at": "2026-10-07T00:01:00Z",
+                "status": "FAILED", "objective": "failed", "mode": "autonomous"
+            }
+        filtered = self.client.get("/api/tasks?status=FAILED&limit=1")
+        self.assertEqual(filtered.status_code, 200)
+        rows = filtered.get_json()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["status"], "FAILED")
+
+    def test_task_listing_rejects_invalid_filters(self):
+        bad_limit = self.client.get("/api/tasks?limit=nope")
+        bad_status = self.client.get("/api/tasks?status=UNKNOWN")
+        self.assertEqual(bad_limit.status_code, 400)
+        self.assertEqual(bad_status.status_code, 400)
+
+    def test_execute_requires_json_content_type(self):
+        response = self.client.post("/api/execute", data="prompt=x")
+        self.assertEqual(response.status_code, 415)
+        self.assertIn("application/json", response.get_json()["error"])
+
     def test_execute_rejects_oversized_objective(self):
         response = self.client.post(
             "/api/execute",
