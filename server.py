@@ -12,6 +12,7 @@ import uuid
 import random
 import re
 import tempfile
+from collections import deque
 
 BASE_DIR = Path(__file__).resolve().parent
 STORE = BASE_DIR / "cyrus_history.json"
@@ -63,6 +64,7 @@ TOOLS = [
 
 MAX_CONCURRENT_TASKS = max(1, min(int(os.getenv("CYRUS_MAX_CONCURRENT_TASKS", "4")), 16))
 MAX_LIVE_TASKS = max(20, min(int(os.getenv("CYRUS_MAX_LIVE_TASKS", "100")), 500))
+MAX_EXECUTIONS_PER_MINUTE = max(1, min(int(os.getenv("CYRUS_EXECUTIONS_PER_MINUTE", "12")), 120))
 history_lock = threading.RLock()
 PROVIDER = get_provider()
 
@@ -74,7 +76,8 @@ runtime = {
     "futures": {},
     "idempotency": {},
     "cancel_events": {},
-    "approval_events": {}
+    "approval_events": {},
+    "rate_limits": {}
 }
 
 class CapacityError(RuntimeError):
@@ -118,6 +121,24 @@ def find_history_by_idempotency(key):
         if item.get("idempotency_key") == key:
             return item
     return None
+
+def rate_limit_execution(remote_addr):
+    key = remote_addr or "unknown"
+    now = time.monotonic()
+    window_start = now - 60
+    with runtime["lock"]:
+        stamps = runtime["rate_limits"].setdefault(key, deque())
+        while stamps and stamps[0] <= window_start:
+            stamps.popleft()
+        if len(stamps) >= MAX_EXECUTIONS_PER_MINUTE:
+            retry_after = max(1, int(stamps[0] + 60 - now))
+            return False, retry_after
+        stamps.append(now)
+        if len(runtime["rate_limits"]) > 1000:
+            stale_keys = [name for name, values in runtime["rate_limits"].items() if not values or values[-1] <= window_start]
+            for name in stale_keys[:100]:
+                runtime["rate_limits"].pop(name, None)
+    return True, 0
 
 def normalize_idempotency_key(raw):
     candidate = str(raw or "").strip()
@@ -540,6 +561,11 @@ def execute():
         return jsonify({"error": f"Prompt exceeds the {MAX_PROMPT_CHARS}-character limit"}), 413
     if not prompt:
         return jsonify({"error": "Prompt is required"}), 400
+    allowed, retry_after = rate_limit_execution(request.remote_addr)
+    if not allowed:
+        limited = jsonify({"error": "Execution submission rate limit exceeded", "retry_after_seconds": retry_after})
+        limited.headers["Retry-After"] = str(retry_after)
+        return limited, 429
     if mode not in {"autonomous", "supervised"}:
         return jsonify({"error": "Mode must be autonomous or supervised"}), 400
     try:
