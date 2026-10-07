@@ -345,7 +345,7 @@ def create_task(prompt, mode, idempotency_key=None):
         "agents": [dict(agent, status="QUEUED") for agent in AGENTS]
     }
     with runtime["lock"]:
-        active = sum(1 for item in runtime["tasks"].values() if item.get("status") == "RUNNING")
+        active = sum(1 for item in runtime["tasks"].values() if item.get("status") in {"RUNNING", "AWAITING_APPROVAL"}
         if active >= MAX_CONCURRENT_TASKS:
             raise CapacityError("CYRUS worker capacity is currently full")
         runtime["tasks"][task_id] = task
