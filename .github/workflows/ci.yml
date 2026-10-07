@@ -31,4 +31,6 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Validate browser JavaScript
-        run: node --check app.js && node --check demo-bridge.js
+        run: |
+          npx --yes esbuild@0.25.11 app.js --loader:.js=jsx --outfile=/tmp/cyrus-app.js
+          node --check demo-bridge.js
