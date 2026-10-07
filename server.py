@@ -1,6 +1,7 @@
 from flask import Flask, g, jsonify, request, send_from_directory
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
+from providers import get_provider
 from pathlib import Path
 import json
 import os
@@ -59,6 +60,7 @@ TOOLS = [
 
 MAX_CONCURRENT_TASKS = max(1, min(int(os.getenv("CYRUS_MAX_CONCURRENT_TASKS", "4")), 16))
 history_lock = threading.RLock()
+PROVIDER = get_provider()
 
 runtime = {
     "started_at": time.time(),
@@ -192,16 +194,7 @@ def artifact(name, language, size, kind):
     return {"name": name, "language": language, "size": size, "type": kind}
 
 def build_demo_plan(prompt):
-    words = [w.strip(".,:;()[]{}") for w in prompt.split() if len(w) > 4]
-    focus = ", ".join(words[:5]) if words else "engineering objective"
-    return [
-        f"Clarify acceptance criteria around {focus}",
-        "Design the service boundary and request flow",
-        "Implement validation, persistence and API behavior",
-        "Create automated verification and failure paths",
-        "Review security, reliability and maintainability",
-        "Prepare a release manifest and delivery summary"
-    ]
+    return PROVIDER.plan(prompt)
 
 def cooperative_wait(task, seconds):
     cancel_event = runtime["cancel_events"].get(task["task_id"])
@@ -282,7 +275,7 @@ def _run_task(task):
         if agent == "PLANNER":
             task["plan"] = build_demo_plan(task["objective"])
         if agent == "RESEARCHER":
-            task["research"] = ["REST contract validation", "JWT boundary review", "SQL persistence pattern", "Automated test strategy"]
+            task["research"] = PROVIDER.research(task["objective"])
         if agent == "TESTER":
             task["tests_passed"] = 18
             task["tests_failed"] = 0
@@ -372,7 +365,14 @@ def assets(name):
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "system": "CYRUS CORE 1.0", "mode": "DEMO" if not os.getenv("OPENAI_API_KEY") else "PROVIDER"})
+    return jsonify({
+        "status": "ok",
+        "system": "CYRUS CORE 1.0",
+        "mode": PROVIDER.mode,
+        "provider": PROVIDER.name,
+        "provider_status": PROVIDER.status,
+        "worker_capacity": MAX_CONCURRENT_TASKS
+    })
 
 @app.get("/api/agents")
 def agents():
