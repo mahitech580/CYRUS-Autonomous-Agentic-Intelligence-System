@@ -51,6 +51,19 @@ class CyrusApiContractTests(unittest.TestCase):
                 server.save_history([{"task_id": "CYRUS-ATOMIC", "status": "COMPLETED"}])
                 self.assertEqual(server.load_history()[0]["task_id"], "CYRUS-ATOMIC")
 
+    def test_provider_contract_is_exposed(self):
+        response = self.client.get("/api/health")
+        payload = response.get_json()
+        self.assertEqual(payload["provider"], server.PROVIDER.name)
+        self.assertEqual(payload["provider_status"], "ready")
+        self.assertEqual(payload["worker_capacity"], server.MAX_CONCURRENT_TASKS)
+
+    def test_provider_generates_deterministic_plan_and_research(self):
+        plan = server.PROVIDER.plan("Build a resilient service")
+        research = server.PROVIDER.research("Build a resilient service")
+        self.assertEqual(len(plan), 6)
+        self.assertGreaterEqual(len(research), 4)
+
     def test_health_contract(self):
         response = self.client.get("/api/health")
         self.assertEqual(response.status_code, 200)
