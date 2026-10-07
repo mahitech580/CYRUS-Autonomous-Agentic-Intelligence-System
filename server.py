@@ -14,6 +14,8 @@ import tempfile
 BASE_DIR = Path(__file__).resolve().parent
 STORE = BASE_DIR / "cyrus_history.json"
 app = Flask(__name__, static_folder=str(BASE_DIR), static_url_path="")
+app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("CYRUS_MAX_REQUEST_BYTES", "16384"))
+MAX_PROMPT_CHARS = max(200, min(int(os.getenv("CYRUS_MAX_PROMPT_CHARS", "4000")), 20000))
 
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
 
@@ -384,6 +386,8 @@ def execute():
     payload = request.get_json(silent=True) or {}
     prompt = str(payload.get("prompt", "")).strip()
     mode = str(payload.get("mode", "autonomous")).lower()
+    if len(prompt) > MAX_PROMPT_CHARS:
+        return jsonify({"error": f"Prompt exceeds the {MAX_PROMPT_CHARS}-character limit"}), 413
     if not prompt:
         return jsonify({"error": "Prompt is required"}), 400
     if mode not in {"autonomous", "supervised"}:
