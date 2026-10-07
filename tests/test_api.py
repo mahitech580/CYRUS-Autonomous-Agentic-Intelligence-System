@@ -16,6 +16,17 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("system", payload)
         self.assertIn("mode", payload)
 
+    def test_request_id_and_security_headers_are_present(self):
+        response = self.client.get("/api/health", headers={"X-Request-ID": "daily-run-12"})
+        self.assertEqual(response.headers["X-Request-ID"], "daily-run-12")
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response.headers["X-Frame-Options"], "DENY")
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+
+    def test_invalid_request_id_is_replaced(self):
+        response = self.client.get("/api/health", headers={"X-Request-ID": "bad id!"})
+        self.assertRegex(response.headers["X-Request-ID"], r"^[0-9a-f]{32}$")
+
     def test_agents_and_tools_are_registered(self):
         agents = self.client.get("/api/agents")
         tools = self.client.get("/api/tools")
