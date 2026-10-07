@@ -9,6 +9,7 @@ import time
 import uuid
 import random
 import re
+import tempfile
 
 BASE_DIR = Path(__file__).resolve().parent
 STORE = BASE_DIR / "cyrus_history.json"
@@ -55,6 +56,8 @@ TOOLS = [
 ]
 
 MAX_CONCURRENT_TASKS = max(1, min(int(os.getenv("CYRUS_MAX_CONCURRENT_TASKS", "4")), 16))
+history_lock = threading.RLock()
+
 runtime = {
     "started_at": time.time(),
     "tasks": {},
@@ -75,15 +78,29 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 def load_history():
-    if not STORE.exists():
-        return []
-    try:
-        return json.loads(STORE.read_text(encoding="utf-8"))
-    except Exception:
-        return []
+    with history_lock:
+        if not STORE.exists():
+            return []
+        try:
+            payload = json.loads(STORE.read_text(encoding="utf-8"))
+            return payload if isinstance(payload, list) else []
+        except (OSError, json.JSONDecodeError, TypeError):
+            return []
 
 def save_history(items):
-    STORE.write_text(json.dumps(items[-100:], indent=2), encoding="utf-8")
+    serialized = json.dumps(items[-100:], indent=2)
+    with history_lock:
+        STORE.parent.mkdir(parents=True, exist_ok=True)
+        fd, temp_name = tempfile.mkstemp(prefix=".cyrus-history-", suffix=".tmp", dir=STORE.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(serialized)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_name, STORE)
+        finally:
+            if os.path.exists(temp_name):
+                os.unlink(temp_name)
 
 def find_history_by_idempotency(key):
     if not key:
@@ -102,7 +119,8 @@ def normalize_idempotency_key(raw):
     return candidate
 
 def persist_task(task):
-    items = load_history()
+    with history_lock:
+        items = load_history()
     snapshot = {
         "task_id": task["task_id"],
         "created_at": task["created_at"],
