@@ -205,6 +205,7 @@ def persist_task(task):
         save_history(items)
 
 def event(task, agent, phase, message, duration_ms):
+    task.setdefault("events", [])
     task.setdefault("event_sequence", 0)
     task["event_sequence"] += 1
     task["events"].append({
