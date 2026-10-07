@@ -228,6 +228,35 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertTrue(second.get_json()["deduplicated"])
         self.assertEqual(first.get_json()["task_id"], second.get_json()["task_id"])
 
+    def test_idempotency_recovers_from_persisted_history_after_restart(self):
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp) / "history.json"
+            historical = {
+                "task_id": "CYRUS-PERSISTED",
+                "created_at": server.now_iso(),
+                "objective": "Persisted execution",
+                "mode": "autonomous",
+                "status": "COMPLETED",
+                "score": 94,
+                "agents": [{"name": "RELEASE", "status": "COMPLETED"}],
+                "idempotency_key": "restart-key",
+            }
+            with patch.object(server, "STORE", target):
+                server.save_history([historical])
+                with server.runtime["lock"]:
+                    server.runtime["tasks"].clear()
+                    server.runtime["idempotency"].clear()
+                response = self.client.post(
+                    "/api/execute",
+                    headers={"Idempotency-Key": "restart-key"},
+                    json={"prompt": "Persisted execution", "mode": "autonomous"},
+                )
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["deduplicated"])
+        self.assertEqual(payload["task_id"], "CYRUS-PERSISTED")
+        self.assertEqual(payload["agents"][0]["name"], "RELEASE")
+
     def test_idempotency_key_cannot_change_objective(self):
         with patch.object(server, "execute_task", lambda task: None):
             self.client.post(
