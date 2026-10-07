@@ -14,7 +14,7 @@ import tempfile
 
 BASE_DIR = Path(__file__).resolve().parent
 STORE = BASE_DIR / "cyrus_history.json"
-app = Flask(__name__, static_folder=str(BASE_DIR), static_url_path="")
+app = Flask(__name__, static_folder=None)
 app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("CYRUS_MAX_REQUEST_BYTES", "16384"))
 MAX_PROMPT_CHARS = max(200, min(int(os.getenv("CYRUS_MAX_PROMPT_CHARS", "4000")), 20000))
 
@@ -149,7 +149,7 @@ def task_summary(task):
 def persist_task(task):
     with history_lock:
         items = load_history()
-    snapshot = {
+        snapshot = {
         "task_id": task["task_id"],
         "created_at": task["created_at"],
         "objective": task["objective"],
@@ -172,10 +172,10 @@ def persist_task(task):
         "latency_ms": task.get("latency_ms", 0),
         "agents": task.get("agents", []),
         "events": task.get("events", [])
-    }
-    items = [item for item in items if item["task_id"] != task["task_id"]]
-    items.append(snapshot)
-    save_history(items)
+        }
+        items = [item for item in items if item["task_id"] != task["task_id"]]
+        items.append(snapshot)
+        save_history(items)
 
 def event(task, agent, phase, message, duration_ms):
     task.setdefault("event_sequence", 0)
@@ -359,8 +359,12 @@ def create_task(prompt, mode, idempotency_key=None):
 def index():
     return send_from_directory(BASE_DIR, "index.html")
 
-@app.get("/assets/<path:name>")
-def assets(name):
+PUBLIC_ASSETS = {"styles.css", "app.js", "demo-bridge.js"}
+
+@app.get("/<path:name>")
+def public_asset(name):
+    if name not in PUBLIC_ASSETS:
+        return jsonify({"error": "Resource not found"}), 404
     return send_from_directory(BASE_DIR, name)
 
 @app.get("/api/health")
