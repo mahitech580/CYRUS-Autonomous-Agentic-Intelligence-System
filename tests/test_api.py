@@ -1,4 +1,6 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import server
@@ -12,6 +14,13 @@ class CyrusApiContractTests(unittest.TestCase):
             server.runtime["idempotency"].clear()
             server.runtime["cancel_events"].clear()
         self.client = server.app.test_client()
+
+    def test_history_persistence_round_trip_is_atomic(self):
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp) / "history.json"
+            with patch.object(server, "STORE", target):
+                server.save_history([{"task_id": "CYRUS-ATOMIC", "status": "COMPLETED"}])
+                self.assertEqual(server.load_history()[0]["task_id"], "CYRUS-ATOMIC")
 
     def test_health_contract(self):
         response = self.client.get("/api/health")
