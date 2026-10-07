@@ -13,6 +13,7 @@ class CyrusApiContractTests(unittest.TestCase):
             server.runtime["futures"].clear()
             server.runtime["idempotency"].clear()
             server.runtime["cancel_events"].clear()
+            server.runtime["rate_limits"].clear()
         self.client = server.app.test_client()
 
     def test_history_persists_trace_and_agent_state(self):
@@ -389,7 +390,8 @@ class CyrusApiContractTests(unittest.TestCase):
         with server.runtime["lock"]:
             server.runtime["tasks"]["CYRUS-CANCEL"] = {"status": "RUNNING"}
             server.runtime["cancel_events"]["CYRUS-CANCEL"] = cancel_event
-        response = self.client.post("/api/tasks/CYRUS-CANCEL/cancel")
+        with patch.object(server, "persist_task"):
+            response = self.client.post("/api/tasks/CYRUS-CANCEL/cancel")
         self.assertEqual(response.status_code, 202)
         self.assertTrue(cancel_event.is_set())
         self.assertEqual(response.get_json()["status"], "CANCELLATION_REQUESTED")
