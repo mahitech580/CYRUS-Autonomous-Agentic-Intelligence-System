@@ -35,10 +35,13 @@ Open `http://127.0.0.1:8000/`.
 - `GET /api/health`
 - `GET /api/agents`
 - `GET /api/tools`
-- `GET /api/tasks`
-- `GET /api/tasks/{id}`
+- `GET /api/tasks` — compact list with optional `limit` and `status` filters
+- `GET /api/tasks/{id}` — full execution record including agent state and trace
+- `POST /api/tasks/{id}/cancel` — cooperative cancellation
+- `POST /api/tasks/{id}/approve` — supervised release approval
 - `GET /api/memory`
-- `POST /api/execute`
+- `GET /api/metrics` — worker capacity, active runs and latency statistics
+- `POST /api/execute` — idempotency-aware execution submission
 
 ### Execute payload
 
@@ -50,6 +53,8 @@ Open `http://127.0.0.1:8000/`.
 ```
 
 Modes: `autonomous` and `supervised`.
+
+Use an `Idempotency-Key` header for retry-safe submissions. Supervised runs pause after REVIEWER and remain in `AWAITING_APPROVAL` until explicitly approved. Request IDs are returned as `X-Request-ID` and execution events contain stable event IDs for trace correlation.
 
 ## Demo mode
 
@@ -65,9 +70,13 @@ The static demo is designed to degrade gracefully: when the backend cannot be re
 
 For the full backend runtime, start Flask locally with `python server.py` and open `http://127.0.0.1:8000/`. The browser bridge only activates when API requests fail, so local backend execution remains the primary runtime.
 
-## Optional provider variables
+## Provider architecture
 
-`OPENAI_API_KEY` can be added to the environment for connecting a future OpenAI-compatible provider layer. The current portfolio build keeps the execution graph provider-independent and deterministic.
+The orchestration engine talks to a small provider adapter in `providers.py`. The shipped provider is deterministic and offline-safe, which keeps the portfolio/demo runtime reproducible. A future OpenAI-compatible provider can implement the same interface without changing the seven-agent execution graph.
+
+## Runtime controls
+
+The server is production-safe by default: development debug mode is disabled unless `CYRUS_DEBUG=1`. Optional controls include `CYRUS_HOST`, `CYRUS_PORT`, `CYRUS_MAX_CONCURRENT_TASKS`, `CYRUS_MAX_REQUEST_BYTES`, and `CYRUS_MAX_PROMPT_CHARS`.
 
 ## UI
 
