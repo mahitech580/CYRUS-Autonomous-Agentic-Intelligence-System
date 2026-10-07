@@ -1,5 +1,6 @@
 from flask import Flask, g, jsonify, request, send_from_directory
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import json
 import os
@@ -53,7 +54,16 @@ TOOLS = [
     {"name": "Artifact Generator", "category": "delivery", "description": "Produces manifests and implementation artifacts.", "route": "artifact.generate"}
 ]
 
-runtime = {"tasks": {}, "lock": threading.Lock()}
+MAX_CONCURRENT_TASKS = max(1, min(int(os.getenv("CYRUS_MAX_CONCURRENT_TASKS", "4")), 16))
+runtime = {
+    "tasks": {},
+    "lock": threading.Lock(),
+    "executor": ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TASKS),
+    "futures": {}
+}
+
+class CapacityError(RuntimeError):
+    pass
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -107,6 +117,21 @@ def build_demo_plan(prompt):
     ]
 
 def execute_task(task):
+    try:
+        _run_task(task)
+    except Exception as exc:
+        with runtime["lock"]:
+            task["status"] = "FAILED"
+            task["current_agent"] = task.get("current_agent", "ORCHESTRATOR")
+            task["failure"] = {"type": type(exc).__name__, "message": str(exc)[:500]}
+            task["summary"] = "CYRUS stopped the execution after an internal runtime failure."
+            task["updated_at"] = now_iso()
+            event(task, task["current_agent"], "FAILURE", "Execution failed safely; inspect the failure payload and request id.", 0)
+        persist_task(task)
+    finally:
+        runtime["futures"].pop(task["task_id"], None)
+
+def _run_task(task):
     started = time.perf_counter()
     stages = [
         ("ORCHESTRATOR", "INITIALIZATION", "Execution context established", 168),
@@ -186,8 +211,13 @@ def create_task(prompt, mode):
         "events": [],
         "agents": [dict(agent, status="QUEUED") for agent in AGENTS]
     }
-    runtime["tasks"][task_id] = task
-    threading.Thread(target=execute_task, args=(task,), daemon=True).start()
+    with runtime["lock"]:
+        active = sum(1 for item in runtime["tasks"].values() if item.get("status") == "RUNNING")
+        if active >= MAX_CONCURRENT_TASKS:
+            raise CapacityError("CYRUS worker capacity is currently full")
+        runtime["tasks"][task_id] = task
+    future = runtime["executor"].submit(execute_task, task)
+    runtime["futures"][task_id] = future
     return task
 
 @app.get("/")
@@ -242,7 +272,10 @@ def execute():
         return jsonify({"error": "Prompt is required"}), 400
     if mode not in {"autonomous", "supervised"}:
         return jsonify({"error": "Mode must be autonomous or supervised"}), 400
-    task = create_task(prompt, mode)
+    try:
+        task = create_task(prompt, mode)
+    except CapacityError as exc:
+        return jsonify({"error": str(exc)}), 429
     return jsonify({
         "task_id": task["task_id"],
         "status": task["status"],
