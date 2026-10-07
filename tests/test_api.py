@@ -393,7 +393,7 @@ class CyrusApiContractTests(unittest.TestCase):
     def test_cancel_running_task_sets_cooperative_event(self):
         cancel_event = __import__("threading").Event()
         with server.runtime["lock"]:
-            server.runtime["tasks"]["CYRUS-CANCEL"] = {"status": "RUNNING"}
+            server.runtime["tasks"]["CYRUS-CANCEL"] = {"task_id": "CYRUS-CANCEL", "status": "RUNNING"}
             server.runtime["cancel_events"]["CYRUS-CANCEL"] = cancel_event
         with patch.object(server, "persist_task"):
             response = self.client.post("/api/tasks/CYRUS-CANCEL/cancel")
