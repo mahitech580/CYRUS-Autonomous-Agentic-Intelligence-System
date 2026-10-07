@@ -134,6 +134,7 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
         self.assertEqual(response.headers["X-Frame-Options"], "DENY")
         self.assertEqual(response.headers["Cache-Control"], "no-store")
+        self.assertRegex(response.headers["X-Response-Time-Ms"], r"^\d+(\.\d+)?$")
 
     def test_invalid_request_id_is_replaced(self):
         response = self.client.get("/api/health", headers={"X-Request-ID": "bad id!"})
