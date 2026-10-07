@@ -564,10 +564,30 @@ def execute():
                         "status": history_task["status"],
                         "summary": "Existing persisted execution returned for duplicate request.",
                         "mode": history_task["mode"],
-                        "agents": [],
+                        "agents": history_task.get("agents", []),
                         "deduplicated": True
                     }), 200
                 return jsonify({"error": "Execution with this Idempotency-Key is already being created"}), 409
+            history_task = find_history_by_idempotency(idempotency_key)
+            if history_task:
+                historical_fingerprint = {
+                    "prompt": history_task.get("objective", ""),
+                    "mode": history_task.get("mode", "autonomous"),
+                }
+                if historical_fingerprint != fingerprint:
+                    return jsonify({"error": "Idempotency-Key was already used for a different objective"}), 409
+                runtime["idempotency"][idempotency_key] = {
+                    "fingerprint": fingerprint,
+                    "task_id": history_task["task_id"]
+                }
+                return jsonify({
+                    "task_id": history_task["task_id"],
+                    "status": history_task.get("status", "COMPLETED"),
+                    "summary": "Existing persisted execution returned for duplicate request.",
+                    "mode": history_task.get("mode", "autonomous"),
+                    "agents": history_task.get("agents", []),
+                    "deduplicated": True
+                }), 200
             runtime["idempotency"][idempotency_key] = {"fingerprint": fingerprint, "task_id": None}
     try:
         task = create_task(prompt, mode, idempotency_key=idempotency_key)
