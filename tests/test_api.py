@@ -302,6 +302,7 @@ class CyrusApiContractTests(unittest.TestCase):
         response = self.client.post("/api/tasks/CYRUS-APPROVE/approve")
         self.assertEqual(response.status_code, 202)
         self.assertTrue(approval_event.is_set())
+        self.assertIn("approval_requested_at", server.runtime["tasks"]["CYRUS-APPROVE"])
 
     def test_approval_is_rejected_when_not_pending(self):
         with server.runtime["lock"]:
@@ -356,6 +357,9 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 202)
         self.assertTrue(cancel_event.is_set())
         self.assertEqual(response.get_json()["status"], "CANCELLATION_REQUESTED")
+        with server.runtime["lock"]:
+            self.assertTrue(server.runtime["tasks"]["CYRUS-CANCEL"]["cancel_requested"])
+            self.assertEqual(server.runtime["tasks"]["CYRUS-CANCEL"]["events"][-1]["phase"], "CANCEL_REQUESTED")
 
     def test_cancel_non_running_task_is_rejected(self):
         with server.runtime["lock"]:
