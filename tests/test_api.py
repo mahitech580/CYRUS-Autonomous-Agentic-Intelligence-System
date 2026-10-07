@@ -172,33 +172,43 @@ class CyrusApiContractTests(unittest.TestCase):
         response = self.client.post("/api/tasks/CYRUS-NOAPPROVE/approve")
         self.assertEqual(response.status_code, 409)
 
-    def test_supervised_execution_resumes_after_approval(self):
+    def test_supervised_execution_hits_approval_checkpoint_and_releases(self):
         task = {
             "task_id": "CYRUS-SUPERVISED",
-            "status": "RUNNING",
-            "current_agent": "REVIEWER",
-            "mode": "supervised",
-            "agents": [{"id": 1, "name": "RELEASE", "status": "QUEUED"}],
-            "events": [],
-            "tool_calls": 0,
             "created_at": server.now_iso(),
             "updated_at": server.now_iso(),
-            "quality": 94,
-            "coverage": 92,
-            "confidence": 91,
-            "risk": "MEDIUM",
+            "objective": "Verify supervised release gate",
+            "mode": "supervised",
+            "status": "RUNNING",
+            "current_agent": "ORCHESTRATOR",
+            "plan": [],
+            "research": [],
+            "tool_calls": 0,
             "artifacts": [],
+            "tests_passed": 0,
+            "tests_failed": 0,
+            "coverage": 0,
+            "quality": 0,
+            "risk": "MEDIUM",
+            "confidence": 0,
+            "score": 0,
+            "latency_ms": 0,
+            "execution_time_ms": 0,
+            "summary": "",
+            "events": [],
+            "agents": [dict(agent, status="QUEUED") for agent in server.AGENTS],
         }
         with server.runtime["lock"]:
             server.runtime["approval_events"][task["task_id"]] = __import__("threading").Event()
             server.runtime["cancel_events"][task["task_id"]] = __import__("threading").Event()
-        with patch.object(server, "persist_task"):
-            with patch.object(server, "wait_for_supervised_approval", lambda value: None):
-                with patch.object(server, "cooperative_wait", lambda value, seconds: None):
-                    server._run_task = lambda value: value.update({"status": "COMPLETED"})
-                    # Route-level approval behavior is tested separately; this asserts the control
-                    # objects are available for a supervised task without starting a real worker.
-                    self.assertEqual(task["mode"], "supervised")
+        with patch.object(server, "persist_task"), patch.object(server, "cooperative_wait", lambda value, seconds: None), patch.object(
+            server, "wait_for_supervised_approval", lambda value: None
+        ):
+            server._run_task(task)
+        self.assertEqual(task["status"], "COMPLETED")
+        self.assertFalse(task["approval_required"])
+        self.assertTrue(any(event["phase"] == "APPROVED" for event in task["events"]))
+        self.assertEqual(task["current_agent"], "RELEASE")
 
     def test_cancel_running_task_sets_cooperative_event(self):
         cancel_event = __import__("threading").Event()
@@ -244,6 +254,14 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(task["status"], "FAILED")
         self.assertEqual(task["failure"]["type"], "RuntimeError")
         self.assertIn("internal runtime failure", task["summary"])
+
+    def test_event_telemetry_has_stable_ids_and_timestamps(self):
+        task = {"task_id": "CYRUS-EVENTS", "events": []}
+        server.event(task, "TESTER", "VALIDATION", "Synthetic event", 15)
+        event = task["events"][0]
+        self.assertEqual(event["event_id"], "CYRUS-EVENTS-E001")
+        self.assertRegex(event["timestamp"], r"^\\d{4}-\\d{2}-\\d{2}T")
+        self.assertEqual(event["duration"], 15)
 
     def test_missing_task_is_explicit(self):
         response = self.client.get("/api/tasks/CYRUS-MISSING")
