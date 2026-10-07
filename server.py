@@ -370,13 +370,22 @@ def public_asset(name):
 
 @app.get("/api/health")
 def health():
+    with runtime["lock"]:
+        active = sum(
+            1 for task in runtime["tasks"].values()
+            if task.get("status") in {"RUNNING", "AWAITING_APPROVAL"}
+        )
+    utilization = round(active / MAX_CONCURRENT_TASKS, 3)
     return jsonify({
         "status": "ok",
         "system": "CYRUS CORE 1.0",
         "mode": PROVIDER.mode,
         "provider": PROVIDER.name,
         "provider_status": PROVIDER.status,
-        "worker_capacity": MAX_CONCURRENT_TASKS
+        "worker_capacity": MAX_CONCURRENT_TASKS,
+        "active_tasks": active,
+        "capacity_utilization": utilization,
+        "ready": active < MAX_CONCURRENT_TASKS
     })
 
 @app.get("/api/agents")
