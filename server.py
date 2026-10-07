@@ -143,7 +143,17 @@ def persist_task(task):
     save_history(items)
 
 def event(task, agent, phase, message, duration_ms):
-    task["events"].append({"time": datetime.now().strftime("%H:%M:%S"), "agent": agent, "phase": phase, "message": message, "duration": duration_ms})
+    task.setdefault("event_sequence", 0)
+    task["event_sequence"] += 1
+    task["events"].append({
+        "event_id": f"{task['task_id']}-E{task['event_sequence']:03d}",
+        "timestamp": now_iso(),
+        "time": datetime.now().strftime("%H:%M:%S"),
+        "agent": agent,
+        "phase": phase,
+        "message": message,
+        "duration": max(0, int(duration_ms))
+    })
 
 def artifact(name, language, size, kind):
     return {"name": name, "language": language, "size": size, "type": kind}
@@ -226,8 +236,11 @@ def _run_task(task):
             for item in task["agents"]:
                 item["status"] = "RUNNING" if item["name"] == agent else ("COMPLETED" if item["id"] < index + 1 else "QUEUED")
             task["updated_at"] = now_iso()
+        stage_started = time.perf_counter()
         event(task, agent, phase, message, duration_ms)
         cooperative_wait(task, duration_ms / 1000)
+        observed_duration = int((time.perf_counter() - stage_started) * 1000)
+        task["events"][-1]["duration"] = observed_duration
         with runtime["lock"]:
             for item in task["agents"]:
                 if item["name"] == agent:
