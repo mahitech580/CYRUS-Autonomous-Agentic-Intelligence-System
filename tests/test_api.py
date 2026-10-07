@@ -60,6 +60,14 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertTrue(payload["task_id"].startswith("CYRUS-"))
         self.assertEqual(payload["mode"], "autonomous")
 
+    def test_execute_rejects_oversized_objective(self):
+        response = self.client.post(
+            "/api/execute",
+            json={"prompt": "x" * (server.MAX_PROMPT_CHARS + 1), "mode": "autonomous"},
+        )
+        self.assertEqual(response.status_code, 413)
+        self.assertIn("character limit", response.get_json()["error"])
+
     def test_execute_rejects_invalid_input(self):
         empty = self.client.post("/api/execute", json={"prompt": " "})
         invalid_mode = self.client.post(
