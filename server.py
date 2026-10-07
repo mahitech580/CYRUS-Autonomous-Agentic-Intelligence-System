@@ -61,10 +61,14 @@ runtime = {
     "lock": threading.Lock(),
     "executor": ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TASKS),
     "futures": {},
-    "idempotency": {}
+    "idempotency": {},
+    "cancel_events": {}
 }
 
 class CapacityError(RuntimeError):
+    pass
+
+class TaskCancelled(RuntimeError):
     pass
 
 def now_iso():
@@ -135,9 +139,30 @@ def build_demo_plan(prompt):
         "Prepare a release manifest and delivery summary"
     ]
 
+def cooperative_wait(task, seconds):
+    cancel_event = runtime["cancel_events"].get(task["task_id"])
+    if cancel_event is None:
+        cancel_event = threading.Event()
+    deadline = time.monotonic() + seconds
+    while True:
+        if cancel_event.is_set():
+            raise TaskCancelled("Task cancellation requested")
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        cancel_event.wait(timeout=min(0.1, remaining))
+
 def execute_task(task):
     try:
         _run_task(task)
+    except TaskCancelled as exc:
+        with runtime["lock"]:
+            task["status"] = "CANCELLED"
+            task["failure"] = {"type": type(exc).__name__, "message": str(exc)}
+            task["summary"] = "CYRUS cancelled the execution at the next safe cooperative checkpoint."
+            task["updated_at"] = now_iso()
+            event(task, task.get("current_agent", "ORCHESTRATOR"), "CANCELLED", "Execution stopped by operator request.", 0)
+        persist_task(task)
     except Exception as exc:
         with runtime["lock"]:
             task["status"] = "FAILED"
@@ -149,6 +174,7 @@ def execute_task(task):
         persist_task(task)
     finally:
         runtime["futures"].pop(task["task_id"], None)
+        runtime["cancel_events"].pop(task["task_id"], None)
 
 def _run_task(task):
     started = time.perf_counter()
@@ -168,7 +194,7 @@ def _run_task(task):
                 item["status"] = "RUNNING" if item["name"] == agent else ("COMPLETED" if item["id"] < index + 1 else "QUEUED")
             task["updated_at"] = now_iso()
         event(task, agent, phase, message, duration_ms)
-        time.sleep(duration_ms / 1000)
+        cooperative_wait(task, duration_ms / 1000)
         with runtime["lock"]:
             for item in task["agents"]:
                 if item["name"] == agent:
@@ -236,6 +262,7 @@ def create_task(prompt, mode, idempotency_key=None):
         if active >= MAX_CONCURRENT_TASKS:
             raise CapacityError("CYRUS worker capacity is currently full")
         runtime["tasks"][task_id] = task
+        runtime["cancel_events"][task_id] = threading.Event()
     future = runtime["executor"].submit(execute_task, task)
     runtime["futures"][task_id] = future
     return task
@@ -296,6 +323,29 @@ def tasks():
     for task in live:
         merged[task["task_id"]] = task
     return jsonify(sorted(merged.values(), key=lambda x: x.get("created_at", ""), reverse=True))
+
+@app.post("/api/tasks/<task_id>/cancel")
+def cancel_task(task_id):
+    with runtime["lock"]:
+        task = runtime["tasks"].get(task_id)
+        if not task:
+            return jsonify({"error": "Task not found"}), 404
+        if task.get("status") != "RUNNING":
+            return jsonify({
+                "error": "Only running tasks can be cancelled",
+                "status": task.get("status")
+            }), 409
+        cancel_event = runtime["cancel_events"].get(task_id)
+        if cancel_event is None:
+            return jsonify({"error": "Cancellation control is unavailable"}), 503
+        task["cancel_requested"] = True
+        task["updated_at"] = now_iso()
+        cancel_event.set()
+    return jsonify({
+        "task_id": task_id,
+        "status": "CANCELLATION_REQUESTED",
+        "summary": "CYRUS will stop at the next safe execution checkpoint."
+    }), 202
 
 @app.get("/api/tasks/<task_id>")
 def task_detail(task_id):

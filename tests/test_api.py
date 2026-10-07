@@ -10,6 +10,7 @@ class CyrusApiContractTests(unittest.TestCase):
             server.runtime["tasks"].clear()
             server.runtime["futures"].clear()
             server.runtime["idempotency"].clear()
+            server.runtime["cancel_events"].clear()
         self.client = server.app.test_client()
 
     def test_health_contract(self):
@@ -109,6 +110,36 @@ class CyrusApiContractTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 429)
         self.assertIn("capacity", response.get_json()["error"].lower())
+
+    def test_cancel_running_task_sets_cooperative_event(self):
+        cancel_event = __import__("threading").Event()
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-CANCEL"] = {"status": "RUNNING"}
+            server.runtime["cancel_events"]["CYRUS-CANCEL"] = cancel_event
+        response = self.client.post("/api/tasks/CYRUS-CANCEL/cancel")
+        self.assertEqual(response.status_code, 202)
+        self.assertTrue(cancel_event.is_set())
+        self.assertEqual(response.get_json()["status"], "CANCELLATION_REQUESTED")
+
+    def test_cancel_non_running_task_is_rejected(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-DONE"] = {"status": "COMPLETED"}
+        response = self.client.post("/api/tasks/CYRUS-DONE/cancel")
+        self.assertEqual(response.status_code, 409)
+
+    def test_worker_cancellation_marks_task_cancelled(self):
+        task = {
+            "task_id": "CYRUS-CANCELTEST",
+            "status": "RUNNING",
+            "current_agent": "CODER",
+            "events": [],
+            "updated_at": "",
+        }
+        with patch.object(server, "_run_task", side_effect=server.TaskCancelled("operator stop")):
+            with patch.object(server, "persist_task"):
+                server.execute_task(task)
+        self.assertEqual(task["status"], "CANCELLED")
+        self.assertIn("cancelled", task["summary"].lower())
 
     def test_worker_failure_marks_task_failed(self):
         task = {
