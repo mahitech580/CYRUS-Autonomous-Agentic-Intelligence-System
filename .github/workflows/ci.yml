@@ -35,3 +35,4 @@ jobs:
           npx --yes esbuild@0.25.11 app.js --loader:.js=jsx --outfile=/tmp/cyrus-app.js
           node --check demo-bridge.js
           node tests/test_demo_bridge.js
+          node tests/test_deployment.js
