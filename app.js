@@ -1,5 +1,29 @@
 const {useEffect,useMemo,useState}=React
 
+const API_TIMEOUT_MS = 6500
+
+async function apiJson(path, options={}){
+  const method=(options.method||'GET').toUpperCase()
+  const attempts=method==='GET'?2:1
+  let lastError
+  for(let attempt=0;attempt<attempts;attempt++){
+    const controller=new AbortController()
+    const timer=setTimeout(()=>controller.abort(),API_TIMEOUT_MS)
+    try{
+      const res=await fetch(path,{...options,signal:controller.signal})
+      const data=await res.json().catch(()=>({}))
+      if(!res.ok) throw new Error(data.error||'CYRUS request failed')
+      return data
+    }catch(error){
+      lastError=error
+      if(attempt<attempts-1) await new Promise(resolve=>setTimeout(resolve,180))
+    }finally{
+      clearTimeout(timer)
+    }
+  }
+  throw lastError||new Error('CYRUS request failed')
+}
+
 const seedObjective='Build a production-ready REST API for task management with JWT authentication, PostgreSQL persistence, request validation, structured error handling, logging, and automated tests.'
 
 function App(){
@@ -13,13 +37,29 @@ function App(){
   const [busy,setBusy]=useState(false)
   const [toast,setToast]=useState('')
   const [selectedTask,setSelectedTask]=useState(null)
+  const [runtimeState,setRuntimeState]=useState('CONNECTING')
 
   const notify=(message)=>{setToast(message);setTimeout(()=>setToast(''),2400)}
   const loadBase=async()=>{
-    const [a,t,h]=await Promise.all([fetch('/api/agents'),fetch('/api/tools'),fetch('/api/tasks')])
-    setAgents(await a.json());setTools(await t.json());setTasks(await h.json())
+    try{
+      const [health,a,t,h]=await Promise.all([
+        apiJson('/api/health'),
+        apiJson('/api/agents'),
+        apiJson('/api/tools'),
+        apiJson('/api/tasks')
+      ])
+      setRuntimeState(health.runtime==='browser-fallback'?'DEMO':'ONLINE')
+      setAgents(a);setTools(t);setTasks(h)
+    }catch(error){
+      setRuntimeState('OFFLINE')
+      notify('CYRUS runtime is unreachable')
+    }
   }
-  const loadTask=async id=>{const res=await fetch('/api/tasks/'+id);const data=await res.json();setTask(data);return data}
+  const loadTask=async id=>{
+    const data=await apiJson('/api/tasks/'+id)
+    setTask(data)
+    return data
+  }
   useEffect(()=>{loadBase()},[])
   useEffect(()=>{
     if(!task?.task_id)return
@@ -33,9 +73,13 @@ function App(){
     const objective=(prompt||seedObjective).trim()
     if(!objective)return notify('Enter an engineering objective first')
     setBusy(true);setPrompt(objective)
-    const res=await fetch('/api/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:objective,mode})})
-    const data=await res.json()
-    if(!res.ok){setBusy(false);return notify(data.error||'Execution failed')}
+    let data
+    try{
+      data=await apiJson('/api/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:objective,mode})})
+    }catch(error){
+      setBusy(false)
+      return notify(error.message||'Execution failed')
+    }
     await loadTask(data.task_id);notify('Objective accepted by CYRUS runtime')
   }
   useEffect(()=>{
@@ -55,7 +99,7 @@ function App(){
       <div className="side-foot">CYRUS CORE 1.0<br/>FASTAPI SIGNAL BRIDGE<br/>LOCAL EXECUTION NODE</div>
     </aside>
     <main className="main">
-      <div className="topbar"><div className="eyebrow">AUTONOMOUS ENGINEERING WORKSPACE</div><div className="live-pill"><span className="dot"/> SYSTEM ONLINE · {busy?'RUNNING':'READY'}</div></div>
+      <div className="topbar"><div className="eyebrow">AUTONOMOUS ENGINEERING WORKSPACE</div><div className="live-pill"><span className="dot"/> {runtimeState} · {busy?'RUNNING':'READY'}</div></div>
       {page==='Command'&&<CommandView {...{prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents,metrics,seedObjective,notify}}/>}
       {page==='Agents'&&<AgentsView agents={agents}/>} 
       {page==='Memory'&&<MemoryView tasks={tasks} open={setSelectedTask}/>} 
