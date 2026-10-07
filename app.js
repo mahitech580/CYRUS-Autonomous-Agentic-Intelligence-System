@@ -38,6 +38,7 @@ function App(){
   const [toast,setToast]=useState('')
   const [selectedTask,setSelectedTask]=useState(null)
   const [runtimeState,setRuntimeState]=useState('CONNECTING')
+  const [runtimeMetrics,setRuntimeMetrics]=useState(null)
 
   const notify=(message)=>{setToast(message);setTimeout(()=>setToast(''),2400)}
   const loadBase=async()=>{
@@ -46,10 +47,11 @@ function App(){
         apiJson('/api/health'),
         apiJson('/api/agents'),
         apiJson('/api/tools'),
-        apiJson('/api/tasks')
+        apiJson('/api/tasks'),
+        apiJson('/api/metrics')
       ])
       setRuntimeState(health.runtime==='browser-fallback'?'DEMO':'ONLINE')
-      setAgents(a);setTools(t);setTasks(h)
+      setAgents(a);setTools(t);setTasks(h);setRuntimeMetrics(healthMetrics)
     }catch(error){
       setRuntimeState('OFFLINE')
       notify('CYRUS runtime is unreachable')
@@ -65,7 +67,8 @@ function App(){
     if(!task?.task_id)return
     const timer=setInterval(async()=>{
       const data=await loadTask(task.task_id)
-      if(data.status==='COMPLETED'){setBusy(false);clearInterval(timer);loadBase()}
+      if(['COMPLETED','FAILED','CANCELLED'].includes(data.status)){setBusy(false);clearInterval(timer);loadBase()}
+      if(data.status==='AWAITING_APPROVAL'){setBusy(false);clearInterval(timer);loadBase()}
     },650)
     return()=>clearInterval(timer)
   },[task?.task_id])
@@ -75,13 +78,35 @@ function App(){
     setBusy(true);setPrompt(objective)
     let data
     try{
-      data=await apiJson('/api/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:objective,mode})})
+      const idempotencyKey=(globalThis.crypto?.randomUUID?.()||('ui-'+Date.now()+'-'+Math.random().toString(36).slice(2))).slice(0,100)
+      data=await apiJson('/api/execute',{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':idempotencyKey},body:JSON.stringify({prompt:objective,mode})})
     }catch(error){
       setBusy(false)
       return notify(error.message||'Execution failed')
     }
     await loadTask(data.task_id);notify('Objective accepted by CYRUS runtime')
   }
+  const approveTask=async()=>{
+    if(!task?.task_id)return
+    try{
+      await apiJson('/api/tasks/'+task.task_id+'/approve',{method:'POST'})
+      notify('Release approval granted')
+      setBusy(true)
+      await loadTask(task.task_id)
+    }catch(error){notify(error.message||'Approval failed')}
+  }
+  const cancelTask=async()=>{
+    if(!task?.task_id)return
+    try{
+      await apiJson('/api/tasks/'+task.task_id+'/cancel',{method:'POST'})
+      notify('Cancellation requested')
+      await loadTask(task.task_id)
+    }catch(error){notify(error.message||'Cancellation failed')}
+  }
+  const openTask=async id=>{
+    try{setSelectedTask(await loadTask(id))}catch(error){notify(error.message||'Unable to open execution')}
+  }
+
   useEffect(()=>{
     const onKey=e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();execute()}}
     window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)
@@ -100,24 +125,24 @@ function App(){
     </aside>
     <main className="main">
       <div className="topbar"><div className="eyebrow">AUTONOMOUS ENGINEERING WORKSPACE</div><div className="live-pill"><span className="dot"/> {runtimeState} · {busy?'RUNNING':'READY'}</div></div>
-      {page==='Command'&&<CommandView {...{prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents,metrics,seedObjective,notify}}/>}
+      {page==='Command'&&<CommandView {...{prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents,metrics,seedObjective,notify,approveTask,cancelTask,runtimeState,runtimeMetrics}}/>}
       {page==='Agents'&&<AgentsView agents={agents}/>} 
-      {page==='Memory'&&<MemoryView tasks={tasks} open={setSelectedTask}/>} 
+      {page==='Memory'&&<MemoryView tasks={tasks} open={openTask}/>} 
       {page==='Tools'&&<ToolsView tools={tools}/>} 
-      {page==='History'&&<HistoryView tasks={tasks} open={setSelectedTask}/>} 
+      {page==='History'&&<HistoryView tasks={tasks} open={openTask}/>} 
     </main>
     {selectedTask&&<TaskModal task={selectedTask} close={()=>setSelectedTask(null)}/>} 
     {toast&&<div className="toast">{toast}</div>}
   </div>
 }
 
-function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents,metrics,seedObjective,notify}){
+function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents,metrics,seedObjective,notify,approveTask,cancelTask,runtimeState,runtimeMetrics}){
   return <div className="view">
     <section className="hero"><div className="hero-panel"><div className="eyebrow">EXECUTION / 01</div><h1>Command Center</h1><p>Turn an engineering objective into a coordinated seven-stage execution. CYRUS plans, researches, builds, validates, reviews and releases through one observable runtime.</p><div className="hero-actions"><button className="ghost" onClick={()=>{setPrompt(seedObjective);notify('Production API objective loaded')}}>LOAD EXAMPLE</button><button className="ghost" onClick={()=>setPrompt('')}>CLEAR</button></div></div><div className="signal-card hero-panel"><div><div className="signal-label">RELEASE SIGNAL</div><div className="signal">{task?.status==='COMPLETED'?'READY':'STANDBY'}</div></div><div className="signal-meta">{task?task.summary:'No execution has been submitted.'}</div></div></section>
-    <section className="panel command"><div className="section-title"><strong>DEFINE ENGINEERING OBJECTIVE</strong><span>CTRL + ENTER</span></div><div className="objective-wrap"><textarea className="objective" value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Build a production-ready REST API for task management with JWT authentication, PostgreSQL persistence, validation, and automated tests..."/><div className="shortcut">CTRL + ENTER</div></div><div className="command-bar"><div className="modes"><button className={mode==='autonomous'?'active':''} onClick={()=>setMode('autonomous')}>AUTONOMOUS</button><button className={mode==='supervised'?'active':''} onClick={()=>setMode('supervised')}>SUPERVISED</button></div><button className="execute" disabled={busy} onClick={execute}>{busy?<><span className="spinner"/>RUNNING GRAPH</>:`EXECUTE OBJECTIVE ↗`}</button></div></section>
+    <section className="panel command"><div className="section-title"><strong>DEFINE ENGINEERING OBJECTIVE</strong><span>CTRL + ENTER</span></div><div className="objective-wrap"><textarea className="objective" value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Build a production-ready REST API for task management with JWT authentication, PostgreSQL persistence, validation, and automated tests..."/><div className="shortcut">CTRL + ENTER</div></div><div className="command-bar"><div className="modes"><button className={mode==='autonomous'?'active':''} onClick={()=>setMode('autonomous')}>AUTONOMOUS</button><button className={mode==='supervised'?'active':''} onClick={()=>setMode('supervised')}>SUPERVISED</button></div><div className="control-actions">{task?.status==='AWAITING_APPROVAL'&&<button className="approve" onClick={approveTask}>APPROVE RELEASE</button>}{busy&&task?.status==='RUNNING'&&<button className="cancel" onClick={cancelTask}>STOP RUN</button>}<button className="execute" disabled={busy} onClick={execute}>{busy?<><span className="spinner"/>RUNNING GRAPH</>:`EXECUTE OBJECTIVE ↗`}</button></div></div></section>
     <div className="metrics">{metrics.map(([label,value])=><div className="metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
     <section className="content-grid"><div className="panel"><div className="panel-head"><strong>LIVE AGENT GRAPH</strong><span>7 STAGES / SERIAL TRANSITION</span></div><div className="graph">{currentAgents.map(a=><div className={'agent-node '+(a.status==='RUNNING'?'running':'')+' '+(a.status==='COMPLETED'?'done':'')} key={a.name}><div className="agent-top"><span>0{a.id}</span><span>{a.type?.toUpperCase()}</span></div><h3>{a.name}</h3><div className="agent-role">{a.role}</div><div className={'status '+a.status}>{a.status}</div></div>)}</div></div><div className="panel"><div className="panel-head"><strong>ARTIFACT EXPLORER</strong><span>GENERATED OUTPUT</span></div>{task?.artifacts?.length?<div className="artifacts">{task.artifacts.map(x=><div className="artifact" key={x.name}><div className="artifact-main"><div className="file-icon">{x.language.slice(0,2).toUpperCase()}</div><div><strong>{x.name}</strong><small>{x.language} · {x.type}</small></div></div><small>{x.size}</small></div>)}</div>:<div className="empty">No artifacts generated.</div>}</div></section>
-    <section className="panel"><div className="panel-head"><strong>EXECUTION TRACE</strong><span>{task?.events?.length||0} EVENTS</span></div>{task?.events?.length?<div className="trace">{task.events.map((e,i)=><div className="trace-row" key={i}><span className="time mono">{e.time}</span><span className="agent mono">{e.agent}</span><span className="phase mono">{e.phase}</span><span className="msg">{e.message}</span><span className="dur mono">{e.duration} ms</span></div>)}</div>:<div className="empty">Execution trace is waiting for a command.</div>}</section>
+    <section className="panel"><div className="panel-head"><strong>EXECUTION TRACE</strong><span>{task?.events?.length||0} EVENTS · {runtimeMetrics?.active_tasks||0}/{runtimeMetrics?.capacity||0} ACTIVE</span></div>{task?.events?.length?<div className="trace">{task.events.map((e,i)=><div className="trace-row" key={i}><span className="time mono">{e.time}</span><span className="agent mono">{e.agent}</span><span className="phase mono">{e.phase}</span><span className="msg">{e.message}</span><span className="dur mono">{e.duration} ms</span></div>)}</div>:<div className="empty">Execution trace is waiting for a command.</div>}</section>
   </div>
 }
 
