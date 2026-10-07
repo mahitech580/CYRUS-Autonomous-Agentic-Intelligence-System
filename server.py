@@ -39,6 +39,8 @@ def apply_response_hardening(response):
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     if request.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
+    elif request.path in {"/styles.css", "/app.js", "/demo-bridge.js"}:
+        response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=86400"
     return response
 
 AGENTS = [
@@ -432,6 +434,22 @@ def health():
         "capacity_utilization": utilization,
         "ready": active < MAX_CONCURRENT_TASKS
     })
+
+@app.get("/api/ready")
+def readiness():
+    with runtime["lock"]:
+        active = sum(
+            1 for task in runtime["tasks"].values()
+            if task.get("status") in {"RUNNING", "AWAITING_APPROVAL"}
+        )
+    ready = active < MAX_CONCURRENT_TASKS
+    payload = {
+        "ready": ready,
+        "active_tasks": active,
+        "worker_capacity": MAX_CONCURRENT_TASKS,
+        "provider": PROVIDER.name,
+    }
+    return jsonify(payload), 200 if ready else 503
 
 @app.get("/api/agents")
 def agents():
