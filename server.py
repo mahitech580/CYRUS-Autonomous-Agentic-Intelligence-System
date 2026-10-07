@@ -559,4 +559,7 @@ def handle_error(error):
     return jsonify({"error": "CYRUS runtime error", "request_id": getattr(g, "request_id", "-")}), 500
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8000, debug=True)
+    host = os.getenv("CYRUS_HOST", "127.0.0.1")
+    port = int(os.getenv("CYRUS_PORT", "8000"))
+    debug = os.getenv("CYRUS_DEBUG", "0").lower() in {"1", "true", "yes"}
+    app.run(host=host, port=port, debug=debug)
