@@ -59,7 +59,8 @@ runtime = {
     "tasks": {},
     "lock": threading.Lock(),
     "executor": ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TASKS),
-    "futures": {}
+    "futures": {},
+    "idempotency": {}
 }
 
 class CapacityError(RuntimeError):
@@ -79,6 +80,22 @@ def load_history():
 def save_history(items):
     STORE.write_text(json.dumps(items[-100:], indent=2), encoding="utf-8")
 
+def find_history_by_idempotency(key):
+    if not key:
+        return None
+    for item in reversed(load_history()):
+        if item.get("idempotency_key") == key:
+            return item
+    return None
+
+def normalize_idempotency_key(raw):
+    candidate = str(raw or "").strip()
+    if not candidate:
+        return None
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{1,100}", candidate):
+        raise ValueError("Idempotency-Key must contain only safe ASCII characters and be at most 100 characters")
+    return candidate
+
 def persist_task(task):
     items = load_history()
     snapshot = {
@@ -92,7 +109,8 @@ def persist_task(task):
         "confidence": task.get("confidence", 0),
         "risk": task.get("risk", "LOW"),
         "summary": task.get("summary", ""),
-        "artifacts": task.get("artifacts", [])
+        "artifacts": task.get("artifacts", []),
+        "idempotency_key": task.get("idempotency_key")
     }
     items = [item for item in items if item["task_id"] != task["task_id"]]
     items.append(snapshot)
@@ -273,9 +291,54 @@ def execute():
     if mode not in {"autonomous", "supervised"}:
         return jsonify({"error": "Mode must be autonomous or supervised"}), 400
     try:
+        idempotency_key = normalize_idempotency_key(request.headers.get("Idempotency-Key"))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    fingerprint = {"prompt": prompt, "mode": mode}
+    if idempotency_key:
+        with runtime["lock"]:
+            existing = runtime["idempotency"].get(idempotency_key)
+            if existing:
+                if existing["fingerprint"] != fingerprint:
+                    return jsonify({"error": "Idempotency-Key was already used for a different objective"}), 409
+                existing_task = runtime["tasks"].get(existing["task_id"]) if existing["task_id"] else None
+                if existing_task:
+                    return jsonify({
+                        "task_id": existing_task["task_id"],
+                        "status": existing_task["status"],
+                        "summary": "Existing execution returned for duplicate request.",
+                        "mode": existing_task["mode"],
+                        "agents": existing_task["agents"],
+                        "deduplicated": True
+                    }), 200
+                history_task = find_history_by_idempotency(idempotency_key)
+                if history_task:
+                    return jsonify({
+                        "task_id": history_task["task_id"],
+                        "status": history_task["status"],
+                        "summary": "Existing persisted execution returned for duplicate request.",
+                        "mode": history_task["mode"],
+                        "agents": [],
+                        "deduplicated": True
+                    }), 200
+                return jsonify({"error": "Execution with this Idempotency-Key is already being created"}), 409
+            runtime["idempotency"][idempotency_key] = {"fingerprint": fingerprint, "task_id": None}
+    try:
         task = create_task(prompt, mode)
+        if idempotency_key:
+            task["idempotency_key"] = idempotency_key
+            with runtime["lock"]:
+                runtime["idempotency"][idempotency_key]["task_id"] = task["task_id"]
     except CapacityError as exc:
+        if idempotency_key:
+            with runtime["lock"]:
+                runtime["idempotency"].pop(idempotency_key, None)
         return jsonify({"error": str(exc)}), 429
+    except Exception:
+        if idempotency_key:
+            with runtime["lock"]:
+                runtime["idempotency"].pop(idempotency_key, None)
+        raise
     return jsonify({
         "task_id": task["task_id"],
         "status": task["status"],
