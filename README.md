@@ -32,7 +32,8 @@ Open `http://127.0.0.1:8000/`.
 
 ## REST API
 
-- `GET /api/health`
+- `GET /api/health` — liveness, provider and capacity telemetry
+- `GET /api/ready` — deployment readiness probe (returns 503 when workers are saturated)
 - `GET /api/agents`
 - `GET /api/tools`
 - `GET /api/tasks` — compact list with optional `limit` and `status` filters
@@ -41,7 +42,7 @@ Open `http://127.0.0.1:8000/`.
 - `POST /api/tasks/{id}/approve` — supervised release approval
 - `GET /api/memory`
 - `GET /api/metrics` — worker capacity, active runs and latency statistics
-- `POST /api/execute` — idempotency-aware execution submission
+- `POST /api/execute` — idempotency-aware, rate-limited execution submission
 
 ### Execute payload
 
@@ -76,7 +77,7 @@ The orchestration engine talks to a small provider adapter in `providers.py`. Th
 
 ## Runtime controls
 
-The server is production-safe by default: development debug mode is disabled unless `CYRUS_DEBUG=1`. Optional controls include `CYRUS_HOST`, `CYRUS_PORT`, `CYRUS_MAX_CONCURRENT_TASKS`, `CYRUS_MAX_REQUEST_BYTES`, and `CYRUS_MAX_PROMPT_CHARS`.
+The server is production-safe by default: development debug mode is disabled unless `CYRUS_DEBUG=1`. Optional controls include `CYRUS_HOST`, `CYRUS_PORT`, `CYRUS_DEBUG`, `CYRUS_MAX_CONCURRENT_TASKS`, `CYRUS_MAX_LIVE_TASKS`, `CYRUS_MAX_REQUEST_BYTES`, `CYRUS_MAX_PROMPT_CHARS`, and `CYRUS_EXECUTIONS_PER_MINUTE`. The backend also uses an allowlist for public static assets so source and history files are not exposed by the Flask server.
 
 ## UI
 
