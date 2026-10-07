@@ -71,6 +71,8 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(payload["status"], "ok")
         self.assertIn("system", payload)
         self.assertIn("mode", payload)
+        self.assertIn("ready", payload)
+        self.assertIn("capacity_utilization", payload)
 
     def test_backend_does_not_expose_private_repository_files(self):
         public_css = self.client.get("/styles.css")
@@ -78,6 +80,19 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(public_css.status_code, 200)
         self.assertIn(b"var(--", public_css.data[:2000])
         self.assertEqual(private_python.status_code, 404)
+
+    def test_health_reports_capacity_utilization(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-ACTIVE"] = {"status": "AWAITING_APPROVAL"}
+        response = self.client.get("/api/health")
+        payload = response.get_json()
+        self.assertEqual(payload["active_tasks"], 1)
+        self.assertAlmostEqual(
+            payload["capacity_utilization"],
+            1 / server.MAX_CONCURRENT_TASKS,
+            places=3,
+        )
+        self.assertTrue(payload["ready"])
 
     def test_request_id_and_security_headers_are_present(self):
         response = self.client.get("/api/health", headers={"X-Request-ID": "daily-run-12"})
