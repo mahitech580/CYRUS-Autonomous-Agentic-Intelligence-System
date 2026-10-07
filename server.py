@@ -445,7 +445,7 @@ def runtime_metrics():
     history = load_history()
     with runtime["lock"]:
         live = list(runtime["tasks"].values())
-        active = sum(1 for task in live if task.get("status") == "RUNNING")
+        active = sum(1 for task in live if task.get("status") in {"RUNNING", "AWAITING_APPROVAL"})
         awaiting = sum(1 for task in live if task.get("status") == "AWAITING_APPROVAL")
         completed = sum(1 for task in live if task.get("status") == "COMPLETED")
         failed = sum(1 for task in live if task.get("status") == "FAILED")
