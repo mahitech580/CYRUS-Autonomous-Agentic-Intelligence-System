@@ -300,7 +300,7 @@ class CyrusApiContractTests(unittest.TestCase):
         server.event(task, "TESTER", "VALIDATION", "Synthetic event", 15)
         event = task["events"][0]
         self.assertEqual(event["event_id"], "CYRUS-EVENTS-E001")
-        self.assertRegex(event["timestamp"], r"^\\d{4}-\\d{2}-\\d{2}T")
+        self.assertRegex(event["timestamp"], r"^\d{4}-\d{2}-\d{2}T")
         self.assertEqual(event["duration"], 15)
 
     def test_missing_task_is_explicit(self):
