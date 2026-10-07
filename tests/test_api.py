@@ -6,6 +6,9 @@ import server
 
 class CyrusApiContractTests(unittest.TestCase):
     def setUp(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"].clear()
+            server.runtime["futures"].clear()
         self.client = server.app.test_client()
 
     def test_health_contract(self):
@@ -54,6 +57,32 @@ class CyrusApiContractTests(unittest.TestCase):
         )
         self.assertEqual(empty.status_code, 400)
         self.assertEqual(invalid_mode.status_code, 400)
+
+    def test_execute_rejects_when_worker_capacity_is_full(self):
+        with server.runtime["lock"]:
+            for index in range(server.MAX_CONCURRENT_TASKS):
+                server.runtime["tasks"][f"RUNNING-{index}"] = {"status": "RUNNING"}
+        response = self.client.post(
+            "/api/execute",
+            json={"prompt": "Create another service", "mode": "autonomous"},
+        )
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("capacity", response.get_json()["error"].lower())
+
+    def test_worker_failure_marks_task_failed(self):
+        task = {
+            "task_id": "CYRUS-FAILTEST",
+            "status": "RUNNING",
+            "current_agent": "CODER",
+            "events": [],
+            "updated_at": "",
+        }
+        with patch.object(server, "_run_task", side_effect=RuntimeError("synthetic failure")):
+            with patch.object(server, "persist_task"):
+                server.execute_task(task)
+        self.assertEqual(task["status"], "FAILED")
+        self.assertEqual(task["failure"]["type"], "RuntimeError")
+        self.assertIn("failed safely", task["summary"])
 
     def test_missing_task_is_explicit(self):
         response = self.client.get("/api/tasks/CYRUS-MISSING")
