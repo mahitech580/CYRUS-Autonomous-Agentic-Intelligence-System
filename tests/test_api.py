@@ -128,6 +128,19 @@ class CyrusApiContractTests(unittest.TestCase):
         )
         self.assertTrue(payload["ready"])
 
+    def test_readiness_probe_is_healthy_when_capacity_available(self):
+        response = self.client.get("/api/ready")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["ready"])
+
+    def test_readiness_probe_returns_503_when_capacity_is_full(self):
+        with server.runtime["lock"]:
+            for index in range(server.MAX_CONCURRENT_TASKS):
+                server.runtime["tasks"][f"READY-FULL-{index}"] = {"status": "RUNNING"}
+        response = self.client.get("/api/ready")
+        self.assertEqual(response.status_code, 503)
+        self.assertFalse(response.get_json()["ready"])
+
     def test_request_id_and_security_headers_are_present(self):
         response = self.client.get("/api/health", headers={"X-Request-ID": "daily-run-12"})
         self.assertEqual(response.headers["X-Request-ID"], "daily-run-12")
@@ -135,6 +148,8 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(response.headers["X-Frame-Options"], "DENY")
         self.assertEqual(response.headers["Cache-Control"], "no-store")
         self.assertRegex(response.headers["X-Response-Time-Ms"], r"^\d+(\.\d+)?$")
+        css = self.client.get("/styles.css")
+        self.assertIn("max-age=300", css.headers["Cache-Control"])
 
     def test_invalid_request_id_is_replaced(self):
         response = self.client.get("/api/health", headers={"X-Request-ID": "bad id!"})
