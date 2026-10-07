@@ -15,6 +15,35 @@ class CyrusApiContractTests(unittest.TestCase):
             server.runtime["cancel_events"].clear()
         self.client = server.app.test_client()
 
+    def test_history_persists_trace_and_agent_state(self):
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp) / "history.json"
+            task = {
+                "task_id": "CYRUS-DURABLE",
+                "created_at": server.now_iso(),
+                "updated_at": server.now_iso(),
+                "objective": "Persist execution evidence",
+                "mode": "autonomous",
+                "status": "COMPLETED",
+                "current_agent": "RELEASE",
+                "plan": ["one"],
+                "research": ["evidence"],
+                "tests_passed": 4,
+                "tests_failed": 0,
+                "coverage": 90,
+                "quality": 91,
+                "latency_ms": 12,
+                "agents": [{"name": "RELEASE", "status": "COMPLETED"}],
+                "events": [{"event_id": "CYRUS-DURABLE-E001", "agent": "RELEASE"}],
+                "artifacts": []
+            }
+            with patch.object(server, "STORE", target):
+                server.persist_task(task)
+                persisted = server.load_history()[0]
+            self.assertEqual(persisted["events"][0]["event_id"], "CYRUS-DURABLE-E001")
+            self.assertEqual(persisted["agents"][0]["status"], "COMPLETED")
+            self.assertEqual(persisted["plan"], ["one"])
+
     def test_history_persistence_round_trip_is_atomic(self):
         with TemporaryDirectory() as tmp:
             target = Path(tmp) / "history.json"
