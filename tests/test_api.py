@@ -9,6 +9,7 @@ class CyrusApiContractTests(unittest.TestCase):
         with server.runtime["lock"]:
             server.runtime["tasks"].clear()
             server.runtime["futures"].clear()
+            server.runtime["idempotency"].clear()
         self.client = server.app.test_client()
 
     def test_health_contract(self):
@@ -57,6 +58,37 @@ class CyrusApiContractTests(unittest.TestCase):
         )
         self.assertEqual(empty.status_code, 400)
         self.assertEqual(invalid_mode.status_code, 400)
+
+    def test_execute_is_idempotent_for_repeated_keys(self):
+        with patch.object(server, "execute_task", lambda task: None):
+            first = self.client.post(
+                "/api/execute",
+                headers={"Idempotency-Key": "demo-001"},
+                json={"prompt": "Create a resilient API", "mode": "autonomous"},
+            )
+            second = self.client.post(
+                "/api/execute",
+                headers={"Idempotency-Key": "demo-001"},
+                json={"prompt": "Create a resilient API", "mode": "autonomous"},
+            )
+        self.assertEqual(first.status_code, 202)
+        self.assertEqual(second.status_code, 200)
+        self.assertTrue(second.get_json()["deduplicated"])
+        self.assertEqual(first.get_json()["task_id"], second.get_json()["task_id"])
+
+    def test_idempotency_key_cannot_change_objective(self):
+        with patch.object(server, "execute_task", lambda task: None):
+            self.client.post(
+                "/api/execute",
+                headers={"Idempotency-Key": "demo-002"},
+                json={"prompt": "Create an API", "mode": "autonomous"},
+            )
+            conflict = self.client.post(
+                "/api/execute",
+                headers={"Idempotency-Key": "demo-002"},
+                json={"prompt": "Delete an API", "mode": "autonomous"},
+            )
+        self.assertEqual(conflict.status_code, 409)
 
     def test_execute_rejects_when_worker_capacity_is_full(self):
         with server.runtime["lock"]:
