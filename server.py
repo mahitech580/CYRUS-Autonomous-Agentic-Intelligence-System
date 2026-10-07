@@ -121,6 +121,29 @@ def normalize_idempotency_key(raw):
         raise ValueError("Idempotency-Key must contain only safe ASCII characters and be at most 100 characters")
     return candidate
 
+def task_summary(task):
+    return {
+        "task_id": task["task_id"],
+        "created_at": task.get("created_at"),
+        "updated_at": task.get("updated_at"),
+        "objective": task.get("objective", ""),
+        "mode": task.get("mode"),
+        "status": task.get("status"),
+        "current_agent": task.get("current_agent"),
+        "score": task.get("score", 0),
+        "execution_time_ms": task.get("execution_time_ms", 0),
+        "confidence": task.get("confidence", 0),
+        "quality": task.get("quality", 0),
+        "coverage": task.get("coverage", 0),
+        "risk": task.get("risk", "LOW"),
+        "summary": task.get("summary", ""),
+        "tool_calls": task.get("tool_calls", 0),
+        "tests_passed": task.get("tests_passed", 0),
+        "tests_failed": task.get("tests_failed", 0),
+        "artifact_count": len(task.get("artifacts", [])),
+        "event_count": len(task.get("events", []))
+    }
+
 def persist_task(task):
     with history_lock:
         items = load_history()
@@ -383,7 +406,7 @@ def tasks():
     history = load_history()
     merged = {item["task_id"]: item for item in history}
     for task in live:
-        merged[task["task_id"]] = task
+        merged[task["task_id"]] = task_summary(task)
     return jsonify(sorted(merged.values(), key=lambda x: x.get("created_at", ""), reverse=True))
 
 @app.post("/api/tasks/<task_id>/approve")
@@ -442,7 +465,7 @@ def task_detail(task_id):
 
 @app.get("/api/memory")
 def memory():
-    return jsonify(load_history())
+    return jsonify([task_summary(item) for item in load_history()])
 
 @app.post("/api/execute")
 def execute():
