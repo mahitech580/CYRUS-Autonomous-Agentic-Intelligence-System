@@ -37,6 +37,10 @@ def apply_response_hardening(response):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+    response.headers["X-DNS-Prefetch-Control"] = "off"
     if request.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
     elif request.path in {"/styles.css", "/app.js", "/demo-bridge.js"}:
