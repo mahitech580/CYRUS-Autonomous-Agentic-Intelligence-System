@@ -25,11 +25,13 @@ REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
 def establish_request_context():
     candidate = request.headers.get("X-Request-ID", "").strip()
     g.request_id = candidate if REQUEST_ID_PATTERN.fullmatch(candidate) else uuid.uuid4().hex
+    g.request_started = time.perf_counter()
 
 @app.after_request
 def apply_response_hardening(response):
     request_id = getattr(g, "request_id", uuid.uuid4().hex)
     response.headers["X-Request-ID"] = request_id
+    response.headers["X-Response-Time-Ms"] = str(round((time.perf_counter() - getattr(g, "request_started", time.perf_counter())) * 1000, 2))
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
