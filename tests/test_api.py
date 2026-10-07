@@ -193,6 +193,17 @@ class CyrusApiContractTests(unittest.TestCase):
             )
         self.assertEqual(conflict.status_code, 409)
 
+    def test_approval_waiters_count_against_worker_capacity(self):
+        with server.runtime["lock"]:
+            for index in range(server.MAX_CONCURRENT_TASKS - 1):
+                server.runtime["tasks"][f"RUNNING-{index}"] = {"status": "RUNNING"}
+            server.runtime["tasks"]["AWAITING-APPROVAL"] = {"status": "AWAITING_APPROVAL"}
+        response = self.client.post(
+            "/api/execute",
+            json={"prompt": "Create one more service", "mode": "autonomous"},
+        )
+        self.assertEqual(response.status_code, 429)
+
     def test_execute_rejects_when_worker_capacity_is_full(self):
         with server.runtime["lock"]:
             for index in range(server.MAX_CONCURRENT_TASKS):
