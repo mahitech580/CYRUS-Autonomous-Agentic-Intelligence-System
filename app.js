@@ -43,7 +43,7 @@ function App(){
   const notify=(message)=>{setToast(message);setTimeout(()=>setToast(''),2400)}
   const loadBase=async()=>{
     try{
-      const [health,a,t,h]=await Promise.all([
+      const [health,a,t,h,healthMetrics]=await Promise.all([
         apiJson('/api/health'),
         apiJson('/api/agents'),
         apiJson('/api/tools'),
