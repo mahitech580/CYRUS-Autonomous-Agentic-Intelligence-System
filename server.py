@@ -2,6 +2,7 @@ from flask import Flask, g, jsonify, request, send_from_directory
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from providers import get_provider
+from werkzeug.exceptions import HTTPException
 from pathlib import Path
 import json
 import os
@@ -569,6 +570,11 @@ def handle_payload_too_large(error):
 
 @app.errorhandler(Exception)
 def handle_error(error):
+    if isinstance(error, HTTPException):
+        return jsonify({
+            "error": error.description,
+            "request_id": getattr(g, "request_id", "-")
+        }), error.code
     app.logger.exception("Unhandled CYRUS runtime error", extra={"request_id": getattr(g, "request_id", "-")})
     return jsonify({"error": "CYRUS runtime error", "request_id": getattr(g, "request_id", "-")}), 500
 
