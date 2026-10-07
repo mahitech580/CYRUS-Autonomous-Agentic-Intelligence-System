@@ -159,7 +159,17 @@ def persist_task(task):
         "risk": task.get("risk", "LOW"),
         "summary": task.get("summary", ""),
         "artifacts": task.get("artifacts", []),
-        "idempotency_key": task.get("idempotency_key")
+        "idempotency_key": task.get("idempotency_key"),
+        "current_agent": task.get("current_agent"),
+        "plan": task.get("plan", []),
+        "research": task.get("research", []),
+        "tests_passed": task.get("tests_passed", 0),
+        "tests_failed": task.get("tests_failed", 0),
+        "coverage": task.get("coverage", 0),
+        "quality": task.get("quality", 0),
+        "latency_ms": task.get("latency_ms", 0),
+        "agents": task.get("agents", []),
+        "events": task.get("events", [])
     }
     items = [item for item in items if item["task_id"] != task["task_id"]]
     items.append(snapshot)
