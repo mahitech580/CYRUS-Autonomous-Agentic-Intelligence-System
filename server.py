@@ -60,6 +60,7 @@ TOOLS = [
 ]
 
 MAX_CONCURRENT_TASKS = max(1, min(int(os.getenv("CYRUS_MAX_CONCURRENT_TASKS", "4")), 16))
+MAX_LIVE_TASKS = max(20, min(int(os.getenv("CYRUS_MAX_LIVE_TASKS", "100")), 500))
 history_lock = threading.RLock()
 PROVIDER = get_provider()
 
@@ -317,6 +318,18 @@ def _run_task(task):
         task["updated_at"] = now_iso()
     persist_task(task)
 
+def prune_live_tasks_locked():
+    terminal = [
+        task for task in runtime["tasks"].values()
+        if task.get("status") in {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"}
+    ]
+    overflow = max(0, len(runtime["tasks"]) - MAX_LIVE_TASKS)
+    if overflow:
+        terminal.sort(key=lambda task: task.get("updated_at", ""))
+        for task in terminal[:overflow]:
+            task_id = task["task_id"]
+            runtime["tasks"].pop(task_id, None)
+
 def create_task(prompt, mode, idempotency_key=None):
     task_id = "CYRUS-" + uuid.uuid4().hex[:8].upper()
     task = {
@@ -349,11 +362,20 @@ def create_task(prompt, mode, idempotency_key=None):
         active = sum(1 for item in runtime["tasks"].values() if item.get("status") in {"RUNNING", "AWAITING_APPROVAL"}
         if active >= MAX_CONCURRENT_TASKS:
             raise CapacityError("CYRUS worker capacity is currently full")
+        prune_live_tasks_locked()
         runtime["tasks"][task_id] = task
         runtime["cancel_events"][task_id] = threading.Event()
         runtime["approval_events"][task_id] = threading.Event()
-    future = runtime["executor"].submit(execute_task, task)
-    runtime["futures"][task_id] = future
+    try:
+        future = runtime["executor"].submit(execute_task, task)
+    except Exception:
+        with runtime["lock"]:
+            runtime["tasks"].pop(task_id, None)
+            runtime["cancel_events"].pop(task_id, None)
+            runtime["approval_events"].pop(task_id, None)
+        raise
+    with runtime["lock"]:
+        runtime["futures"][task_id] = future
     return task
 
 @app.get("/")
