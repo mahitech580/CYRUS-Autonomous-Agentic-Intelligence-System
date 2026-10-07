@@ -149,6 +149,10 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(response.headers["X-Frame-Options"], "DENY")
         self.assertEqual(response.headers["Cache-Control"], "no-store")
         self.assertRegex(response.headers["X-Response-Time-Ms"], r"^\d+(\.\d+)?$")
+        self.assertEqual(response.headers["Cross-Origin-Opener-Policy"], "same-origin")
+        self.assertEqual(response.headers["Cross-Origin-Resource-Policy"], "same-origin")
+        self.assertEqual(response.headers["X-Permitted-Cross-Domain-Policies"], "none")
+        self.assertEqual(response.headers["X-DNS-Prefetch-Control"], "off")
         css = self.client.get("/styles.css")
         self.assertIn("max-age=300", css.headers["Cache-Control"])
 
