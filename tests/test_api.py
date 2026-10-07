@@ -321,6 +321,16 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertRegex(event["timestamp"], r"^\d{4}-\d{2}-\d{2}T")
         self.assertEqual(event["duration"], 15)
 
+    def test_unknown_route_preserves_http_404(self):
+        response = self.client.get("/api/does-not-exist")
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("not found", response.get_json()["error"].lower())
+
+    def test_method_not_allowed_preserves_http_405(self):
+        response = self.client.put("/api/health")
+        self.assertEqual(response.status_code, 405)
+        self.assertIn("method", response.get_json()["error"].lower())
+
     def test_missing_task_is_explicit(self):
         response = self.client.get("/api/tasks/CYRUS-MISSING")
         self.assertEqual(response.status_code, 404)
