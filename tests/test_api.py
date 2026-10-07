@@ -51,6 +51,40 @@ class CyrusApiContractTests(unittest.TestCase):
                 server.save_history([{"task_id": "CYRUS-ATOMIC", "status": "COMPLETED"}])
                 self.assertEqual(server.load_history()[0]["task_id"], "CYRUS-ATOMIC")
 
+    def test_live_task_store_is_bounded_to_configured_limit(self):
+        with server.runtime["lock"]:
+            for index in range(server.MAX_LIVE_TASKS):
+                server.runtime["tasks"][f"OLD-{index}"] = {
+                    "task_id": f"OLD-{index}",
+                    "status": "COMPLETED",
+                    "updated_at": f"2026-10-07T00:{index % 60:02d}:00Z",
+                }
+        with patch.object(server, "execute_task", lambda task: None):
+            response = self.client.post(
+                "/api/execute",
+                json={"prompt": "Bound live runtime state", "mode": "autonomous"},
+            )
+        self.assertEqual(response.status_code, 202)
+        with server.runtime["lock"]:
+            self.assertLessEqual(len(server.runtime["tasks"]), server.MAX_LIVE_TASKS)
+
+    def test_submission_rolls_back_when_executor_rejects(self):
+        original = server.runtime["executor"]
+        class RejectingExecutor:
+            def submit(self, *args, **kwargs):
+                raise RuntimeError("executor unavailable")
+        server.runtime["executor"] = RejectingExecutor()
+        try:
+            with self.assertRaises(RuntimeError):
+                server.create_task("executor failure", "autonomous")
+            with server.runtime["lock"]:
+                self.assertEqual(
+                    [t for t in server.runtime["tasks"].values() if t.get("objective") == "executor failure"],
+                    [],
+                )
+        finally:
+            server.runtime["executor"] = original
+
     def test_provider_contract_is_exposed(self):
         response = self.client.get("/api/health")
         payload = response.get_json()
