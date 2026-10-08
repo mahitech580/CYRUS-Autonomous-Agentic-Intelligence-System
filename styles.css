@@ -341,3 +341,67 @@ button:disabled{cursor:not-allowed;opacity:.58}
 @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media(max-width:760px){.marquee{margin-left:-13px;margin-right:-13px}.marquee-track{padding-left:13px;padding-right:13px;gap:22px}.site-footer{grid-template-columns:1fr}.footer-links{justify-content:flex-start}.site-footer>small{grid-column:auto}}
 @media (prefers-reduced-motion:reduce){.marquee-track{animation:none}}
+
+/* Immersive shell */
+.site-nav{
+  position:fixed;top:17px;left:50%;transform:translateX(-50%);z-index:70;
+  width:min(1180px,calc(100% - 36px));height:64px;padding:7px 9px;
+  display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px;
+  border:1px solid rgba(159,182,224,.14);border-radius:18px;
+  background:rgba(5,9,18,.68);backdrop-filter:blur(24px);
+  box-shadow:0 18px 55px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.035);
+}
+.nav-brand{display:flex;align-items:center;gap:9px;border:0;background:transparent;color:#edf8ff;padding:4px 7px;text-align:left}
+.nav-brand-mark{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;border:1px solid rgba(98,232,255,.35);background:linear-gradient(135deg,rgba(98,232,255,.12),rgba(113,77,255,.14));position:relative}
+.nav-brand-mark:after{content:"";position:absolute;inset:5px;border:1px dashed rgba(98,232,255,.22);border-radius:9px;animation:spin 10s linear infinite}
+.nav-brand-mark i{display:block;width:12px;height:12px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,var(--cyan),var(--violet));filter:drop-shadow(0 0 9px rgba(98,232,255,.8))}
+.nav-brand strong{display:block;font-size:13px;letter-spacing:.15em}.nav-brand small{display:block;color:#617089;font:7px var(--mono);margin-top:3px;letter-spacing:.1em}
+.site-nav-links{display:flex;justify-content:center;gap:3px}.site-nav-links button{border:0;background:transparent;color:#707e97;padding:9px 10px;border-radius:10px;font:8px var(--mono);letter-spacing:.08em;transition:.2s}
+.site-nav-links button span{color:#46536b;margin-right:5px}.site-nav-links button:hover{color:#eefcff;background:rgba(255,255,255,.03)}.site-nav-links button.active{color:var(--cyan);background:rgba(98,232,255,.06)}
+.nav-status{display:flex;align-items:center;gap:6px;padding:0 8px;color:#7b89a0;font:7px var(--mono);white-space:nowrap}.nav-status b{color:#a7b4c8;font-weight:500}.nav-status small{color:#59677f}
+.nav-command{border:1px solid rgba(159,182,224,.12);border-radius:10px;background:rgba(255,255,255,.025);color:#8c9bb1;padding:9px 10px;font:8px var(--mono);transition:.2s}.nav-command:hover{border-color:rgba(98,232,255,.26);color:var(--cyan)}
+.main{margin-left:0;width:100%;min-height:100vh;padding:101px 36px 65px}
+.topbar{width:min(1180px,100%);margin:0 auto 18px}
+.hero-shell{width:min(1180px,100%);margin:0 auto;min-height:650px;border-radius:30px;padding:44px 42px}
+.hero-visual{min-height:500px}
+.cosmos-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:auto}
+.hero-visual{isolation:isolate}.hero-visual>*:not(.cosmos-canvas){z-index:2}
+.hero-shell .hero-copy,.hero-shell .hero-visual{position:relative}
+.hero-shell:after{content:"";position:absolute;left:50%;bottom:-1px;width:55%;height:1px;transform:translateX(-50%);background:linear-gradient(90deg,transparent,rgba(98,232,255,.34),rgba(157,140,255,.28),transparent);filter:blur(.3px)}
+.command-panel,.metrics,.capability-strip,.content-grid,.trace-panel,.story-band,.proof-rail,.case-studies,.workflow-section,.signature-grid,.surface-gallery,.tech-ribbon,.closing-cta,.site-footer{width:min(1180px,100%);margin-left:auto;margin-right:auto}
+.command-panel{margin-top:22px}.metrics{margin-top:17px}.capability-strip{margin-top:17px}.content-grid{margin-top:18px}
+.story-band{margin-top:88px}.workflow-section{margin-top:88px}.signature-grid{margin-top:88px}.surface-gallery{margin-top:88px}.tech-ribbon{margin-top:88px}.closing-cta{margin-top:82px}.site-footer{margin-top:86px}
+.proof-rail{margin-top:22px}
+.mobile-nav{display:none}
+
+/* Make the hero center feel like a product object rather than a dashboard widget. */
+.core-stage{z-index:3;transform:translateZ(0);filter:drop-shadow(0 30px 80px rgba(0,0,0,.25))}
+.core-glow{filter:blur(20px);opacity:.95}
+.agent-pod{background:linear-gradient(145deg,rgba(8,15,28,.83),rgba(3,7,14,.7));border-color:rgba(159,182,224,.13)}
+.agent-pod:before{content:"";position:absolute;inset:0;border-radius:14px;background:linear-gradient(135deg,rgba(98,232,255,.06),transparent 55%);opacity:.0;transition:.2s}
+.agent-pod:hover:before{opacity:1}
+.core-center{background:radial-gradient(circle at 42% 34%,rgba(154,255,255,.27),rgba(78,65,180,.2) 40%,rgba(2,7,15,.92) 76%)}
+
+@media(max-width:1180px){
+  .site-nav{grid-template-columns:auto 1fr auto;width:calc(100% - 28px)}.site-nav-links{gap:0}.site-nav-links button{padding:8px 7px}.site-nav-links button span{display:none}
+  .nav-command{display:none}.nav-status small{display:none}
+  .main{padding:95px 22px 55px}.hero-shell{padding:36px 30px}
+}
+@media(max-width:800px){
+  .site-nav{height:58px}.nav-brand small{display:none}.nav-brand-mark{width:34px;height:34px}.nav-brand{padding-left:4px}.site-nav-links{display:none}.nav-status{margin-left:auto}
+  .main{padding:78px 12px 92px}.topbar{margin-bottom:10px}.top-actions{display:none}
+  .hero-shell{padding:22px;border-radius:24px;min-height:720px}.hero-copy h1{font-size:clamp(42px,13vw,64px)}
+  .hero-visual{min-height:395px}.cosmos-canvas{opacity:.9}
+  .proof-rail{margin-top:38px}.story-band,.workflow-section,.signature-grid,.surface-gallery,.tech-ribbon{margin-top:62px}
+  .closing-cta{margin-top:62px}.site-footer{margin-top:64px}
+  .mobile-nav{position:fixed;display:flex;left:10px;right:10px;bottom:10px;height:66px;padding:7px;z-index:75;border:1px solid var(--line);border-radius:19px;background:rgba(5,9,18,.82);backdrop-filter:blur(22px);box-shadow:0 18px 55px rgba(0,0,0,.35)}
+  .mobile-nav button{flex:1;border:0;border-radius:11px;background:transparent;color:#65738b;padding:7px 5px}.mobile-nav button.active{background:rgba(98,232,255,.07);color:var(--cyan)}
+  .mobile-nav span{display:block;font:7px var(--mono);color:#4e5b73}.mobile-nav b{display:block;margin-top:4px;font-size:8px;font-weight:500}
+}
+@media(max-width:520px){
+  .hero-shell{min-height:760px}.hero-float.top{top:5%}.hero-float.bottom{bottom:3%}
+  .hero-float strong{font-size:13px}.core-stage{width:100%;max-width:330px}
+  .agent-pod{width:76px;min-height:52px;padding:8px;transform:rotate(var(--angle)) translateY(-142px) rotate(calc(var(--angle) * -1))}
+  .agent-pod:hover{transform:rotate(var(--angle)) translateY(-142px) rotate(calc(var(--angle) * -1)) scale(1.04)}
+}
+@media(prefers-reduced-motion:reduce){.nav-brand-mark:after{animation:none}.agent-pod{transition:none}.mobile-nav,.site-nav{backdrop-filter:none}}
