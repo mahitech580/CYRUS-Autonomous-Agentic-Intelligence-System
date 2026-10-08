@@ -322,111 +322,132 @@ function CoreVisual({agents,runtimeState,go}){
 }
 
 function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents,metrics,seedObjective,notify,approveTask,cancelTask,runtimeState,runtimeMetrics,go}){
-  return <div className="view">
-    <section className="hero-shell">
-      <div className="hero-copy">
-        <div className="hero-kicker"><span className="line"/>CYRUS / AUTONOMOUS ENGINEERING INTELLIGENCE</div>
-        <h1><span>Plan.</span><span>Reason.</span><span className="gradient">Ship software.</span></h1>
-        <p>CYRUS turns one engineering objective into an observable agent workflow — coordinating planning, research, implementation, validation, review, and release from a single control surface.</p>
-        <div className="hero-actions">
-          <button className="primary-cta" onClick={()=>document.querySelector('.command-panel')?.scrollIntoView({behavior:'smooth'})}>Launch command ↗</button>
-          <button className="ghost" onClick={()=>{setPrompt(seedObjective);notify('Production API objective loaded')}}>Load example</button>
+  const quickObjectives=[
+    ['BUILD','Build a production API with authentication, validation, persistence, tests and observability.'],
+    ['AUDIT','Audit a service for security, reliability, performance and deployment risks.'],
+    ['SHIP','Plan, implement, validate and release a production-ready feature with rollback readiness.'],
+  ]
+  const signal=(label,value,sub,accent='cyan')=><div className={'nx-signal '+accent}><div><span>{label}</span><small>{sub}</small></div><strong>{value}</strong></div>
+  return <div className="nx-view">
+    <section className="nx-hero">
+      <div className="nx-hero-copy">
+        <div className="nx-eyebrow"><i/>CYRUS / AUTONOMOUS ENGINEERING SYSTEM</div>
+        <h1>Turn intent into<br/><span>software that moves.</span></h1>
+        <p>One command becomes a visible execution graph. CYRUS coordinates planning, research, implementation, validation, review and release with a live operator surface around every run.</p>
+        <div className="nx-hero-actions">
+          <button className="nx-primary" onClick={()=>document.querySelector('.nx-console')?.scrollIntoView({behavior:'smooth'})}>Launch control <b>↗</b></button>
+          <button className="nx-secondary" onClick={()=>{setPrompt(seedObjective);notify('Production objective loaded')}}>Load production objective</button>
         </div>
-        <div className="hero-meta"><span>07 <b>specialized agents</b></span><span>08 <b>callable tools</b></span><span>01 <b>observable runtime</b></span></div>
-      </div>
-      <CoreVisual agents={currentAgents} runtimeState={runtimeState} go={go}/>
-    </section>
-
-    <section className="command-panel">
-      <div className="section-title"><strong>DEFINE ENGINEERING OBJECTIVE</strong><span>CTRL + ENTER</span></div>
-      <div className="command-grid" style={{marginTop:12}}>
-        <div className="objective-wrap"><textarea className="objective" value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Build a production-ready REST API for task management with JWT authentication, PostgreSQL persistence, validation, and automated tests..."/><div className="shortcut">CTRL + ENTER</div></div>
-        <div className="command-side">
-          <div className="modes"><button className={mode==='autonomous'?'active':''} onClick={()=>setMode('autonomous')}>AUTONOMOUS</button><button className={mode==='supervised'?'active':''} onClick={()=>setMode('supervised')}>SUPERVISED</button></div>
-          <div className="control-actions">{task?.status==='AWAITING_APPROVAL'&&<button className="approve" onClick={approveTask}>APPROVE RELEASE</button>}{busy&&task?.status==='RUNNING'&&<button className="cancel" onClick={cancelTask}>STOP RUN</button>}<button className="execute" disabled={busy} onClick={execute}>{busy?<><span className="spinner"/>RUNNING GRAPH</>:'EXECUTE OBJECTIVE ↗'}</button></div>
+        <div className="nx-inline-proof">
+          <span><b>07</b> agents</span><span><b>08</b> tools</span><span><b>01</b> execution graph</span><span><b>{runtimeState}</b> runtime</span>
         </div>
       </div>
+      <div className="nx-hero-visual">
+        <div className="nx-visual-top"><span>CORE TELEMETRY</span><b><i/>{busy?'EXECUTING':'STANDBY'}</b></div>
+        <CoreVisual agents={currentAgents} runtimeState={runtimeState} go={go}/>
+        <div className="nx-visual-card left"><span>ACTIVE WORKLOADS</span><strong>{runtimeMetrics?.active_tasks||0}<small> / {runtimeMetrics?.capacity||4}</small></strong><em>capacity</em></div>
+        <div className="nx-visual-card right"><span>LAST SIGNAL</span><strong>{task?.status||'READY'}</strong><em>{task?.current_agent||'ORCHESTRATOR'}</em></div>
+      </div>
     </section>
 
-    <div className="metrics">{metrics.map(([label,value])=><div className="metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
+    <section className="nx-console">
+      <div className="nx-console-head">
+        <div><span className="nx-eyebrow"><i/>01 / COMMAND COMPILER</span><h2>Define the objective.</h2></div>
+        <div className="nx-console-state"><span className="nx-live-dot"/>{busy?'GRAPH EXECUTING':'READY FOR INPUT'}<small>CTRL + ENTER</small></div>
+      </div>
+      <div className="nx-editor">
+        <div className="nx-editor-label"><span>OBJECTIVE</span><small>{prompt.length}/4000</small></div>
+        <textarea value={prompt} onChange={e=>setPrompt(e.target.value)} onKeyDown={e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();execute()}}} placeholder="Tell CYRUS what you want shipped…"/>
+        <div className="nx-editor-foot">
+          <div className="nx-chips">{quickObjectives.map(([label,value])=><button key={label} onClick={()=>setPrompt(value)}>{label}<span>+</span></button>)}</div>
+          <span>One objective · one accountable graph</span>
+        </div>
+      </div>
+      <div className="nx-console-controls">
+        <div className="nx-mode">
+          <span>CONTROL MODE</span>
+          <button className={mode==='autonomous'?'active':''} onClick={()=>setMode('autonomous')}><b>01</b> AUTONOMOUS</button>
+          <button className={mode==='supervised'?'active':''} onClick={()=>setMode('supervised')}><b>02</b> SUPERVISED</button>
+        </div>
+        <div className="nx-run-actions">
+          {task?.status==='AWAITING_APPROVAL'&&<button className="nx-approve" onClick={approveTask}>APPROVE RELEASE <b>✓</b></button>}
+          {busy&&task?.status==='RUNNING'&&<button className="nx-stop" onClick={cancelTask}>STOP RUN <b>■</b></button>}
+          <button className="nx-execute" disabled={busy} onClick={execute}>{busy?<><span className="nx-spinner"/>RUNNING EXECUTION GRAPH</>:<>EXECUTE OBJECTIVE <b>↗</b></>}</button>
+        </div>
+      </div>
+    </section>
 
-    <div className="capability-strip">
-      <div className="capability-card"><div className="capability-icon">01</div><strong>Agentic planning</strong><p>Breaks a large engineering objective into ordered work with explicit ownership.</p></div>
-      <div className="capability-card"><div className="capability-icon">02</div><strong>Observable execution</strong><p>Surfaces current state, trace events, tool activity, confidence, and release posture.</p></div>
-      <div className="capability-card"><div className="capability-icon">03</div><strong>Human control</strong><p>Supports autonomous runs plus supervised approval checkpoints before release.</p></div>
+    <div className="nx-signal-grid">
+      {signal('EXECUTION',task?.execution_time_ms?task.execution_time_ms+' ms':'—','end-to-end latency')}
+      {signal('CONFIDENCE',task?.confidence?(task.confidence+'%'):'—','operator trust','violet')}
+      {signal('QUALITY',task?.quality?(task.quality+'%'):'—','review gate','green')}
+      {signal('COVERAGE',task?.coverage?(task.coverage+'%'):'—','validation depth','amber')}
+      {signal('TOOL CALLS',task?.tool_calls??runtimeMetrics?.total_tool_calls??0,'runtime actions')}
     </div>
 
-    <section className="story-band reveal" data-reveal>
-      <div className="story-label">01 / THE IDEA</div>
-      <div className="story-copy"><div className="story-eyebrow">NOT ANOTHER CHAT BOX</div><h2>One objective.<br/><span>Seven specialized minds.</span></h2><p>CYRUS is designed as an execution system: a visible chain of reasoning and delivery where every stage has a job, a state, and a measurable output.</p></div>
-      <div className="story-stats"><div><strong>07</strong><span>AGENTS</span></div><div><strong>08</strong><span>TOOLS</span></div><div><strong>01</strong><span>GRAPH</span></div></div>
-    </section>
-
-    <section className="proof-rail reveal" data-reveal>
-      <div className="proof-item"><span>EXECUTION GRAPH</span><strong>07</strong><small>specialized agents</small></div>
-      <div className="proof-item"><span>TOOL SURFACE</span><strong>08</strong><small>callable capabilities</small></div>
-      <div className="proof-item"><span>CONTROL MODES</span><strong>02</strong><small>autonomous + supervised</small></div>
-      <div className="proof-item"><span>RUNTIME SIGNAL</span><strong>LIVE</strong><small>health + metrics</small></div>
-    </section>
-
-    <section className="case-studies reveal" data-reveal>
-      <div className="section-intro"><div><div className="eyebrow">02 / WHAT CYRUS SHIPS</div><h2>Systems, not screens.</h2></div><span>PRODUCT CAPABILITIES</span></div>
-      <div className="case-grid">
-        <article className="case-card case-feature">
-          <div className="case-art"><div className="mini-orbit one"></div><div className="mini-orbit two"></div><div className="mini-core">01</div></div>
-          <div className="case-copy"><span>ORCHESTRATION</span><h3>Seven stages. One execution graph.</h3><p>Planning, research, coding, testing, review and release are surfaced as an observable sequence instead of hidden behind one assistant response.</p><div className="case-tags"><b>PLAN</b><b>RESEARCH</b><b>BUILD</b><b>REVIEW</b></div></div>
-        </article>
-        <article className="case-card">
-          <div className="case-number">02</div><span>BROWSER RUNTIME</span><h3>Demo-first resilience.</h3><p>The browser fallback keeps the product explorable on GitHub Pages while local persistence, idempotency and execution history preserve the interaction model.</p><div className="case-metric"><strong>LOCAL</strong><small>DEMO MODE</small></div>
-        </article>
-        <article className="case-card">
-          <div className="case-number">03</div><span>RUNTIME SAFETY</span><h3>Control before release.</h3><p>Bounded workers, request correlation, rate-limit hints, readiness checks and supervised approval make the runtime explicit about operational state.</p><div className="case-metric"><strong>02</strong><small>CONTROL MODES</small></div>
-        </article>
+    <section className="nx-workbench">
+      <div className="nx-panel nx-agent-panel">
+        <div className="nx-panel-head">
+          <div><span className="nx-eyebrow"><i/>02 / AGENT GRAPH</span><h3>Seven minds. One trajectory.</h3></div>
+          <button onClick={()=>go('Agents')}>Inspect registry <b>↗</b></button>
+        </div>
+        <div className="nx-agent-track">
+          {currentAgents.map((agent,index)=>{
+            const status=agent.status||'QUEUED'
+            return <button key={agent.name||index} className={'nx-agent '+String(status).toLowerCase()} onClick={()=>go('Agents')}>
+              <div className="nx-agent-index">0{index+1}<span>{status==='RUNNING'?'LIVE':'NODE'}</span></div>
+              <div className="nx-agent-dot"><i/></div>
+              <strong>{agent.name}</strong>
+              <small>{String(agent.role||agent.type||'agent').toUpperCase()}</small>
+              <em>{status}</em>
+              {index<currentAgents.length-1&&<span className="nx-agent-link"/>}
+            </button>
+          })}
+        </div>
+        <div className="nx-graph-footer"><span>ORCHESTRATOR</span><i/><span>PLANNING</span><i/><span>BUILD</span><i/><span>VALIDATE</span><i/><span>REVIEW</span><i/><span>RELEASE</span></div>
       </div>
-    </section>
 
-    <section className="workflow-section reveal" data-reveal>
-      <div className="section-intro"><div><div className="eyebrow">02 / EXECUTION GRAPH</div><h2>From intent to release.</h2></div><span>OBSERVABLE / SERIAL / CONTROLLED</span></div>
-      <div className="workflow-line"><div className="workflow-step" key="Define"><span>01</span><strong>Define</strong><small>objective</small></div><div className="workflow-step" key="Plan"><span>02</span><strong>Plan</strong><small>decomposition</small></div><div className="workflow-step" key="Research"><span>03</span><strong>Research</strong><small>evidence</small></div><div className="workflow-step" key="Build"><span>04</span><strong>Build</strong><small>implementation</small></div><div className="workflow-step" key="Validate"><span>05</span><strong>Validate</strong><small>quality</small></div><div className="workflow-step" key="Review"><span>06</span><strong>Review</strong><small>assurance</small></div><div className="workflow-step" key="Release"><span>07</span><strong>Release</strong><small>delivery</small></div></div>
-    </section>
+      <div className="nx-side-stack">
+        <div className="nx-panel nx-health">
+          <div className="nx-panel-head compact"><span className="nx-eyebrow"><i/>03 / RUNTIME HEALTH</span><strong className="nx-health-status"><i/>{runtimeState}</strong></div>
+          <div className="nx-health-main"><div className="nx-ring"><span>{Math.round((runtimeMetrics?.capacity_utilization||0)*100)}<small>%</small></span></div><div><strong>{runtimeMetrics?.active_tasks||0} active</strong><small>{runtimeMetrics?.queued_tasks||0} queued · {runtimeMetrics?.awaiting_approval||0} approvals</small><em>capacity utilization</em></div></div>
+          <div className="nx-health-bars"><div><span/><b/><i/></div><div><span/><b/><i/></div><div><span/><b/><i/></div></div>
+        </div>
 
-    <section className="signature-grid reveal" data-reveal>
-      <div className="signature-main"><div className="eyebrow">03 / SYSTEM PHILOSOPHY</div><h2>Make the invisible work visible.</h2><p>Every run surfaces confidence, quality, coverage, latency, artifacts, approvals and trace events so the operator can understand what happened—not just receive a final answer.</p><button className="ghost" onClick={()=>go('History')}>Explore execution history ↗</button></div>
-      <div className="signature-stack">
-        <div className="signal-card-mini"><span>STATE</span><strong>{busy?'RUNNING':'READY'}</strong><em>{runtimeState}</em></div>
-        <div className="signal-card-mini"><span>CAPACITY</span><strong>{runtimeMetrics?.active_tasks||0} / {runtimeMetrics?.capacity||4}</strong><em>active workloads</em></div>
-        <div className="signal-card-mini"><span>QUALITY</span><strong>{task?.quality?task.quality+'%':'—'}</strong><em>latest completed run</em></div>
-      </div>
-    </section>
-
-    <section className="surface-gallery reveal" data-reveal>
-      <div className="section-intro"><div><div className="eyebrow">05 / EXPLORE CYRUS</div><h2>Enter the system.</h2></div><span>INTERACTIVE SURFACES</span></div>
-      <div className="surface-grid">
-        <button className="surface-card" onClick={()=>go('Command')} key="Command"><span className="surface-num">01</span><div><small>command</small><h3>Command</h3><p>Launch objectives and watch the seven-agent graph execute.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('Agents')} key="Agents"><span className="surface-num">02</span><div><small>agent registry</small><h3>Agents</h3><p>Inspect the roles, responsibilities, and runtime capabilities.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('Tools')} key="Tools"><span className="surface-num">03</span><div><small>tool registry</small><h3>Tools</h3><p>Browse the engineering tools available to the orchestration layer.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('History')} key="History"><span className="surface-num">04</span><div><small>operational memory</small><h3>History</h3><p>Open previous runs, traces, artifacts, and execution scores.</p></div><b>↗</b></button>
-      </div>
-    </section>
-
-    <section className="tech-ribbon reveal" data-reveal>
-      <div className="eyebrow">05 / TECHNOLOGY SURFACE</div>
-      <div className="marquee" aria-label="CYRUS technology stack">
-        <div className="marquee-track">
-          <span>PYTHON<i>✦</i></span><span>FLASK<i>✦</i></span><span>REACT<i>✦</i></span><span>JAVASCRIPT<i>✦</i></span><span>REST API<i>✦</i></span><span>LOCAL PERSISTENCE<i>✦</i></span><span>GITHUB ACTIONS<i>✦</i></span><span>GITHUB PAGES<i>✦</i></span><span>OBSERVABILITY<i>✦</i></span><span>AGENT ORCHESTRATION<i>✦</i></span>
-          <span>PYTHON<i>✦</i></span><span>FLASK<i>✦</i></span><span>REACT<i>✦</i></span><span>JAVASCRIPT<i>✦</i></span><span>REST API<i>✦</i></span><span>LOCAL PERSISTENCE<i>✦</i></span><span>GITHUB ACTIONS<i>✦</i></span><span>GITHUB PAGES<i>✦</i></span><span>OBSERVABILITY<i>✦</i></span><span>AGENT ORCHESTRATION<i>✦</i></span>
+        <div className="nx-panel nx-memory">
+          <div className="nx-panel-head compact"><span className="nx-eyebrow"><i/>04 / OPERATIONAL MEMORY</span><button onClick={()=>go('History')}>OPEN ↗</button></div>
+          {task?<><div className="nx-memory-objective">{task.objective}</div><div className="nx-memory-row"><span>STATUS</span><b>{task.status}</b></div><div className="nx-memory-row"><span>RISK</span><b>{task.risk||'LOW'}</b></div></>:<div className="nx-empty-mini">Run an objective to create a persistent execution memory.</div>}
         </div>
       </div>
     </section>
 
-    <section className="closing-cta reveal" data-reveal>
-      <div><div className="eyebrow">06 / NEXT OBJECTIVE</div><h2>Give CYRUS something worth shipping.</h2><p>Define the objective. Choose the control mode. Watch the agent graph move.</p></div>
-      <button className="primary-cta" onClick={()=>document.querySelector('.command-panel')?.scrollIntoView({behavior:'smooth'})}>Open command surface ↗</button>
+    <section className="nx-observability">
+      <div className="nx-panel nx-trace-panel">
+        <div className="nx-panel-head">
+          <div><span className="nx-eyebrow"><i/>05 / LIVE TRACE</span><h3>Watch the system think in public.</h3></div>
+          <span className="nx-trace-count">{task?.events?.length||0} EVENTS</span>
+        </div>
+        {task?.events?.length?<div className="nx-trace-list">{task.events.slice(-8).map((event,index)=><div className="nx-trace-row" key={event.event_id||index}><span>{event.time}</span><b>{event.agent}</b><strong>{event.phase}</strong><p>{event.message}</p><em>{event.duration} ms</em></div>)}</div>:<div className="nx-empty-state"><div>◎</div><strong>No execution signal yet.</strong><span>The trace will populate as soon as the agent graph starts moving.</span></div>}
+      </div>
+      <div className="nx-panel nx-artifacts">
+        <div className="nx-panel-head compact"><span className="nx-eyebrow"><i/>06 / RELEASE PACKAGE</span><span>{task?.artifacts?.length||0} FILES</span></div>
+        {task?.artifacts?.length?<div className="nx-artifact-list">{task.artifacts.map((item,index)=><div className="nx-artifact-row" key={item.name}><div className="nx-file-icon">{String(item.language||'FILE').slice(0,2).toUpperCase()}</div><div><strong>{item.name}</strong><small>{item.language} · {item.type}</small></div><span>{item.size}</span></div>)}</div>:<div className="nx-empty-state small"><div>⌁</div><strong>Artifacts waiting.</strong><span>Release outputs appear here after the delivery stage.</span></div>}
+      </div>
     </section>
 
-    <section className="content-grid">
-      <div className="panel"><div className="panel-head"><strong>AGENT CONSTELLATION</strong><span>07 STAGES / LIVE STATE</span></div><div className="graph">{currentAgents.map(a=><div className={'agent-node '+(a.status==='RUNNING'?'running':'')+' '+(a.status==='COMPLETED'?'done':'')} key={a.name}><div className="agent-top"><span>0{a.id}</span><span>{String(a.type||'agent').toUpperCase()}</span></div><h3>{a.name}</h3><div className="agent-role">{a.role}</div><div className={'status '+a.status}>{a.status}</div></div>)}</div></div>
-      <div className="panel"><div className="panel-head"><strong>ARTIFACT EXPLORER</strong><span>GENERATED OUTPUT</span></div>{task?.artifacts?.length?<div className="artifacts">{task.artifacts.map(x=><div className="artifact" key={x.name}><div className="artifact-main"><div className="file-icon">{String(x.language||'FILE').slice(0,2).toUpperCase()}</div><div><strong>{x.name}</strong><small>{x.language} · {x.type}</small></div></div><small>{x.size}</small></div>)}</div>:<div className="empty">No artifacts generated.<br/>Execute an objective to populate the release workspace.</div>}</div>
+    <section className="nx-capabilities">
+      <div className="nx-cap-head"><span className="nx-eyebrow"><i/>07 / WHY CYRUS</span><h2>Designed like a control system.<br/><span>Not another chat window.</span></h2></div>
+      <div className="nx-cap-grid">
+        <article><span>01</span><div><b>Visible orchestration</b><p>Every agent has a role, state and measurable output. The graph is the product, not hidden plumbing.</p></div></article>
+        <article><span>02</span><div><b>Operator control</b><p>Autonomous execution and supervised release checkpoints coexist in the same interaction model.</p></div></article>
+        <article><span>03</span><div><b>Release intelligence</b><p>Confidence, quality, coverage, risk and trace evidence stay attached to every execution record.</p></div></article>
+      </div>
     </section>
 
-    <section className="panel trace-panel"><div className="panel-head"><strong>EXECUTION TRACE</strong><span>{task?.events?.length||0} EVENTS · {runtimeMetrics?.active_tasks||0}/{runtimeMetrics?.capacity||0} ACTIVE</span></div>{task?.events?.length?<div className="trace">{task.events.map((e,i)=><div className="trace-row" key={e.event_id||i}><span className="time mono">{e.time}</span><span className="agent mono">{e.agent}</span><span className="phase mono">{e.phase}</span><span className="msg">{e.message}</span><span className="dur mono">{e.duration} ms</span></div>)}</div>:<div className="empty">Execution trace is waiting for a command.</div>}</section>
+    <section className="nx-bottom-cta">
+      <div><span className="nx-eyebrow"><i/>08 / NEXT OBJECTIVE</span><h2>Give CYRUS something difficult.</h2><p>The interface is ready. The graph is waiting.</p></div>
+      <button onClick={()=>document.querySelector('.nx-console')?.scrollIntoView({behavior:'smooth'})}>Open command surface <b>↗</b></button>
+    </section>
   </div>
 }
 
