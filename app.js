@@ -1,4 +1,4 @@
-const {useEffect,useMemo,useState}=React
+const {useEffect,useMemo,useRef,useState}=React
 
 const API_TIMEOUT_MS=6500
 const NAV_ITEMS=['Command','Agents','Memory','Tools','History']
@@ -48,7 +48,7 @@ function App(){
     try{
       const [health,a,t,h,healthMetrics]=await Promise.all([apiJson('/api/health'),apiJson('/api/agents'),apiJson('/api/tools'),apiJson('/api/tasks'),apiJson('/api/metrics')])
       setRuntimeState(health.runtime==='browser-fallback'?'DEMO':'ONLINE')
-      setAgents(a);setTools(t);setTasks(h);setRuntimeMetrics(m)
+      setAgents(a);setTools(t);setTasks(h);setRuntimeMetrics(healthMetrics)
     }catch{
       setRuntimeState('OFFLINE');notify('CYRUS runtime is unreachable')
     }
@@ -134,51 +134,121 @@ function App(){
   const go=next=>{setPage(next);setPaletteOpen(false);window.scrollTo({top:0,behavior:'smooth'})}
 
   return <div className="app-shell">
-    <aside className="sidebar">
-      <div className="brand"><div className="brand-mark"><span/></div><div><strong>CYRUS</strong><small>AGENTIC INTELLIGENCE</small></div></div>
-      <nav className="nav" aria-label="Primary navigation">{NAV_ITEMS.map((item,i)=><button key={item} className={page===item?'active':''} onClick={()=>go(item)}><span className="num">0{i+1}</span><span className="label">{item}</span></button>)}</nav>
-      <div className="side-foot"><span className="tiny-dot"/>RUNTIME READY<br/>CYRUS CORE 1.0<br/>FASTAPI SIGNAL BRIDGE</div>
-    </aside>
+    <header className="site-nav">
+      <button className="nav-brand" onClick={()=>go('Command')} aria-label="Open CYRUS Command">
+        <span className="nav-brand-mark"><i/></span>
+        <span><strong>CYRUS</strong><small>AGENTIC INTELLIGENCE</small></span>
+      </button>
+      <nav className="site-nav-links" aria-label="Primary navigation">
+        {NAV_ITEMS.map((item,i)=><button key={item} className={page===item?'active':''} onClick={()=>go(item)}><span>{String(i+1).padStart(2,'0')}</span>{item}</button>)}
+      </nav>
+      <div className="nav-status"><span className="dot"/><b>{runtimeState}</b><small>{busy?'RUNNING':'READY'}</small></div>
+      <button className="nav-command" onClick={()=>setPaletteOpen(true)}>⌘ K</button>
+    </header>
+
     <main className="main">
       <div className="topbar">
         <div className="eyebrow">AUTONOMOUS ENGINEERING WORKSPACE</div>
-        <div className="top-actions"><div className="shortcut-pill">⌘/CTRL + K · COMMANDS</div><div className="live-pill"><span className="dot"/>{runtimeState} · {busy?'RUNNING':'READY'}</div></div>
+        <div className="top-actions"><div className="shortcut-pill">OBSERVABLE RUNTIME</div><div className="live-pill"><span className="dot"/>{runtimeState} · {busy?'RUNNING':'READY'}</div></div>
       </div>
       {page==='Command'&&<CommandView {...{prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents:task?.agents||agents.map(a=>({...a,status:'QUEUED'})),metrics:task?[
         ['EXECUTION',task.execution_time_ms?task.execution_time_ms+' ms':'—'],['TOOLS',task.tool_calls||0],['CONFIDENCE',task.confidence?task.confidence+'%':'—'],['RISK',task.risk||'—'],
         ['RELEASE',task.status==='COMPLETED'?'READY':'STANDBY'],['QUALITY',task.quality?task.quality+'%':'—'],['COVERAGE',task.coverage?task.coverage+'%':'—'],['LATENCY',task.latency_ms?task.latency_ms+' ms':'—']
-      ]:[['EXECUTION','—'],['TOOLS','—'],['CONFIDENCE','—'],['RISK','—'],['RELEASE','STANDBY'],['QUALITY','—'],['COVERAGE','—'],['LATENCY','—']],seedObjective,notify,approveTask,cancelTask,runtimeState,runtimeMetrics,go}}/>}
+      ]:[['EXECUTION','—'],['TOOLS','—'],['CONFIDENCE','—'],['RISK','—'],['RELEASE','STANDBY'],['QUALITY','—'],['COVERAGE','—'],['LATENCY','—']],seedObjective,setPrompt,notify,approveTask,cancelTask,runtimeState,runtimeMetrics,go}}/>}
       {page==='Agents'&&<AgentsView agents={agents}/>}
       {page==='Memory'&&<MemoryView tasks={tasks} open={openTask}/>}
       {page==='Tools'&&<ToolsView tools={tools}/>}
       {page==='History'&&<HistoryView tasks={tasks} open={openTask}/>}
     </main>
+
+    <div className="mobile-nav" aria-label="Mobile navigation">
+      {NAV_ITEMS.map((item,i)=><button key={item} className={page===item?'active':''} onClick={()=>go(item)}><span>0{i+1}</span><b>{item}</b></button>)}
+    </div>
+
     {selectedTask&&<TaskModal task={selectedTask} close={()=>setSelectedTask(null)}/>}
     {paletteOpen&&<CommandPalette page={page} go={go} execute={execute} seedObjective={seedObjective} notify={notify} close={()=>setPaletteOpen(false)}/>}
     {toast&&<div className="toast">{toast}</div>}
-    <footer className="site-footer">
-      <div><strong>CYRUS</strong><span>Autonomous Agentic Intelligence System</span></div>
-      <div className="footer-links"><button onClick={()=>go('Command')}>Command</button><button onClick={()=>go('Agents')}>Agents</button><button onClick={()=>go('Tools')}>Tools</button><button onClick={()=>go('History')}>History</button><a href="https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System" target="_blank" rel="noreferrer">GitHub ↗</a></div>
-      <small>Built as an observable engineering workspace · CYRUS CORE 1.0</small>
-    </footer>
   </div>
-}
 
 function CoreVisual({agents,runtimeState,go}){
-  const display=agents.length?agents:[
+  const canvasRef=useRef(null)
+  const [hovered,setHovered]=useState(null)
+  const fallback=[
     {id:1,name:'ORCHESTRATOR',role:'coordination'},{id:2,name:'PLANNER',role:'decomposition'},{id:3,name:'RESEARCHER',role:'evidence'},
     {id:4,name:'CODER',role:'implementation'},{id:5,name:'TESTER',role:'validation'},{id:6,name:'REVIEWER',role:'assurance'},{id:7,name:'RELEASE',role:'delivery'}
   ]
+  const display=agents.length?agents:fallback
+  useEffect(()=>{
+    const canvas=canvasRef.current
+    if(!canvas)return
+    const ctx=canvas.getContext('2d')
+    let frame=0
+    let raf=0
+    let pointer={x:.5,y:.5}
+    const resize=()=>{
+      const ratio=Math.min(window.devicePixelRatio||1,2)
+      const rect=canvas.getBoundingClientRect()
+      canvas.width=Math.max(1,Math.floor(rect.width*ratio))
+      canvas.height=Math.max(1,Math.floor(rect.height*ratio))
+      ctx.setTransform(ratio,0,0,ratio,0,0)
+    }
+    const move=e=>{
+      const rect=canvas.getBoundingClientRect()
+      pointer={x:(e.clientX-rect.left)/rect.width,y:(e.clientY-rect.top)/rect.height}
+    }
+    const starSeed=Array.from({length:115},(_,i)=>({x:(i*73%101)/100,y:(i*47%97)/96,r:1+(i%3)*.35,a:.16+(i%5)*.07}))
+    const draw=()=>{
+      const rect=canvas.getBoundingClientRect()
+      const w=rect.width,h=rect.height
+      ctx.clearRect(0,0,w,h)
+      const driftX=(pointer.x-.5)*18,driftY=(pointer.y-.5)*12
+      frame+=.008
+      for(const star of starSeed){
+        const twinkle=.55+.45*Math.sin(frame*2+star.x*20)
+        ctx.beginPath();ctx.arc(star.x*w+driftX,star.y*h+driftY,star.r,0,Math.PI*2)
+        ctx.fillStyle='rgba(191,241,255,'+(star.a*twinkle)+')';ctx.fill()
+      }
+      const cx=w*.56+driftX*.45,cy=h*.52+driftY*.35
+      const positions=display.map((_,i)=>{
+        const a=(i/7)*Math.PI*2+frame*.045
+        return {x:cx+Math.cos(a)*(w*.31),y:cy+Math.sin(a)*(h*.31)}
+      })
+      ctx.lineWidth=1
+      positions.forEach((p,i)=>{
+        const n=positions[(i+1)%positions.length]
+        ctx.strokeStyle='rgba(98,232,255,.14)'
+        ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(n.x,n.y);ctx.stroke()
+        ctx.strokeStyle='rgba(157,140,255,.08)'
+        ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(p.x,p.y);ctx.stroke()
+      })
+      const pulse=1+Math.sin(frame*5)*.035
+      ctx.beginPath();ctx.arc(cx,cy,86*pulse,0,Math.PI*2)
+      ctx.fillStyle='rgba(98,232,255,.04)';ctx.fill()
+      ctx.strokeStyle='rgba(98,232,255,.28)';ctx.stroke()
+      ctx.beginPath();ctx.arc(cx,cy,112+Math.sin(frame*1.8)*4,0,Math.PI*2)
+      ctx.setLineDash([3,9]);ctx.strokeStyle='rgba(157,140,255,.22)';ctx.stroke();ctx.setLineDash([])
+      ctx.save()
+      const glow=ctx.createRadialGradient(cx,cy,5,cx,cy,150)
+      glow.addColorStop(0,'rgba(98,232,255,.22)');glow.addColorStop(.45,'rgba(113,77,255,.12)');glow.addColorStop(1,'rgba(3,5,11,0)')
+      ctx.fillStyle=glow;ctx.beginPath();ctx.arc(cx,cy,150,0,Math.PI*2);ctx.fill();ctx.restore()
+      raf=requestAnimationFrame(draw)
+    }
+    resize();draw()
+    window.addEventListener('resize',resize)
+    canvas.addEventListener('pointermove',move,{passive:true})
+    return()=>{cancelAnimationFrame(raf);window.removeEventListener('resize',resize);canvas.removeEventListener('pointermove',move)}
+  },[display.length])
   return <div className="hero-visual">
+    <canvas ref={canvasRef} className="cosmos-canvas" aria-hidden="true"/>
     <div className="hero-float top"><span>RUNTIME</span><strong>{runtimeState}</strong><em>signal stable</em></div>
-    <div className="hero-float bottom"><span>AGENT GRAPH</span><strong>07 nodes</strong><em>coordinated</em></div>
-    <div className="core-stage" aria-label="CYRUS interactive agent constellation">
+    <div className="hero-float bottom"><span>AGENT CONSTELLATION</span><strong>07 nodes</strong><em>{hovered||'hover to inspect'}</em></div>
+    <div className="core-stage">
       <div className="core-glow"/>
       <div className="core-orbit"/>
       <div className="core-orbit two"/>
       <div className="core-orbit three"/>
-      {display.map((a,i)=><button className="agent-pod" key={a.name} onClick={()=>go('Agents')} title={'Inspect '+a.name} style={{'--i':i,'--angle':(i*51.4)+'deg'}}><strong><span className="pod-dot"/>{a.name}</strong><small>{String(a.role||'agent').toUpperCase()}</small></button>)}
-      <div className="core-center"><div><button className="core-button" aria-label="Open CYRUS Command" onClick={()=>go('Command')}><div className="core-symbol">C7</div><div className="core-label">CYRUS CORE</div></button></div></div>
+      {display.map((a,i)=><button className="agent-pod" key={a.name} onMouseEnter={()=>setHovered(a.name)} onMouseLeave={()=>setHovered(null)} onClick={()=>go('Agents')} title={'Inspect '+a.name} style={{'--i':i,'--angle':(i*51.4)+'deg'}}><strong><span className="pod-dot"/>{a.name}</strong><small>{String(a.role||'agent').toUpperCase()}</small></button>)}
+      <button className="core-button" aria-label="Open CYRUS Command" onClick={()=>go('Command')}><div className="core-center"><div><div className="core-symbol">C7</div><div className="core-label">CYRUS CORE</div></div></div></button>
     </div>
   </div>
 }
