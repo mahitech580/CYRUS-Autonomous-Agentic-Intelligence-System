@@ -159,7 +159,7 @@ function App(){
   </div>
 }
 
-function CoreVisual({agents,runtimeState}){
+function CoreVisual({agents,runtimeState,go}){
   const display=agents.length?agents:[
     {id:1,name:'ORCHESTRATOR',role:'coordination'},{id:2,name:'PLANNER',role:'decomposition'},{id:3,name:'RESEARCHER',role:'evidence'},
     {id:4,name:'CODER',role:'implementation'},{id:5,name:'TESTER',role:'validation'},{id:6,name:'REVIEWER',role:'assurance'},{id:7,name:'RELEASE',role:'delivery'}
@@ -167,13 +167,13 @@ function CoreVisual({agents,runtimeState}){
   return <div className="hero-visual">
     <div className="hero-float top"><span>RUNTIME</span><strong>{runtimeState}</strong><em>signal stable</em></div>
     <div className="hero-float bottom"><span>AGENT GRAPH</span><strong>07 nodes</strong><em>coordinated</em></div>
-    <div className="core-stage">
+    <div className="core-stage" aria-label="CYRUS interactive agent constellation">
       <div className="core-glow"/>
       <div className="core-orbit"/>
       <div className="core-orbit two"/>
       <div className="core-orbit three"/>
-      {display.map((a,i)=><div className="agent-pod" key={a.name} style={{'--i':i,'--angle':(i*51.4)+'deg'}}><strong><span className="pod-dot"/>{a.name}</strong><small>{String(a.role||'agent').toUpperCase()}</small></div>)}
-      <div className="core-center"><div><div className="core-symbol">C7</div><div className="core-label">CYRUS CORE</div></div></div>
+      {display.map((a,i)=><button className="agent-pod" key={a.name} onClick={()=>go('Agents')} title={'Inspect '+a.name} style={{'--i':i,'--angle':(i*51.4)+'deg'}}><strong><span className="pod-dot"/>{a.name}</strong><small>{String(a.role||'agent').toUpperCase()}</small></button>)}
+      <div className="core-center"><div><button className="core-button" aria-label="Open CYRUS Command" onClick={()=>go('Command')}><div className="core-symbol">C7</div><div className="core-label">CYRUS CORE</div></button></div></div>
     </div>
   </div>
 }
@@ -191,7 +191,7 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
         </div>
         <div className="hero-meta"><span>07 <b>specialized agents</b></span><span>08 <b>callable tools</b></span><span>01 <b>observable runtime</b></span></div>
       </div>
-      <CoreVisual agents={currentAgents} runtimeState={runtimeState}/>
+      <CoreVisual agents={currentAgents} runtimeState={runtimeState} go={go}/>
     </section>
 
     <section className="command-panel">
@@ -219,6 +219,29 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
       <div className="story-stats"><div><strong>07</strong><span>AGENTS</span></div><div><strong>08</strong><span>TOOLS</span></div><div><strong>01</strong><span>GRAPH</span></div></div>
     </section>
 
+    <section className="proof-rail reveal" data-reveal>
+      <div className="proof-item"><span>EXECUTION GRAPH</span><strong>07</strong><small>specialized agents</small></div>
+      <div className="proof-item"><span>TOOL SURFACE</span><strong>08</strong><small>callable capabilities</small></div>
+      <div className="proof-item"><span>CONTROL MODES</span><strong>02</strong><small>autonomous + supervised</small></div>
+      <div className="proof-item"><span>RUNTIME SIGNAL</span><strong>LIVE</strong><small>health + metrics</small></div>
+    </section>
+
+    <section className="case-studies reveal" data-reveal>
+      <div className="section-intro"><div><div className="eyebrow">02 / WHAT CYRUS SHIPS</div><h2>Systems, not screens.</h2></div><span>PRODUCT CAPABILITIES</span></div>
+      <div className="case-grid">
+        <article className="case-card case-feature">
+          <div className="case-art"><div className="mini-orbit one"></div><div className="mini-orbit two"></div><div className="mini-core">01</div></div>
+          <div className="case-copy"><span>ORCHESTRATION</span><h3>Seven stages. One execution graph.</h3><p>Planning, research, coding, testing, review and release are surfaced as an observable sequence instead of hidden behind one assistant response.</p><div className="case-tags"><b>PLAN</b><b>RESEARCH</b><b>BUILD</b><b>REVIEW</b></div></div>
+        </article>
+        <article className="case-card">
+          <div className="case-number">02</div><span>BROWSER RUNTIME</span><h3>Demo-first resilience.</h3><p>The browser fallback keeps the product explorable on GitHub Pages while local persistence, idempotency and execution history preserve the interaction model.</p><div className="case-metric"><strong>LOCAL</strong><small>DEMO MODE</small></div>
+        </article>
+        <article className="case-card">
+          <div className="case-number">03</div><span>RUNTIME SAFETY</span><h3>Control before release.</h3><p>Bounded workers, request correlation, rate-limit hints, readiness checks and supervised approval make the runtime explicit about operational state.</p><div className="case-metric"><strong>02</strong><small>CONTROL MODES</small></div>
+        </article>
+      </div>
+    </section>
+
     <section className="workflow-section reveal" data-reveal>
       <div className="section-intro"><div><div className="eyebrow">02 / EXECUTION GRAPH</div><h2>From intent to release.</h2></div><span>OBSERVABLE / SERIAL / CONTROLLED</span></div>
       <div className="workflow-line"><div className="workflow-step" key="Define"><span>01</span><strong>Define</strong><small>objective</small></div><div className="workflow-step" key="Plan"><span>02</span><strong>Plan</strong><small>decomposition</small></div><div className="workflow-step" key="Research"><span>03</span><strong>Research</strong><small>evidence</small></div><div className="workflow-step" key="Build"><span>04</span><strong>Build</strong><small>implementation</small></div><div className="workflow-step" key="Validate"><span>05</span><strong>Validate</strong><small>quality</small></div><div className="workflow-step" key="Review"><span>06</span><strong>Review</strong><small>assurance</small></div><div className="workflow-step" key="Release"><span>07</span><strong>Release</strong><small>delivery</small></div></div>
@@ -234,14 +257,14 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
     </section>
 
     <section className="surface-gallery reveal" data-reveal>
-      <div className="section-intro"><div><div className="eyebrow">04 / EXPLORE CYRUS</div><h2>Enter the system.</h2></div><span>INTERACTIVE SURFACES</span></div>
+      <div className="section-intro"><div><div className="eyebrow">05 / EXPLORE CYRUS</div><h2>Enter the system.</h2></div><span>INTERACTIVE SURFACES</span></div>
       <div className="surface-grid">
         <button className="surface-card" onClick={()=>go('Command')} key="Command"><span className="surface-num">01</span><div><small>command</small><h3>Command</h3><p>Launch objectives and watch the seven-agent graph execute.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('Agents')} key="Agents"><span className="surface-num">02</span><div><small>agent registry</small><h3>Agents</h3><p>Inspect the roles, responsibilities, and runtime capabilities.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('Tools')} key="Tools"><span className="surface-num">03</span><div><small>tool registry</small><h3>Tools</h3><p>Browse the engineering tools available to the orchestration layer.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('History')} key="History"><span className="surface-num">04</span><div><small>operational memory</small><h3>History</h3><p>Open previous runs, traces, artifacts, and execution scores.</p></div><b>↗</b></button>
       </div>
     </section>
 
     <section className="closing-cta reveal" data-reveal>
-      <div><div className="eyebrow">04 / NEXT OBJECTIVE</div><h2>Give CYRUS something worth shipping.</h2><p>Define the objective. Choose the control mode. Watch the agent graph move.</p></div>
+      <div><div className="eyebrow">06 / NEXT OBJECTIVE</div><h2>Give CYRUS something worth shipping.</h2><p>Define the objective. Choose the control mode. Watch the agent graph move.</p></div>
       <button className="primary-cta" onClick={()=>document.querySelector('.command-panel')?.scrollIntoView({behavior:'smooth'})}>Open command surface ↗</button>
     </section>
 
