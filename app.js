@@ -16,7 +16,7 @@ async function apiJson(path, options={}){
       return data
     }catch(error){
       lastError=error
-      if(attempt<attempts-1) await new Promise(resolve=>setTimeout(resolve,180))
+      if(attempt<attempts-1){const retryAfter=Number(res?.headers?.get?.('Retry-After'));const delay=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,3000):180;await new Promise(resolve=>setTimeout(resolve,delay))}
     }finally{
       clearTimeout(timer)
     }
