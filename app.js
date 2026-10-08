@@ -233,6 +233,13 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
       </div>
     </section>
 
+    <section className="surface-gallery reveal" data-reveal>
+      <div className="section-intro"><div><div className="eyebrow">04 / EXPLORE CYRUS</div><h2>Enter the system.</h2></div><span>INTERACTIVE SURFACES</span></div>
+      <div className="surface-grid">
+        <button className="surface-card" onClick={()=>go('Command')} key="Command"><span className="surface-num">01</span><div><small>command</small><h3>Command</h3><p>Launch objectives and watch the seven-agent graph execute.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('Agents')} key="Agents"><span className="surface-num">02</span><div><small>agent registry</small><h3>Agents</h3><p>Inspect the roles, responsibilities, and runtime capabilities.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('Tools')} key="Tools"><span className="surface-num">03</span><div><small>tool registry</small><h3>Tools</h3><p>Browse the engineering tools available to the orchestration layer.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('History')} key="History"><span className="surface-num">04</span><div><small>operational memory</small><h3>History</h3><p>Open previous runs, traces, artifacts, and execution scores.</p></div><b>↗</b></button>
+      </div>
+    </section>
+
     <section className="closing-cta reveal" data-reveal>
       <div><div className="eyebrow">04 / NEXT OBJECTIVE</div><h2>Give CYRUS something worth shipping.</h2><p>Define the objective. Choose the control mode. Watch the agent graph move.</p></div>
       <button className="primary-cta" onClick={()=>document.querySelector('.command-panel')?.scrollIntoView({behavior:'smooth'})}>Open command surface ↗</button>
