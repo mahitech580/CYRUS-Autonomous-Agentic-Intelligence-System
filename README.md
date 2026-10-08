@@ -38,6 +38,7 @@ Open `http://127.0.0.1:8000/`.
 - `GET /api/tools`
 - `GET /api/tasks` — compact list with optional `limit` and `status` filters
 - `GET /api/tasks/{id}` — full execution record including agent state and trace
+- `GET /api/tasks/{id}/stream` — resumable Server-Sent Events stream for live state and trace updates
 - `POST /api/tasks/{id}/cancel` — cooperative cancellation
 - `POST /api/tasks/{id}/approve` — supervised release approval
 - `GET /api/memory`
@@ -55,7 +56,7 @@ Open `http://127.0.0.1:8000/`.
 
 Modes: `autonomous` and `supervised`.
 
-Use an `Idempotency-Key` header for retry-safe submissions. Supervised runs pause after REVIEWER and remain in `AWAITING_APPROVAL` until explicitly approved. Request IDs are returned as `X-Request-ID` and execution events contain stable event IDs for trace correlation.
+Use an `Idempotency-Key` header for retry-safe submissions. Supervised runs pause after REVIEWER and remain in `AWAITING_APPROVAL` until explicitly approved. Request IDs are returned as `X-Request-ID` and execution events contain stable event IDs for trace correlation. The event stream supports `Last-Event-ID`, so a reconnect resumes from the last delivered trace event instead of replaying the entire stream.
 
 ## Demo mode
 
