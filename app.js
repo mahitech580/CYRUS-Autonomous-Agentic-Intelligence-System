@@ -156,6 +156,11 @@ function App(){
     {selectedTask&&<TaskModal task={selectedTask} close={()=>setSelectedTask(null)}/>}
     {paletteOpen&&<CommandPalette page={page} go={go} execute={execute} seedObjective={seedObjective} notify={notify} close={()=>setPaletteOpen(false)}/>}
     {toast&&<div className="toast">{toast}</div>}
+    <footer className="site-footer">
+      <div><strong>CYRUS</strong><span>Autonomous Agentic Intelligence System</span></div>
+      <div className="footer-links"><button onClick={()=>go('Command')}>Command</button><button onClick={()=>go('Agents')}>Agents</button><button onClick={()=>go('Tools')}>Tools</button><button onClick={()=>go('History')}>History</button><a href="https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System" target="_blank" rel="noreferrer">GitHub ↗</a></div>
+      <small>Built as an observable engineering workspace · CYRUS CORE 1.0</small>
+    </footer>
   </div>
 }
 
@@ -260,6 +265,16 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
       <div className="section-intro"><div><div className="eyebrow">05 / EXPLORE CYRUS</div><h2>Enter the system.</h2></div><span>INTERACTIVE SURFACES</span></div>
       <div className="surface-grid">
         <button className="surface-card" onClick={()=>go('Command')} key="Command"><span className="surface-num">01</span><div><small>command</small><h3>Command</h3><p>Launch objectives and watch the seven-agent graph execute.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('Agents')} key="Agents"><span className="surface-num">02</span><div><small>agent registry</small><h3>Agents</h3><p>Inspect the roles, responsibilities, and runtime capabilities.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('Tools')} key="Tools"><span className="surface-num">03</span><div><small>tool registry</small><h3>Tools</h3><p>Browse the engineering tools available to the orchestration layer.</p></div><b>↗</b></button><button className="surface-card" onClick={()=>go('History')} key="History"><span className="surface-num">04</span><div><small>operational memory</small><h3>History</h3><p>Open previous runs, traces, artifacts, and execution scores.</p></div><b>↗</b></button>
+      </div>
+    </section>
+
+    <section className="tech-ribbon reveal" data-reveal>
+      <div className="eyebrow">05 / TECHNOLOGY SURFACE</div>
+      <div className="marquee" aria-label="CYRUS technology stack">
+        <div className="marquee-track">
+          <span>PYTHON<i>✦</i></span><span>FLASK<i>✦</i></span><span>REACT<i>✦</i></span><span>JAVASCRIPT<i>✦</i></span><span>REST API<i>✦</i></span><span>LOCAL PERSISTENCE<i>✦</i></span><span>GITHUB ACTIONS<i>✦</i></span><span>GITHUB PAGES<i>✦</i></span><span>OBSERVABILITY<i>✦</i></span><span>AGENT ORCHESTRATION<i>✦</i></span>
+          <span>PYTHON<i>✦</i></span><span>FLASK<i>✦</i></span><span>REACT<i>✦</i></span><span>JAVASCRIPT<i>✦</i></span><span>REST API<i>✦</i></span><span>LOCAL PERSISTENCE<i>✦</i></span><span>GITHUB ACTIONS<i>✦</i></span><span>GITHUB PAGES<i>✦</i></span><span>OBSERVABILITY<i>✦</i></span><span>AGENT ORCHESTRATION<i>✦</i></span>
+        </div>
       </div>
     </section>
 
