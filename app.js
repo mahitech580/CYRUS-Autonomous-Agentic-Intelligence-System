@@ -163,7 +163,7 @@ function CoreVisual({agents,runtimeState}){
       <div className="core-orbit"/>
       <div className="core-orbit two"/>
       <div className="core-orbit three"/>
-      {display.map((a,i)=><div className="agent-pod" key={a.name} style={{'--i':i}}><strong><span className="pod-dot"/>{a.name}</strong><small>{String(a.role||'agent').toUpperCase()}</small></div>)}
+      {display.map((a,i)=><div className="agent-pod" key={a.name} style={{'--i':i,'--angle':(i*51.4)+'deg'}}><strong><span className="pod-dot"/>{a.name}</strong><small>{String(a.role||'agent').toUpperCase()}</small></div>)}
       <div className="core-center"><div><div className="core-symbol">C7</div><div className="core-label">CYRUS CORE</div></div></div>
     </div>
   </div>
