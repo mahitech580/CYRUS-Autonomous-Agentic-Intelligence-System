@@ -57,6 +57,15 @@ function App(){
     const data=await apiJson('/api/tasks/'+id);setTask(data);return data
   }
   useEffect(()=>{
+    const nodes=[...document.querySelectorAll('[data-reveal]')]
+    if(!nodes.length)return
+    const observer=new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('is-visible');observer.unobserve(entry.target)}})
+    },{threshold:.12})
+    nodes.forEach(node=>observer.observe(node))
+    return()=>observer.disconnect()
+  },[page])
+  useEffect(()=>{
     loadBase()
     const onOnline=()=>{setRuntimeState('CONNECTING');loadBase()}
     const onOffline=()=>setRuntimeState('OFFLINE')
@@ -203,6 +212,31 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
       <div className="capability-card"><div className="capability-icon">02</div><strong>Observable execution</strong><p>Surfaces current state, trace events, tool activity, confidence, and release posture.</p></div>
       <div className="capability-card"><div className="capability-icon">03</div><strong>Human control</strong><p>Supports autonomous runs plus supervised approval checkpoints before release.</p></div>
     </div>
+
+    <section className="story-band reveal" data-reveal>
+      <div className="story-label">01 / THE IDEA</div>
+      <div className="story-copy"><div className="story-eyebrow">NOT ANOTHER CHAT BOX</div><h2>One objective.<br/><span>Seven specialized minds.</span></h2><p>CYRUS is designed as an execution system: a visible chain of reasoning and delivery where every stage has a job, a state, and a measurable output.</p></div>
+      <div className="story-stats"><div><strong>07</strong><span>AGENTS</span></div><div><strong>08</strong><span>TOOLS</span></div><div><strong>01</strong><span>GRAPH</span></div></div>
+    </section>
+
+    <section className="workflow-section reveal" data-reveal>
+      <div className="section-intro"><div><div className="eyebrow">02 / EXECUTION GRAPH</div><h2>From intent to release.</h2></div><span>OBSERVABLE / SERIAL / CONTROLLED</span></div>
+      <div className="workflow-line"><div className="workflow-step" key="Define"><span>01</span><strong>Define</strong><small>objective</small></div><div className="workflow-step" key="Plan"><span>02</span><strong>Plan</strong><small>decomposition</small></div><div className="workflow-step" key="Research"><span>03</span><strong>Research</strong><small>evidence</small></div><div className="workflow-step" key="Build"><span>04</span><strong>Build</strong><small>implementation</small></div><div className="workflow-step" key="Validate"><span>05</span><strong>Validate</strong><small>quality</small></div><div className="workflow-step" key="Review"><span>06</span><strong>Review</strong><small>assurance</small></div><div className="workflow-step" key="Release"><span>07</span><strong>Release</strong><small>delivery</small></div></div>
+    </section>
+
+    <section className="signature-grid reveal" data-reveal>
+      <div className="signature-main"><div className="eyebrow">03 / SYSTEM PHILOSOPHY</div><h2>Make the invisible work visible.</h2><p>Every run surfaces confidence, quality, coverage, latency, artifacts, approvals and trace events so the operator can understand what happened—not just receive a final answer.</p><button className="ghost" onClick={()=>go('History')}>Explore execution history ↗</button></div>
+      <div className="signature-stack">
+        <div className="signal-card-mini"><span>STATE</span><strong>{busy?'RUNNING':'READY'}</strong><em>{runtimeState}</em></div>
+        <div className="signal-card-mini"><span>CAPACITY</span><strong>{runtimeMetrics?.active_tasks||0} / {runtimeMetrics?.capacity||4}</strong><em>active workloads</em></div>
+        <div className="signal-card-mini"><span>QUALITY</span><strong>{task?.quality?task.quality+'%':'—'}</strong><em>latest completed run</em></div>
+      </div>
+    </section>
+
+    <section className="closing-cta reveal" data-reveal>
+      <div><div className="eyebrow">04 / NEXT OBJECTIVE</div><h2>Give CYRUS something worth shipping.</h2><p>Define the objective. Choose the control mode. Watch the agent graph move.</p></div>
+      <button className="primary-cta" onClick={()=>document.querySelector('.command-panel')?.scrollIntoView({behavior:'smooth'})}>Open command surface ↗</button>
+    </section>
 
     <section className="content-grid">
       <div className="panel"><div className="panel-head"><strong>AGENT CONSTELLATION</strong><span>07 STAGES / LIVE STATE</span></div><div className="graph">{currentAgents.map(a=><div className={'agent-node '+(a.status==='RUNNING'?'running':'')+' '+(a.status==='COMPLETED'?'done':'')} key={a.name}><div className="agent-top"><span>0{a.id}</span><span>{String(a.type||'agent').toUpperCase()}</span></div><h3>{a.name}</h3><div className="agent-role">{a.role}</div><div className={'status '+a.status}>{a.status}</div></div>)}</div></div>
