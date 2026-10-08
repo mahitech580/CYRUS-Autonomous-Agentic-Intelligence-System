@@ -282,3 +282,19 @@ button:disabled{cursor:not-allowed;opacity:.58}
 @media(max-width:900px){.story-band{grid-template-columns:1fr;gap:15px;margin-top:55px}.story-stats{grid-template-columns:repeat(3,82px)}.workflow-line{overflow:auto;grid-template-columns:repeat(7,120px);padding-bottom:12px}.workflow-line:before{left:60px;right:auto;width:720px}.workflow-step{padding:0}.signature-grid{grid-template-columns:1fr;margin-top:55px}.closing-cta{margin-top:55px;align-items:flex-start;flex-direction:column}}
 @media(max-width:760px){.section-intro{align-items:flex-start;flex-direction:column}.section-intro h2{font-size:34px}.story-copy h2{font-size:38px}.signature-main{min-height:280px;padding:22px}.signature-main h2{font-size:39px}.closing-cta{padding:22px}.closing-cta .primary-cta{width:100%}}
 @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+
+.surface-gallery{margin-top:74px}
+.surface-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.surface-card{
+  position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;width:100%;min-height:185px;padding:22px;
+  border:1px solid var(--line);border-radius:20px;background:linear-gradient(145deg,rgba(11,17,31,.82),rgba(5,10,18,.7));
+  color:inherit;text-align:left;overflow:hidden;transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease;
+}
+.surface-card:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 90% 10%,rgba(98,232,255,.09),transparent 14rem);opacity:0;transition:.25s}
+.surface-card:hover{transform:translateY(-5px);border-color:rgba(98,232,255,.26);box-shadow:0 28px 60px rgba(0,0,0,.25)}
+.surface-card:hover:before{opacity:1}
+.surface-num{color:#56647c;font:8px var(--mono);position:relative;z-index:1}
+.surface-card>div{flex:1;position:relative;z-index:1}.surface-card small{display:block;color:#62708a;font:7px var(--mono);letter-spacing:.1em;text-transform:uppercase}
+.surface-card h3{margin:11px 0 6px;font-size:23px;letter-spacing:-.035em}.surface-card p{margin:0;max-width:420px;color:#728097;font-size:10px;line-height:1.7}
+.surface-card b{position:relative;z-index:1;width:30px;height:30px;border:1px solid rgba(98,232,255,.18);border-radius:9px;display:grid;place-items:center;color:var(--cyan);font-size:15px}
+@media(max-width:760px){.surface-gallery{margin-top:55px}.surface-grid{grid-template-columns:1fr}.surface-card{min-height:165px}}
