@@ -42,7 +42,7 @@ def apply_response_hardening(response):
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
     response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     response.headers["X-DNS-Prefetch-Control"] = "off"
-    if request.path.startswith("/api/"):
+    if request.path.startswith("/api/") and not request.path.endswith("/stream"):
         response.headers["Cache-Control"] = "no-store"
     elif request.path in {"/styles.css", "/app.js", "/demo-bridge.js"}:
         response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=86400"
