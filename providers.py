@@ -33,12 +33,25 @@ class DeterministicProvider:
         ]
 
     def research(self, objective: str) -> list[str]:
-        return [
-            "REST contract validation",
-            "JWT boundary review",
-            "SQL persistence pattern",
-            "Automated test strategy",
+        text = objective.lower()
+        signals = []
+        if any(token in text for token in ("api", "rest", "http", "endpoint")):
+            signals.append("REST contract validation")
+        if any(token in text for token in ("auth", "jwt", "login", "token", "permission")):
+            signals.append("Authentication and authorization boundary review")
+        if any(token in text for token in ("sql", "database", "postgres", "mysql", "sqlite", "persistence")):
+            signals.append("Persistence and transaction pattern review")
+        if any(token in text for token in ("test", "qa", "quality", "coverage")):
+            signals.append("Automated verification strategy")
+        if any(token in text for token in ("deploy", "release", "docker", "cloud")):
+            signals.append("Deployment and rollback readiness")
+        if any(token in text for token in ("security", "secure", "secret", "vulnerability")):
+            signals.append("Security boundary and secret-handling review")
+        defaults = [
+            "Failure-mode and observability review",
+            "Maintainability and dependency-risk review",
         ]
+        return (signals + defaults)[:6]
 
 
 def get_provider() -> ExecutionProvider:
