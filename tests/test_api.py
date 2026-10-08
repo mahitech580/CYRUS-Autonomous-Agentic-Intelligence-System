@@ -451,6 +451,63 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertRegex(event["timestamp"], r"^\d{4}-\d{2}-\d{2}T")
         self.assertEqual(event["duration"], 15)
 
+    def test_task_event_stream_emits_state_trace_and_terminal_close(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-STREAM"] = {
+                "task_id": "CYRUS-STREAM",
+                "status": "COMPLETED",
+                "current_agent": "RELEASE",
+                "updated_at": server.now_iso(),
+                "score": 94,
+                "confidence": 96,
+                "quality": 94,
+                "coverage": 92,
+                "risk": "LOW",
+                "tool_calls": 7,
+                "events": [
+                    {
+                        "event_id": "CYRUS-STREAM-E001",
+                        "agent": "ORCHESTRATOR",
+                        "phase": "INITIALIZATION",
+                        "message": "Execution context established",
+                        "duration": 10,
+                    }
+                ],
+            }
+        response = self.client.get(
+            "/api/tasks/CYRUS-STREAM/stream",
+            headers={"Accept": "text/event-stream"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "text/event-stream")
+        body = response.get_data(as_text=True)
+        self.assertIn("event: state", body)
+        self.assertIn("event: trace", body)
+        self.assertIn("id: CYRUS-STREAM-E001", body)
+        self.assertIn('"status":"COMPLETED"', body)
+        self.assertEqual(response.headers["Cache-Control"], "no-cache, no-transform")
+
+    def test_task_event_stream_resumes_after_last_event_id(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-RESUME"] = {
+                "task_id": "CYRUS-RESUME",
+                "status": "COMPLETED",
+                "current_agent": "RELEASE",
+                "updated_at": server.now_iso(),
+                "events": [
+                    {"event_id": "CYRUS-RESUME-E001", "agent": "A"},
+                    {"event_id": "CYRUS-RESUME-E002", "agent": "B"},
+                ],
+            }
+        response = self.client.get(
+            "/api/tasks/CYRUS-RESUME/stream",
+            headers={"Last-Event-ID": "CYRUS-RESUME-E001"},
+        )
+        body = response.get_data(as_text=True)
+        self.assertNotIn("CYRUS-RESUME-E001", body)
+        self.assertIn("CYRUS-RESUME-E002", body)
+        self.assertIn("event: close", body)
+
     def test_unknown_route_preserves_http_404(self):
         response = self.client.get("/api/does-not-exist")
         self.assertEqual(response.status_code, 404)
