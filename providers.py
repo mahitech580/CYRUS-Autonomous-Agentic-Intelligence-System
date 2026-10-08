@@ -50,6 +50,8 @@ class DeterministicProvider:
         defaults = [
             "Failure-mode and observability review",
             "Maintainability and dependency-risk review",
+            "Operational monitoring and rollback review",
+            "Input validation and boundary-condition review",
         ]
         return (signals + defaults)[:6]
 
