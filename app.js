@@ -65,7 +65,7 @@ function App(){
     setTask(data)
     return data
   }
-  useEffect(()=>{loadBase()},[])
+  useEffect(()=>{loadBase();const onOnline=()=>{setRuntimeState('CONNECTING');loadBase()};const onOffline=()=>setRuntimeState('OFFLINE');window.addEventListener('online',onOnline);window.addEventListener('offline',onOffline);return()=>{window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline)}},[])
   useEffect(()=>{const timer=setInterval(async()=>{try{setRuntimeMetrics(await apiJson('/api/metrics'))}catch{setRuntimeState('OFFLINE')}},2000);return()=>clearInterval(timer)},[])
   useEffect(()=>{
     if(!task?.task_id)return
