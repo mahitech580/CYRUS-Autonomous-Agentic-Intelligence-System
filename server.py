@@ -1,4 +1,4 @@
-from flask import Flask, g, jsonify, request, send_from_directory
+from flask import Flask, g, jsonify, request, send_from_directory, Response, stream_with_context
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from providers import get_provider
@@ -564,6 +564,100 @@ def cancel_task(task_id):
         "status": "CANCELLATION_REQUESTED",
         "summary": "CYRUS will stop at the next safe execution checkpoint."
     }), 202
+
+
+def _sse_message(event_name, payload, event_id=None):
+    lines = []
+    if event_id:
+        lines.append(f"id: {event_id}")
+    lines.append(f"event: {event_name}")
+    encoded = json.dumps(payload, separators=(",", ":"))
+    for line in encoded.splitlines() or [""]:
+        lines.append(f"data: {line}")
+    return "\n".join(lines) + "\n\n"
+
+
+def _task_stream_snapshot(task):
+    return {
+        "task_id": task["task_id"],
+        "status": task.get("status"),
+        "current_agent": task.get("current_agent"),
+        "updated_at": task.get("updated_at"),
+        "approval_required": bool(task.get("approval_required")),
+        "score": task.get("score", 0),
+        "confidence": task.get("confidence", 0),
+        "quality": task.get("quality", 0),
+        "coverage": task.get("coverage", 0),
+        "risk": task.get("risk", "LOW"),
+        "tool_calls": task.get("tool_calls", 0),
+    }
+
+
+@app.get("/api/tasks/<task_id>/stream")
+def task_stream(task_id):
+    with runtime["lock"]:
+        task = runtime["tasks"].get(task_id)
+    if task is None:
+        for item in load_history():
+            if item.get("task_id") == task_id:
+                task = item
+                break
+    if task is None:
+        return jsonify({"error": "Task not found"}), 404
+
+    raw_last_id = request.headers.get("Last-Event-ID", "").strip()
+    match = re.fullmatch(r".*-E(\d+)", raw_last_id)
+    last_sequence = int(match.group(1)) if match else 0
+
+    @stream_with_context
+    def generate():
+        sent_state = None
+        heartbeat_at = time.monotonic()
+        deadline = time.monotonic() + 60
+        sequence = last_sequence
+
+        while time.monotonic() < deadline:
+            with runtime["lock"]:
+                live_task = runtime["tasks"].get(task_id)
+            if live_task is None:
+                live_task = task
+
+            snapshot = _task_stream_snapshot(live_task)
+            signature = json.dumps(snapshot, sort_keys=True, separators=(",", ":"))
+            if signature != sent_state:
+                sent_state = signature
+                yield _sse_message("state", snapshot)
+
+            events = live_task.get("events", [])
+            for item in events:
+                event_match = re.fullmatch(r".*-E(\d+)", str(item.get("event_id", "")))
+                event_sequence = int(event_match.group(1)) if event_match else 0
+                if event_sequence > sequence:
+                    sequence = event_sequence
+                    yield _sse_message("trace", item, item.get("event_id"))
+
+            status = live_task.get("status")
+            if status in {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"}:
+                yield _sse_message("close", {"task_id": task_id, "status": status})
+                return
+
+            if time.monotonic() - heartbeat_at >= 10:
+                heartbeat_at = time.monotonic()
+                yield ": cyrus-heartbeat\n\n"
+            time.sleep(0.25)
+
+        yield _sse_message("close", {
+            "task_id": task_id,
+            "status": "STREAM_TIMEOUT",
+            "reason": "Event stream lease expired; reconnect with Last-Event-ID to resume."
+        })
+
+    response = Response(generate(), mimetype="text/event-stream")
+    response.headers["Cache-Control"] = "no-cache, no-transform"
+    response.headers["X-Accel-Buffering"] = "no"
+    response.headers["Connection"] = "keep-alive"
+    return response
+
 
 @app.get("/api/tasks/<task_id>")
 def task_detail(task_id):
