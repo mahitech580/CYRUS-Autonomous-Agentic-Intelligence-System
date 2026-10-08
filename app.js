@@ -222,3 +222,4 @@ function TaskModal({task,close}){return <div className="modal-back" onClick={clo
 function CommandPalette({page,go,close}){const [query,setQuery]=useState('');const items=useMemo(()=>NAV_ITEMS.filter(x=>x.toLowerCase().includes(query.toLowerCase())),[query]);return <div className="command-palette-back" onClick={close}><div className="command-palette" onClick={e=>e.stopPropagation()}><div className="palette-head"><span className="eyebrow">FIND</span><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Jump to a CYRUS surface..." /></div><div className="palette-list">{items.map((item,i)=><button key={item} className={'palette-item '+(page===item?'active':'')} onClick={()=>go(item)}><span>{item}</span><small>OPEN SURFACE 0{i+1}</small></button>)}</div></div></div>}
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>)
+
