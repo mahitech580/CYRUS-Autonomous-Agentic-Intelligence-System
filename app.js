@@ -169,6 +169,7 @@ function App(){
     {paletteOpen&&<CommandPalette page={page} go={go} execute={execute} seedObjective={seedObjective} notify={notify} close={()=>setPaletteOpen(false)}/>}
     {toast&&<div className="toast">{toast}</div>}
   </div>
+}
 
 function CoreVisual({agents,runtimeState,go}){
   const canvasRef=useRef(null)
