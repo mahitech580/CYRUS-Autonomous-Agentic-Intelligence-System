@@ -26,6 +26,49 @@ async function apiJson(path,options={}){
   throw lastError||new Error('CYRUS request failed')
 }
 
+
+async function streamTaskEvents(taskId,signal,onState,onTrace){
+  const res=await fetch('/api/tasks/'+encodeURIComponent(taskId)+'/stream',{
+    headers:{Accept:'text/event-stream'},
+    signal
+  })
+  if(!res.ok||!res.body)throw new Error('Live event stream unavailable')
+  const reader=res.body.getReader()
+  const decoder=new TextDecoder()
+  let buffer=''
+  let eventName='message'
+  let eventId=''
+  let data=[]
+  const flush=()=>{
+    if(!data.length)return
+    const raw=data.join('\n')
+    let payload=null
+    try{payload=JSON.parse(raw)}catch{return}
+    if(eventName==='state')onState(payload)
+    if(eventName==='trace')onTrace(payload)
+    eventName='message';eventId='';data=[]
+  }
+  try{
+    while(true){
+      const {value,done}=await reader.read()
+      if(done)break
+      buffer+=decoder.decode(value,{stream:true})
+      const lines=buffer.split(/\r?\n/)
+      buffer=lines.pop()||''
+      for(const line of lines){
+        if(!line){flush();continue}
+        if(line.startsWith(':'))continue
+        if(line.startsWith('event:'))eventName=line.slice(6).trim()
+        else if(line.startsWith('id:'))eventId=line.slice(3).trim()
+        else if(line.startsWith('data:'))data.push(line.slice(5).trimStart())
+      }
+    }
+    if(buffer) data.push(buffer)
+    flush()
+  }finally{reader.releaseLock()}
+}
+
+
 const seedObjective='Build a production-ready REST API for task management with JWT authentication, PostgreSQL persistence, request validation, structured error handling, logging, and automated tests.'
 
 function App(){
@@ -79,6 +122,30 @@ function App(){
     },2500)
     return()=>window.clearInterval(timer)
   },[])
+  useEffect(()=>{
+    if(!task?.task_id||!busy)return
+    const controller=new AbortController()
+    let active=true
+    streamTaskEvents(
+      task.task_id,
+      controller.signal,
+      state=>{
+        if(!active)return
+        setTask(prev=>prev?{...prev,...state}:prev)
+      },
+      trace=>{
+        if(!active)return
+        setTask(prev=>{
+          if(!prev)return prev
+          const events=[...(prev.events||[]).filter(item=>item.event_id!==trace.event_id),trace]
+          return {...prev,events}
+        })
+      }
+    ).catch(error=>{
+      if(active&&error?.name!=='AbortError')setRuntimeState(s=>s==='DEMO'?'DEMO':s)
+    })
+    return()=>{active=false;controller.abort()}
+  },[task?.task_id,busy])
   useEffect(()=>{
     if(!task?.task_id||!busy)return
     const timer=window.setInterval(async()=>{
