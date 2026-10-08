@@ -19,6 +19,7 @@ STORE = BASE_DIR / "cyrus_history.json"
 app = Flask(__name__, static_folder=None)
 app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("CYRUS_MAX_REQUEST_BYTES", "16384"))
 MAX_PROMPT_CHARS = max(200, min(int(os.getenv("CYRUS_MAX_PROMPT_CHARS", "4000")), 20000))
+RELEASE_ID = os.getenv("CYRUS_RELEASE", "local")[:80]
 
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
 
@@ -434,6 +435,8 @@ def health():
         "mode": PROVIDER.mode,
         "provider": PROVIDER.name,
         "provider_status": PROVIDER.status,
+        "release": RELEASE_ID,
+        "started_at": datetime.fromtimestamp(runtime["started_at"], timezone.utc).isoformat().replace("+00:00", "Z"),
         "worker_capacity": MAX_CONCURRENT_TASKS,
         "active_tasks": active,
         "capacity_utilization": utilization,
