@@ -108,6 +108,8 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("mode", payload)
         self.assertIn("ready", payload)
         self.assertIn("capacity_utilization", payload)
+        self.assertIn("release", payload)
+        self.assertIn("started_at", payload)
 
     def test_backend_does_not_expose_private_repository_files(self):
         public_css = self.client.get("/styles.css")
@@ -252,6 +254,8 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("uptime_seconds", payload)
         self.assertIn("average_execution_ms", payload)
         self.assertIn("persisted_tasks", payload)
+        self.assertIn("queued_tasks", payload)
+        self.assertIn("release", payload)
 
     def test_execute_is_idempotent_for_repeated_keys(self):
         with patch.object(server, "execute_task", lambda task: None):
