@@ -476,13 +476,16 @@ def runtime_metrics():
         completed = sum(1 for task in live if task.get("status") == "COMPLETED")
         failed = sum(1 for task in live if task.get("status") == "FAILED")
         cancelled = sum(1 for task in live if task.get("status") == "CANCELLED")
+        queued = sum(1 for task in live if task.get("status") == "QUEUED")
     historical = [item for item in history if item.get("status") in {"COMPLETED", "FAILED", "CANCELLED"}]
     latencies = [item.get("execution_time_ms", 0) for item in historical if item.get("execution_time_ms")]
     return {
         "system": "CYRUS CORE 1.0",
+        "release": RELEASE_ID,
         "uptime_seconds": round(max(0, time.time() - runtime["started_at"]), 1),
         "capacity": MAX_CONCURRENT_TASKS,
         "active_tasks": active,
+        "queued_tasks": queued,
         "awaiting_approval": awaiting,
         "completed_tasks": completed,
         "failed_tasks": failed,
