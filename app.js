@@ -6,17 +6,20 @@ async function apiJson(path, options={}){
   const method=(options.method||'GET').toUpperCase()
   const attempts=method==='GET'?2:1
   let lastError
+  let retryDelayMs=180
   for(let attempt=0;attempt<attempts;attempt++){
     const controller=new AbortController()
     const timer=setTimeout(()=>controller.abort(),API_TIMEOUT_MS)
     try{
       const res=await fetch(path,{...options,signal:controller.signal})
+      const retryAfter=Number(res.headers.get('Retry-After'))
+      retryDelayMs=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,3000):180
       const data=await res.json().catch(()=>({}))
       if(!res.ok) throw new Error(data.error||'CYRUS request failed')
       return data
     }catch(error){
       lastError=error
-      if(attempt<attempts-1){const retryAfter=Number(res?.headers?.get?.('Retry-After'));const delay=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,3000):180;await new Promise(resolve=>setTimeout(resolve,delay))}
+      if(attempt<attempts-1) await new Promise(resolve=>setTimeout(resolve,retryDelayMs))
     }finally{
       clearTimeout(timer)
     }
