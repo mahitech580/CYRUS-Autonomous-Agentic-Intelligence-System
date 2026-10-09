@@ -27,46 +27,7 @@ async function apiJson(path,options={}){
 }
 
 
-async function streamTaskEvents(taskId,signal,onState,onTrace){
-  const res=await fetch('/api/tasks/'+encodeURIComponent(taskId)+'/stream',{
-    headers:{Accept:'text/event-stream'},
-    signal
-  })
-  if(!res.ok||!res.body)throw new Error('Live event stream unavailable')
-  const reader=res.body.getReader()
-  const decoder=new TextDecoder()
-  let buffer=''
-  let eventName='message'
-  let eventId=''
-  let data=[]
-  const flush=()=>{
-    if(!data.length)return
-    const raw=data.join('\n')
-    let payload=null
-    try{payload=JSON.parse(raw)}catch{return}
-    if(eventName==='state')onState(payload)
-    if(eventName==='trace')onTrace(payload)
-    eventName='message';eventId='';data=[]
-  }
-  try{
-    while(true){
-      const {value,done}=await reader.read()
-      if(done)break
-      buffer+=decoder.decode(value,{stream:true})
-      const lines=buffer.split(/\r?\n/)
-      buffer=lines.pop()||''
-      for(const line of lines){
-        if(!line){flush();continue}
-        if(line.startsWith(':'))continue
-        if(line.startsWith('event:'))eventName=line.slice(6).trim()
-        else if(line.startsWith('id:'))eventId=line.slice(3).trim()
-        else if(line.startsWith('data:'))data.push(line.slice(5).trimStart())
-      }
-    }
-    if(buffer) data.push(buffer)
-    flush()
-  }finally{reader.releaseLock()}
-}
+const streamTaskEvents=(...args)=>window.CyrusEventStream.streamTaskEvents(...args)
 
 
 const seedObjective='Build a production-ready REST API for task management with JWT authentication, PostgreSQL persistence, request validation, structured error handling, logging, and automated tests.'
