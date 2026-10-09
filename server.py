@@ -677,24 +677,35 @@ def memory():
 def execute():
     if not request.is_json:
         return jsonify({"error": "Content-Type must be application/json"}), 415
-    payload = request.get_json(silent=False) or {}
-    prompt = str(payload.get("prompt", "")).strip()
-    mode = str(payload.get("mode", "autonomous")).lower()
+    payload = request.get_json(silent=False)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "JSON body must be an object"}), 400
+
+    raw_prompt = payload.get("prompt", "")
+    if not isinstance(raw_prompt, str):
+        return jsonify({"error": "Prompt must be a string"}), 400
+    raw_mode = payload.get("mode", "autonomous")
+    if not isinstance(raw_mode, str):
+        return jsonify({"error": "Mode must be a string"}), 400
+
+    prompt = raw_prompt.strip()
+    mode = raw_mode.strip().lower()
     if len(prompt) > MAX_PROMPT_CHARS:
         return jsonify({"error": f"Prompt exceeds the {MAX_PROMPT_CHARS}-character limit"}), 413
     if not prompt:
         return jsonify({"error": "Prompt is required"}), 400
-    allowed, retry_after = rate_limit_execution(request.remote_addr)
-    if not allowed:
-        limited = jsonify({"error": "Execution submission rate limit exceeded", "retry_after_seconds": retry_after})
-        limited.headers["Retry-After"] = str(retry_after)
-        return limited, 429
     if mode not in {"autonomous", "supervised"}:
         return jsonify({"error": "Mode must be autonomous or supervised"}), 400
     try:
         idempotency_key = normalize_idempotency_key(request.headers.get("Idempotency-Key"))
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
+
+    allowed, retry_after = rate_limit_execution(request.remote_addr)
+    if not allowed:
+        limited = jsonify({"error": "Execution submission rate limit exceeded", "retry_after_seconds": retry_after})
+        limited.headers["Retry-After"] = str(retry_after)
+        return limited, 429
     fingerprint = {"prompt": prompt, "mode": mode}
     if idempotency_key:
         with runtime["lock"]:
