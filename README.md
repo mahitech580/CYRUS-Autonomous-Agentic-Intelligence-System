@@ -56,7 +56,7 @@ Open `http://127.0.0.1:8000/`.
 
 Modes: `autonomous` and `supervised`.
 
-Use an `Idempotency-Key` header for retry-safe submissions. Supervised runs pause after REVIEWER and remain in `AWAITING_APPROVAL` until explicitly approved. Request IDs are returned as `X-Request-ID` and execution events contain stable event IDs for trace correlation. The event stream supports `Last-Event-ID`, so a reconnect resumes from the last delivered trace event instead of replaying the entire stream.
+Use an `Idempotency-Key` header for retry-safe submissions. Supervised runs pause after REVIEWER and remain in `AWAITING_APPROVAL` until explicitly approved. Request IDs are returned as `X-Request-ID` and execution events contain stable event IDs for trace correlation. The browser client retries transient stream failures with bounded exponential backoff and resumes using `Last-Event-ID`, so reconnects continue from the last delivered trace event instead of replaying the entire stream.
 
 ## Demo mode
 
