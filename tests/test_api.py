@@ -239,6 +239,49 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(empty.status_code, 400)
         self.assertEqual(invalid_mode.status_code, 400)
 
+    def test_execute_rejects_non_object_json_payloads(self):
+        for body in ("[]", "[1]", '"prompt"', "123", "false", "null"):
+            with self.subTest(body=body):
+                response = self.client.post(
+                    "/api/execute",
+                    data=body,
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.get_json()["error"], "JSON body must be an object")
+
+        with server.runtime["lock"]:
+            self.assertEqual(server.runtime["tasks"], {})
+
+    def test_execute_rejects_non_string_prompt_and_mode(self):
+        cases = (
+            ({"prompt": 123}, "Prompt must be a string"),
+            ({"prompt": None}, "Prompt must be a string"),
+            ({"prompt": []}, "Prompt must be a string"),
+            ({"prompt": "Build a service", "mode": 123}, "Mode must be a string"),
+            ({"prompt": "Build a service", "mode": None}, "Mode must be a string"),
+            ({"prompt": "Build a service", "mode": []}, "Mode must be a string"),
+            ({"prompt": "Build a service", "mode": "manual"}, "Mode must be autonomous or supervised"),
+        )
+        for payload, expected_error in cases:
+            with self.subTest(payload=payload):
+                response = self.client.post("/api/execute", json=payload)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.get_json()["error"], expected_error)
+
+        # Invalid submissions must not burn the caller's execution quota.
+        with server.runtime["lock"]:
+            self.assertEqual(server.runtime["rate_limits"], {})
+
+    def test_execute_rejects_malformed_json(self):
+        response = self.client.post(
+            "/api/execute",
+            data='{"prompt":',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.get_json())
+
     def test_runtime_metrics_counts_approval_waiters_as_active(self):
         with server.runtime["lock"]:
             server.runtime["tasks"]["CYRUS-WAITING"] = {"status": "AWAITING_APPROVAL"}
