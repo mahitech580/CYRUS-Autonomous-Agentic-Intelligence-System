@@ -82,7 +82,7 @@ The server is production-safe by default: development debug mode is disabled unl
 
 ## UI
 
-The Command surface contains the objective editor, execution mode switch, live seven-agent graph, metrics, terminal-style trace and artifact explorer. Agents, Memory, Tools and History each have dedicated interactive views.
+The Command surface contains the objective editor, execution mode switch, live seven-agent graph, metrics, trace and artifact explorer. The refreshed interface follows TripPilot's smoky charcoal surfaces, deep-red and travel-green accent system, soft-white typography, cinematic remote imagery, responsive section layouts and restrained image-motion. Agents, Memory, Tools and History each have their own image-led hero, sectioned content and operational controls.
 
 ## Future improvements
 

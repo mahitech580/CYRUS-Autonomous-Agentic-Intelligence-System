@@ -32,6 +32,8 @@ const streamTaskEvents=(...args)=>window.CyrusEventStream.streamTaskEvents(...ar
 
 const seedObjective='Build a production-ready REST API for task management with JWT authentication, PostgreSQL persistence, request validation, structured error handling, logging, and automated tests.'
 
+const CYRUS_IMAGES={"command":"https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1800&q=85","agents":"https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1400&q=85","memory":"https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=1400&q=85","tools":"https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1400&q=85","history":"https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1400&q=85","spotlight":"https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1400&q=85","orchestration":"https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1400&q=85","code":"https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=900&q=85","circuit":"https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=85","servers":"https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=900&q=85","automation":"https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=900&q=85","research":"https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=900&q=85","memoryCard":"https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=900&q=85"}
+
 function App(){
   const [page,setPage]=useState('Command')
   const [mode,setMode]=useState('autonomous')
@@ -184,7 +186,7 @@ function App(){
         ['RELEASE',task.status==='COMPLETED'?'READY':'STANDBY'],['QUALITY',task.quality?task.quality+'%':'—'],['COVERAGE',task.coverage?task.coverage+'%':'—'],['LATENCY',task.latency_ms?task.latency_ms+' ms':'—']
       ]:[['EXECUTION','—'],['TOOLS','—'],['CONFIDENCE','—'],['RISK','—'],['RELEASE','STANDBY'],['QUALITY','—'],['COVERAGE','—'],['LATENCY','—']],seedObjective,setPrompt,notify,approveTask,cancelTask,runtimeState,runtimeMetrics,go}}/>}
       {page==='Agents'&&<AgentsView agents={agents}/>}
-      {page==='Memory'&&<MemoryView tasks={tasks} open={openTask}/>}
+      {page==='Memory'&&<MemoryView tasks={tasks} open={openTask} go={go}/>}
       {page==='Tools'&&<ToolsView tools={tools}/>}
       {page==='History'&&<HistoryView tasks={tasks} open={openTask}/>}
     </main>
@@ -399,9 +401,9 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
     <section className="nx-capabilities">
       <div className="nx-cap-head"><span className="nx-eyebrow"><i/>07 / WHY CYRUS</span><h2>Designed like a control system.<br/><span>Not another chat window.</span></h2></div>
       <div className="nx-cap-grid">
-        <article><span>01</span><div><b>Visible orchestration</b><p>Every agent has a role, state and measurable output. The graph is the product, not hidden plumbing.</p></div></article>
-        <article><span>02</span><div><b>Operator control</b><p>Autonomous execution and supervised release checkpoints coexist in the same interaction model.</p></div></article>
-        <article><span>03</span><div><b>Release intelligence</b><p>Confidence, quality, coverage, risk and trace evidence stay attached to every execution record.</p></div></article>
+        <article className="nx-cap-card"><img src={CYRUS_IMAGES.automation} alt="" loading="lazy"/><span>01</span><div><b>Visible orchestration</b><p>Every agent has a role, state and measurable output. The graph is the product, not hidden plumbing.</p></div></article>
+        <article className="nx-cap-card"><img src={CYRUS_IMAGES.code} alt="" loading="lazy"/><span>02</span><div><b>Operator control</b><p>Autonomous execution and supervised release checkpoints coexist in the same interaction model.</p></div></article>
+        <article className="nx-cap-card"><img src={CYRUS_IMAGES.spotlight} alt="" loading="lazy"/><span>03</span><div><b>Release intelligence</b><p>Confidence, quality, coverage, risk and trace evidence stay attached to every execution record.</p></div></article>
       </div>
     </section>
 
@@ -412,9 +414,119 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
   </div>
 }
 
-function AgentsView({agents}){return <div className="view"><PageTitle title="Agent Registry" text="Seven specialized agents connected to one controlled execution graph." meta={agents.length+' ACTIVE DEFINITIONS'}/><div className="cards">{agents.map(a=><div className="agent-card" key={a.id}><div className="num">0{a.id} / {String(a.type||'agent').toUpperCase()}</div><h3>{a.name}</h3><div className="role">{String(a.role||'').toUpperCase()}</div><p>{a.responsibility}</p><div className="status COMPLETED">CAPABILITY · READY</div></div>)}</div></div>}
-function ToolsView({tools}){return <div className="view"><PageTitle title="Tool Registry" text="Callable engineering capabilities exposed as runtime surfaces." meta={tools.length+' TOOL ROUTES'}/><div className="tools-grid">{tools.map((t,i)=><div className="tool-card" key={t.name}><div className="tool-icon">0{i+1}</div><h3>{t.name}</h3><p>{t.description}</p><div className="route">{t.route} · {String(t.category||'runtime').toUpperCase()}</div></div>)}</div></div>}
-function MemoryView({tasks,open}){return <div className="view"><PageTitle title="Operational Memory" text="Persistent execution summaries and confidence history." meta={tasks.length+' STORED RUNS'}/><div className="memory-grid">{tasks.length?tasks.map(t=><button className="memory" key={t.task_id} onClick={()=>open(t)}><div className="memory-top"><span className="score">{t.score||0}</span><time>{new Date(t.created_at).toLocaleString()}</time></div><h3>{t.objective}</h3><div className="meta">{t.status} · {String(t.mode||'autonomous').toUpperCase()} · {t.confidence||0}% CONFIDENCE</div></button>):<div className="empty">No operational memories yet.</div>}</div></div>}
+
+function PageHero({eyebrow,title,accent,description,image,alt,meta,imageCaption}){
+  return <section className="editorial-hero">
+    <div className="editorial-hero-copy">
+      <div className="editorial-kicker"><i/>{eyebrow}</div>
+      <h1>{title}<span>{accent}</span></h1>
+      <p>{description}</p>
+      <div className="editorial-hero-meta"><span><i/>CYRUS WORKSPACE</span>{meta&&<b>{meta}</b>}</div>
+    </div>
+    <figure className="editorial-hero-media">
+      <img src={image} alt={alt} loading="lazy"/>
+      <div className="editorial-hero-shade"/>
+      <figcaption><span>VISUAL SYSTEM / CYRUS</span><b>{imageCaption||eyebrow}</b></figcaption>
+    </figure>
+  </section>
+}
+
+function AgentsView({agents}){
+  const defaults=[
+    {id:1,name:'ORCHESTRATOR',type:'CORE',role:'Coordination',responsibility:'Routes the objective, maintains shared context and keeps the execution graph accountable.'},
+    {id:2,name:'PLANNER',type:'REASONING',role:'Decomposition',responsibility:'Turns broad requirements into ordered steps, dependencies and measurable acceptance criteria.'},
+    {id:3,name:'RESEARCHER',type:'INTELLIGENCE',role:'Evidence',responsibility:'Collects context, examines constraints and surfaces evidence before implementation.'},
+    {id:4,name:'CODER',type:'BUILD',role:'Implementation',responsibility:'Translates approved plans into focused artifacts and practical engineering changes.'},
+    {id:5,name:'TESTER',type:'QUALITY',role:'Validation',responsibility:'Checks behavior against acceptance criteria and identifies regressions before release.'},
+    {id:6,name:'REVIEWER',type:'ASSURANCE',role:'Risk review',responsibility:'Evaluates quality, risk and release readiness before the final decision.'},
+    {id:7,name:'RELEASE',type:'DELIVERY',role:'Handoff',responsibility:'Packages the outcome with status, trace evidence and release-oriented artifacts.'}
+  ];
+  const list=agents.length?agents:defaults;
+  const photos=[CYRUS_IMAGES.automation,CYRUS_IMAGES.code,CYRUS_IMAGES.research,CYRUS_IMAGES.circuit,CYRUS_IMAGES.servers,CYRUS_IMAGES.history,CYRUS_IMAGES.orchestration];
+  const completed=list.filter(a=>String(a.status||'READY').toUpperCase()==='COMPLETED').length;
+  return <div className="section-page page-agents">
+    <PageHero eyebrow="01 / AGENT REGISTRY" title="Specialists with" accent="a shared mission." description="Meet the roles behind every execution. Each agent contributes a defined responsibility while the runtime keeps the full workflow observable." image={CYRUS_IMAGES.agents} alt="Robotics and intelligent systems hardware" meta={list.length+' AGENT DEFINITIONS'} imageCaption="THE AGENT WORKBENCH"/>
+    <div className="page-stat-rail">
+      <div className="page-stat"><span>REGISTERED AGENTS</span><strong>{String(list.length).padStart(2,'0')}</strong><small>One coordinated system</small></div>
+      <div className="page-stat"><span>EXECUTION STAGES</span><strong>07</strong><small>From intent to delivery</small></div>
+      <div className="page-stat"><span>SHARED CONTEXT</span><strong>01</strong><small>Common execution record</small></div>
+      <div className="page-stat"><span>COMPLETED STATES</span><strong>{String(completed).padStart(2,'0')}</strong><small>From current registry data</small></div>
+    </div>
+    <section className="page-section">
+      <div className="section-heading"><div><span className="editorial-kicker">THE SPECIALIST LINEUP</span><h2>Clear roles. <em>Connected outcomes.</em></h2></div><p>Move from strategy and evidence through implementation, quality checks and release.</p></div>
+      <div className="registry-grid">{list.map((a,i)=><article className="registry-card" key={a.id||a.name}>
+        <div className="registry-card-media"><img src={photos[i%photos.length]} alt="" loading="lazy"/><span className="registry-index">{String(i+1).padStart(2,'0')} / {String(a.type||a.role||'AGENT').toUpperCase()}</span><span className="registry-ready"><i/>READY</span></div>
+        <div className="registry-card-body"><div className="registry-role">{String(a.role||a.type||'SPECIALIST').toUpperCase()}</div><h3>{a.name}</h3><p>{a.responsibility||a.description||'A dedicated capability inside the CYRUS execution graph.'}</p><div className="registry-card-foot"><span>CAPABILITY PROFILE</span><b>↗</b></div></div>
+      </article>)}</div>
+    </section>
+    <section className="page-spotlight">
+      <img src={CYRUS_IMAGES.orchestration} alt="Engineering team collaborating around a shared system" loading="lazy"/>
+      <div><span className="editorial-kicker">THE OPERATING PRINCIPLE</span><h2>Independent skills.<br/><em>Shared accountability.</em></h2><p>CYRUS presents the run as one system: individual stages are inspectable, but the final outcome remains tied to a single objective and trace.</p><div className="spotlight-pills"><span>Context-aware</span><span>Traceable</span><span>Release-focused</span></div></div>
+    </section>
+  </div>
+}
+
+function ToolsView({tools}){
+  const defaults=[
+    {name:'Task orchestration',category:'CONTROL',route:'/api/execute',description:'Submit an objective and start the seven-stage execution graph.'},
+    {name:'Agent registry',category:'OBSERVABILITY',route:'/api/agents',description:'Inspect agent definitions, responsibilities and runtime capabilities.'},
+    {name:'Execution memory',category:'STORAGE',route:'/api/tasks',description:'Retrieve previous runs and recover task-level execution context.'},
+    {name:'Event stream',category:'OBSERVABILITY',route:'/api/tasks/{id}/stream',description:'Follow resumable state and trace events while an execution is active.'},
+    {name:'Release approval',category:'GOVERNANCE',route:'/api/tasks/{id}/approve',description:'Gate the release when supervised execution mode is selected.'},
+    {name:'Cooperative cancel',category:'CONTROL',route:'/api/tasks/{id}/cancel',description:'Request cancellation of an active run through the runtime API.'},
+    {name:'Runtime metrics',category:'TELEMETRY',route:'/api/metrics',description:'Review capacity, active work, queues and runtime latency.'},
+    {name:'Health probe',category:'RELIABILITY',route:'/api/health',description:'Check service liveness and current runtime mode.'}
+  ];
+  const list=tools.length?tools:defaults;
+  const categoryCount=new Set(list.map(t=>t.category||'RUNTIME')).size;
+  const visuals=[CYRUS_IMAGES.circuit,CYRUS_IMAGES.code,CYRUS_IMAGES.servers,CYRUS_IMAGES.automation];
+  return <div className="section-page page-tools">
+    <PageHero eyebrow="03 / TOOL REGISTRY" title="A toolkit built for" accent="engineering at scale." description="A clear inventory of the capabilities exposed to CYRUS: from objective submission and task control to live telemetry and release governance." image={CYRUS_IMAGES.tools} alt="Close-up of a detailed circuit board" meta={list.length+' AVAILABLE ROUTES'} imageCaption="ENGINEERING TOOLCHAIN"/>
+    <section className="tool-category-grid">
+      <article><img src={visuals[0]} alt="" loading="lazy"/><div><span>01 / CONTROL</span><h3>Start & steer</h3><p>Submit objectives, approve supervised releases and stop runs cooperatively.</p></div></article>
+      <article><img src={visuals[1]} alt="" loading="lazy"/><div><span>02 / INTELLIGENCE</span><h3>Inspect & learn</h3><p>Open agent definitions, read stored runs and review execution traces.</p></div></article>
+      <article><img src={visuals[2]} alt="" loading="lazy"/><div><span>03 / RELIABILITY</span><h3>Observe runtime</h3><p>Monitor service health, capacity, active work and operational latency.</p></div></article>
+    </section>
+    <section className="page-section tool-library-section">
+      <div className="section-heading"><div><span className="editorial-kicker">CAPABILITY CATALOGUE</span><h2>Every route has <em>a job to do.</em></h2></div><p>{categoryCount} capability groups · {list.length} callable surfaces</p></div>
+      <div className="tool-library">{list.map((t,i)=><article className="tool-library-card" key={t.name}>
+        <div className="tool-library-art"><img src={visuals[i%visuals.length]} alt="" loading="lazy"/><span>{String(i+1).padStart(2,'0')}</span><b>{String(t.category||'RUNTIME').toUpperCase()}</b></div>
+        <div className="tool-library-body"><h3>{t.name}</h3><p>{t.description}</p><div className="tool-route"><span>ROUTE</span><code>{t.route||'Runtime capability'}</code></div></div>
+      </article>)}</div>
+    </section>
+    <section className="page-spotlight tool-spotlight">
+      <img src={CYRUS_IMAGES.spotlight} alt="Illuminated global network and digital infrastructure" loading="lazy"/>
+      <div><span className="editorial-kicker">DESIGNED AS A SYSTEM</span><h2>Tools are not decoration.<br/><em>They move work forward.</em></h2><p>Each listed capability is presented with its real runtime route. Demo mode preserves the same visible workflow when the API is unavailable.</p><div className="spotlight-pills"><span>Explicit routes</span><span>Visible state</span><span>Observable output</span></div></div>
+    </section>
+  </div>
+}
+
+function MemoryView({tasks,open,go}){
+  const completed=tasks.filter(t=>String(t.status||'').toUpperCase()==='COMPLETED').length;
+  const awaiting=tasks.filter(t=>String(t.status||'').toUpperCase()==='AWAITING_APPROVAL').length;
+  const mean=tasks.length?Math.round(tasks.reduce((sum,t)=>sum+Number(t.score||0),0)/tasks.length):0;
+  const photos=[CYRUS_IMAGES.memoryCard,CYRUS_IMAGES.circuit,CYRUS_IMAGES.servers,CYRUS_IMAGES.research,CYRUS_IMAGES.code];
+  return <div className="section-page page-memory">
+    <PageHero eyebrow="02 / OPERATIONAL MEMORY" title="Execution memory" accent="you can investigate." description="A visual archive of objectives, outcomes and confidence signals. Open any saved run to inspect its full record, trace and release evidence." image={CYRUS_IMAGES.memory} alt="Developer working at a computer with source code" meta={tasks.length+' STORED RUNS'} imageCaption="THE EXECUTION ARCHIVE"/>
+    <div className="page-stat-rail">
+      <div className="page-stat"><span>STORED RUNS</span><strong>{String(tasks.length).padStart(2,'0')}</strong><small>Execution records</small></div>
+      <div className="page-stat"><span>COMPLETED</span><strong>{String(completed).padStart(2,'0')}</strong><small>Finished workflows</small></div>
+      <div className="page-stat"><span>AWAITING APPROVAL</span><strong>{String(awaiting).padStart(2,'0')}</strong><small>Human release gate</small></div>
+      <div className="page-stat"><span>MEAN SCORE</span><strong>{tasks.length?mean:'—'}</strong><small>Across available runs</small></div>
+    </div>
+    <section className="page-section memory-collection">
+      <div className="section-heading"><div><span className="editorial-kicker">PERSISTENT RUN LIBRARY</span><h2>The story behind <em>every result.</em></h2></div><p>Select a run to open its full record.</p></div>
+      {tasks.length?<div className="memory-gallery">{tasks.map((t,i)=><button className="memory-gallery-card" key={t.task_id} onClick={()=>open(t)}>
+        <div className="memory-gallery-media"><img src={photos[i%photos.length]} alt="" loading="lazy"/><span className="memory-score">{Number(t.score||0).toFixed(1)} <small>SCORE</small></span><span className={'memory-status '+String(t.status||'UNKNOWN').toLowerCase().replace(/[^a-z_]/g,'-')}><i/>{String(t.status||'UNKNOWN').replaceAll('_',' ')}</span></div>
+        <div className="memory-gallery-content"><div className="memory-record-time">{t.created_at?new Date(t.created_at).toLocaleString():'DATE UNAVAILABLE'} · {String(t.mode||'autonomous').toUpperCase()}</div><h3>{t.objective||'Untitled execution'}</h3><p>{t.current_agent?'Last agent · '+t.current_agent:'Execution record available for inspection'}</p><div className="memory-gallery-foot"><span>{t.task_id}</span><b>OPEN RECORD ↗</b></div></div>
+      </button>)}</div>:<div className="memory-empty"><img src={CYRUS_IMAGES.memory} alt="Code on a monitor in a quiet engineering workspace" loading="lazy"/><div><span className="editorial-kicker">YOUR ARCHIVE STARTS HERE</span><h3>No execution memory yet.</h3><p>Run your first engineering objective. CYRUS will create a record here so the outcome can be revisited and investigated.</p><button onClick={()=>go('Command')}>Open command surface <b>↗</b></button></div></div>}
+    </section>
+    <section className="memory-retention-note"><span>MEMORY / TRACE / OUTCOME</span><p>Keep decisions connected to evidence. Execution memory gives each objective a record that can be reopened instead of disappearing into a chat transcript.</p><button onClick={()=>go('History')}>Explore execution history <b>↗</b></button></section>
+  </div>
+}
+
+
+
 function HistoryView({tasks,open}){
   const [query,setQuery]=useState('')
   const [status,setStatus]=useState('ALL')
@@ -460,7 +572,7 @@ function HistoryView({tasks,open}){
   const clearFilters=()=>{setQuery('');setStatus('ALL');setSort('newest')}
   const activeFilters=Boolean(query.trim())||status!=='ALL'||sort!=='newest'
   return <div className="view history-view">
-    <PageTitle title="Execution History" text="Search, investigate and export execution evidence from the CYRUS runtime." meta={tasks.length+' TOTAL RUNS'}/>
+    <PageHero eyebrow="04 / EXECUTION HISTORY" title="Every run leaves" accent="an evidence trail." description="Search prior objectives, review outcomes and export the records you need. The history view keeps investigation tools close to the execution evidence." image={CYRUS_IMAGES.history} alt="Abstract cybersecurity visualization on a dark screen" meta={tasks.length+' TOTAL RUNS'} imageCaption="THE RUN LEDGER"/>
     <div className="history-overview" aria-label="Execution status overview">
       <div className="history-stat"><span>ALL EXECUTIONS</span><strong>{tasks.length}</strong><small>Available records</small></div>
       <div className="history-stat running"><span>IN PROGRESS</span><strong>{count('RUNNING')+count('AWAITING_APPROVAL')}</strong><small>{count('AWAITING_APPROVAL')} awaiting approval</small></div>
