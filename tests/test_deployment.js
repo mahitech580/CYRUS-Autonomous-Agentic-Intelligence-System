@@ -28,3 +28,12 @@ for (const style of [".history-overview", ".history-filters", ".history-empty", 
 }
 
 console.log("deployment smoke: index assets and bootstrap contract OK");
+
+const refreshedApp = fs.readFileSync("app.js", "utf8");
+for (const feature of ["function PageHero","page-agents","registry-grid","page-memory","memory-gallery","page-tools","tool-library","04 / EXECUTION HISTORY","CYRUS_IMAGES","images.unsplash.com"]) {
+  assert.ok(refreshedApp.includes(feature), "Missing visual redesign feature: " + feature);
+}
+const refreshedCss = fs.readFileSync("styles.css", "utf8");
+for (const style of ["--trip-green:#2fbb78","--trip-red:#b83d35",".editorial-hero",".page-stat-rail",".registry-grid",".tool-category-grid",".memory-gallery","prefers-reduced-motion:reduce"]) {
+  assert.ok(refreshedCss.includes(style), "Missing TripPilot-inspired style: " + style);
+}
