@@ -11,4 +11,20 @@ for (const asset of ["./styles.css", "./demo-bridge.js", "./event-stream.js", ".
 assert.ok(index.includes('type="text/babel"'), "React JSX entry must use the Babel loader");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("healthMetrics"), "Bootstrap must consume runtime metrics");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("window.CyrusEventStream.streamTaskEvents"), "App must use the resilient event-stream client");
+const app = fs.readFileSync("app.js", "utf8");
+for (const feature of [
+  "Search execution history",
+  "Filter executions by status",
+  "Sort execution history",
+  "EXPORT CSV",
+  "Highest score",
+  "No matching executions",
+  "cyrus-execution-history-"
+]) {
+  assert.ok(app.includes(feature), "Missing History operator feature: " + feature);
+}
+for (const style of [".history-overview", ".history-filters", ".history-empty", "@media(max-width:780px)"]) {
+  assert.ok(fs.readFileSync("styles.css", "utf8").includes(style), "Missing History responsive style: " + style);
+}
+
 console.log("deployment smoke: index assets and bootstrap contract OK");
