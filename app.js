@@ -415,7 +415,83 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
 function AgentsView({agents}){return <div className="view"><PageTitle title="Agent Registry" text="Seven specialized agents connected to one controlled execution graph." meta={agents.length+' ACTIVE DEFINITIONS'}/><div className="cards">{agents.map(a=><div className="agent-card" key={a.id}><div className="num">0{a.id} / {String(a.type||'agent').toUpperCase()}</div><h3>{a.name}</h3><div className="role">{String(a.role||'').toUpperCase()}</div><p>{a.responsibility}</p><div className="status COMPLETED">CAPABILITY · READY</div></div>)}</div></div>}
 function ToolsView({tools}){return <div className="view"><PageTitle title="Tool Registry" text="Callable engineering capabilities exposed as runtime surfaces." meta={tools.length+' TOOL ROUTES'}/><div className="tools-grid">{tools.map((t,i)=><div className="tool-card" key={t.name}><div className="tool-icon">0{i+1}</div><h3>{t.name}</h3><p>{t.description}</p><div className="route">{t.route} · {String(t.category||'runtime').toUpperCase()}</div></div>)}</div></div>}
 function MemoryView({tasks,open}){return <div className="view"><PageTitle title="Operational Memory" text="Persistent execution summaries and confidence history." meta={tasks.length+' STORED RUNS'}/><div className="memory-grid">{tasks.length?tasks.map(t=><button className="memory" key={t.task_id} onClick={()=>open(t)}><div className="memory-top"><span className="score">{t.score||0}</span><time>{new Date(t.created_at).toLocaleString()}</time></div><h3>{t.objective}</h3><div className="meta">{t.status} · {String(t.mode||'autonomous').toUpperCase()} · {t.confidence||0}% CONFIDENCE</div></button>):<div className="empty">No operational memories yet.</div>}</div></div>}
-function HistoryView({tasks,open}){return <div className="view"><PageTitle title="Execution History" text="A compact record of autonomous and supervised runs." meta={tasks.length+' EXECUTIONS'}/><div className="table"><div className="table-row head"><span>OBJECTIVE</span><span>STATUS</span><span>SCORE</span><span>MODE</span><span>TIME</span></div>{tasks.length?tasks.map(t=><button className="table-row" key={t.task_id} onClick={()=>open(t)}><span>{t.objective}</span><span className="green">{t.status}</span><span className="score">{t.score||0}</span><span>{String(t.mode||'autonomous').toUpperCase()}</span><span>{t.execution_time_ms||0} ms</span></button>):<div className="empty">No executions recorded.</div>}</div></div>}
+function HistoryView({tasks,open}){
+  const [query,setQuery]=useState('')
+  const [status,setStatus]=useState('ALL')
+  const [sort,setSort]=useState('newest')
+  const filtered=useMemo(()=>{
+    const needle=query.trim().toLowerCase()
+    return tasks.filter(item=>{
+      const matchesStatus=status==='ALL'||String(item.status||'UNKNOWN').toUpperCase()===status
+      const searchable=[item.task_id,item.objective,item.status,item.mode,item.current_agent].filter(Boolean).join(' ').toLowerCase()
+      return matchesStatus&&(!needle||searchable.includes(needle))
+    }).sort((left,right)=>{
+      if(sort==='oldest')return String(left.created_at||'').localeCompare(String(right.created_at||''))
+      if(sort==='score-high')return Number(right.score||0)-Number(left.score||0)
+      if(sort==='score-low')return Number(left.score||0)-Number(right.score||0)
+      if(sort==='duration')return Number(right.execution_time_ms||0)-Number(left.execution_time_ms||0)
+      return String(right.created_at||'').localeCompare(String(left.created_at||''))
+    })
+  },[tasks,query,status,sort])
+  const count=key=>tasks.filter(item=>String(item.status||'UNKNOWN').toUpperCase()===key).length
+  const exportCsv=()=>{
+    if(!filtered.length)return
+    const columns=[
+      ['task_id','Task ID'],['created_at','Created at'],['objective','Objective'],['status','Status'],
+      ['mode','Mode'],['score','Score'],['quality','Quality'],['confidence','Confidence'],
+      ['coverage','Coverage'],['execution_time_ms','Execution time (ms)'],['tool_calls','Tool calls'],
+      ['tests_passed','Tests passed'],['tests_failed','Tests failed']
+    ]
+    const cell=value=>{
+      let text=String(value??'')
+      if('=+-@'.includes(text.trimStart().charAt(0)))text="'"+text
+      return '"'+text.replace(/"/g,'""')+'"'
+    }
+    const csv=[columns.map(([,label])=>cell(label)).join(','),...filtered.map(item=>columns.map(([key])=>cell(item[key])).join(','))].join(String.fromCharCode(13,10))
+    const url=URL.createObjectURL(new Blob([String.fromCharCode(0xfeff),csv],{type:'text/csv;charset=utf-8'}))
+    const link=document.createElement('a')
+    link.href=url
+    link.download='cyrus-execution-history-'+new Date().toISOString().slice(0,10)+'.csv'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+  const clearFilters=()=>{setQuery('');setStatus('ALL');setSort('newest')}
+  const activeFilters=Boolean(query.trim())||status!=='ALL'||sort!=='newest'
+  return <div className="view history-view">
+    <PageTitle title="Execution History" text="Search, investigate and export execution evidence from the CYRUS runtime." meta={tasks.length+' TOTAL RUNS'}/>
+    <div className="history-overview" aria-label="Execution status overview">
+      <div className="history-stat"><span>ALL EXECUTIONS</span><strong>{tasks.length}</strong><small>Available records</small></div>
+      <div className="history-stat running"><span>IN PROGRESS</span><strong>{count('RUNNING')+count('AWAITING_APPROVAL')}</strong><small>{count('AWAITING_APPROVAL')} awaiting approval</small></div>
+      <div className="history-stat completed"><span>COMPLETED</span><strong>{count('COMPLETED')}</strong><small>Release-ready runs</small></div>
+      <div className="history-stat failed"><span>FAILED / CANCELLED</span><strong>{count('FAILED')+count('CANCELLED')}</strong><small>Requires attention</small></div>
+    </div>
+    <section className="history-console" aria-label="Execution history filters">
+      <div className="history-console-head"><div><span className="eyebrow">RECORD EXPLORER</span><h3>Find an execution.</h3></div><span className="history-result-count">{filtered.length} / {tasks.length} RECORDS</span></div>
+      <div className="history-filters">
+        <label className="history-search"><span aria-hidden="true">⌕</span><input aria-label="Search execution history" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search objective, task ID, agent or mode…"/>{query&&<button type="button" aria-label="Clear search" onClick={()=>setQuery('')}>×</button>}</label>
+        <label className="history-select"><span>STATUS</span><select aria-label="Filter executions by status" value={status} onChange={e=>setStatus(e.target.value)}><option value="ALL">All statuses</option><option value="RUNNING">Running</option><option value="AWAITING_APPROVAL">Awaiting approval</option><option value="COMPLETED">Completed</option><option value="FAILED">Failed</option><option value="CANCELLED">Cancelled</option></select></label>
+        <label className="history-select"><span>SORT BY</span><select aria-label="Sort execution history" value={sort} onChange={e=>setSort(e.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="score-high">Highest score</option><option value="score-low">Lowest score</option><option value="duration">Longest execution</option></select></label>
+        <button className="history-export" type="button" onClick={exportCsv} disabled={!filtered.length} title="Export the filtered result set as CSV"><span aria-hidden="true">↧</span> EXPORT CSV</button>
+        {activeFilters&&<button className="history-reset" type="button" onClick={clearFilters}>Reset filters</button>}
+      </div>
+      <div className="history-table-wrap">
+        <div className="table history-table"><div className="table-row head"><span>OBJECTIVE / ID</span><span>STATUS</span><span>SCORE</span><span>MODE</span><span>DURATION</span><span>OPEN</span></div>
+          {filtered.length?filtered.map(item=><button className="table-row history-row" key={item.task_id} onClick={()=>open(item)} aria-label={'Open execution '+item.task_id}>
+            <span className="history-objective"><strong>{item.objective||'Untitled execution'}</strong><small>{item.task_id} · {item.created_at?new Date(item.created_at).toLocaleString():'Date unavailable'}</small></span>
+            <span><i className={'history-status '+String(item.status||'UNKNOWN').toLowerCase().replace(/[^a-z_]/g,'-')}/>{String(item.status||'UNKNOWN').replaceAll('_',' ')}</span>
+            <span className="score">{Number(item.score||0).toFixed(1)}</span>
+            <span className="history-mode">{String(item.mode||'autonomous').toUpperCase()}</span>
+            <span className="history-duration">{Number(item.execution_time_ms||0).toLocaleString()} ms</span>
+            <span className="history-open-icon">↗</span>
+          </button>):<div className="history-empty"><span>⌕</span><strong>No matching executions</strong><p>{tasks.length?'Adjust your search or status filters to see more records.':'Run an objective from Command to populate execution history.'}</p>{activeFilters&&<button type="button" onClick={clearFilters}>Clear all filters</button>}</div>}
+        </div>
+      </div>
+      <footer className="history-foot"><span>ORDERED BY {sort.replace('-',' ').toUpperCase()}</span><span>EXPORT INCLUDES FILTERED RESULTS ONLY</span></footer>
+    </section>
+  </div>
+}
 function PageTitle({title,text,meta}){return <div className="page-title"><div><div className="eyebrow">CYRUS / CONTROL SURFACE</div><h2>{title}</h2><p>{text}</p></div><div className="title-side">{meta}</div></div>}
 function TaskModal({task,close}){return <div className="modal-back" onClick={close}><div className="modal" onClick={e=>e.stopPropagation()}><button className="close" onClick={close}>CLOSE</button><div className="eyebrow">{task.task_id}</div><h3>Execution Record</h3><p className="objective-text">{task.objective}</p><div className="metrics">{[['SCORE',task.score||0],['CONFIDENCE',(task.confidence||0)+'%'],['QUALITY',(task.quality||0)+'%'],['COVERAGE',(task.coverage||0)+'%'],['TOOLS',task.tool_calls||0],['LATENCY',(task.latency_ms||0)+' ms'],['RISK',task.risk||'—'],['STATUS',task.status]].map(x=><div className="metric" key={x[0]}><span>{x[0]}</span><strong>{x[1]}</strong></div>)}</div><div className="section-title"><strong>ARTIFACTS</strong><span>{task.artifacts?.length||0}</span></div>{task.artifacts?.length?<div className="artifacts">{task.artifacts.map(a=><div className="artifact" key={a.name}><div><strong>{a.name}</strong><small>{a.language} · {a.type}</small></div><small>{a.size}</small></div>)}</div>:<div className="empty">No artifacts in this historical snapshot.</div>}<div className="section-title" style={{marginTop:18}}><strong>EXECUTION TRACE</strong><span>{task.events?.length||0} EVENTS</span></div>{task.events?.length?<div className="trace modal-trace">{task.events.map(e=><div className="trace-row" key={e.event_id||e.time+e.agent}><span className="time mono">{e.time}</span><span className="agent mono">{e.agent}</span><span className="phase mono">{e.phase}</span><span className="msg">{e.message}</span><span className="dur mono">{e.duration} ms</span></div>)}</div>:<div className="empty">No persisted trace.</div>}{task.plan?.length?<><div className="section-title"><strong>PLAN</strong><span>{task.plan.length} STEPS</span></div><div className="detail-list">{task.plan.map((item,i)=><div className="detail-row" key={item}><span>{String(i+1).padStart(2,'0')}</span><strong>{item}</strong></div>)}</div></>:null}</div></div>}
 function CommandPalette({page,go,execute,seedObjective,notify,close}){const [query,setQuery]=useState('');const [cursor,setCursor]=useState(0);const actions=[...NAV_ITEMS.map(item=>({label:item,type:'surface',run:()=>go(item)})),{label:'Run example objective',type:'action',run:()=>{setQuery('');close();notify('Launching the example objective');setTimeout(()=>execute(),80)}}];const items=useMemo(()=>actions.filter(x=>x.label.toLowerCase().includes(query.toLowerCase())),[query]);useEffect(()=>setCursor(0),[query]);useEffect(()=>{const onKey=e=>{if(e.key==='ArrowDown'){e.preventDefault();setCursor(i=>items.length?(i+1)%items.length:0)}if(e.key==='ArrowUp'){e.preventDefault();setCursor(i=>items.length?(i-1+items.length)%items.length:0)}if(e.key==='Enter'&&items[cursor]){e.preventDefault();items[cursor].run()}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[items,cursor]);return <div className="command-palette-back" onClick={close}><div className="command-palette" onClick={e=>e.stopPropagation()}><div className="palette-head"><span className="eyebrow">COMMAND</span><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Jump to a CYRUS surface or run an action..." /></div><div className="palette-list">{items.length?items.map((item,i)=><button key={item.label} className={'palette-item '+(cursor===i?'active':'')} onMouseEnter={()=>setCursor(i)} onClick={item.run}><span>{item.label}</span><small>{cursor===i?(item.type==='action'?'ENTER · RUN':'ENTER · OPEN'):(item.type==='action'?'EXECUTE':'SURFACE')}</small></button>):<div className="empty">No CYRUS command matches that query.</div>}</div></div></div>}
