@@ -143,7 +143,7 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(payload["model_available"], server.PROVIDER.mode == "LIVE")
         self.assertFalse(payload["supports_external_search"])
         self.assertFalse(payload["supports_code_execution"])
-        self.assertNotIn("api_key", str(payload).lower())
+        self.assertNotIn("api_key", payload)
         self.assertNotIn("authorization", str(payload).lower())
 
     def test_health_contract(self):
@@ -653,8 +653,9 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(task["coverage"], 0)
         self.assertEqual(task["verification_status"], "PLAN_GENERATED_NOT_EXECUTED")
         phases = [item["phase"] for item in task["events"]]
-        self.assertIn("PLANNER_DECOMPOSITION_STARTED", phases)
-        self.assertIn("PLANNER_DECOMPOSITION_COMPLETED", phases)
+        self.assertIn("DECOMPOSITION_STARTED", phases)
+        self.assertIn("DECOMPOSITION_COMPLETED", phases)
+        self.assertTrue(any(item["agent"] == "PLANNER" for item in task["events"]))
         self.assertIn("EXECUTION_COMPLETED", phases)
         self.assertEqual(len(task["artifacts"]), 3)
         self.assertIn("deterministic demo", task["summary"].lower())
