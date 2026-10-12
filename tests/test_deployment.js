@@ -9,6 +9,7 @@ for (const asset of ["./styles.css", "./demo-bridge.js", "./event-stream.js", ".
 }
 
 assert.ok(index.includes('type="text/babel"'), "React JSX entry must use the Babel loader");
+assert.ok(index.includes('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'), "The 3D character runtime must load Three.js before the app");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("healthMetrics"), "Bootstrap must consume runtime metrics");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("window.CyrusEventStream.streamTaskEvents"), "App must use the resilient event-stream client");
 const app = fs.readFileSync("app.js", "utf8");
@@ -50,7 +51,7 @@ for (const feature of [
   "HomeView",
   "command-stats-grid",
   "agent-map-lines",
-  "cyrus-portrait",
+  "doom-webgl-root",
   "cyrus-scroll-cue",
   "motion-scroll-progress"
 ]) {
@@ -83,16 +84,16 @@ assert.ok(fs.readFileSync("styles.css", "utf8").includes("translate3d(var(--moti
 for (const feature of ["function HomeView","I am","CYRUS.","home-feature-rail","function CommandView","Recent Executions","Live Agent Graph","function toolGroup","Search execution memory"]) {
   assert.ok(refreshedApp.includes(feature), "Missing CYRUS character experience: " + feature);
 }
-for (const style of [".cyrus-hero-visual", ".cyrus-portrait", ".cyrus-origin-grid", "@keyframes cyrus-portrait-arrive"]) {
+for (const style of [".cyrus-hero-visual", ".doom-webgl-root", ".cyrus-origin-grid", "@keyframes cyrus-portrait-arrive", ".doom-css-fallback"]) {
   assert.ok(refreshedCss.includes(style), "Missing CYRUS cinematic character styling: " + style);
 }
 
 const doomApp = fs.readFileSync("app.js", "utf8");
-for (const feature of ["VICTOR VON DOOM","doom-front","doom-back","onPointerMove","--doom-tilt-x","doom-smoke-puff","RULER OF LATVERIA"]) {
+for (const feature of ["VICTOR VON DOOM","new T.WebGLRenderer","new T.Scene","new T.ExtrudeGeometry","spinRig.rotation.y","new T.Sprite","onPointerMove","--doom-tilt-x","doom-smoke-puff","RULER OF LATVERIA"]) {
   assert.ok(doomApp.includes(feature), "Missing Doctor Doom scene behavior: " + feature);
 }
 const doomCss = fs.readFileSync("styles.css", "utf8");
-for (const style of ["@keyframes doom-rotate-3d","@keyframes doom-smoke-rise","doom-ground-fog","preserve-3d","--bg:#020603","@media(prefers-reduced-motion:reduce)"]) {
+for (const style of ["@keyframes doom-rotate-3d","@keyframes doom-smoke-rise","doom-ground-fog","preserve-3d","--bg:#020603","@media(prefers-reduced-motion:reduce)",".doom-webgl-canvas",".webgl-ready .doom-css-fallback"]) {
   assert.ok(doomCss.includes(style), "Missing Doom animation / green-theme style: " + style);
 }
 console.log("Doom scene smoke: 3D turntable, green smoke, and forest-green theme OK");
