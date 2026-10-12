@@ -86,3 +86,13 @@ for (const feature of ["function HomeView","I am","CYRUS.","home-feature-rail","
 for (const style of [".cyrus-hero-visual", ".cyrus-portrait", ".cyrus-origin-grid", "@keyframes cyrus-portrait-arrive"]) {
   assert.ok(refreshedCss.includes(style), "Missing CYRUS cinematic character styling: " + style);
 }
+
+const doomApp = fs.readFileSync("app.js", "utf8");
+for (const feature of ["VICTOR VON DOOM","doom-front","doom-back","onPointerMove","--doom-tilt-x","doom-smoke-puff","RULER OF LATVERIA"]) {
+  assert.ok(doomApp.includes(feature), "Missing Doctor Doom scene behavior: " + feature);
+}
+const doomCss = fs.readFileSync("styles.css", "utf8");
+for (const style of ["@keyframes doom-rotate-3d","@keyframes doom-smoke-rise","doom-ground-fog","preserve-3d","--bg:#020603","@media(prefers-reduced-motion:reduce)"]) {
+  assert.ok(doomCss.includes(style), "Missing Doom animation / green-theme style: " + style);
+}
+console.log("Doom scene smoke: 3D turntable, green smoke, and forest-green theme OK");
