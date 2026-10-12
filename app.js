@@ -385,34 +385,119 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
   return <div className="nx-view">
     <section className="nx-hero">
       <div className="nx-hero-copy">
-        <div className="nx-eyebrow"><i/>CYRUS / AUTONOMOUS ENGINEERING SYSTEM</div>
-        <h1>Turn intent into<br/><span>software that moves.</span></h1>
-        <p>One command becomes a visible execution graph. CYRUS coordinates planning, research, implementation, validation, review and release with a live operator surface around every run.</p>
+        <div className="nx-eyebrow cyrus-identity-kicker"><i/>AN ORIGINAL FICTIONAL INTELLIGENCE / CYRUS-07</div>
+        <h1>I am<br/><span>CYRUS.</span></h1>
+        <div className="cyrus-hero-subtitle">The mind beyond the interface.</div>
+        <p>Not another chatbot. CYRUS is a fictional autonomous intelligence built to turn difficult ideas into observable action — one objective, seven specialists, one accountable system.</p>
         <div className="nx-hero-actions">
-          <button className="nx-primary" onClick={()=>document.querySelector('.nx-console')?.scrollIntoView({behavior:'smooth'})}>Launch control <b>↗</b></button>
-          <button className="nx-secondary" onClick={()=>{setPrompt(seedObjective);notify('Production objective loaded')}}>Load production objective</button>
+          <button className="nx-primary" onClick={()=>document.querySelector('.nx-console')?.scrollIntoView({behavior:'smooth'})}>Enter the system <b>↗</b></button>
+          <button className="nx-secondary" onClick={()=>{setPrompt(seedObjective);notify('Production objective loaded')}}>Give CYRUS a mission</button>
         </div>
-        <div className="nx-inline-proof">
-          <span><b>07</b> agents</span><span><b>08</b> tools</span><span><b>01</b> execution graph</span><span><b>{runtimeState}</b> runtime</span>
+        <div className="nx-inline-proof cyrus-proof">
+          <span><b>07</b> specialist agents</span><span><b>08</b> tools</span><span><b>01</b> fictional intelligence</span><span><b>{runtimeState}</b> runtime</span>
         </div>
       </div>
-      <div className="nx-hero-visual">
-        <div className="motion-architecture" aria-hidden="true">
-          <div className="architecture-grid"/>
-          <div className="architecture-orbit orbit-one"/>
-          <div className="architecture-orbit orbit-two"/>
-          <div className="architecture-orbit orbit-three"/>
-          <div className="architecture-core"><span>C7</span><small>CYRUS CORE</small></div>
-          <div className="architecture-cube cube-one"><span className="cube-face front">01</span><span className="cube-face back">01</span><span className="cube-face right"/><span className="cube-face left"/><span className="cube-face top"/><span className="cube-face bottom"/></div>
-          <div className="architecture-cube cube-two"><span className="cube-face front">AI</span><span className="cube-face back">AI</span><span className="cube-face right"/><span className="cube-face left"/><span className="cube-face top"/><span className="cube-face bottom"/></div>
-          <div className="architecture-cube cube-three"><span className="cube-face front">↗</span><span className="cube-face back">↗</span><span className="cube-face right"/><span className="cube-face left"/><span className="cube-face top"/><span className="cube-face bottom"/></div>
-          <div className="architecture-signal signal-one"/><div className="architecture-signal signal-two"/><div className="architecture-signal signal-three"/>
-        </div>
-        <div className="nx-visual-top"><span>CORE TELEMETRY</span><b><i/>{busy?'EXECUTING':'STANDBY'}</b></div>
-        <CoreVisual agents={currentAgents} runtimeState={runtimeState} go={go}/>
-        <div className="nx-visual-card left"><span>ACTIVE WORKLOADS</span><strong>{runtimeMetrics?.active_tasks||0}<small> / {runtimeMetrics?.capacity||4}</small></strong><em>capacity</em></div>
-        <div className="nx-visual-card right"><span>LAST SIGNAL</span><strong>{task?.status||'READY'}</strong><em>{task?.current_agent||'ORCHESTRATOR'}</em></div>
+      <div className="nx-hero-visual cyrus-hero-visual">
+        <div className="cyrus-atmosphere" aria-hidden="true"><i/><i/><i/><span/></div>
+        <div className="cyrus-visual-label"><span className="cyrus-live-pip"/><span>CYRUS / CHARACTER FILE 07</span><b>FICTIONAL AI</b></div>
+        <svg className="cyrus-portrait" viewBox="0 0 760 900" role="img" aria-labelledby="cyrus-portrait-title cyrus-portrait-desc">
+          <title id="cyrus-portrait-title">CYRUS, an original fictional AI character</title>
+          <desc id="cyrus-portrait-desc">A cinematic, original dark-haired synthetic intelligence with glowing teal eyes, a black armored coat, luminous circuitry, and a geometric core emblem.</desc>
+          <defs>
+            <linearGradient id="cyrus-sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#071b25"/><stop offset=".5" stopColor="#07101b"/><stop offset="1" stopColor="#020509"/></linearGradient>
+            <linearGradient id="cyrus-face" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#b9c8c8"/><stop offset=".36" stopColor="#60747a"/><stop offset=".72" stopColor="#243640"/><stop offset="1" stopColor="#0b1821"/></linearGradient>
+            <linearGradient id="cyrus-hair" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#1b3138"/><stop offset=".45" stopColor="#080f16"/><stop offset="1" stopColor="#020509"/></linearGradient>
+            <linearGradient id="cyrus-armor" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#38515a"/><stop offset=".24" stopColor="#172830"/><stop offset=".56" stopColor="#08131b"/><stop offset="1" stopColor="#020609"/></linearGradient>
+            <linearGradient id="cyrus-metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#91b5b5"/><stop offset=".2" stopColor="#29424a"/><stop offset=".5" stopColor="#101c24"/><stop offset="1" stopColor="#05090e"/></linearGradient>
+            <linearGradient id="cyrus-energy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#bcfff0"/><stop offset=".4" stopColor="#38f1c6"/><stop offset="1" stopColor="#00a9d0"/></linearGradient>
+            <radialGradient id="cyrus-halo"><stop offset="0" stopColor="#25e8c0" stopOpacity=".32"/><stop offset=".5" stopColor="#0c8294" stopOpacity=".13"/><stop offset="1" stopColor="#06111b" stopOpacity="0"/></radialGradient>
+            <filter id="cyrus-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <pattern id="cyrus-microgrid" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M34 0H0V34" fill="none" stroke="#65e6d1" strokeOpacity=".1" strokeWidth=".7"/></pattern>
+          </defs>
+          <rect width="760" height="900" fill="url(#cyrus-sky)" opacity=".45"/>
+          <ellipse cx="440" cy="380" rx="320" ry="390" fill="url(#cyrus-halo)"/>
+          <rect x="0" y="0" width="760" height="900" fill="url(#cyrus-microgrid)" opacity=".48"/>
+          <g fill="none" stroke="#43e8cf" strokeOpacity=".23">
+            <circle cx="437" cy="360" r="262" strokeWidth="1.2"/>
+            <circle cx="437" cy="360" r="292" strokeDasharray="2 12"/>
+            <ellipse cx="437" cy="360" rx="190" ry="298" transform="rotate(28 437 360)"/>
+            <path d="M45 600L180 465 245 465M545 166H660V282M570 650H700V755"/>
+          </g>
+          <g fill="#4ce8d0" opacity=".65"><circle cx="180" cy="465" r="3"/><circle cx="660" cy="282" r="3"/><circle cx="700" cy="755" r="3"/></g>
+          <path d="M96 900L115 736Q133 642 223 589L300 550 491 550 594 589Q677 642 690 758L710 900Z" fill="#02060a" stroke="#1e444b" strokeWidth="2"/>
+          <path d="M206 900L224 718Q240 629 302 598L372 575 475 581 546 613Q601 650 610 754L626 900Z" fill="url(#cyrus-armor)" stroke="#38565d" strokeWidth="2"/>
+          <path d="M293 586L332 534 479 528 525 585 481 640 359 644Z" fill="#0a1720" stroke="#3a6568" strokeWidth="2"/>
+          <path d="M347 492L344 569 386 610 437 612 485 569 475 485Z" fill="url(#cyrus-face)"/>
+          <path d="M340 540L386 568 475 529 480 581 435 635 367 624 329 583Z" fill="#050d13" stroke="#2b5057" strokeWidth="2"/>
+          <path d="M269 296Q276 184 375 150Q479 120 541 205L562 307 540 405Q525 459 474 497L436 521 374 493Q317 462 287 400Z" fill="url(#cyrus-face)" stroke="#8ba7a8" strokeOpacity=".25" strokeWidth="2"/>
+          <path d="M269 286Q245 195 317 131Q368 82 438 103Q507 76 557 150Q603 206 559 323L535 286 517 233 482 201 426 224 365 205 317 256 297 330Z" fill="url(#cyrus-hair)" stroke="#29464c" strokeWidth="2"/>
+          <path d="M295 287Q267 199 334 131L363 116 344 166 377 127 373 178 416 111 407 171 456 121 444 183 488 161 493 205 528 199 540 268 551 316 526 286 503 236 477 214 426 236 368 213 330 261 312 329Z" fill="#071118"/>
+          <path d="M311 291L296 361 314 406 340 418 334 371 350 314Z" fill="#20343c" opacity=".8"/>
+          <path d="M335 312Q358 284 392 299L410 313 384 321 355 321Z" fill="#08151b"/>
+          <path d="M432 300Q465 276 494 294L508 310 477 315 449 313Z" fill="#08151b"/>
+          <path d="M339 319L379 316 391 323 375 328 345 327Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
+          <path d="M447 314L489 308 500 315 481 323 451 322Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
+          <path d="M410 318L398 362 419 371 432 361" fill="none" stroke="#263f47" strokeWidth="5" strokeLinecap="round"/>
+          <path d="M396 397Q426 410 455 390" fill="none" stroke="#162d35" strokeWidth="4" strokeLinecap="round"/>
+          <path d="M381 405L418 414 450 396 441 432 411 448 385 430Z" fill="#0c1a21" stroke="#2b4a50" strokeWidth="2"/>
+          <path d="M304 366Q320 405 344 433L370 465 393 475 368 487Q320 461 294 407L286 361Z" fill="#1b2d35" opacity=".78"/>
+          <path d="M497 274Q516 304 503 358L487 393 510 379 531 333 527 277Z" fill="#02090f" opacity=".8"/>
+          <path d="M207 651L277 605 329 630 347 702 313 771 219 780 180 717Z" fill="url(#cyrus-metal)" stroke="#4d7477" strokeWidth="2"/>
+          <path d="M501 628L541 603 603 641 640 717 594 772 517 761 483 706Z" fill="url(#cyrus-metal)" stroke="#45676b" strokeWidth="2"/>
+          <path d="M233 661L283 631 312 657 324 711 291 748 231 741 207 708Z" fill="#07131b" stroke="#2e5459" strokeWidth="2"/>
+          <path d="M527 655L552 631 588 657 615 712 583 743 530 735 508 699Z" fill="#07131b" stroke="#2e5459" strokeWidth="2"/>
+          <path d="M263 647L285 635 300 656 279 671Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
+          <path d="M549 643L564 632 580 652 563 666Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
+          <path d="M341 652L359 628 384 643 374 719 351 758 332 707Z" fill="#071016" stroke="#3c6267" strokeWidth="2"/>
+          <path d="M465 638L486 628 507 651 511 716 485 751 467 700Z" fill="#071016" stroke="#3c6267" strokeWidth="2"/>
+          <path d="M378 648L422 627 461 649 456 736 420 770 384 734Z" fill="#0b1a22" stroke="#42676b" strokeWidth="2"/>
+          <path d="M401 665L421 652 441 666 436 700 420 713 405 699Z" fill="url(#cyrus-energy)" opacity=".9" filter="url(#cyrus-glow)"/>
+          <path d="M420 672L429 681 420 691 411 681Z" fill="#e0fff8"/>
+          <path d="M341 694L326 761 358 817M487 696L502 764 478 817M384 736L374 817M455 736L464 817" fill="none" stroke="#34d7bd" strokeOpacity=".7" strokeWidth="3"/>
+          <path d="M235 799L318 836 384 850 420 831 469 842 545 802 570 900H192Z" fill="#03070b" stroke="#28474d" strokeWidth="2"/>
+          <path d="M265 815L346 852 384 850M553 815L469 854 423 849" fill="none" stroke="#52f4d5" strokeOpacity=".55" strokeWidth="2"/>
+          <g fill="none" stroke="url(#cyrus-energy)" strokeWidth="2.5" strokeLinecap="round" filter="url(#cyrus-glow)">
+            <path d="M225 672L248 692 249 731 274 748"/>
+            <path d="M576 665L556 692 564 723 587 736"/>
+            <path d="M348 605L364 620 359 652"/>
+            <path d="M486 598L470 616 479 649"/>
+          </g>
+          <g stroke="#aac9c8" strokeOpacity=".25" fill="none">
+            <path d="M250 625L286 602 310 619M526 615L552 603 584 624"/>
+            <path d="M352 764L368 787 368 817M480 765L462 789 462 817"/>
+            <path d="M315 444L341 466 365 474M490 437L473 462 450 474"/>
+          </g>
+          <text x="420" y="881" textAnchor="middle" fill="#69ead6" fontSize="12" letterSpacing="5" opacity=".85">CYRUS / CORE 07</text>
+        </svg>
+        <div className="cyrus-nameplate"><small>INTELLIGENCE ENTITY</small><strong>CYRUS<span>—07</span></strong><em>SELF-AWARENESS: SIMULATED</em></div>
+        <div className="cyrus-hud cyrus-hud-left"><span>01 / REASONING</span><b><i/> ONLINE</b><small>Objective decomposition</small></div>
+        <div className="cyrus-hud cyrus-hud-right"><span>02 / EXECUTION</span><b>{busy?'ACTIVE':'STANDBY'}</b><small>{currentAgents.length} agents · {runtimeState}</small></div>
+        <div className="cyrus-scroll-cue"><span>SCROLL TO MEET THE SYSTEM</span><i/></div>
       </div>
+    </section>
+    <section className="cyrus-origin reveal" aria-labelledby="cyrus-origin-title">
+      <div className="cyrus-origin-head">
+        <span className="nx-eyebrow"><i/>THE DUAL PERSONA / ONE FICTIONAL INTELLIGENCE</span>
+        <h2 id="cyrus-origin-title">One identity.<br/><em>Two ways to change the world.</em></h2>
+        <p>CYRUS is the same original character in every scene: the quiet observer who listens, and the autonomous core that turns intent into action.</p>
+      </div>
+      <div className="cyrus-origin-grid">
+        <article className="cyrus-origin-card cyrus-observer">
+          <div className="cyrus-origin-art observer-art" aria-hidden="true">
+            <div className="observer-halo"></div><div className="observer-head"></div><div className="observer-neck"></div><div className="observer-shoulders"></div>
+            <span className="origin-coordinate">FIG. 01 — THE OBSERVER</span><span className="origin-mark">C / 07</span>
+          </div>
+          <div className="cyrus-origin-copy"><span>MODE 01 / PERCEPTION</span><h3>The observer.</h3><p>Patient. Precise. Curious. CYRUS listens to the objective, maps the constraints, and finds the signal inside the noise.</p><button onClick={()=>document.querySelector('.nx-console')?.scrollIntoView({behavior:'smooth'})}>Give it a problem <b>↗</b></button></div>
+        </article>
+        <article className="cyrus-origin-card cyrus-operator">
+          <div className="cyrus-origin-art operator-art" aria-hidden="true">
+            <div className="operator-ring ring-a"></div><div className="operator-ring ring-b"></div><div className="operator-ring ring-c"></div>
+            <div className="operator-core"><span>C7</span><small>CYRUS</small></div><span className="origin-coordinate">FIG. 02 — THE OPERATOR</span><span className="origin-mark">AUTONOMOUS</span>
+          </div>
+          <div className="cyrus-origin-copy"><span>MODE 02 / EXECUTION</span><h3>The operator.</h3><p>Decisive. Observable. Accountable. The same intelligence coordinates specialist agents, tools, tests, and release checkpoints.</p><button onClick={()=>document.querySelector('.nx-console')?.scrollIntoView({behavior:'smooth'})}>Enter the command room <b>↗</b></button></div>
+        </article>
+      </div>
+      <div className="cyrus-origin-foot"><span>NOT A REAL PERSON / ORIGINAL FICTIONAL CHARACTER</span><span>ONE CORE · SEVEN AGENTS · VISIBLE EXECUTION</span></div>
     </section>
 
     <section className="nx-console">
