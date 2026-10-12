@@ -30,7 +30,7 @@ for (const style of [".history-overview", ".history-filters", ".history-empty", 
 console.log("deployment smoke: index assets and bootstrap contract OK");
 
 const refreshedApp = fs.readFileSync("app.js", "utf8");
-for (const feature of ["function PageHero","page-agents","registry-grid","page-memory","memory-gallery","page-tools","tool-library","04 / EXECUTION HISTORY","CYRUS_IMAGES","images.unsplash.com"]) {
+for (const feature of ["function PageHero","page-agents","registry-grid","page-memory","memory-gallery","page-tools","tool-library","HISTORY / EXECUTION LEDGER","CYRUS_IMAGES","images.unsplash.com"]) {
   assert.ok(refreshedApp.includes(feature), "Missing visual redesign feature: " + feature);
 }
 const refreshedCss = fs.readFileSync("styles.css", "utf8");
@@ -46,8 +46,11 @@ for (const feature of [
   "motion-tilt",
   "IntersectionObserver",
   "prefers-reduced-motion: reduce",
+  "CyrusCharacter",
+  "HomeView",
+  "command-stats-grid",
+  "agent-map-lines",
   "cyrus-portrait",
-  "cyrus-origin",
   "cyrus-scroll-cue",
   "motion-scroll-progress"
 ]) {
@@ -77,7 +80,7 @@ assert.ok(fs.readFileSync("app.js", "utf8").includes("--motion-image-x"), "Point
 assert.ok(fs.readFileSync("app.js", "utf8").includes("removeProperty('--motion-image-x')"), "Image parallax variables must be cleaned when the pointer leaves");
 assert.ok(fs.readFileSync("styles.css", "utf8").includes("translate3d(var(--motion-image-x,0px),var(--motion-image-y,0px),0)"), "Image parallax must use browser-safe pixel transforms");
 
-for (const feature of ["I am","CYRUS.","AN ORIGINAL FICTIONAL INTELLIGENCE","THE DUAL PERSONA"]) {
+for (const feature of ["function HomeView","I am","CYRUS.","home-feature-rail","function CommandView","Recent Executions","Live Agent Graph","function toolGroup","Search execution memory"]) {
   assert.ok(refreshedApp.includes(feature), "Missing CYRUS character experience: " + feature);
 }
 for (const style of [".cyrus-hero-visual", ".cyrus-portrait", ".cyrus-origin-grid", "@keyframes cyrus-portrait-arrive"]) {
