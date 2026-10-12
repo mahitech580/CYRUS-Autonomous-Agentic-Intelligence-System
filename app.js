@@ -379,83 +379,118 @@ function CoreVisual({agents,runtimeState,go}){
 }
 
 function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()=>{}}){
+  const stageRef=useRef(null);
+  useEffect(()=>{
+    const stage=stageRef.current;
+    if(!stage||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    const move=event=>{
+      const rect=stage.getBoundingClientRect();
+      if(!rect.width||!rect.height)return;
+      const px=(event.clientX-rect.left)/rect.width;
+      const py=(event.clientY-rect.top)/rect.height;
+      stage.style.setProperty('--doom-pointer-yaw',((px-.5)*12).toFixed(2)+'deg');
+      stage.style.setProperty('--doom-pointer-pitch',((.5-py)*7).toFixed(2)+'deg');
+      stage.classList.add('doom-pointer-active');
+    };
+    const reset=()=>{
+      stage.style.setProperty('--doom-pointer-yaw','0deg');
+      stage.style.setProperty('--doom-pointer-pitch','0deg');
+      stage.classList.remove('doom-pointer-active');
+    };
+    stage.addEventListener('pointermove',move,{passive:true});
+    stage.addEventListener('pointerleave',reset,{passive:true});
+    return()=>{stage.removeEventListener('pointermove',move);stage.removeEventListener('pointerleave',reset);reset()};
+  },[]);
   return (
-    <div className="nx-hero-visual cyrus-hero-visual">
+    <div ref={stageRef} className="nx-hero-visual cyrus-hero-visual doom-scene">
         <div className="cyrus-atmosphere" aria-hidden="true"><i/><i/><i/><span/></div>
-        <div className="cyrus-visual-label"><span className="cyrus-live-pip"/><span>CYRUS / CHARACTER FILE 07</span><b>FICTIONAL AI</b></div>
-        <svg className="cyrus-portrait" viewBox="0 0 760 900" role="img" aria-labelledby="cyrus-portrait-title cyrus-portrait-desc">
-          <title id="cyrus-portrait-title">CYRUS, an original fictional AI character</title>
-          <desc id="cyrus-portrait-desc">A cinematic, original dark-haired synthetic intelligence with glowing teal eyes, a black armored coat, luminous circuitry, and a geometric core emblem.</desc>
+        <div className="doom-smoke-layer" aria-hidden="true"><i/><i/><i/><i/></div>
+        <div className="cyrus-visual-label"><span className="cyrus-live-pip"/><span>DOCTOR DOOM / CYRUS ARMOR</span><b>DOOM ARMOR</b></div>
+        <div className="doom-character-3d"><div className="doom-turntable"><svg className="cyrus-portrait" viewBox="0 0 760 900" role="img" aria-labelledby="cyrus-portrait-title cyrus-portrait-desc">
+          <title id="cyrus-portrait-title">Doctor Doom-inspired CYRUS — fictional armored monarch</title>
+          <desc id="cyrus-portrait-desc">A hooded, metal-masked fictional monarch in dark green armor, with bright emerald eye slits, a riveted faceplate, and a luminous green chest core.</desc>
           <defs>
-            <linearGradient id="cyrus-sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#071b25"/><stop offset=".5" stopColor="#07101b"/><stop offset="1" stopColor="#020509"/></linearGradient>
-            <linearGradient id="cyrus-face" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#b9c8c8"/><stop offset=".36" stopColor="#60747a"/><stop offset=".72" stopColor="#243640"/><stop offset="1" stopColor="#0b1821"/></linearGradient>
-            <linearGradient id="cyrus-hair" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#1b3138"/><stop offset=".45" stopColor="#080f16"/><stop offset="1" stopColor="#020509"/></linearGradient>
-            <linearGradient id="cyrus-armor" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#38515a"/><stop offset=".24" stopColor="#172830"/><stop offset=".56" stopColor="#08131b"/><stop offset="1" stopColor="#020609"/></linearGradient>
-            <linearGradient id="cyrus-metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#91b5b5"/><stop offset=".2" stopColor="#29424a"/><stop offset=".5" stopColor="#101c24"/><stop offset="1" stopColor="#05090e"/></linearGradient>
-            <linearGradient id="cyrus-energy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#bcfff0"/><stop offset=".4" stopColor="#38f1c6"/><stop offset="1" stopColor="#00a9d0"/></linearGradient>
-            <radialGradient id="cyrus-halo"><stop offset="0" stopColor="#25e8c0" stopOpacity=".32"/><stop offset=".5" stopColor="#0c8294" stopOpacity=".13"/><stop offset="1" stopColor="#06111b" stopOpacity="0"/></radialGradient>
+            <linearGradient id="cyrus-sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#071509"/><stop offset=".5" stopColor="#050c05"/><stop offset="1" stopColor="#010401"/></linearGradient>
+            <linearGradient id="cyrus-face" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#b8c7ad"/><stop offset=".36" stopColor="#62745b"/><stop offset=".72" stopColor="#293a27"/><stop offset="1" stopColor="#0b1509"/></linearGradient>
+            <linearGradient id="cyrus-hair" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#263c23"/><stop offset=".45" stopColor="#071007"/><stop offset="1" stopColor="#010401"/></linearGradient>
+            <linearGradient id="cyrus-armor" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#3c5631"/><stop offset=".24" stopColor="#172414"/><stop offset=".56" stopColor="#091307"/><stop offset="1" stopColor="#020609"/></linearGradient>
+            <linearGradient id="cyrus-metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#a8b999"/><stop offset=".2" stopColor="#314b2b"/><stop offset=".5" stopColor="#172516"/><stop offset="1" stopColor="#05090e"/></linearGradient>
+            <linearGradient id="cyrus-energy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#edffb8"/><stop offset=".4" stopColor="#79ff35"/><stop offset="1" stopColor="#279e12"/></linearGradient>
+            <radialGradient id="cyrus-halo"><stop offset="0" stopColor="#74ff27" stopOpacity=".32"/><stop offset=".5" stopColor="#225e16" stopOpacity=".13"/><stop offset="1" stopColor="#061006" stopOpacity="0"/></radialGradient>
             <filter id="cyrus-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-            <pattern id="cyrus-microgrid" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M34 0H0V34" fill="none" stroke="#65e6d1" strokeOpacity=".1" strokeWidth=".7"/></pattern>
+            <pattern id="cyrus-microgrid" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M34 0H0V34" fill="none" stroke="#9eff65" strokeOpacity=".1" strokeWidth=".7"/></pattern>
           </defs>
           <rect width="760" height="900" fill="url(#cyrus-sky)" opacity=".45"/>
           <ellipse cx="440" cy="380" rx="320" ry="390" fill="url(#cyrus-halo)"/>
           <rect x="0" y="0" width="760" height="900" fill="url(#cyrus-microgrid)" opacity=".48"/>
-          <g fill="none" stroke="#43e8cf" strokeOpacity=".23">
+          <g fill="none" stroke="#7eff28" strokeOpacity=".23">
             <circle cx="437" cy="360" r="262" strokeWidth="1.2"/>
             <circle cx="437" cy="360" r="292" strokeDasharray="2 12"/>
             <ellipse cx="437" cy="360" rx="190" ry="298" transform="rotate(28 437 360)"/>
             <path d="M45 600L180 465 245 465M545 166H660V282M570 650H700V755"/>
           </g>
-          <g fill="#4ce8d0" opacity=".65"><circle cx="180" cy="465" r="3"/><circle cx="660" cy="282" r="3"/><circle cx="700" cy="755" r="3"/></g>
-          <path d="M96 900L115 736Q133 642 223 589L300 550 491 550 594 589Q677 642 690 758L710 900Z" fill="#02060a" stroke="#1e444b" strokeWidth="2"/>
-          <path d="M206 900L224 718Q240 629 302 598L372 575 475 581 546 613Q601 650 610 754L626 900Z" fill="url(#cyrus-armor)" stroke="#38565d" strokeWidth="2"/>
-          <path d="M293 586L332 534 479 528 525 585 481 640 359 644Z" fill="#0a1720" stroke="#3a6568" strokeWidth="2"/>
+          <g fill="#9aff43" opacity=".65"><circle cx="180" cy="465" r="3"/><circle cx="660" cy="282" r="3"/><circle cx="700" cy="755" r="3"/></g>
+          <path d="M96 900L115 736Q133 642 223 589L300 550 491 550 594 589Q677 642 690 758L710 900Z" fill="#02060a" stroke="#28471e" strokeWidth="2"/>
+          <path d="M206 900L224 718Q240 629 302 598L372 575 475 581 546 613Q601 650 610 754L626 900Z" fill="url(#cyrus-armor)" stroke="#4b6d37" strokeWidth="2"/>
+          <path d="M293 586L332 534 479 528 525 585 481 640 359 644Z" fill="#0a1720" stroke="#4b6e37" strokeWidth="2"/>
           <path d="M347 492L344 569 386 610 437 612 485 569 475 485Z" fill="url(#cyrus-face)"/>
-          <path d="M340 540L386 568 475 529 480 581 435 635 367 624 329 583Z" fill="#050d13" stroke="#2b5057" strokeWidth="2"/>
-          <path d="M269 296Q276 184 375 150Q479 120 541 205L562 307 540 405Q525 459 474 497L436 521 374 493Q317 462 287 400Z" fill="url(#cyrus-face)" stroke="#8ba7a8" strokeOpacity=".25" strokeWidth="2"/>
-          <path d="M269 286Q245 195 317 131Q368 82 438 103Q507 76 557 150Q603 206 559 323L535 286 517 233 482 201 426 224 365 205 317 256 297 330Z" fill="url(#cyrus-hair)" stroke="#29464c" strokeWidth="2"/>
-          <path d="M295 287Q267 199 334 131L363 116 344 166 377 127 373 178 416 111 407 171 456 121 444 183 488 161 493 205 528 199 540 268 551 316 526 286 503 236 477 214 426 236 368 213 330 261 312 329Z" fill="#071118"/>
-          <path d="M311 291L296 361 314 406 340 418 334 371 350 314Z" fill="#20343c" opacity=".8"/>
-          <path d="M335 312Q358 284 392 299L410 313 384 321 355 321Z" fill="#08151b"/>
-          <path d="M432 300Q465 276 494 294L508 310 477 315 449 313Z" fill="#08151b"/>
-          <path d="M339 319L379 316 391 323 375 328 345 327Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
-          <path d="M447 314L489 308 500 315 481 323 451 322Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
-          <path d="M410 318L398 362 419 371 432 361" fill="none" stroke="#263f47" strokeWidth="5" strokeLinecap="round"/>
-          <path d="M396 397Q426 410 455 390" fill="none" stroke="#162d35" strokeWidth="4" strokeLinecap="round"/>
-          <path d="M381 405L418 414 450 396 441 432 411 448 385 430Z" fill="#0c1a21" stroke="#2b4a50" strokeWidth="2"/>
-          <path d="M304 366Q320 405 344 433L370 465 393 475 368 487Q320 461 294 407L286 361Z" fill="#1b2d35" opacity=".78"/>
-          <path d="M497 274Q516 304 503 358L487 393 510 379 531 333 527 277Z" fill="#02090f" opacity=".8"/>
-          <path d="M207 651L277 605 329 630 347 702 313 771 219 780 180 717Z" fill="url(#cyrus-metal)" stroke="#4d7477" strokeWidth="2"/>
-          <path d="M501 628L541 603 603 641 640 717 594 772 517 761 483 706Z" fill="url(#cyrus-metal)" stroke="#45676b" strokeWidth="2"/>
-          <path d="M233 661L283 631 312 657 324 711 291 748 231 741 207 708Z" fill="#07131b" stroke="#2e5459" strokeWidth="2"/>
-          <path d="M527 655L552 631 588 657 615 712 583 743 530 735 508 699Z" fill="#07131b" stroke="#2e5459" strokeWidth="2"/>
+          <path d="M340 540L386 568 475 529 480 581 435 635 367 624 329 583Z" fill="#050d13" stroke="#45623a" strokeWidth="2"/>
+          <path d="M245 353Q217 290 243 222Q263 158 326 119Q380 82 441 94Q507 91 548 150Q599 221 570 324L553 386 529 355 519 286Q505 233 467 210L424 194 379 207 340 236 311 308 288 389Z" fill="#102914" stroke="#497b32" strokeWidth="3"/>
+          <path d="M274 323Q260 251 302 191Q347 130 421 129Q487 128 526 190Q553 234 537 313L515 354 505 286Q488 238 450 225L414 217 376 229 345 256 311 351Z" fill="#07150b" stroke="#244b1d" strokeWidth="3"/>
+          <path d="M321 269L359 241 427 236 478 258 501 309 491 363 468 411 443 441 416 453 386 438 354 411 329 372 311 322Z" fill="url(#cyrus-face)" stroke="#9eb19b" strokeWidth="3"/>
+          <path d="M321 277L355 254 417 246 470 266 487 311 476 359 456 397 435 423 415 432 392 419 365 396 345 367 329 326Z" fill="url(#cyrus-metal)" stroke="#344c37" strokeWidth="2"/>
+          <path d="M323 281L354 258 417 251 467 270 480 306 463 301 437 289 405 293 375 289 345 303 326 315Z" fill="#263a29" stroke="#6c8d5f" strokeWidth="2"/>
+          <path d="M337 307L372 297 396 307 379 322 350 321Z" fill="#020a05" stroke="#304f29" strokeWidth="2"/>
+          <path d="M433 305L463 295 481 309 465 322 439 320Z" fill="#020a05" stroke="#304f29" strokeWidth="2"/>
+          <path d="M347 310L382 307 369 316 350 316Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
+          <path d="M440 311L471 307 461 317 443 318Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
+          <path d="M413 307L396 357 415 374 434 356 425 310Z" fill="#839684" stroke="#293e2b" strokeWidth="3"/>
+          <path d="M400 358L413 365 425 355 434 369 418 389 402 382Z" fill="#17261a" stroke="#52674f" strokeWidth="2"/>
+          <path d="M379 391L449 386 444 416 419 433 390 417Z" fill="#06100a" stroke="#63785e" strokeWidth="2"/>
+          <path d="M386 398L443 395M389 405L441 402M393 412L435 409" fill="none" stroke="#92a68d" strokeWidth="2"/>
+          <path d="M399 394V416M411 392V425M423 392V425M435 391V416" fill="none" stroke="#4d6849" strokeWidth="2"/>
+          <path d="M317 320L332 372 359 404 382 422 399 434 385 440Q344 415 323 380L303 335Z" fill="#09150c" stroke="#334d2d" strokeWidth="2"/>
+          <path d="M488 303L504 341 485 388 463 416 444 432 431 440 447 406 466 369 473 323Z" fill="#071109" stroke="#385334" strokeWidth="2"/>
+          <path d="M298 264L312 226 344 193 378 173 355 213 331 251 315 300 306 339 288 378 278 326Z" fill="#18331a" stroke="#527846" strokeWidth="2"/>
+          <path d="M503 219L529 252 540 303 535 349 519 385 506 348 510 306 493 269Z" fill="#132b15" stroke="#3d6333" strokeWidth="2"/>
+          <path d="M375 264L397 256 414 265 434 257 455 265" fill="none" stroke="#b8c6b0" strokeOpacity=".7" strokeWidth="2"/>
+          <g fill="#c5d0be" stroke="#263c26" strokeWidth="2"><circle cx="332" cy="326" r="4"/><circle cx="470" cy="326" r="4"/><circle cx="352" cy="378" r="3"/><circle cx="463" cy="378" r="3"/></g>
+          <path d="M337 424L357 445 387 459 416 468 446 445 473 415 493 432 463 482 420 512 378 496 344 465Z" fill="#101e11" stroke="#35582c" strokeWidth="3"/>
+          <path d="M337 440L366 462 389 478 419 485 448 464 469 439" fill="none" stroke="#65b93d" strokeOpacity=".8" strokeWidth="3"/>
+          <path d="M357 454L366 472M372 462L382 483M388 471L396 488M404 476L411 491M424 473L428 489M440 463L441 482M454 451L451 470" stroke="#7aa36d" strokeWidth="2"/>
+          <path d="M356 218L376 199 403 190 433 194 457 207" fill="none" stroke="#708d67" strokeWidth="3"/>
+          <path d="M364 228L390 211 417 209 449 221" fill="none" stroke="#152718" strokeWidth="8"/>
+          <path d="M207 651L277 605 329 630 347 702 313 771 219 780 180 717Z" fill="url(#cyrus-metal)" stroke="#577943" strokeWidth="2"/>
+          <path d="M501 628L541 603 603 641 640 717 594 772 517 761 483 706Z" fill="url(#cyrus-metal)" stroke="#496637" strokeWidth="2"/>
+          <path d="M233 661L283 631 312 657 324 711 291 748 231 741 207 708Z" fill="#0c1909" stroke="#436332" strokeWidth="2"/>
+          <path d="M527 655L552 631 588 657 615 712 583 743 530 735 508 699Z" fill="#0c1909" stroke="#436332" strokeWidth="2"/>
           <path d="M263 647L285 635 300 656 279 671Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
           <path d="M549 643L564 632 580 652 563 666Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
-          <path d="M341 652L359 628 384 643 374 719 351 758 332 707Z" fill="#071016" stroke="#3c6267" strokeWidth="2"/>
-          <path d="M465 638L486 628 507 651 511 716 485 751 467 700Z" fill="#071016" stroke="#3c6267" strokeWidth="2"/>
-          <path d="M378 648L422 627 461 649 456 736 420 770 384 734Z" fill="#0b1a22" stroke="#42676b" strokeWidth="2"/>
+          <path d="M341 652L359 628 384 643 374 719 351 758 332 707Z" fill="#071016" stroke="#3e5d2e" strokeWidth="2"/>
+          <path d="M465 638L486 628 507 651 511 716 485 751 467 700Z" fill="#071016" stroke="#3e5d2e" strokeWidth="2"/>
+          <path d="M378 648L422 627 461 649 456 736 420 770 384 734Z" fill="#0b1a22" stroke="#476638" strokeWidth="2"/>
           <path d="M401 665L421 652 441 666 436 700 420 713 405 699Z" fill="url(#cyrus-energy)" opacity=".9" filter="url(#cyrus-glow)"/>
-          <path d="M420 672L429 681 420 691 411 681Z" fill="#e0fff8"/>
-          <path d="M341 694L326 761 358 817M487 696L502 764 478 817M384 736L374 817M455 736L464 817" fill="none" stroke="#34d7bd" strokeOpacity=".7" strokeWidth="3"/>
-          <path d="M235 799L318 836 384 850 420 831 469 842 545 802 570 900H192Z" fill="#03070b" stroke="#28474d" strokeWidth="2"/>
-          <path d="M265 815L346 852 384 850M553 815L469 854 423 849" fill="none" stroke="#52f4d5" strokeOpacity=".55" strokeWidth="2"/>
+          <path d="M420 672L429 681 420 691 411 681Z" fill="#efffdc"/>
+          <path d="M341 694L326 761 358 817M487 696L502 764 478 817M384 736L374 817M455 736L464 817" fill="none" stroke="#73f72c" strokeOpacity=".7" strokeWidth="3"/>
+          <path d="M235 799L318 836 384 850 420 831 469 842 545 802 570 900H192Z" fill="#03070b" stroke="#3c5b2c" strokeWidth="2"/>
+          <path d="M265 815L346 852 384 850M553 815L469 854 423 849" fill="none" stroke="#a9ff52" strokeOpacity=".55" strokeWidth="2"/>
           <g fill="none" stroke="url(#cyrus-energy)" strokeWidth="2.5" strokeLinecap="round" filter="url(#cyrus-glow)">
             <path d="M225 672L248 692 249 731 274 748"/>
             <path d="M576 665L556 692 564 723 587 736"/>
             <path d="M348 605L364 620 359 652"/>
             <path d="M486 598L470 616 479 649"/>
           </g>
-          <g stroke="#aac9c8" strokeOpacity=".25" fill="none">
+          <g stroke="#c1d4b5" strokeOpacity=".25" fill="none">
             <path d="M250 625L286 602 310 619M526 615L552 603 584 624"/>
             <path d="M352 764L368 787 368 817M480 765L462 789 462 817"/>
             <path d="M315 444L341 466 365 474M490 437L473 462 450 474"/>
           </g>
-          <text x="420" y="881" textAnchor="middle" fill="#69ead6" fontSize="12" letterSpacing="5" opacity=".85">CYRUS / CORE 07</text>
-        </svg>
-        <div className="cyrus-nameplate"><small>INTELLIGENCE ENTITY</small><strong>CYRUS<span>—07</span></strong><em>SELF-AWARENESS: SIMULATED</em></div>
-        <div className="cyrus-hud cyrus-hud-left"><span>01 / REASONING</span><b><i/> ONLINE</b><small>Objective decomposition</small></div>
-        <div className="cyrus-hud cyrus-hud-right"><span>02 / EXECUTION</span><b>{busy?'ACTIVE':'STANDBY'}</b><small>{currentAgents.length} agents · {runtimeState}</small></div>
-        <div className="cyrus-scroll-cue"><span>SCROLL TO MEET THE SYSTEM</span><i/></div>
+          <text x="420" y="881" textAnchor="middle" fill="#a7ff51" fontSize="12" letterSpacing="5" opacity=".85">DOOM PROTOCOL / CYRUS</text>
+        </svg></div></div>
+        <div className="cyrus-nameplate"><small>DOOM PROTOCOL</small><strong>CYRUS<span>—07</span></strong><em>ARMOR SYSTEM: ACTIVE</em></div>
+        <div className="cyrus-hud cyrus-hud-left"><span>ARMOR / SHIELD</span><b><i/> ONLINE</b><small>Emerald reactor online</small></div>
+        <div className="cyrus-hud cyrus-hud-right"><span>DOOM / CONTROL</span><b>{busy?'ACTIVE':'STANDBY'}</b><small>{currentAgents.length} agents · {runtimeState}</small></div>
+        <div className="cyrus-scroll-cue"><span>EMERALD SMOKE / LIVE</span><i/></div>
       </div>
   )
 }
@@ -479,7 +514,7 @@ function HomeView({go,runtimeState,busy,agents,openPalette}){
         <div className="home-eyebrow"><i/> AUTONOMOUS AGENTIC INTELLIGENCE SYSTEM</div>
         <h1>I am <span>CYRUS.</span></h1>
         <h2>Think. Plan. Execute. Evolve.</h2>
-        <p>I am CYRUS — a fictional autonomous AI built to turn your ideas into real outcomes. I use advanced reasoning, powerful tools and a coordinated network of specialized agents to solve complex problems, execute tasks and keep learning.</p>
+        <p>I am CYRUS — a fictional autonomous intelligence with Doctor Doom-inspired armor, built to turn your ideas into decisive action. I use advanced reasoning, powerful tools and a coordinated network of specialized agents to solve complex problems, execute tasks and keep learning.</p>
         <div className="home-hero-actions">
           <button className="home-primary" onClick={()=>go('Command')}>Enter Command <b>→</b></button>
           <button className="home-secondary" onClick={()=>{go('Command');setTimeout(()=>document.querySelector('.command-objective')?.focus(),120)}}><span>▷</span> Watch the system</button>
