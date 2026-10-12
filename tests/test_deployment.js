@@ -46,8 +46,9 @@ for (const feature of [
   "motion-tilt",
   "IntersectionObserver",
   "prefers-reduced-motion: reduce",
-  "architecture-cube",
-  "architecture-orbit",
+  "cyrus-portrait",
+  "cyrus-origin",
+  "cyrus-scroll-cue",
   "motion-scroll-progress"
 ]) {
   assert.ok(motionSource.includes(feature), "Missing motion system behavior: " + feature);
@@ -75,3 +76,10 @@ assert.ok(fs.readFileSync("styles.css", "utf8").includes("html.motion-disabled")
 assert.ok(fs.readFileSync("app.js", "utf8").includes("--motion-image-x"), "Pointer input must drive image parallax");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("removeProperty('--motion-image-x')"), "Image parallax variables must be cleaned when the pointer leaves");
 assert.ok(fs.readFileSync("styles.css", "utf8").includes("translate3d(var(--motion-image-x,0px),var(--motion-image-y,0px),0)"), "Image parallax must use browser-safe pixel transforms");
+
+for (const feature of ["I am","CYRUS.","AN ORIGINAL FICTIONAL INTELLIGENCE","THE DUAL PERSONA"]) {
+  assert.ok(refreshedApp.includes(feature), "Missing CYRUS character experience: " + feature);
+}
+for (const style of [".cyrus-hero-visual", ".cyrus-portrait", ".cyrus-origin-grid", "@keyframes cyrus-portrait-arrive"]) {
+  assert.ok(refreshedCss.includes(style), "Missing CYRUS cinematic character styling: " + style);
+}
