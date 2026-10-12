@@ -72,6 +72,21 @@ The static demo is designed to degrade gracefully: when the backend cannot be re
 
 For the full backend runtime, start Flask locally with `python server.py` and open `http://127.0.0.1:8000/`. The browser bridge only activates when API requests fail, so local backend execution remains the primary runtime.
 
+## Hosted realtime backend
+
+GitHub Pages serves static files only; it cannot host the Flask API, background workers, or live Server-Sent Events endpoint. This repository includes a Render Blueprint (render.yaml) that deploys Flask as a web service using Gunicorn, /api/health health checks, and CORS restricted to the GitHub Pages origin.
+
+1. Open [Deploy CYRUS backend to Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fmahitech580%2FCYRUS-Autonomous-Agentic-Intelligence-System) and authorize Render to access this repository.
+2. Create and deploy the Blueprint. The configured service name is cyrus-agentic-api-mahitech580, with expected URL https://cyrus-agentic-api-mahitech580.onrender.com.
+3. Once Render reports the service as Live, verify https://cyrus-agentic-api-mahitech580.onrender.com/api/health returns JSON with status "ok".
+4. Open the GitHub Pages UI. Its API URL defaults to that Render hostname. Use API ↗ in the Home header or workspace toolbar to enter the actual service URL if Render assigned a different hostname.
+
+The frontend calls the configured API for health, agents, tools, execution submission, task details, metrics, and the resumable event stream. When a live API URL is configured, the browser-demo bridge will not silently fabricate successful results after a network failure; the status remains offline until the actual backend responds.
+
+### Render Free plan notes
+
+Render's free web services can spin down after 15 minutes without inbound traffic; waking may take around a minute. Their local filesystem is ephemeral, so the current JSON execution history can be cleared when the instance spins down, restarts, or redeploys. For durable multi-user execution history, configure a managed persistent datastore (for example, PostgreSQL) rather than treating the free instance's local JSON file as permanent. See [Render free service limitations](https://render.com/docs/free).
+
 ## Provider architecture
 
 The orchestration engine talks to a small provider adapter in `providers.py`. The shipped provider is deterministic and offline-safe, which keeps the portfolio/demo runtime reproducible. A future OpenAI-compatible provider can implement the same interface without changing the seven-agent execution graph.

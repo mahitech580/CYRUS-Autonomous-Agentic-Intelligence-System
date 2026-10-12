@@ -1,7 +1,13 @@
 const {useEffect,useMemo,useRef,useState}=React
 
-const API_TIMEOUT_MS=6500
+const API_TIMEOUT_MS=70000
 const NAV_ITEMS=['Home','Command','Agents','Memory','Tools','History']
+
+function apiUrl(path){
+  const base=String(window.CYRUS_CONFIG?.apiBaseUrl||'').trim().replace(/\/+$/,'')
+  const route=String(path||'')
+  return base?base+(route.startsWith('/')?route:'/'+route):route
+}
 
 async function apiJson(path,options={}){
   const method=(options.method||'GET').toUpperCase()
@@ -12,7 +18,7 @@ async function apiJson(path,options={}){
     const controller=new AbortController()
     const timer=setTimeout(()=>controller.abort(),API_TIMEOUT_MS)
     try{
-      const res=await fetch(path,{...options,signal:controller.signal})
+      const res=await fetch(apiUrl(path),{...options,signal:controller.signal})
       const retryAfter=Number(res.headers.get('Retry-After'))
       retryDelayMs=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,3000):180
       const data=await res.json().catch(()=>({}))
@@ -34,6 +40,44 @@ const seedObjective='Build a production-ready REST API for task management with 
 
 const CYRUS_IMAGES={"command":"https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1800&q=85","agents":"https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1400&q=85","memory":"https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=1400&q=85","tools":"https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1400&q=85","history":"https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1400&q=85","spotlight":"https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1400&q=85","orchestration":"https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1400&q=85","code":"https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=900&q=85","circuit":"https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=85","servers":"https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=900&q=85","automation":"https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=900&q=85","research":"https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=900&q=85","memoryCard":"https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=900&q=85"}
 
+function ApiSettingsModal({close}){
+  const defaultUrl=String(window.CYRUS_CONFIG?.defaultApiBaseUrl||'https://cyrus-agentic-api-mahitech580.onrender.com');
+  const currentUrl=String(window.CYRUS_CONFIG?.apiBaseUrl||defaultUrl);
+  const [value,setValue]=useState(currentUrl);
+  const [error,setError]=useState('');
+  const save=event=>{
+    event.preventDefault();
+    const candidate=value.trim().replace(/\/+$/,'');
+    if(!candidate){setError('Enter your live backend URL.');return;}
+    let parsed;
+    try{parsed=new URL(candidate)}catch{setError('Enter a full URL, such as https://your-service.onrender.com');return;}
+    if(!['https:','http:'].includes(parsed.protocol)||parsed.username||parsed.password){setError('Use a valid HTTP(S) URL without credentials.');return;}
+    try{
+      localStorage.setItem('cyrus-api-base-url',parsed.origin+parsed.pathname.replace(/\/+$/,''));
+      window.location.reload();
+    }catch{setError('Browser storage is blocked; allow local storage and retry.');}
+  };
+  const reset=()=>{
+    try{localStorage.removeItem('cyrus-api-base-url');window.location.reload();}
+    catch{setError('Browser storage is blocked; unable to reset the URL.');}
+  };
+  return <div className="api-settings-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)close()}}>
+    <section className="api-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="api-settings-title">
+      <div className="api-settings-head"><div><span>CYRUS / CONNECTION SETTINGS</span><h2 id="api-settings-title">Connect the live backend.</h2></div><button type="button" onClick={close} aria-label="Close API settings">×</button></div>
+      <p>The GitHub Pages frontend needs a running Flask API URL. Save your deployed Render address so execution, metrics, history and live event streams reach the server instead of browser-demo data.</p>
+      <form onSubmit={save}>
+        <label htmlFor="cyrus-api-url">Backend base URL</label>
+        <input id="cyrus-api-url" type="url" autoComplete="url" spellCheck="false" value={value} onChange={event=>{setValue(event.target.value);setError('')}} placeholder="https://your-service.onrender.com" required/>
+        {error&&<div className="api-settings-error" role="alert">{error}</div>}
+        <div className="api-settings-example"><span>EXPECTED ENDPOINT</span><code>{value.trim().replace(/\/+$/,'')||'https://your-service.onrender.com'}/api/health</code></div>
+        <div className="api-settings-actions"><button type="button" className="api-settings-reset" onClick={reset}>Reset default URL</button><button className="api-settings-save" type="submit">Save & reconnect ↗</button></div>
+      </form>
+      <div className="api-settings-note"><i/> Render Free may sleep after inactivity; the first request can take about a minute to wake the server.</div>
+      <a className="api-settings-deploy-link" href="https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fmahitech580%2FCYRUS-Autonomous-Agentic-Intelligence-System" target="_blank" rel="noreferrer">Deploy the Flask backend on Render ↗</a>
+    </section>
+  </div>
+}
+
 function App(){
   const [page,setPage]=useState('Home')
   const [mode,setMode]=useState('autonomous')
@@ -49,6 +93,7 @@ function App(){
   const [runtimeMetrics,setRuntimeMetrics]=useState(null)
   const [paletteOpen,setPaletteOpen]=useState(false)
   const [motionEnabled,setMotionEnabled]=useState(()=>{try{return localStorage.getItem('cyrus-motion')!=='off'}catch{return true}})
+  const [apiSettingsOpen,setApiSettingsOpen]=useState(false)
 
   const notify=message=>{setToast(message);window.clearTimeout(window.__cyrusToastTimer);window.__cyrusToastTimer=window.setTimeout(()=>setToast(''),2500)}
   const toggleMotion=()=>{
@@ -255,7 +300,7 @@ function App(){
 
   return <div className={'app-shell '+(page==='Home'?'home-shell':'workspace-shell')}>
     <div className="motion-progress" aria-hidden="true"/>
-    {page==='Home'&&<HomeView go={go} runtimeState={runtimeState} busy={busy} agents={agents} openPalette={()=>setPaletteOpen(true)}/>}
+    {page==='Home'&&<HomeView go={go} runtimeState={runtimeState} busy={busy} agents={agents} openPalette={()=>setPaletteOpen(true)} openApiSettings={()=>setApiSettingsOpen(true)}/>}
     {page!=='Home'&&<>
       <aside className="sidebar workspace-sidebar">
         <button className="brand" onClick={()=>go('Home')} aria-label="Open CYRUS home">
@@ -274,6 +319,7 @@ function App(){
         <div className="topbar">
           <div className="eyebrow">CYRUS / {page.toUpperCase()} WORKSPACE</div>
           <div className="top-actions">
+            <button className="backend-settings-button" type="button" onClick={()=>setApiSettingsOpen(true)} title="Configure the live API backend">API ↗</button>
             <button className={'motion-toggle '+(motionEnabled?'active':'')} type="button" aria-pressed={motionEnabled} onClick={toggleMotion} title="Toggle motion effects"><span className="motion-toggle-icon" aria-hidden="true">{motionEnabled?'◉':'◌'}</span><span>{motionEnabled?'MOTION ON':'CALM MODE'}</span></button>
             <div className="live-pill"><span className="dot"/>{runtimeState} · {busy?'RUNNING':'READY'}</div>
             <button className="nav-command" onClick={()=>setPaletteOpen(true)}>⌘ K</button>
@@ -289,6 +335,7 @@ function App(){
         {page==='History'&&<HistoryView tasks={tasks} open={openTask}/>}
       </main>
     </>}
+    {apiSettingsOpen&&<ApiSettingsModal close={()=>setApiSettingsOpen(false)}/>}
     {selectedTask&&<TaskModal task={selectedTask} close={()=>setSelectedTask(null)}/>}
     {paletteOpen&&<CommandPalette page={page} go={go} execute={execute} seedObjective={seedObjective} notify={notify} close={()=>setPaletteOpen(false)}/>}
     {toast&&<div className="toast">{toast}</div>}
@@ -671,7 +718,7 @@ function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()
   </div>;
 }
 
-function HomeView({go,runtimeState,busy,agents,openPalette}){
+function HomeView({go,runtimeState,busy,agents,openPalette,openApiSettings}){
   const highlights=[
     ['◈','Multi-Agent System','Specialized agents',()=>go('Agents')],
     ['⌘','Tool Integration','Runtime capabilities',()=>go('Tools')],
@@ -682,7 +729,7 @@ function HomeView({go,runtimeState,busy,agents,openPalette}){
     <header className="home-navigation">
       <button className="home-brand" onClick={()=>go('Home')} aria-label="CYRUS home"><span className="home-brand-symbol">◆</span><span><strong>CYRUS</strong><small>AUTONOMOUS AGENTIC INTELLIGENCE SYSTEM</small></span></button>
       <nav aria-label="Primary navigation">{NAV_ITEMS.map((item,i)=><button key={item} className={item==='Home'?'active':''} onClick={()=>go(item)}>{item}</button>)}</nav>
-      <div className="home-nav-tools"><span className="home-status"><i/>{runtimeState}</span><button className="home-command-key" onClick={openPalette}>⌘ K</button></div>
+      <div className="home-nav-tools"><button className={'home-status home-status-button '+(runtimeState==='ONLINE'?'online':runtimeState==='OFFLINE'?'offline':'')} onClick={openApiSettings} title="Configure live backend connection"><i/>{runtimeState}</button><button className="home-command-key" onClick={openApiSettings} title="Configure backend API">API ↗</button><button className="home-command-key" onClick={openPalette} title="Open command palette">⌘ K</button></div>
     </header>
     <section className="home-hero">
       <div className="home-hero-backdrop" aria-hidden="true"><span/><i/><i/><i/></div>

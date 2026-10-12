@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: cyrus-agentic-api-mahitech580
+    runtime: python
+    plan: free
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 120 --graceful-timeout 30 server:app
+    healthCheckPath: /api/health
+    envVars:
+      - key: CYRUS_RELEASE
+        value: render-main
+      - key: CYRUS_CORS_ORIGINS
+        value: https://mahitech580.github.io,http://localhost:8000,http://127.0.0.1:8000

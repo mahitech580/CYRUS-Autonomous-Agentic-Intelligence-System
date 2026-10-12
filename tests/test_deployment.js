@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 
 const index = fs.readFileSync("index.html", "utf8");
-for (const asset of ["./styles.css", "./demo-bridge.js", "./event-stream.js", "./app.js"]) {
+for (const asset of ["./styles.css", "./runtime-config.js", "./demo-bridge.js", "./event-stream.js", "./app.js"]) {
   assert.ok(index.includes('src="' + asset + '"') || index.includes('href="' + asset + '"'), "Missing asset reference: " + asset);
   const path = asset.slice(2);
   assert.ok(fs.existsSync(path), "Missing referenced asset: " + path);
@@ -120,3 +120,15 @@ for (const style of [".doom-character-controls", ".doom-scene.doom-no-smoke", ".
   assert.ok(fs.readFileSync("styles.css", "utf8").includes(style), "Missing interactive scene control styling: " + style);
 }
 console.log("Doom interaction smoke: rotation, smoke, particles, cinematic zoom, and tab visibility controls OK");
+
+const runtimeConfig = fs.readFileSync("runtime-config.js", "utf8");
+assert.ok(runtimeConfig.includes("cyrus-agentic-api-mahitech580.onrender.com"), "Frontend must point to the Render API Blueprint hostname");
+assert.ok(runtimeConfig.includes("cyrus-api-base-url"), "API URL must be configurable from the UI");
+assert.ok(fs.readFileSync("event-stream.js", "utf8").includes("root.CYRUS_CONFIG?.apiBaseUrl"), "SSE must connect to the configured live backend");
+assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes("window.CYRUS_CONFIG?.apiBaseUrl"), "Browser demo fallback must not mask a configured backend outage");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("function ApiSettingsModal"), "App must include a live backend connection dialog");
+const blueprint = fs.readFileSync("render.yaml", "utf8");
+assert.ok(blueprint.includes("healthCheckPath: /api/health"), "Render Blueprint must health-check the API");
+assert.ok(blueprint.includes("server:app"), "Render Blueprint must start the Flask application");
+assert.ok(fs.readFileSync("requirements.txt", "utf8").includes("gunicorn==23.0.0"), "Production WSGI server must be installed");
+console.log("realtime deployment smoke: API config, CORS deployment assets, SSE URL, and Render Blueprint OK");
