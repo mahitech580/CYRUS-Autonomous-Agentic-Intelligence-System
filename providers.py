@@ -4,7 +4,7 @@ The deterministic provider keeps deployments usable without external credentials
 When CYRUS_LLM_API_KEY is configured, the OpenAI-compatible adapter performs
 real model requests. It does not browse the web or execute generated code.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -111,7 +111,7 @@ class DeterministicProvider:
 class OpenAICompatibleProvider:
     """Small OpenAI Chat Completions-compatible client using the Python standard library."""
 
-    api_key: str
+    api_key: str = field(repr=False)
     base_url: str
     model: str
     timeout_seconds: float = 25.0
