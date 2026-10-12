@@ -15,11 +15,22 @@ import tempfile
 from collections import deque
 
 BASE_DIR = Path(__file__).resolve().parent
-STORE = BASE_DIR / "cyrus_history.json"
+STORE = Path(os.getenv("CYRUS_HISTORY_PATH", str(BASE_DIR / "cyrus_history.json"))).expanduser()
 app = Flask(__name__, static_folder=None)
 app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("CYRUS_MAX_REQUEST_BYTES", "16384"))
 MAX_PROMPT_CHARS = max(200, min(int(os.getenv("CYRUS_MAX_PROMPT_CHARS", "4000")), 20000))
 RELEASE_ID = os.getenv("CYRUS_RELEASE", "local")[:80]
+
+DEFAULT_CORS_ORIGINS = {
+    "https://mahitech580.github.io",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+}
+CORS_ALLOWED_ORIGINS = {
+    item.strip().rstrip("/")
+    for item in os.getenv("CYRUS_CORS_ORIGINS", ",".join(sorted(DEFAULT_CORS_ORIGINS))).split(",")
+    if item.strip()
+}
 
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
 
@@ -40,6 +51,15 @@ def apply_response_hardening(response):
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    origin = request.headers.get("Origin", "").strip().rstrip("/")
+    if request.path.startswith("/api/") and origin and origin in CORS_ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Idempotency-Key, Last-Event-ID, X-Request-ID"
+        response.headers["Access-Control-Expose-Headers"] = "X-Request-ID, X-Response-Time-Ms"
+        response.headers["Access-Control-Max-Age"] = "600"
+        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+        response.vary.add("Origin")
     response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     response.headers["X-DNS-Prefetch-Control"] = "off"
     if request.path.startswith("/api/") and not request.path.endswith("/stream"):
