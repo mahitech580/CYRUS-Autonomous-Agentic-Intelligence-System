@@ -1618,3 +1618,16 @@ button{font-family:inherit}
  .motion-architecture *,.nx-visual-card,.nx-trace-row,.nx-agent:hover{animation:none!important;transition:none!important}
  .motion-architecture{opacity:.15}.architecture-grid{animation:none}
 }
+
+
+/* User-controllable motion preference */
+.motion-toggle{display:flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:0 11px;border:1px solid rgba(226,239,230,.13);border-radius:999px;background:rgba(255,255,255,.03);color:#aab6ab;font:7px "IBM Plex Mono",monospace;letter-spacing:.08em;white-space:nowrap;transition:background .2s,border-color .2s,color .2s}
+.motion-toggle:hover{border-color:rgba(47,187,120,.33);color:#f0f5f0}
+.motion-toggle.active{border-color:rgba(47,187,120,.25);background:rgba(47,187,120,.07);color:#79dfa5}
+.motion-toggle-icon{font-size:13px;line-height:1}
+html.motion-disabled *,html.motion-disabled *:before,html.motion-disabled *:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+html.motion-disabled .motion-reveal{opacity:1!important;transform:none!important;will-change:auto!important}
+html.motion-disabled .motion-architecture{opacity:.13!important}
+html.motion-disabled .motion-tilt,html.motion-disabled .motion-tilt.is-tilting{transform:none!important;will-change:auto!important}
+@media(max-width:1050px){.motion-toggle{padding:0 8px;font-size:6px}.motion-toggle-icon{font-size:12px}}
+@media(max-width:760px){.motion-toggle{min-height:30px;padding:0 7px;gap:4px}.motion-toggle>span:last-child{font-size:6px}.top-actions{flex-wrap:nowrap}}

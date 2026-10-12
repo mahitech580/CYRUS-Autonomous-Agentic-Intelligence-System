@@ -48,8 +48,15 @@ function App(){
   const [runtimeState,setRuntimeState]=useState('CONNECTING')
   const [runtimeMetrics,setRuntimeMetrics]=useState(null)
   const [paletteOpen,setPaletteOpen]=useState(false)
+  const [motionEnabled,setMotionEnabled]=useState(()=>{try{return localStorage.getItem('cyrus-motion')!=='off'}catch{return true}})
 
   const notify=message=>{setToast(message);window.clearTimeout(window.__cyrusToastTimer);window.__cyrusToastTimer=window.setTimeout(()=>setToast(''),2500)}
+  const toggleMotion=()=>{
+    const next=!motionEnabled
+    setMotionEnabled(next)
+    try{localStorage.setItem('cyrus-motion',next?'on':'off')}catch{}
+    notify(next?'Immersive motion enabled':'Calm mode enabled')
+  }
   const loadBase=async()=>{
     try{
       const [health,a,t,h,healthMetrics]=await Promise.all([apiJson('/api/health'),apiJson('/api/agents'),apiJson('/api/tools'),apiJson('/api/tasks'),apiJson('/api/metrics')])
@@ -65,7 +72,9 @@ function App(){
   useEffect(()=>{
     const root=document.querySelector('.main')
     if(!root)return
-    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const systemReduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const reduced=systemReduced||!motionEnabled
+    document.documentElement.classList.toggle('motion-disabled',reduced)
     const revealSelector=[
       '.nx-hero','.nx-console','.nx-signal','.nx-workbench','.nx-observability','.nx-capabilities','.nx-bottom-cta',
       '.editorial-hero','.page-stat-rail','.page-section','.page-spotlight','.tool-category-grid','.memory-retention-note',
@@ -145,8 +154,9 @@ function App(){
       listeners.forEach(cleanup=>cleanup())
       window.removeEventListener('scroll',onScroll)
       if(frame)window.cancelAnimationFrame(frame)
+      document.documentElement.classList.remove('motion-disabled')
     }
-  },[page])
+  },[page,motionEnabled])
   useEffect(()=>{
     loadBase()
     const onOnline=()=>{setRuntimeState('CONNECTING');loadBase()}
@@ -256,7 +266,7 @@ function App(){
     <main className="main">
       <div className="topbar">
         <div className="eyebrow">AUTONOMOUS ENGINEERING WORKSPACE</div>
-        <div className="top-actions"><div className="shortcut-pill">OBSERVABLE RUNTIME</div><div className="live-pill"><span className="dot"/>{runtimeState} · {busy?'RUNNING':'READY'}</div></div>
+        <div className="top-actions"><button className={'motion-toggle '+(motionEnabled?'active':'')} type="button" aria-pressed={motionEnabled} onClick={toggleMotion} title="Toggle motion effects"><span className="motion-toggle-icon" aria-hidden="true">{motionEnabled?'◉':'◌'}</span><span>{motionEnabled?'MOTION ON':'CALM MODE'}</span></button><div className="shortcut-pill">OBSERVABLE RUNTIME</div><div className="live-pill"><span className="dot"/>{runtimeState} · {busy?'RUNNING':'READY'}</div></div>
       </div>
       {page==='Command'&&<CommandView {...{prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents:task?.agents||agents.map(a=>({...a,status:'QUEUED'})),metrics:task?[
         ['EXECUTION',task.execution_time_ms?task.execution_time_ms+' ms':'—'],['TOOLS',task.tool_calls||0],['CONFIDENCE',task.confidence?task.confidence+'%':'—'],['RISK',task.risk||'—'],

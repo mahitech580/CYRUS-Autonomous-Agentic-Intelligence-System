@@ -65,3 +65,9 @@ for (const style of [
 ]) {
   assert.ok(motionStyles.includes(style), "Missing 3D motion style: " + style);
 }
+
+
+assert.ok(fs.readFileSync("app.js", "utf8").includes("cyrus-motion"), "Motion preference must persist between visits");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("aria-pressed={motionEnabled}"), "Motion toggle must expose its state accessibly");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("motionEnabled?'MOTION ON':'CALM MODE'"), "Motion control must have clear on/off labels");
+assert.ok(fs.readFileSync("styles.css", "utf8").includes("html.motion-disabled"), "Calm mode must suppress animation and tilt styles");
