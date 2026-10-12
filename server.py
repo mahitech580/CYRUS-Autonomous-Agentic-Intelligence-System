@@ -195,7 +195,10 @@ def task_summary(task):
         "tests_passed": task.get("tests_passed", 0),
         "tests_failed": task.get("tests_failed", 0),
         "artifact_count": len(task.get("artifacts", [])),
-        "event_count": len(task.get("events", []))
+        "event_count": len(task.get("events", [])),
+        "provider": task.get("provider", PROVIDER.name),
+        "verification_status": task.get("verification_status", "UNKNOWN"),
+        "score_method": task.get("score_method", "UNKNOWN")
     }
 
 def persist_task(task):
@@ -223,7 +226,15 @@ def persist_task(task):
         "quality": task.get("quality", 0),
         "latency_ms": task.get("latency_ms", 0),
         "agents": task.get("agents", []),
-        "events": task.get("events", [])
+        "events": task.get("events", []),
+        "provider": task.get("provider", PROVIDER.name),
+        "model": task.get("model", ""),
+        "implementation": task.get("implementation", ""),
+        "validation_plan": task.get("validation_plan", []),
+        "review": task.get("review", {}),
+        "verification_status": task.get("verification_status", "UNKNOWN"),
+        "score_method": task.get("score_method", "UNKNOWN"),
+        "failure": task.get("failure")
         }
         items = [item for item in items if item["task_id"] != task["task_id"]]
         items.append(snapshot)
@@ -242,9 +253,13 @@ def event(task, agent, phase, message, duration_ms):
         "message": message,
         "duration": max(0, int(duration_ms))
     })
+    task["updated_at"] = now_iso()
 
-def artifact(name, language, size, kind):
-    return {"name": name, "language": language, "size": size, "type": kind}
+def artifact(name, language, size, kind, content=None):
+    item = {"name": name, "language": language, "size": size, "type": kind}
+    if content is not None:
+        item["content"] = content
+    return item
 
 def build_demo_plan(prompt):
     return PROVIDER.plan(prompt)
@@ -282,6 +297,9 @@ def execute_task(task):
             task["failure"] = {"type": type(exc).__name__, "message": str(exc)}
             task["summary"] = "CYRUS cancelled the execution at the next safe cooperative checkpoint."
             task["updated_at"] = now_iso()
+            for item in task.get("agents", []):
+                if item.get("name") == task.get("current_agent"):
+                    item["status"] = "CANCELLED"
             event(task, task.get("current_agent", "ORCHESTRATOR"), "CANCELLED", "Execution stopped by operator request.", 0)
         persist_task(task)
     except Exception as exc:
@@ -289,9 +307,12 @@ def execute_task(task):
             task["status"] = "FAILED"
             task["current_agent"] = task.get("current_agent", "ORCHESTRATOR")
             task["failure"] = {"type": type(exc).__name__, "message": str(exc)[:500]}
-            task["summary"] = "CYRUS stopped the execution after an internal runtime failure."
+            task["summary"] = "CYRUS stopped the execution after a provider or internal runtime failure."
             task["updated_at"] = now_iso()
-            event(task, task["current_agent"], "FAILURE", "Execution failed safely; inspect the failure payload and request id.", 0)
+            for item in task.get("agents", []):
+                if item.get("name") == task.get("current_agent"):
+                    item["status"] = "FAILED"
+            event(task, task["current_agent"], "FAILURE", "Execution failed safely. Inspect the failure payload and request ID.", 0)
         persist_task(task)
     finally:
         runtime["futures"].pop(task["task_id"], None)
@@ -299,74 +320,166 @@ def execute_task(task):
         runtime["approval_events"].pop(task["task_id"], None)
 
 def _run_task(task):
+    """Execute real provider work and publish durable stage-by-stage progress."""
     started = time.perf_counter()
     stages = [
-        ("ORCHESTRATOR", "INITIALIZATION", "Execution context established", 168),
-        ("PLANNER", "DECOMPOSITION", "Objective decomposed into six executable work packages", 244),
-        ("RESEARCHER", "EVIDENCE", "Engineering constraints and implementation patterns synthesized", 312),
-        ("CODER", "IMPLEMENTATION", "Service design and representative implementation artifacts generated", 528),
-        ("TESTER", "VALIDATION", "Validation suite executed against the generated solution", 388),
-        ("REVIEWER", "ASSURANCE", "Quality, release risk and operational readiness assessed", 276),
-        ("RELEASE", "DELIVERY", "Release manifest prepared and execution audit finalized", 214)
+        ("ORCHESTRATOR", "INITIALIZATION", "Initialize objective and execution context"),
+        ("PLANNER", "DECOMPOSITION", "Create an objective-specific plan"),
+        ("RESEARCHER", "EVIDENCE", "Draft engineering considerations"),
+        ("CODER", "IMPLEMENTATION", "Produce an implementation draft"),
+        ("TESTER", "VALIDATION", "Produce a validation plan"),
+        ("REVIEWER", "ASSURANCE", "Review the draft and identify risks"),
+        ("RELEASE", "DELIVERY", "Package draft artifacts and execution metadata"),
     ]
-    for index, (agent, phase, message, duration_ms) in enumerate(stages):
+
+    for index, (agent, phase, action_label) in enumerate(stages):
         with runtime["lock"]:
+            task["status"] = "RUNNING"
             task["current_agent"] = agent
-            for item in task["agents"]:
-                item["status"] = "RUNNING" if item["name"] == agent else ("COMPLETED" if item["id"] < index + 1 else "QUEUED")
             task["updated_at"] = now_iso()
+            for item in task["agents"]:
+                item["status"] = (
+                    "RUNNING" if item["name"] == agent
+                    else ("COMPLETED" if item["id"] < index + 1 else "QUEUED")
+                )
+            event(task, agent, phase + "_STARTED", action_label + ".", 0)
+        # Persist start markers before any remote model request so the stream and
+        # history show which stage is currently in progress.
+        persist_task(task)
         stage_started = time.perf_counter()
-        event(task, agent, phase, message, duration_ms)
-        cooperative_wait(task, duration_ms / 1000)
+
+        if agent == "ORCHESTRATOR":
+            stage_message = "Execution initialized using provider " + PROVIDER.name + "."
+        elif agent == "PLANNER":
+            task["plan"] = PROVIDER.plan(task["objective"])
+            stage_message = "Generated " + str(len(task["plan"])) + " plan steps."
+        elif agent == "RESEARCHER":
+            task["research"] = PROVIDER.research(task["objective"])
+            task["research_source"] = (
+                "MODEL_DRAFT_NO_EXTERNAL_SEARCH" if PROVIDER.mode == "LIVE"
+                else "DETERMINISTIC_DEMO_HEURISTICS"
+            )
+            stage_message = (
+                "Generated " + str(len(task["research"])) +
+                " engineering considerations; no external web search was performed."
+            )
+        elif agent == "CODER":
+            task["implementation"] = PROVIDER.implement(
+                task["objective"], task.get("plan", []), task.get("research", [])
+            )
+            stage_message = (
+                "Produced an implementation draft of " +
+                str(len(task["implementation"])) +
+                " characters; repository files were not changed."
+            )
+        elif agent == "TESTER":
+            task["validation_plan"] = PROVIDER.validation_plan(
+                task["objective"], task.get("implementation", "")
+            )
+            task["verification_status"] = "PLAN_GENERATED_NOT_EXECUTED"
+            task["tests_passed"] = 0
+            task["tests_failed"] = 0
+            task["coverage"] = 0
+            stage_message = (
+                "Prepared " + str(len(task["validation_plan"])) +
+                " validation checks; no code was executed and no tests are marked passed."
+            )
+        elif agent == "REVIEWER":
+            task["review"] = PROVIDER.review(
+                task["objective"], task.get("plan", []),
+                task.get("implementation", ""), task.get("validation_plan", [])
+            )
+            task["quality"] = int(task["review"].get("quality", 0))
+            task["confidence"] = int(task["review"].get("confidence", 0))
+            task["risk"] = str(task["review"].get("risk", "UNKNOWN"))
+            task["score"] = round((task["quality"] + task["confidence"]) / 2, 1)
+            task["score_method"] = (
+                "Model-estimated design quality and confidence; not test results"
+                if PROVIDER.mode == "LIVE"
+                else "Unavailable in deterministic demo mode"
+            )
+            stage_message = (
+                "Completed a model-based design review."
+                if PROVIDER.mode == "LIVE"
+                else "Skipped model scoring: deterministic demo provider has no AI reviewer."
+            )
+        else:
+            implementation = task.get("implementation", "")
+            validation_text = "# Proposed validation plan\n\n" + "\n".join(
+                f"{number}. {check}"
+                for number, check in enumerate(task.get("validation_plan", []), 1)
+            ) + "\n\nStatus: NOT EXECUTED. These checks were proposed, not run.\n"
+            review_text = json.dumps(task.get("review", {}), indent=2)
+            task["artifacts"] = [
+                artifact(
+                    "implementation.md", "Markdown",
+                    f"{max(1, len(implementation.encode('utf-8'))) / 1024:.1f} KB",
+                    "implementation draft", implementation
+                ),
+                artifact(
+                    "validation-plan.md", "Markdown",
+                    f"{max(1, len(validation_text.encode('utf-8'))) / 1024:.1f} KB",
+                    "proposed checks", validation_text
+                ),
+                artifact(
+                    "review.json", "JSON",
+                    f"{max(1, len(review_text.encode('utf-8'))) / 1024:.1f} KB",
+                    "design review", review_text
+                ),
+            ]
+            stage_message = "Packaged the implementation draft, proposed validation checks, and review metadata."
+
         observed_duration = int((time.perf_counter() - stage_started) * 1000)
-        task["events"][-1]["duration"] = observed_duration
         with runtime["lock"]:
             for item in task["agents"]:
                 if item["name"] == agent:
                     item["status"] = "COMPLETED"
-            task["tool_calls"] += 1 if agent in {"RESEARCHER", "CODER", "TESTER", "REVIEWER", "RELEASE"} else 0
-        if agent == "PLANNER":
-            task["plan"] = build_demo_plan(task["objective"])
-        if agent == "RESEARCHER":
-            task["research"] = PROVIDER.research(task["objective"])
-        if agent == "TESTER":
-            task["tests_passed"] = 18
-            task["tests_failed"] = 0
-            task["coverage"] = 92
-        if agent == "REVIEWER":
-            task["quality"] = 94
-            task["risk"] = "LOW" if task["mode"] == "autonomous" else "MEDIUM"
-            task["confidence"] = 96 if task["mode"] == "autonomous" else 91
+            event(task, agent, phase + "_COMPLETED", stage_message, observed_duration)
+            task["updated_at"] = now_iso()
+        persist_task(task)
+
         if agent == "REVIEWER" and task["mode"] == "supervised":
             with runtime["lock"]:
                 task["status"] = "AWAITING_APPROVAL"
                 task["approval_required"] = True
                 task["updated_at"] = now_iso()
-                event(task, "REVIEWER", "APPROVAL", "Supervised mode paused after review; operator approval is required for release.", 0)
-                persist_task(task)
+                event(
+                    task, "REVIEWER", "APPROVAL",
+                    "Supervised mode paused after review; operator approval is required to package the output.",
+                    0,
+                )
+            persist_task(task)
             wait_for_supervised_approval(task)
             with runtime["lock"]:
                 task["status"] = "RUNNING"
                 task["approval_required"] = False
                 task["approved_at"] = now_iso()
-                task["updated_at"] = now_iso()
-                event(task, "ORCHESTRATOR", "APPROVED", "Operator approval received; release stage resumed.", 0)
+                event(task, "ORCHESTRATOR", "APPROVED", "Operator approval received; packaging resumed.", 0)
+            persist_task(task)
 
-        if agent == "RELEASE":
-            task["artifacts"] = [
-                artifact("service.py", "Python", "8.4 KB", "implementation"),
-                artifact("test_service.py", "Python", "6.1 KB", "test suite"),
-                artifact("cyrus.manifest.json", "JSON", "2.3 KB", "release manifest")
-            ]
     elapsed = int((time.perf_counter() - started) * 1000)
     with runtime["lock"]:
         task["execution_time_ms"] = elapsed
-        task["latency_ms"] = max(42, elapsed // 9)
-        task["score"] = round((task["quality"] + task["coverage"] + task["confidence"]) / 3, 1)
+        task["latency_ms"] = elapsed
         task["status"] = "COMPLETED"
         task["current_agent"] = "RELEASE"
-        task["summary"] = "CYRUS completed the full seven-stage engineering graph and produced a release-ready execution package."
+        task["verification_status"] = "PLAN_GENERATED_NOT_EXECUTED"
         task["updated_at"] = now_iso()
+        if PROVIDER.mode == "LIVE":
+            task["summary"] = (
+                "Model-assisted workflow completed. Review scores are estimates; an implementation draft and "
+                "validation plan are available, but code was not executed in a sandbox."
+            )
+        else:
+            task["summary"] = (
+                "Deterministic demo workflow completed. Configure CYRUS_LLM_API_KEY in the Render environment "
+                "for model-powered planning, implementation, and design review. Proposed checks were not executed."
+            )
+        event(
+            task, "RELEASE", "EXECUTION_COMPLETED",
+            "Execution record finalized. No automated code execution or test pass was claimed.",
+            0,
+        )
     persist_task(task)
 
 def prune_live_tasks_locked():
@@ -405,6 +518,13 @@ def create_task(prompt, mode, idempotency_key=None):
         "latency_ms": 0,
         "execution_time_ms": 0,
         "summary": "",
+        "provider": PROVIDER.name,
+        "model": getattr(PROVIDER, "model", "") or "",
+        "implementation": "",
+        "validation_plan": [],
+        "review": {},
+        "verification_status": "PENDING",
+        "score_method": "UNSCORED",
         "idempotency_key": idempotency_key,
         "events": [],
         "agents": [dict(agent, status="QUEUED") for agent in AGENTS]
@@ -455,6 +575,9 @@ def health():
         "mode": PROVIDER.mode,
         "provider": PROVIDER.name,
         "provider_status": PROVIDER.status,
+        "model_available": PROVIDER.mode == "LIVE",
+        "model": getattr(PROVIDER, "model", "") or None,
+        "provider_configured": PROVIDER.mode == "LIVE",
         "release": RELEASE_ID,
         "started_at": datetime.fromtimestamp(runtime["started_at"], timezone.utc).isoformat().replace("+00:00", "Z"),
         "worker_capacity": MAX_CONCURRENT_TASKS,
@@ -462,6 +585,28 @@ def health():
         "capacity_utilization": utilization,
         "ready": active < MAX_CONCURRENT_TASKS
     })
+
+@app.get("/api/provider")
+def provider_info():
+    """Expose provider capability without ever returning credentials."""
+    live = PROVIDER.mode == "LIVE"
+    return jsonify({
+        "provider": PROVIDER.name,
+        "mode": PROVIDER.mode,
+        "status": PROVIDER.status,
+        "model_available": live,
+        "model": getattr(PROVIDER, "model", "") or None,
+        "supports_model_generation": live,
+        "supports_external_search": False,
+        "supports_code_execution": False,
+        "message": (
+            "Model requests are enabled. Responses are drafts and code is not executed."
+            if live else
+            "Deterministic demo mode is active. Set CYRUS_LLM_API_KEY and optionally "
+            "CYRUS_LLM_BASE_URL/CYRUS_LLM_MODEL in the hosting environment to enable model output."
+        ),
+    })
+
 
 @app.get("/api/ready")
 def readiness():
