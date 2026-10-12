@@ -379,6 +379,7 @@ function CoreVisual({agents,runtimeState,go}){
 }
 
 function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()=>{}}){
+  const sceneRef=useRef(null);
   const handlePointerMove=event=>{
     const rect=event.currentTarget.getBoundingClientRect();
     if(!rect.width||!rect.height)return;
@@ -391,138 +392,250 @@ function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()
     event.currentTarget.style.setProperty('--doom-tilt-x','0deg');
     event.currentTarget.style.setProperty('--doom-tilt-z','0deg');
   };
+  useEffect(()=>{
+    const host=sceneRef.current;
+    const T=window.THREE;
+    if(!host||!T)return;
+    let renderer,raf=0,resizeObserver=null;
+    const resources=[];
+    const disposables=[];
+    try{
+      const scene=new T.Scene();
+      scene.fog=new T.FogExp2(0x041004,.035);
+      const camera=new T.PerspectiveCamera(35,1,.1,80);
+      camera.position.set(4.9,3.3,8.8);
+      camera.lookAt(0,1.85,0);
+      renderer=new T.WebGLRenderer({alpha:true,antialias:true,powerPreference:'high-performance'});
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));
+      renderer.setClearColor(0x000000,0);
+      renderer.domElement.setAttribute('aria-hidden','true');
+      renderer.domElement.className='doom-webgl-canvas';
+      host.appendChild(renderer.domElement);
+      host.closest('.doom-scene')?.classList.add('webgl-ready');
+      const ambient=new T.HemisphereLight(0x8cdb77,0x031004,1.5);scene.add(ambient);
+      const keyLight=new T.DirectionalLight(0xe3ffcf,2.8);keyLight.position.set(-3.8,6,5);scene.add(keyLight);
+      const rimLight=new T.PointLight(0x45ff1e,4.5,12);rimLight.position.set(3.8,3.2,-2.4);scene.add(rimLight);
+      const edgeLight=new T.PointLight(0x7fff47,2.1,9);edgeLight.position.set(-3,1.8,-1.4);scene.add(edgeLight);
+      const coreLight=new T.PointLight(0x48ff26,1.9,3.5);coreLight.position.set(0,1.55,.8);scene.add(coreLight);
+
+      const tiltRig=new T.Group();scene.add(tiltRig);
+      const spinRig=new T.Group();tiltRig.add(spinRig);
+      const floatRig=new T.Group();spinRig.add(floatRig);
+      const material=(color,metalness=0,roughness=.6,emissive=0,emissiveIntensity=0)=>{
+        const m=new T.MeshStandardMaterial({color,metalness,roughness,emissive,emissiveIntensity});
+        resources.push(m);return m;
+      };
+      const cloakMat=material(0x143a12,.1,.72);
+      const cloakLit=material(0x285d1e,.12,.6);
+      const cloakDark=material(0x061507,.05,.82);
+      const armorMat=material(0x172b16,.5,.38);
+      const armorEdge=material(0x42653a,.62,.42);
+      const steel=material(0x9faa9a,.92,.27);
+      const steelLight=material(0xd5decb,.88,.24);
+      const steelDark=material(0x48584a,.88,.34);
+      const black=material(0x060d07,.15,.75);
+      const greenGlow=material(0x43ff24,.3,.22,0x2fff14,2.6);
+      const greenDim=material(0x247a18,.5,.35,0x1cc510,.65);
+      const addMesh=(geometry,mat,x,y,z,parent=floatRig)=>{
+        const mesh=new T.Mesh(geometry,mat);mesh.position.set(x,y,z);parent.add(mesh);
+        resources.push(geometry);return mesh;
+      };
+      const box=(w,h,d,mat,x,y,z,parent=floatRig)=>{
+        return addMesh(new T.BoxGeometry(w,h,d),mat,x,y,z,parent);
+      };
+      const sphere=(rx,ry,rz,mat,x,y,z,parent=floatRig)=>{
+        const geo=new T.SphereGeometry(1,24,18);geo.scale(rx,ry,rz);
+        return addMesh(geo,mat,x,y,z,parent);
+      };
+      const line=(points,mat,r=.014,parent=floatRig)=>{
+        const curve=new T.CatmullRomCurve3(points.map(p=>new T.Vector3(p[0],p[1],p[2])));
+        return addMesh(new T.TubeGeometry(curve,28,r,7,false),mat,0,0,0,parent);
+      };
+
+      // One-piece hooded cloak, sculpted in 3D and layered behind the armor.
+      const capeShape=new T.Shape();
+      capeShape.moveTo(-.47,2.33);
+      capeShape.bezierCurveTo(-1.06,2.3,-1.05,1.35,-1.36,.08);
+      capeShape.quadraticCurveTo(0,-.18,1.36,.08);
+      capeShape.bezierCurveTo(1.05,1.35,1.06,2.3,.47,2.33);
+      capeShape.lineTo(.28,1.96);capeShape.lineTo(-.28,1.96);capeShape.closePath();
+      const capeGeo=new T.ExtrudeGeometry(capeShape,{depth:.12,bevelEnabled:true,bevelSegments:3,steps:1,bevelSize:.045,bevelThickness:.05});
+      const cape=addMesh(capeGeo,cloakMat,0,0,-.58);
+      cape.rotation.y=.015;
+      // Heavy cloak folds catch the emerald rim light.
+      line([[-.66,2.14,-.43],[-.82,1.54,-.42],[-.89,.77,-.42],[-1.13,.16,-.41]],cloakLit,.025);
+      line([[-.36,2.15,-.41],[-.43,1.38,-.4],[-.51,.72,-.4],[-.61,.12,-.4]],cloakDark,.028);
+      line([[.66,2.14,-.43],[.82,1.54,-.42],[.89,.77,-.42],[1.13,.16,-.41]],cloakDark,.025);
+      line([[.36,2.15,-.41],[.43,1.38,-.4],[.51,.72,-.4],[.61,.12,-.4]],cloakLit,.025);
+      // Hood shell and shadow cavity.
+      sphere(.69,.83,.48,cloakLit,0,3.02,-.19);
+      sphere(.58,.73,.45,cloakDark,0,3.06,-.08);
+      const hoodRim=addMesh(new T.TorusGeometry(.55,.075,10,40,Math.PI),cloakLit,0,3.43,.23);
+      hoodRim.rotation.z=Math.PI;
+      // Neck, torso and layered breastplate.
+      const neck=addMesh(new T.CylinderGeometry(.2,.25,.31,12),steelDark,0,2.25,.06);neck.rotation.z=.02;
+      box(.92,1.04,.45,armorMat,0,1.58,.03);
+      box(.68,.78,.09,steelDark,0,1.59,.285);
+      box(.54,.64,.055,armorMat,0,1.6,.34);
+      // Angular chest plates with bevelled edges.
+      const chestShape=new T.Shape();
+      chestShape.moveTo(-.32,.39);chestShape.lineTo(-.45,.23);chestShape.lineTo(-.36,-.25);chestShape.lineTo(0,-.43);chestShape.lineTo(.36,-.25);chestShape.lineTo(.45,.23);chestShape.lineTo(.32,.39);chestShape.lineTo(0,.28);chestShape.closePath();
+      const chestGeo=new T.ExtrudeGeometry(chestShape,{depth:.07,bevelEnabled:true,bevelSegments:2,steps:1,bevelSize:.025,bevelThickness:.025});
+      addMesh(chestGeo,steelDark,0,1.62,.37);
+      box(.08,.67,.03,armorEdge,0,1.62,.455);
+      box(.74,.075,.04,steel,0,1.9,.44);
+      box(.7,.06,.04,steel,0,1.31,.44);
+      // The green reactor and its concentric metal rings.
+      sphere(.15,.15,.085,greenGlow,0,1.65,.5);
+      const reactorRing=addMesh(new T.TorusGeometry(.205,.027,10,36),armorEdge,0,1.65,.48);reactorRing.rotation.x=0;
+      const reactorRing2=addMesh(new T.TorusGeometry(.27,.012,8,36),greenDim,0,1.65,.47);
+      // Waist belt and sculpted buckle.
+      box(.96,.18,.5,steelDark,0,1.03,.07);
+      box(.27,.23,.12,steel,0,1.03,.34);
+      box(.15,.12,.035,greenGlow,0,1.03,.42);
+      // Boots and greaves.
+      for(const side of [-1,1]){
+        box(.33,.73,.36,armorMat,side*.245,.52,.03);
+        box(.36,.25,.49,steelDark,side*.245,.18,.13);
+        box(.31,.12,.5,armorEdge,side*.245,.105,.15);
+        box(.31,.39,.09,steelDark,side*.245,.56,.25);
+        box(.18,.11,.08,steel,side*.245,.65,.31);
+        // Shoulder pauldron, upper arm, vambrace and gauntlet.
+        sphere(.4,.26,.44,cloakLit,side*.62,2.02,.015);
+        const pauldron=sphere(.34,.2,.4,armorMat,side*.65,2.04,.14);pauldron.rotation.z=side*-.12;
+        const shoulderTrim=addMesh(new T.TorusGeometry(.31,.025,8,26,Math.PI),steelDark,side*.64,2.05,.2);
+        shoulderTrim.rotation.z=side>0?Math.PI:0;
+        const upper=addMesh(new T.CylinderGeometry(.17,.22,.52,9),armorMat,side*.69,1.69,.12);upper.rotation.z=side*-.15;
+        const forearm=addMesh(new T.CylinderGeometry(.18,.25,.48,8),steelDark,side*.79,1.29,.18);forearm.rotation.z=side*-.1;
+        const bracer=box(.39,.22,.35,armorMat,side*.79,1.35,.25);bracer.rotation.z=side*.1;
+        box(.32,.07,.37,armorEdge,side*.79,1.43,.27);
+        sphere(.16,.17,.16,steelDark,side*.8,1.0,.22);
+        for(let n=0;n<3;n++)box(.06,.028,.035,steel,side*.79+(n-1)*.09,1.32,.44);
+      }
+      // The iconic iron mask: angular metal faceplate, bright eyes, rivets and mouth grille.
+      sphere(.48,.57,.39,black,0,2.98,.14);
+      sphere(.59,.7,.43,cloakDark,0,3.0,-.02);
+      const maskShape=new T.Shape();
+      maskShape.moveTo(-.43,.3);
+      maskShape.quadraticCurveTo(-.38,.43,-.17,.43);
+      maskShape.lineTo(0,.38);maskShape.lineTo(.17,.43);
+      maskShape.quadraticCurveTo(.38,.43,.43,.3);
+      maskShape.lineTo(.36,-.2);maskShape.lineTo(.15,-.45);
+      maskShape.lineTo(0,-.5);maskShape.lineTo(-.15,-.45);
+      maskShape.lineTo(-.36,-.2);maskShape.closePath();
+      const maskGeo=new T.ExtrudeGeometry(maskShape,{depth:.13,bevelEnabled:true,bevelSegments:4,steps:1,bevelSize:.025,bevelThickness:.025});
+      addMesh(maskGeo,steel,0,2.98,.38);
+      // Narrow, angled emerald eye slits.
+      const eyeShape=new T.Shape();eyeShape.moveTo(-.2,.11);eyeShape.lineTo(-.035,.145);eyeShape.lineTo(-.075,.08);eyeShape.lineTo(-.2,.055);eyeShape.closePath();
+      const eyeGeo=new T.ShapeGeometry(eyeShape);addMesh(eyeGeo,greenGlow,0,3.02,.535);
+      const eyeShape2=new T.Shape();eyeShape2.moveTo(.035,.145);eyeShape2.lineTo(.2,.11);eyeShape2.lineTo(.2,.055);eyeShape2.lineTo(.075,.08);eyeShape2.closePath();
+      addMesh(new T.ShapeGeometry(eyeShape2),greenGlow,0,3.02,.535);
+      const nose=box(.085,.23,.07,steelDark,0,2.94,.535);
+      const noseHighlight=box(.025,.19,.018,steelLight,0,2.95,.578);
+      // Mouth grille and chin seam.
+      for(let n=0;n<5;n++)box(.25-(Math.abs(2-n)*.03),.018,.025,black,0,2.78+n*-.043,.54);
+      box(.25,.023,.02,steelLight,0,2.565,.535);
+      line([[-.35,3.1,.54],[-.24,3.18,.55],[0,3.2,.555],[.24,3.18,.55],[.35,3.1,.54]],steelLight,.011);
+      for(const s of [-1,1]){
+        for(const y of [3.23,3.0,2.77,2.61]){
+          sphere(.028,.028,.02,steelLight,s*.395,y,.535);
+        }
+      }
+      // Helmet ridges, riveted brow, and an armoured hood clasp.
+      line([[-.43,3.37,.26],[-.27,3.51,.22],[0,3.57,.2],[.27,3.51,.22],[.43,3.37,.26]],armorEdge,.035);
+      box(.14,.14,.075,steelDark,0,2.39,.05);
+      const clasp=sphere(.07,.07,.04,greenGlow,0,2.39,.105);
+      // etched green rune accents on the gauntlets and upper chest.
+      line([[-.76,1.44,.44],[-.69,1.36,.445],[-.76,1.27,.445]],greenDim,.012);
+      line([[.76,1.44,.44],[.69,1.36,.445],[.76,1.27,.445]],greenDim,.012);
+      line([[-.23,1.99,.46],[-.17,1.93,.46],[-.23,1.86,.46]],greenDim,.012);
+      line([[.23,1.99,.46],[.17,1.93,.46],[.23,1.86,.46]],greenDim,.012);
+
+      // Procedural, volumetric-looking green vapor sprites; no external image assets.
+      const smokeCanvas=document.createElement('canvas');smokeCanvas.width=128;smokeCanvas.height=128;
+      const ctx=smokeCanvas.getContext('2d');
+      if(ctx){
+        const grad=ctx.createRadialGradient(64,64,2,64,64,63);
+        grad.addColorStop(0,'rgba(136,255,81,0.42)');grad.addColorStop(.22,'rgba(66,218,31,0.23)');grad.addColorStop(.55,'rgba(31,119,19,0.1)');grad.addColorStop(1,'rgba(8,42,5,0)');
+        ctx.fillStyle=grad;ctx.fillRect(0,0,128,128);
+      }
+      const smokeTexture=new T.CanvasTexture(smokeCanvas);resources.push(smokeTexture);
+      let seed=13;
+      const random=()=>{seed=(seed*16807)%2147483647;return(seed-1)/2147483646;};
+      const smoke=[];
+      for(let i=0;i<34;i++){
+        const mat=new T.SpriteMaterial({map:smokeTexture,color:i%4===0?0xa4ff80:0x55fa2a,transparent:true,opacity:.1+random()*.13,depthWrite:false,blending:T.AdditiveBlending});
+        resources.push(mat);
+        const sprite=new T.Sprite(mat);
+        const width=.55+random()*1.25,height=.8+random()*1.5;
+        sprite.scale.set(width,height,1);
+        scene.add(sprite);
+        smoke.push({sprite,x:(random()-.5)*3.4,z:(random()-.5)*1.9,phase:random()*4,speed:.24+random()*.48,width,height,opacity:.06+random()*.11});
+      }
+      const emberGeo=new T.BufferGeometry();
+      const emberPositions=new Float32Array(100*3);
+      for(let i=0;i<100;i++){emberPositions[i*3]=(random()-.5)*3.7;emberPositions[i*3+1]=random()*4.0;emberPositions[i*3+2]=(random()-.5)*2.0;}
+      emberGeo.setAttribute('position',new T.BufferAttribute(emberPositions,3));
+      const emberMat=new T.PointsMaterial({color:0x83ff48,size:.025,transparent:true,opacity:.7,depthWrite:false});
+      resources.push(emberGeo,emberMat);
+      const embers=new T.Points(emberGeo,emberMat);scene.add(embers);
+
+      const resize=()=>{
+        const rect=host.getBoundingClientRect();
+        const w=Math.max(1,Math.floor(rect.width)),h=Math.max(1,Math.floor(rect.height));
+        camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);
+      };
+      resize();
+      if('ResizeObserver' in window){resizeObserver=new ResizeObserver(resize);resizeObserver.observe(host);}
+      window.addEventListener('resize',resize);
+      const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const clock=new T.Clock();
+      let previous=0;
+      const tick=()=>{
+        const elapsed=clock.getElapsedTime();
+        const delta=Math.min(.05,Math.max(0,elapsed-previous));previous=elapsed;
+        const tiltX=parseFloat(host.closest('.doom-scene')?.style.getPropertyValue('--doom-tilt-x')||'0')||0;
+        const tiltZ=parseFloat(host.closest('.doom-scene')?.style.getPropertyValue('--doom-tilt-z')||'0')||0;
+        tiltRig.rotation.x=T.MathUtils.lerp(tiltRig.rotation.x,tiltX*Math.PI/180,.08);
+        tiltRig.rotation.z=T.MathUtils.lerp(tiltRig.rotation.z,tiltZ*Math.PI/180,.08);
+        if(!reduced)spinRig.rotation.y+=delta*(Math.PI*2/31);
+        floatRig.position.y=reduced?0:Math.sin(elapsed*1.2)*.045;
+        for(const particle of smoke){
+          const phase=(particle.phase+elapsed*particle.speed)%4.2;
+          particle.sprite.position.set(particle.x+Math.sin(elapsed*.8+particle.phase)*.15,-.35+phase,particle.z);
+          particle.sprite.material.opacity=reduced?particle.opacity*.4:particle.opacity*(.3+.7*Math.sin((phase/4.2)*Math.PI));
+          particle.sprite.scale.set(particle.width*(.7+phase*.12),particle.height*(.7+phase*.1),1);
+        }
+        embers.rotation.y=reduced?0:elapsed*.025;
+        renderer.render(scene,camera);
+        raf=requestAnimationFrame(tick);
+      };
+      tick();
+      return ()=>{
+        cancelAnimationFrame(raf);window.removeEventListener('resize',resize);resizeObserver?.disconnect();
+        resources.forEach(resource=>resource?.dispose?.());
+        renderer?.dispose();renderer?.domElement?.remove();
+      };
+    }catch(error){
+      host.closest('.doom-scene')?.classList.remove('webgl-ready');
+      host.dataset.renderError='true';
+      console.error('CYRUS Doom WebGL scene could not start:',error);
+    }
+  },[]);
   return <div className="cyrus-hero-visual doom-scene" onPointerMove={handlePointerMove} onPointerLeave={resetPointer}>
     <div className="doom-atmosphere" aria-hidden="true"><i/><i/><i/><span className="doom-rune-ring"/></div>
-    <div className="doom-smoke" aria-hidden="true">
-      <span className="doom-smoke-puff puff-a"/><span className="doom-smoke-puff puff-b"/><span className="doom-smoke-puff puff-c"/>
-      <span className="doom-smoke-puff puff-d"/><span className="doom-smoke-puff puff-e"/><span className="doom-smoke-puff puff-f"/>
-      <span className="doom-smoke-puff puff-g"/><span className="doom-ground-fog"/>
+    <div ref={sceneRef} className="doom-webgl-root" aria-label="Animated three-dimensional Doctor Doom character" role="img"/>
+    <div className="doom-css-fallback" aria-hidden="true">
+      <div className="doom-fallback-cape"/><div className="doom-fallback-hood"/><div className="doom-fallback-mask"><i/><i/><b/><span/><span/><span/><span/></div>
+      <div className="doom-fallback-armor"><i/><b/><span/></div>
     </div>
+    <div className="doom-smoke" aria-hidden="true"><span className="doom-smoke-puff puff-a"/><span className="doom-smoke-puff puff-b"/><span className="doom-smoke-puff puff-c"/><span className="doom-smoke-puff puff-d"/><span className="doom-smoke-puff puff-e"/><span className="doom-ground-fog"/></div>
     <div className="doom-character-label"><i/><span>VICTOR VON DOOM</span><b>LATVERIA / PRIME</b></div>
-    <div className="doom-rotation">
-      <div className="doom-spinner">
-        <div className="doom-float-wrap">
-          <svg className="cyrus-portrait doom-face doom-front" viewBox="0 0 700 900" role="img" aria-labelledby="doom-title doom-desc">
-            <title id="doom-title">Doctor Doom, Marvel's armored ruler of Latveria</title>
-            <desc id="doom-desc">Fan-inspired vector depiction of Doctor Doom wearing a deep green hood and cloak, silver riveted metal mask, dark green armor and a glowing emerald core.</desc>
-            <defs>
-              <linearGradient id="doom-cloak" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#365d35"/><stop offset=".22" stopColor="#17391e"/><stop offset=".57" stopColor="#071a0b"/><stop offset="1" stopColor="#020803"/></linearGradient>
-              <linearGradient id="doom-cloak-lit" x1="0" y1="0" x2="1" y2=".3"><stop offset="0" stopColor="#568345"/><stop offset=".32" stopColor="#1b4921"/><stop offset="1" stopColor="#041007"/></linearGradient>
-              <linearGradient id="doom-steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#eff3db"/><stop offset=".17" stopColor="#8d9a87"/><stop offset=".36" stopColor="#e0e7d4"/><stop offset=".63" stopColor="#69786d"/><stop offset=".82" stopColor="#c5d0bd"/><stop offset="1" stopColor="#394a40"/></linearGradient>
-              <linearGradient id="doom-steel-dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#aab9a8"/><stop offset=".5" stopColor="#34473b"/><stop offset="1" stopColor="#101b13"/></linearGradient>
-              <linearGradient id="doom-armor" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#27412b"/><stop offset=".3" stopColor="#14281a"/><stop offset=".68" stopColor="#07150b"/><stop offset="1" stopColor="#010602"/></linearGradient>
-              <linearGradient id="doom-green" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#b9ff75"/><stop offset=".5" stopColor="#4aff3f"/><stop offset="1" stopColor="#0c9d25"/></linearGradient>
-              <radialGradient id="doom-aura"><stop offset="0" stopColor="#54ff3b" stopOpacity=".34"/><stop offset=".5" stopColor="#1bcb31" stopOpacity=".13"/><stop offset="1" stopColor="#031004" stopOpacity="0"/></radialGradient>
-              <filter id="doom-green-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="8" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-              <filter id="doom-metal-shadow" x="-30%" y="-30%" width="160%" height="180%"><feGaussianBlur in="SourceAlpha" stdDeviation="6"/><feOffset dy="9"/><feComponentTransfer><feFuncA type="linear" slope=".5"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-              <pattern id="doom-weave" width="18" height="18" patternUnits="userSpaceOnUse"><path d="M0 18L18 0M-5 5L5-5M13 23L23 13" stroke="#81b45c" strokeOpacity=".12" strokeWidth="1"/></pattern>
-            </defs>
-            <ellipse cx="360" cy="420" rx="280" ry="420" fill="url(#doom-aura)"/>
-            <g className="doom-cape">
-              <path d="M257 348Q190 365 139 440L87 598Q62 738 28 900H676Q640 757 611 599L559 437Q513 372 447 350L387 391Z" fill="#030904" stroke="#213c20" strokeWidth="4"/>
-              <path d="M278 357L184 408 126 570 75 872 177 900 289 621Z" fill="url(#doom-cloak-lit)" stroke="#496e39" strokeWidth="3"/>
-              <path d="M426 357L520 408 577 570 630 872 528 900 416 621Z" fill="url(#doom-cloak)" stroke="#36562c" strokeWidth="3"/>
-              <path d="M183 414L235 397 204 640 150 886 111 895 158 616Z" fill="#5d8d3d" opacity=".32"/>
-              <path d="M520 414L465 395 496 640 550 886 590 895 542 616Z" fill="#8bb94c" opacity=".17"/>
-              <path d="M276 368Q235 519 251 664L216 900H489L455 664Q471 519 429 368Z" fill="#08180b" stroke="#304d25" strokeWidth="3"/>
-              <path d="M275 379L242 492 256 706 220 900H282L314 613 315 444Z" fill="url(#doom-weave)" opacity=".8"/>
-              <path d="M429 379L462 492 448 706 484 900H422L390 613 389 444Z" fill="url(#doom-weave)" opacity=".8"/>
-              <path d="M226 430L273 387 300 451 268 553 218 620 188 585Z" fill="#1d3f21" stroke="#557a3d" strokeWidth="2"/>
-              <path d="M478 430L431 387 404 451 436 553 486 620 516 585Z" fill="#0e2914" stroke="#456c32" strokeWidth="2"/>
-            </g>
-            <g className="doom-shoulder-armor">
-              <path d="M267 395L215 398 166 455 145 538 211 579 288 524 323 449Z" fill="url(#doom-armor)" stroke="#607c49" strokeWidth="4"/>
-              <path d="M433 395L485 398 534 455 555 538 489 579 412 524 377 449Z" fill="url(#doom-armor)" stroke="#536e41" strokeWidth="4"/>
-              <path d="M177 470L224 426 261 440 222 500 166 527Z" fill="#5c8341" opacity=".62"/>
-              <path d="M523 470L476 426 439 440 478 500 534 527Z" fill="#385d2c" opacity=".7"/>
-              <path d="M172 533L213 548 232 530M528 533L487 548 468 530" fill="none" stroke="#9aae83" strokeOpacity=".5" strokeWidth="4"/>
-              <circle cx="200" cy="469" r="7" fill="url(#doom-steel)" stroke="#101c12" strokeWidth="3"/>
-              <circle cx="500" cy="469" r="7" fill="url(#doom-steel)" stroke="#101c12" strokeWidth="3"/>
-            </g>
-            <g className="doom-hood">
-              <path d="M239 184Q246 74 348 46Q456 38 493 133L508 282 485 374 435 414 265 410 219 348 213 273Z" fill="url(#doom-cloak)" stroke="#66894d" strokeWidth="4"/>
-              <path d="M229 259Q220 142 294 84L345 55 322 117 357 79 373 57 376 111 421 69 415 130 460 112 479 177 490 278 466 248 439 211 390 201 341 220 302 249 276 309Z" fill="#0a170b" stroke="#314e2b" strokeWidth="3"/>
-              <path d="M238 221Q256 111 327 76L306 131 341 101 331 154 366 102 365 158 414 96 407 163 445 137 464 206 475 281 447 244 425 220 383 232 333 246 293 278 274 330Z" fill="#18361b"/>
-              <path d="M248 244Q266 154 321 119L307 183 338 141 343 199 374 146 382 198 423 154 413 210 452 193 464 251 447 300 432 256 393 244 348 259 303 290 281 333Z" fill="#040c05"/>
-              <path d="M253 210Q220 274 240 333L270 384 302 408 292 358 276 290 292 235Z" fill="#080f08" stroke="#37552d" strokeWidth="3"/>
-              <path d="M468 210Q500 274 480 333L450 384 418 408 428 358 444 290 428 235Z" fill="#030803" stroke="#2b4823" strokeWidth="3"/>
-            </g>
-            <g className="doom-neck">
-              <path d="M300 347L293 418 326 456 371 469 418 451 447 413 437 343Z" fill="url(#doom-steel-dark)" stroke="#334a39" strokeWidth="3"/>
-              <path d="M315 376L335 428 369 445 405 427 427 376" fill="none" stroke="#91a68a" strokeOpacity=".6" strokeWidth="4"/>
-            </g>
-            <g className="doom-mask" filter="url(#doom-metal-shadow)">
-              <path d="M276 187Q291 145 348 139L402 145Q456 153 464 196L451 284 419 340 372 368 326 340 290 286Z" fill="url(#doom-steel)" stroke="#d3dfc8" strokeWidth="3"/>
-              <path d="M276 193L307 205 307 282 326 327 348 349 327 340 290 286Z" fill="#526554" opacity=".72"/>
-              <path d="M463 194L436 205 438 282 418 327 396 349 419 340 451 284Z" fill="#37483c" opacity=".77"/>
-              <path d="M293 207L335 190 350 212 333 230 301 231Z" fill="#19291e" stroke="#617767" strokeWidth="3"/>
-              <path d="M411 190L451 207 443 231 411 230 394 212Z" fill="#17281d" stroke="#617767" strokeWidth="3"/>
-              <path d="M298 214L333 204 342 215 330 221 300 224Z" fill="url(#doom-green)" filter="url(#doom-green-glow)"/>
-              <path d="M403 215L412 204 446 214 444 224 414 221Z" fill="url(#doom-green)" filter="url(#doom-green-glow)"/>
-              <path d="M370 208L351 253 365 273 378 266" fill="none" stroke="#4a5e4d" strokeWidth="7" strokeLinecap="round"/>
-              <path d="M370 220L362 252 372 261" fill="none" stroke="#eef8e0" strokeOpacity=".6" strokeWidth="2"/>
-              <path d="M332 274L369 290 408 274 397 319 370 337 343 319Z" fill="#344639" stroke="#19281c" strokeWidth="3"/>
-              <path d="M343 287L355 291M359 294L371 298M378 295L390 290M349 307L361 311M372 311L385 307" stroke="#c8d4c3" strokeWidth="3" strokeLinecap="round"/>
-              <path d="M329 321L369 341 411 321" fill="none" stroke="#26382b" strokeWidth="5"/>
-              <path d="M291 246L312 263 320 293M448 246L429 263 421 293" fill="none" stroke="#e5f1dd" strokeOpacity=".6" strokeWidth="2"/>
-              <g fill="#17271b" stroke="#d4e1cf" strokeWidth="2">
-                <circle cx="291" cy="214" r="5"/><circle cx="447" cy="214" r="5"/><circle cx="300" cy="277" r="5"/><circle cx="438" cy="277" r="5"/><circle cx="316" cy="316" r="4"/><circle cx="423" cy="316" r="4"/>
-              </g>
-              <path d="M319 173L337 158 370 153 405 161 423 178" fill="none" stroke="#f4f8ec" strokeOpacity=".65" strokeWidth="3"/>
-            </g>
-            <g className="doom-armor-chest">
-              <path d="M279 413L315 388 370 409 425 388 460 413 438 546 406 594 370 620 333 594 300 546Z" fill="url(#doom-armor)" stroke="#4b6b3a" strokeWidth="4"/>
-              <path d="M315 410L341 424 332 535 308 559 294 529Z" fill="url(#doom-steel-dark)" stroke="#60795b" strokeWidth="3"/>
-              <path d="M425 410L399 424 408 535 432 559 446 529Z" fill="url(#doom-steel-dark)" stroke="#60795b" strokeWidth="3"/>
-              <path d="M341 426L370 441 399 426 406 521 370 559 334 521Z" fill="#08150a" stroke="#547342" strokeWidth="3"/>
-              <path d="M342 450L370 435 398 450 389 484 370 500 351 484Z" fill="#0e2412" stroke="#5ce53e" strokeWidth="3"/>
-              <path d="M356 457L370 449 384 457 380 473 370 481 360 473Z" fill="url(#doom-green)" filter="url(#doom-green-glow)"/>
-              <path d="M370 501L370 545M340 518L356 537M400 518L384 537" stroke="#4aff3f" strokeOpacity=".6" strokeWidth="3"/>
-              <path d="M321 562L370 579 419 562 405 594 370 620 335 594Z" fill="#020904" stroke="#274b25" strokeWidth="3"/>
-              <path d="M320 431L309 477 321 510M420 431L431 477 419 510" stroke="#6b8e59" strokeOpacity=".6" strokeWidth="3" fill="none"/>
-            </g>
-            <g className="doom-gauntlets">
-              <path d="M205 581L245 558 284 582 296 637 270 685 221 663 196 623Z" fill="url(#doom-steel-dark)" stroke="#577249" strokeWidth="4"/>
-              <path d="M494 581L454 558 415 582 403 637 429 685 478 663 503 623Z" fill="url(#doom-steel-dark)" stroke="#577249" strokeWidth="4"/>
-              <path d="M220 601L259 582 279 605 267 641 238 650 214 626Z" fill="#142a17" stroke="#9daf91" strokeWidth="2"/>
-              <path d="M479 601L440 582 420 605 432 641 461 650 485 626Z" fill="#0b200f" stroke="#8da681" strokeWidth="2"/>
-              <path d="M223 674L253 687 283 666 303 712 286 780 245 803 207 764Z" fill="url(#doom-cloak)" stroke="#29492a" strokeWidth="3"/>
-              <path d="M477 674L447 687 417 666 397 712 414 780 455 803 493 764Z" fill="url(#doom-cloak)" stroke="#29492a" strokeWidth="3"/>
-            </g>
-            <g className="doom-runes" fill="none" stroke="#62ff45" strokeWidth="2.5" filter="url(#doom-green-glow)" opacity=".9">
-              <path d="M251 485L270 506 261 529 280 546M489 485L470 506 479 529 460 546"/>
-              <path d="M312 611L333 632 333 657M428 611L407 632 407 657"/>
-              <path d="M347 660L370 682 393 660"/>
-            </g>
-            <text x="370" y="846" textAnchor="middle" fill="#90ff6a" fontSize="14" fontFamily="monospace" letterSpacing="7">DOOM / LATVERIA</text>
-          </svg>
-          <svg className="cyrus-portrait doom-face doom-back" viewBox="0 0 700 900" aria-hidden="true">
-            <defs>
-              <linearGradient id="doom-back-cloak" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#355d2b"/><stop offset=".35" stopColor="#143819"/><stop offset="1" stopColor="#020803"/></linearGradient>
-              <linearGradient id="doom-back-steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#b5c2a6"/><stop offset=".5" stopColor="#293a2e"/><stop offset="1" stopColor="#080f09"/></linearGradient><radialGradient id="doom-back-aura"><stop offset="0" stopColor="#54ff3b" stopOpacity=".3"/><stop offset="1" stopColor="#031004" stopOpacity="0"/></radialGradient>
-            </defs>
-            <ellipse cx="350" cy="425" rx="285" ry="400" fill="url(#doom-back-aura)"/>
-            <path d="M270 900L250 596Q218 464 233 278Q239 88 351 45Q466 70 475 278Q490 464 457 596L433 900Z" fill="url(#doom-back-cloak)" stroke="#638b43" strokeWidth="5"/>
-            <path d="M250 273Q250 104 350 68Q451 104 452 273L430 419 394 484 306 484 270 419Z" fill="#071308" stroke="#4e7535" strokeWidth="4"/>
-            <path d="M268 284Q270 136 350 103Q430 136 432 284L409 405 376 453 324 453 291 405Z" fill="#1d421d" stroke="#78975a" strokeWidth="3"/>
-            <path d="M286 270L312 177 341 143 329 231 349 176 365 232 384 143 398 241 417 192 418 289 398 371 373 407 329 407 305 371Z" fill="#0a170a"/>
-            <path d="M239 505L300 460 350 498 401 460 462 505 510 705 478 900H223L190 705Z" fill="#07120a" stroke="#3f602b" strokeWidth="4"/>
-            <path d="M290 470L350 504 410 470 448 660 408 900H292L252 660Z" fill="url(#doom-back-steel)" stroke="#546b49" strokeWidth="3"/>
-            <path d="M350 512L350 850" stroke="#80ff50" strokeOpacity=".7" strokeWidth="3"/>
-            <path d="M264 568L315 604 315 704 275 820M436 568L385 604 385 704 425 820" stroke="#73e64d" strokeOpacity=".65" strokeWidth="4" fill="none"/>
-            <path d="M249 546L294 531 326 562 315 617 274 633 240 594ZM451 546L406 531 374 562 385 617 426 633 460 594Z" fill="#0a1c0d" stroke="#77935d" strokeWidth="3"/>
-            <path d="M310 624L350 646 390 624 380 695 350 716 320 695Z" fill="#08120a" stroke="#5be13f" strokeWidth="3"/>
-            <path d="M350 654L366 673 350 691 334 673Z" fill="url(#doom-green)" filter="url(#doom-green-glow)"/>
-            <text x="350" y="846" textAnchor="middle" fill="#90ff6a" fontSize="14" fontFamily="monospace" letterSpacing="7">DOOM / LATVERIA</text>
-          </svg>
-        </div>
-      </div>
-    </div>
     <div className="doom-hud doom-hud-left"><span>ARMOR STATUS</span><b><i/> ACTIVE</b><small>Vibranium-steel alloy</small></div>
     <div className="doom-hud doom-hud-right"><span>CORE REACTOR</span><b>{busy?'OVERDRIVE':'STABLE'}</b><small>{currentAgents.length||7} agents · {runtimeState}</small></div>
     <div className="cyrus-nameplate doom-nameplate"><small>RULER OF LATVERIA</small><strong>DOCTOR DOOM</strong><em>VICTOR VON DOOM / CYRUS EDITION</em></div>
     <div className="cyrus-scroll-cue"><span>ENTER THE GREEN KINGDOM</span><i/></div>
-  </div>
+  </div>;
 }
 
 function HomeView({go,runtimeState,busy,agents,openPalette}){
