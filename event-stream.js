@@ -134,8 +134,10 @@
       try {
         const headers = { Accept: "text/event-stream" };
         if (lastEventId) headers["Last-Event-ID"] = lastEventId;
+        const base = String(root.CYRUS_CONFIG?.apiBaseUrl || "").trim().replace(/\/+$/, "");
+        const route = "/api/tasks/" + encodeURIComponent(taskId) + "/stream";
         const response = await root.fetch(
-          "/api/tasks/" + encodeURIComponent(taskId) + "/stream",
+          base ? base + route : route,
           { headers, signal }
         );
         if (!response.ok || !response.body) {
