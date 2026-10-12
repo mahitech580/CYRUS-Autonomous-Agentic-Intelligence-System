@@ -2464,3 +2464,63 @@ body:after{background:radial-gradient(circle at var(--mx) var(--my),rgba(75,255,
 @keyframes doom-fallback-turn{from{transform:translate(-50%,-50%) perspective(1200px) rotateY(0deg)}to{transform:translate(-50%,-50%) perspective(1200px) rotateY(360deg)}}
 @media(max-width:760px){.doom-css-fallback{width:130%;height:100%}.doom-fallback-mask{top:16%}.doom-fallback-armor{top:48%}}
 @media(prefers-reduced-motion:reduce){.doom-css-fallback{animation:none!important}}
+
+
+/* Interactive Doctor Doom scene controls */
+.doom-character-controls{
+  position:absolute;z-index:12;left:50%;bottom:13px;transform:translateX(-50%);
+  width:max-content;max-width:calc(100% - 24px);display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:5px;
+  padding:6px;border:1px solid rgba(111,223,72,.24);border-radius:11px;
+  background:rgba(2,10,2,.79);box-shadow:0 12px 35px rgba(0,0,0,.35),inset 0 1px rgba(220,255,207,.035);
+  backdrop-filter:blur(14px);transition:opacity .24s,border-color .24s,background .24s;
+}
+.doom-character-controls button{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:27px;padding:0 9px;
+  border:1px solid transparent;border-radius:6px;background:transparent;color:#8eaa80;
+  font:6px var(--mono);letter-spacing:.045em;white-space:nowrap;cursor:pointer;
+  transition:color .18s,background .18s,border-color .18s,transform .18s;
+}
+.doom-character-controls button>span{font-size:12px;line-height:1;color:#9acb84}
+.doom-character-controls button b{font-weight:500}
+.doom-character-controls button:hover{color:#e9ffdb;border-color:rgba(105,255,58,.25);background:rgba(58,185,26,.08);transform:translateY(-1px)}
+.doom-character-controls button.selected{background:rgba(65,203,28,.1);border-color:rgba(109,255,66,.17);color:#b8ff94}
+.doom-character-controls button.selected>span{color:#8aff58;text-shadow:0 0 10px rgba(95,255,47,.4)}
+.doom-character-controls .doom-reset-view{border-left:1px solid rgba(111,223,72,.16);border-radius:0 5px 5px 0;margin-left:2px}
+.doom-scene.doom-no-smoke .doom-smoke{opacity:0;visibility:hidden}
+.doom-scene .doom-smoke{transition:opacity .35s ease,visibility .35s ease}
+.doom-scene.doom-cinematic .doom-character-label,
+.doom-scene.doom-cinematic .doom-hud,
+.doom-scene.doom-cinematic .doom-nameplate,
+.doom-scene.doom-cinematic .cyrus-scroll-cue{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s,visibility .3s}
+.doom-scene.doom-cinematic .doom-rune-ring{width:min(90%,660px);opacity:.58}
+.doom-scene.doom-cinematic .doom-character-controls{background:rgba(1,6,1,.58);border-color:rgba(120,245,79,.15);opacity:.72}
+.doom-scene.doom-cinematic .doom-character-controls:hover,
+.doom-scene.doom-cinematic .doom-character-controls:focus-within{opacity:1}
+.doom-scene.doom-cinematic .doom-webgl-root canvas{filter:drop-shadow(0 0 34px rgba(60,255,33,.13))}
+.doom-scene.doom-cinematic .doom-css-fallback{transform:translate(-50%,-50%) scale(1.14)}
+.home-hero-character .doom-character-controls{left:50%;bottom:13px;max-width:calc(100% - 28px)}
+.home-hero-character .doom-character-controls button{min-height:28px}
+.command-stage-character .doom-character-controls{display:none}
+.doom-webgl-root{contain:layout paint style}
+.doom-webgl-canvas{touch-action:pan-y;will-change:transform}
+.doom-scene.doom-cinematic .doom-webgl-canvas{transform:scale(1.04);transform-origin:50% 48%;transition:transform .45s ease}
+@media(max-width:1050px){
+  .doom-character-controls{max-width:calc(100% - 20px);gap:3px;padding:5px}
+  .doom-character-controls button{padding:0 7px;font-size:5.5px}
+  .home-hero-character .doom-character-controls{bottom:13px}
+}
+@media(max-width:760px){
+  .doom-character-controls{left:50%;bottom:7px;width:calc(100% - 16px);max-width:none;gap:3px;padding:4px;border-radius:9px}
+  .doom-character-controls button{min-height:27px;padding:0 6px;font-size:5px;gap:3px}
+  .doom-character-controls button>span{font-size:10px}
+  .doom-character-controls .doom-reset-view{border-left:0;margin-left:0}
+  .home-hero-character .doom-character-controls{left:50%;bottom:8px;width:calc(100% - 18px)}
+  .home-hero-character .doom-character-controls button{min-height:25px;padding:0 5px}
+}
+@media(max-width:390px){
+  .doom-character-controls{gap:2px}
+  .doom-character-controls button{padding:0 5px;font-size:4.7px}
+}
+@media(prefers-reduced-motion:reduce){
+  .doom-character-controls,.doom-character-controls button,.doom-scene .doom-smoke{transition:none!important}
+}

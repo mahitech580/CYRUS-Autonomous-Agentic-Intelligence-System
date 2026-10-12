@@ -97,3 +97,26 @@ for (const style of ["@keyframes doom-rotate-3d","@keyframes doom-smoke-rise","d
   assert.ok(doomCss.includes(style), "Missing Doom animation / green-theme style: " + style);
 }
 console.log("Doom scene smoke: 3D turntable, green smoke, and forest-green theme OK");
+
+for (const feature of [
+  "doom-character-controls",
+  "ROTATION ON",
+  "ROTATION PAUSED",
+  "SMOKE ",
+  "PARTICLES ",
+  "CINEMATIC",
+  "RESET VIEW",
+  "controlsRef.current.rotationOn",
+  "controlsRef.current.smokeOn",
+  "controlsRef.current.embersOn",
+  "controlsRef.current.cinematic",
+  "handleVisibilityChange",
+  "document.visibilityState!=='hidden'",
+  "targetFov=controlsRef.current.cinematic?28:35"
+]) {
+  assert.ok(fs.readFileSync("app.js", "utf8").includes(feature), "Missing interactive scene feature: " + feature);
+}
+for (const style of [".doom-character-controls", ".doom-scene.doom-no-smoke", ".doom-scene.doom-cinematic", ".doom-reset-view"]) {
+  assert.ok(fs.readFileSync("styles.css", "utf8").includes(style), "Missing interactive scene control styling: " + style);
+}
+console.log("Doom interaction smoke: rotation, smoke, particles, cinematic zoom, and tab visibility controls OK");
