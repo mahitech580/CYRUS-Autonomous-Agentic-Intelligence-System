@@ -122,6 +122,8 @@ function App(){
           node.style.setProperty('--motion-rotate-y',ry.toFixed(2)+'deg')
           node.style.setProperty('--motion-origin-x',(x*100).toFixed(1)+'%')
           node.style.setProperty('--motion-origin-y',(y*100).toFixed(1)+'%')
+          node.style.setProperty('--motion-image-x',((.5-x)*14).toFixed(2)+'px')
+          node.style.setProperty('--motion-image-y',((.5-y)*10).toFixed(2)+'px')
           node.classList.add('is-tilting')
         }
         const onLeave=()=>{
@@ -130,6 +132,8 @@ function App(){
           node.style.removeProperty('--motion-rotate-y')
           node.style.removeProperty('--motion-origin-x')
           node.style.removeProperty('--motion-origin-y')
+          node.style.removeProperty('--motion-image-x')
+          node.style.removeProperty('--motion-image-y')
         }
         node.addEventListener('pointermove',onMove,{passive:true})
         node.addEventListener('pointerleave',onLeave,{passive:true})

@@ -71,3 +71,7 @@ assert.ok(fs.readFileSync("app.js", "utf8").includes("cyrus-motion"), "Motion pr
 assert.ok(fs.readFileSync("app.js", "utf8").includes("aria-pressed={motionEnabled}"), "Motion toggle must expose its state accessibly");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("motionEnabled?'MOTION ON':'CALM MODE'"), "Motion control must have clear on/off labels");
 assert.ok(fs.readFileSync("styles.css", "utf8").includes("html.motion-disabled"), "Calm mode must suppress animation and tilt styles");
+
+assert.ok(fs.readFileSync("app.js", "utf8").includes("--motion-image-x"), "Pointer input must drive image parallax");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("removeProperty('--motion-image-x')"), "Image parallax variables must be cleaned when the pointer leaves");
+assert.ok(fs.readFileSync("styles.css", "utf8").includes("translate3d(var(--motion-image-x,0px),var(--motion-image-y,0px),0)"), "Image parallax must use browser-safe pixel transforms");
