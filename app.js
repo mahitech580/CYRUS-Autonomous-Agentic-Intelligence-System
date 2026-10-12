@@ -380,6 +380,12 @@ function CoreVisual({agents,runtimeState,go}){
 
 function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()=>{}}){
   const sceneRef=useRef(null);
+  const controlsRef=useRef({rotationOn:true,smokeOn:true,embersOn:true,cinematic:false});
+  const [rotationOn,setRotationOn]=useState(true);
+  const [smokeOn,setSmokeOn]=useState(true);
+  const [embersOn,setEmbersOn]=useState(true);
+  const [cinematic,setCinematic]=useState(false);
+  controlsRef.current={rotationOn,smokeOn,embersOn,cinematic};
   const handlePointerMove=event=>{
     const rect=event.currentTarget.getBoundingClientRect();
     if(!rect.width||!rect.height)return;
@@ -391,6 +397,11 @@ function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()
   const resetPointer=event=>{
     event.currentTarget.style.setProperty('--doom-tilt-x','0deg');
     event.currentTarget.style.setProperty('--doom-tilt-z','0deg');
+  };
+  const resetSceneView=event=>{
+    const root=event.currentTarget.closest('.doom-scene');
+    root?.style.setProperty('--doom-tilt-x','0deg');
+    root?.style.setProperty('--doom-tilt-z','0deg');
   };
   useEffect(()=>{
     const host=sceneRef.current;
@@ -405,8 +416,9 @@ function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()
       const camera=new T.PerspectiveCamera(35,1,.1,80);
       camera.position.set(4.9,3.3,8.8);
       camera.lookAt(0,1.85,0);
-      renderer=new T.WebGLRenderer({alpha:true,antialias:true,powerPreference:'high-performance'});
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));
+      const compactDevice=window.matchMedia('(max-width: 760px)').matches;
+      renderer=new T.WebGLRenderer({alpha:true,antialias:!compactDevice,powerPreference:'high-performance'});
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,compactDevice?1.05:1.5));
       renderer.setClearColor(0x000000,0);
       renderer.domElement.setAttribute('aria-hidden','true');
       renderer.domElement.className='doom-webgl-canvas';
@@ -598,21 +610,31 @@ function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()
         const tiltZ=parseFloat(host.closest('.doom-scene')?.style.getPropertyValue('--doom-tilt-z')||'0')||0;
         tiltRig.rotation.x=T.MathUtils.lerp(tiltRig.rotation.x,tiltX*Math.PI/180,.08);
         tiltRig.rotation.z=T.MathUtils.lerp(tiltRig.rotation.z,tiltZ*Math.PI/180,.08);
-        if(!reduced)spinRig.rotation.y+=delta*(Math.PI*2/31);
-        floatRig.position.y=reduced?0:Math.sin(elapsed*1.2)*.045;
+        if(!reduced&&controlsRef.current.rotationOn)spinRig.rotation.y+=delta*(Math.PI*2/31);
+        floatRig.position.y=reduced||!controlsRef.current.rotationOn?0:Math.sin(elapsed*1.2)*.045;
         for(const particle of smoke){
-          const phase=(particle.phase+elapsed*particle.speed)%4.2;
-          particle.sprite.position.set(particle.x+Math.sin(elapsed*.8+particle.phase)*.15,-.35+phase,particle.z);
-          particle.sprite.material.opacity=reduced?particle.opacity*.4:particle.opacity*(.3+.7*Math.sin((phase/4.2)*Math.PI));
-          particle.sprite.scale.set(particle.width*(.7+phase*.12),particle.height*(.7+phase*.1),1);
+          particle.sprite.visible=controlsRef.current.smokeOn;
+          if(controlsRef.current.smokeOn){
+            const phase=(particle.phase+elapsed*particle.speed)%4.2;
+            particle.sprite.position.set(particle.x+Math.sin(elapsed*.8+particle.phase)*.15,-.35+phase,particle.z);
+            particle.sprite.material.opacity=reduced?particle.opacity*.4:particle.opacity*(.3+.7*Math.sin((phase/4.2)*Math.PI));
+            particle.sprite.scale.set(particle.width*(.7+phase*.12),particle.height*(.7+phase*.1),1);
+          }
         }
+        embers.visible=controlsRef.current.embersOn;
         embers.rotation.y=reduced?0:elapsed*.025;
         renderer.render(scene,camera);
-        raf=requestAnimationFrame(tick);
+        if(document.visibilityState!=='hidden')raf=requestAnimationFrame(tick);
+        else raf=0;
       };
+      const handleVisibilityChange=()=>{
+        if(document.visibilityState==='hidden'){cancelAnimationFrame(raf);raf=0;}
+        else if(!raf){previous=clock.getElapsedTime();raf=requestAnimationFrame(tick);}
+      };
+      document.addEventListener('visibilitychange',handleVisibilityChange);
       tick();
       return ()=>{
-        cancelAnimationFrame(raf);window.removeEventListener('resize',resize);resizeObserver?.disconnect();
+        cancelAnimationFrame(raf);document.removeEventListener('visibilitychange',handleVisibilityChange);window.removeEventListener('resize',resize);resizeObserver?.disconnect();
         resources.forEach(resource=>resource?.dispose?.());
         renderer?.dispose();renderer?.domElement?.remove();
       };
@@ -622,7 +644,7 @@ function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()
       console.error('CYRUS Doom WebGL scene could not start:',error);
     }
   },[]);
-  return <div className="cyrus-hero-visual doom-scene" onPointerMove={handlePointerMove} onPointerLeave={resetPointer}>
+  return <div className={'cyrus-hero-visual doom-scene'+(cinematic?' doom-cinematic':'')+(!smokeOn?' doom-no-smoke':'')} onPointerMove={handlePointerMove} onPointerLeave={resetPointer}>
     <div className="doom-atmosphere" aria-hidden="true"><i/><i/><i/><span className="doom-rune-ring"/></div>
     <div ref={sceneRef} className="doom-webgl-root" aria-label="Animated three-dimensional Doctor Doom character" role="img"/>
     <div className="doom-css-fallback" aria-hidden="true">
@@ -631,6 +653,13 @@ function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()
     </div>
     <div className="doom-smoke" aria-hidden="true"><span className="doom-smoke-puff puff-a"/><span className="doom-smoke-puff puff-b"/><span className="doom-smoke-puff puff-c"/><span className="doom-smoke-puff puff-d"/><span className="doom-smoke-puff puff-e"/><span className="doom-ground-fog"/></div>
     <div className="doom-character-label"><i/><span>VICTOR VON DOOM</span><b>LATVERIA / PRIME</b></div>
+    <div className="doom-character-controls" role="group" aria-label="3D character scene controls">
+      <button type="button" className={rotationOn?'selected':''} aria-pressed={rotationOn} onClick={()=>setRotationOn(value=>!value)} title={rotationOn?'Pause character rotation':'Resume character rotation'}><span aria-hidden="true">{rotationOn?'◉':'Ⅱ'}</span><b>{rotationOn?'ROTATION ON':'ROTATION PAUSED'}</b></button>
+      <button type="button" className={smokeOn?'selected':''} aria-pressed={smokeOn} onClick={()=>setSmokeOn(value=>!value)} title={smokeOn?'Disable green smoke':'Enable green smoke'}><span aria-hidden="true">〰</span><b>SMOKE {smokeOn?'ON':'OFF'}</b></button>
+      <button type="button" className={embersOn?'selected':''} aria-pressed={embersOn} onClick={()=>setEmbersOn(value=>!value)} title={embersOn?'Hide emerald particles':'Show emerald particles'}><span aria-hidden="true">✧</span><b>PARTICLES {embersOn?'ON':'OFF'}</b></button>
+      <button type="button" className={cinematic?'selected':''} aria-pressed={cinematic} onClick={()=>setCinematic(value=>!value)} title={cinematic?'Exit cinematic mode':'Enter cinematic mode'}><span aria-hidden="true">⛶</span><b>{cinematic?'EXIT CINEMA':'CINEMATIC'}</b></button>
+      <button type="button" className="doom-reset-view" onClick={resetSceneView} title="Reset character tilt"><span aria-hidden="true">↺</span><b>RESET VIEW</b></button>
+    </div>
     <div className="doom-hud doom-hud-left"><span>ARMOR STATUS</span><b><i/> ACTIVE</b><small>Vibranium-steel alloy</small></div>
     <div className="doom-hud doom-hud-right"><span>CORE REACTOR</span><b>{busy?'OVERDRIVE':'STABLE'}</b><small>{currentAgents.length||7} agents · {runtimeState}</small></div>
     <div className="cyrus-nameplate doom-nameplate"><small>RULER OF LATVERIA</small><strong>DOCTOR DOOM</strong><em>VICTOR VON DOOM / CYRUS EDITION</em></div>
