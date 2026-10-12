@@ -1,7 +1,7 @@
 const {useEffect,useMemo,useRef,useState}=React
 
 const API_TIMEOUT_MS=6500
-const NAV_ITEMS=['Command','Agents','Memory','Tools','History']
+const NAV_ITEMS=['Home','Command','Agents','Memory','Tools','History']
 
 async function apiJson(path,options={}){
   const method=(options.method||'GET').toUpperCase()
@@ -35,7 +35,7 @@ const seedObjective='Build a production-ready REST API for task management with 
 const CYRUS_IMAGES={"command":"https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1800&q=85","agents":"https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1400&q=85","memory":"https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=1400&q=85","tools":"https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1400&q=85","history":"https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1400&q=85","spotlight":"https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1400&q=85","orchestration":"https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1400&q=85","code":"https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=900&q=85","circuit":"https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=85","servers":"https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=900&q=85","automation":"https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=900&q=85","research":"https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=900&q=85","memoryCard":"https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=900&q=85"}
 
 function App(){
-  const [page,setPage]=useState('Command')
+  const [page,setPage]=useState('Home')
   const [mode,setMode]=useState('autonomous')
   const [prompt,setPrompt]=useState('')
   const [agents,setAgents]=useState([])
@@ -253,39 +253,42 @@ function App(){
   }
   const go=next=>{setPage(next);setPaletteOpen(false);window.scrollTo({top:0,behavior:'smooth'})}
 
-  return <div className="app-shell">
+  return <div className={'app-shell '+(page==='Home'?'home-shell':'workspace-shell')}>
     <div className="motion-progress" aria-hidden="true"/>
-    <header className="site-nav">
-      <button className="nav-brand" onClick={()=>go('Command')} aria-label="Open CYRUS Command">
-        <span className="nav-brand-mark"><i/></span>
-        <span><strong>CYRUS</strong><small>AGENTIC INTELLIGENCE</small></span>
-      </button>
-      <nav className="site-nav-links" aria-label="Primary navigation">
-        {NAV_ITEMS.map((item,i)=><button key={item} className={page===item?'active':''} onClick={()=>go(item)}><span>{String(i+1).padStart(2,'0')}</span>{item}</button>)}
-      </nav>
-      <div className="nav-status"><span className="dot"/><b>{runtimeState}</b><small>{busy?'RUNNING':'READY'}</small></div>
-      <button className="nav-command" onClick={()=>setPaletteOpen(true)}>⌘ K</button>
-    </header>
-
-    <main className="main">
-      <div className="topbar">
-        <div className="eyebrow">AUTONOMOUS ENGINEERING WORKSPACE</div>
-        <div className="top-actions"><button className={'motion-toggle '+(motionEnabled?'active':'')} type="button" aria-pressed={motionEnabled} onClick={toggleMotion} title="Toggle motion effects"><span className="motion-toggle-icon" aria-hidden="true">{motionEnabled?'◉':'◌'}</span><span>{motionEnabled?'MOTION ON':'CALM MODE'}</span></button><div className="shortcut-pill">OBSERVABLE RUNTIME</div><div className="live-pill"><span className="dot"/>{runtimeState} · {busy?'RUNNING':'READY'}</div></div>
-      </div>
-      {page==='Command'&&<CommandView {...{prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents:task?.agents||agents.map(a=>({...a,status:'QUEUED'})),metrics:task?[
-        ['EXECUTION',task.execution_time_ms?task.execution_time_ms+' ms':'—'],['TOOLS',task.tool_calls||0],['CONFIDENCE',task.confidence?task.confidence+'%':'—'],['RISK',task.risk||'—'],
-        ['RELEASE',task.status==='COMPLETED'?'READY':'STANDBY'],['QUALITY',task.quality?task.quality+'%':'—'],['COVERAGE',task.coverage?task.coverage+'%':'—'],['LATENCY',task.latency_ms?task.latency_ms+' ms':'—']
-      ]:[['EXECUTION','—'],['TOOLS','—'],['CONFIDENCE','—'],['RISK','—'],['RELEASE','STANDBY'],['QUALITY','—'],['COVERAGE','—'],['LATENCY','—']],seedObjective,setPrompt,notify,approveTask,cancelTask,runtimeState,runtimeMetrics,go}}/>}
-      {page==='Agents'&&<AgentsView agents={agents}/>}
-      {page==='Memory'&&<MemoryView tasks={tasks} open={openTask} go={go}/>}
-      {page==='Tools'&&<ToolsView tools={tools}/>}
-      {page==='History'&&<HistoryView tasks={tasks} open={openTask}/>}
-    </main>
-
-    <div className="mobile-nav" aria-label="Mobile navigation">
-      {NAV_ITEMS.map((item,i)=><button key={item} className={page===item?'active':''} onClick={()=>go(item)}><span>0{i+1}</span><b>{item}</b></button>)}
-    </div>
-
+    {page==='Home'&&<HomeView go={go} runtimeState={runtimeState} busy={busy} agents={agents} openPalette={()=>setPaletteOpen(true)}/>}
+    {page!=='Home'&&<>
+      <aside className="sidebar workspace-sidebar">
+        <button className="brand" onClick={()=>go('Home')} aria-label="Open CYRUS home">
+          <span className="brand-mark"><span/></span>
+          <span><strong>CYRUS</strong><small>AUTONOMOUS INTELLIGENCE</small></span>
+        </button>
+        <nav className="nav" aria-label="Workspace navigation">
+          {NAV_ITEMS.map((item,i)=><button key={item} className={page===item?'active':''} onClick={()=>go(item)}>
+            <span className="nav-icon" aria-hidden="true">{({'Home':'⌂','Command':'⌘','Agents':'♙','Memory':'◫','Tools':'⌘','History':'◷'})[item]}</span>
+            <span className="label">{item}</span><span className="num">{String(i+1).padStart(2,'0')}</span>
+          </button>)}
+        </nav>
+        <div className="side-foot"><span className="dot"/><div><strong>System Online</strong><small>All systems operational</small></div></div>
+      </aside>
+      <main className="main workspace-main">
+        <div className="topbar">
+          <div className="eyebrow">CYRUS / {page.toUpperCase()} WORKSPACE</div>
+          <div className="top-actions">
+            <button className={'motion-toggle '+(motionEnabled?'active':'')} type="button" aria-pressed={motionEnabled} onClick={toggleMotion} title="Toggle motion effects"><span className="motion-toggle-icon" aria-hidden="true">{motionEnabled?'◉':'◌'}</span><span>{motionEnabled?'MOTION ON':'CALM MODE'}</span></button>
+            <div className="live-pill"><span className="dot"/>{runtimeState} · {busy?'RUNNING':'READY'}</div>
+            <button className="nav-command" onClick={()=>setPaletteOpen(true)}>⌘ K</button>
+          </div>
+        </div>
+        {page==='Command'&&<CommandView {...{prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents:task?.agents||agents.map(a=>({...a,status:'QUEUED'})),metrics:task?[
+          ['EXECUTION',task.execution_time_ms?task.execution_time_ms+' ms':'—'],['TOOLS',task.tool_calls||0],['CONFIDENCE',task.confidence?task.confidence+'%':'—'],['RISK',task.risk||'—'],
+          ['RELEASE',task.status==='COMPLETED'?'READY':'STANDBY'],['QUALITY',task.quality?task.quality+'%':'—'],['COVERAGE',task.coverage?task.coverage+'%':'—'],['LATENCY',task.latency_ms?task.latency_ms+' ms':'—']
+        ]:[['EXECUTION','—'],['TOOLS','—'],['CONFIDENCE','—'],['RISK','—'],['RELEASE','STANDBY'],['QUALITY','—'],['COVERAGE','—'],['LATENCY','—']],seedObjective,notify,approveTask,cancelTask,runtimeState,runtimeMetrics,go,tasks,open:openTask}}/>}
+        {page==='Agents'&&<AgentsView agents={agents}/>}
+        {page==='Memory'&&<MemoryView tasks={tasks} open={openTask} go={go}/>}
+        {page==='Tools'&&<ToolsView tools={tools}/>}
+        {page==='History'&&<HistoryView tasks={tasks} open={openTask}/>}
+      </main>
+    </>}
     {selectedTask&&<TaskModal task={selectedTask} close={()=>setSelectedTask(null)}/>}
     {paletteOpen&&<CommandPalette page={page} go={go} execute={execute} seedObjective={seedObjective} notify={notify} close={()=>setPaletteOpen(false)}/>}
     {toast&&<div className="toast">{toast}</div>}
@@ -375,29 +378,9 @@ function CoreVisual({agents,runtimeState,go}){
   </div>
 }
 
-function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents,metrics,seedObjective,notify,approveTask,cancelTask,runtimeState,runtimeMetrics,go}){
-  const quickObjectives=[
-    ['BUILD','Build a production API with authentication, validation, persistence, tests and observability.'],
-    ['AUDIT','Audit a service for security, reliability, performance and deployment risks.'],
-    ['SHIP','Plan, implement, validate and release a production-ready feature with rollback readiness.'],
-  ]
-  const signal=(label,value,sub,accent='cyan')=><div className={'nx-signal '+accent}><div><span>{label}</span><small>{sub}</small></div><strong>{value}</strong></div>
-  return <div className="nx-view">
-    <section className="nx-hero">
-      <div className="nx-hero-copy">
-        <div className="nx-eyebrow cyrus-identity-kicker"><i/>AN ORIGINAL FICTIONAL INTELLIGENCE / CYRUS-07</div>
-        <h1>I am<br/><span>CYRUS.</span></h1>
-        <div className="cyrus-hero-subtitle">The mind beyond the interface.</div>
-        <p>Not another chatbot. CYRUS is a fictional autonomous intelligence built to turn difficult ideas into observable action — one objective, seven specialists, one accountable system.</p>
-        <div className="nx-hero-actions">
-          <button className="nx-primary" onClick={()=>document.querySelector('.nx-console')?.scrollIntoView({behavior:'smooth'})}>Enter the system <b>↗</b></button>
-          <button className="nx-secondary" onClick={()=>{setPrompt(seedObjective);notify('Production objective loaded')}}>Give CYRUS a mission</button>
-        </div>
-        <div className="nx-inline-proof cyrus-proof">
-          <span><b>07</b> specialist agents</span><span><b>08</b> tools</span><span><b>01</b> fictional intelligence</span><span><b>{runtimeState}</b> runtime</span>
-        </div>
-      </div>
-      <div className="nx-hero-visual cyrus-hero-visual">
+function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()=>{}}){
+  return (
+    <div className="nx-hero-visual cyrus-hero-visual">
         <div className="cyrus-atmosphere" aria-hidden="true"><i/><i/><i/><span/></div>
         <div className="cyrus-visual-label"><span className="cyrus-live-pip"/><span>CYRUS / CHARACTER FILE 07</span><b>FICTIONAL AI</b></div>
         <svg className="cyrus-portrait" viewBox="0 0 760 900" role="img" aria-labelledby="cyrus-portrait-title cyrus-portrait-desc">
@@ -474,133 +457,121 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
         <div className="cyrus-hud cyrus-hud-right"><span>02 / EXECUTION</span><b>{busy?'ACTIVE':'STANDBY'}</b><small>{currentAgents.length} agents · {runtimeState}</small></div>
         <div className="cyrus-scroll-cue"><span>SCROLL TO MEET THE SYSTEM</span><i/></div>
       </div>
-    </section>
-    <section className="cyrus-origin reveal" aria-labelledby="cyrus-origin-title">
-      <div className="cyrus-origin-head">
-        <span className="nx-eyebrow"><i/>THE DUAL PERSONA / ONE FICTIONAL INTELLIGENCE</span>
-        <h2 id="cyrus-origin-title">One identity.<br/><em>Two ways to change the world.</em></h2>
-        <p>CYRUS is the same original character in every scene: the quiet observer who listens, and the autonomous core that turns intent into action.</p>
-      </div>
-      <div className="cyrus-origin-grid">
-        <article className="cyrus-origin-card cyrus-observer">
-          <div className="cyrus-origin-art observer-art" aria-hidden="true">
-            <div className="observer-halo"></div><div className="observer-head"></div><div className="observer-neck"></div><div className="observer-shoulders"></div>
-            <span className="origin-coordinate">FIG. 01 — THE OBSERVER</span><span className="origin-mark">C / 07</span>
-          </div>
-          <div className="cyrus-origin-copy"><span>MODE 01 / PERCEPTION</span><h3>The observer.</h3><p>Patient. Precise. Curious. CYRUS listens to the objective, maps the constraints, and finds the signal inside the noise.</p><button onClick={()=>document.querySelector('.nx-console')?.scrollIntoView({behavior:'smooth'})}>Give it a problem <b>↗</b></button></div>
-        </article>
-        <article className="cyrus-origin-card cyrus-operator">
-          <div className="cyrus-origin-art operator-art" aria-hidden="true">
-            <div className="operator-ring ring-a"></div><div className="operator-ring ring-b"></div><div className="operator-ring ring-c"></div>
-            <div className="operator-core"><span>C7</span><small>CYRUS</small></div><span className="origin-coordinate">FIG. 02 — THE OPERATOR</span><span className="origin-mark">AUTONOMOUS</span>
-          </div>
-          <div className="cyrus-origin-copy"><span>MODE 02 / EXECUTION</span><h3>The operator.</h3><p>Decisive. Observable. Accountable. The same intelligence coordinates specialist agents, tools, tests, and release checkpoints.</p><button onClick={()=>document.querySelector('.nx-console')?.scrollIntoView({behavior:'smooth'})}>Enter the command room <b>↗</b></button></div>
-        </article>
-      </div>
-      <div className="cyrus-origin-foot"><span>NOT A REAL PERSON / ORIGINAL FICTIONAL CHARACTER</span><span>ONE CORE · SEVEN AGENTS · VISIBLE EXECUTION</span></div>
-    </section>
-
-    <section className="nx-console">
-      <div className="nx-console-head">
-        <div><span className="nx-eyebrow"><i/>01 / COMMAND COMPILER</span><h2>Define the objective.</h2></div>
-        <div className="nx-console-state"><span className="nx-live-dot"/>{busy?'GRAPH EXECUTING':'READY FOR INPUT'}<small>CTRL + ENTER</small></div>
-      </div>
-      <div className="nx-editor">
-        <div className="nx-editor-label"><span>OBJECTIVE</span><small>{prompt.length}/4000</small></div>
-        <textarea value={prompt} onChange={e=>setPrompt(e.target.value)} onKeyDown={e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();execute()}}} placeholder="Tell CYRUS what you want shipped…"/>
-        <div className="nx-editor-foot">
-          <div className="nx-chips">{quickObjectives.map(([label,value])=><button key={label} onClick={()=>setPrompt(value)}>{label}<span>+</span></button>)}</div>
-          <span>One objective · one accountable graph</span>
-        </div>
-      </div>
-      <div className="nx-console-controls">
-        <div className="nx-mode">
-          <span>CONTROL MODE</span>
-          <button className={mode==='autonomous'?'active':''} onClick={()=>setMode('autonomous')}><b>01</b> AUTONOMOUS</button>
-          <button className={mode==='supervised'?'active':''} onClick={()=>setMode('supervised')}><b>02</b> SUPERVISED</button>
-        </div>
-        <div className="nx-run-actions">
-          {task?.status==='AWAITING_APPROVAL'&&<button className="nx-approve" onClick={approveTask}>APPROVE RELEASE <b>✓</b></button>}
-          {busy&&task?.status==='RUNNING'&&<button className="nx-stop" onClick={cancelTask}>STOP RUN <b>■</b></button>}
-          <button className="nx-execute" disabled={busy} onClick={execute}>{busy?<><span className="nx-spinner"/>RUNNING EXECUTION GRAPH</>:<>EXECUTE OBJECTIVE <b>↗</b></>}</button>
-        </div>
-      </div>
-    </section>
-
-    <div className="nx-signal-grid">
-      {signal('EXECUTION',task?.execution_time_ms?task.execution_time_ms+' ms':'—','end-to-end latency')}
-      {signal('CONFIDENCE',task?.confidence?(task.confidence+'%'):'—','operator trust','violet')}
-      {signal('QUALITY',task?.quality?(task.quality+'%'):'—','review gate','green')}
-      {signal('COVERAGE',task?.coverage?(task.coverage+'%'):'—','validation depth','amber')}
-      {signal('TOOL CALLS',task?.tool_calls??runtimeMetrics?.total_tool_calls??0,'runtime actions')}
-    </div>
-
-    <section className="nx-workbench">
-      <div className="nx-panel nx-agent-panel">
-        <div className="nx-panel-head">
-          <div><span className="nx-eyebrow"><i/>02 / AGENT GRAPH</span><h3>Seven minds. One trajectory.</h3></div>
-          <button onClick={()=>go('Agents')}>Inspect registry <b>↗</b></button>
-        </div>
-        <div className="nx-agent-track">
-          {currentAgents.map((agent,index)=>{
-            const status=agent.status||'QUEUED'
-            return <button key={agent.name||index} className={'nx-agent '+String(status).toLowerCase()} onClick={()=>go('Agents')}>
-              <div className="nx-agent-index">0{index+1}<span>{status==='RUNNING'?'LIVE':'NODE'}</span></div>
-              <div className="nx-agent-dot"><i/></div>
-              <strong>{agent.name}</strong>
-              <small>{String(agent.role||agent.type||'agent').toUpperCase()}</small>
-              <em>{status}</em>
-              {index<currentAgents.length-1&&<span className="nx-agent-link"/>}
-            </button>
-          })}
-        </div>
-        <div className="nx-graph-footer"><span>ORCHESTRATOR</span><i/><span>PLANNING</span><i/><span>BUILD</span><i/><span>VALIDATE</span><i/><span>REVIEW</span><i/><span>RELEASE</span></div>
-      </div>
-
-      <div className="nx-side-stack">
-        <div className="nx-panel nx-health">
-          <div className="nx-panel-head compact"><span className="nx-eyebrow"><i/>03 / RUNTIME HEALTH</span><strong className="nx-health-status"><i/>{runtimeState}</strong></div>
-          <div className="nx-health-main"><div className="nx-ring"><span>{Math.round((runtimeMetrics?.capacity_utilization||0)*100)}<small>%</small></span></div><div><strong>{runtimeMetrics?.active_tasks||0} active</strong><small>{runtimeMetrics?.queued_tasks||0} queued · {runtimeMetrics?.awaiting_approval||0} approvals</small><em>capacity utilization</em></div></div>
-          <div className="nx-health-bars"><div><span/><b/><i/></div><div><span/><b/><i/></div><div><span/><b/><i/></div></div>
-        </div>
-
-        <div className="nx-panel nx-memory">
-          <div className="nx-panel-head compact"><span className="nx-eyebrow"><i/>04 / OPERATIONAL MEMORY</span><button onClick={()=>go('History')}>OPEN ↗</button></div>
-          {task?<><div className="nx-memory-objective">{task.objective}</div><div className="nx-memory-row"><span>STATUS</span><b>{task.status}</b></div><div className="nx-memory-row"><span>RISK</span><b>{task.risk||'LOW'}</b></div></>:<div className="nx-empty-mini">Run an objective to create a persistent execution memory.</div>}
-        </div>
-      </div>
-    </section>
-
-    <section className="nx-observability">
-      <div className="nx-panel nx-trace-panel">
-        <div className="nx-panel-head">
-          <div><span className="nx-eyebrow"><i/>05 / LIVE TRACE</span><h3>Watch the system think in public.</h3></div>
-          <span className="nx-trace-count">{task?.events?.length||0} EVENTS</span>
-        </div>
-        {task?.events?.length?<div className="nx-trace-list">{task.events.slice(-8).map((event,index)=><div className="nx-trace-row" key={event.event_id||index}><span>{event.time}</span><b>{event.agent}</b><strong>{event.phase}</strong><p>{event.message}</p><em>{event.duration} ms</em></div>)}</div>:<div className="nx-empty-state"><div>◎</div><strong>No execution signal yet.</strong><span>The trace will populate as soon as the agent graph starts moving.</span></div>}
-      </div>
-      <div className="nx-panel nx-artifacts">
-        <div className="nx-panel-head compact"><span className="nx-eyebrow"><i/>06 / RELEASE PACKAGE</span><span>{task?.artifacts?.length||0} FILES</span></div>
-        {task?.artifacts?.length?<div className="nx-artifact-list">{task.artifacts.map((item,index)=><div className="nx-artifact-row" key={item.name}><div className="nx-file-icon">{String(item.language||'FILE').slice(0,2).toUpperCase()}</div><div><strong>{item.name}</strong><small>{item.language} · {item.type}</small></div><span>{item.size}</span></div>)}</div>:<div className="nx-empty-state small"><div>⌁</div><strong>Artifacts waiting.</strong><span>Release outputs appear here after the delivery stage.</span></div>}
-      </div>
-    </section>
-
-    <section className="nx-capabilities">
-      <div className="nx-cap-head"><span className="nx-eyebrow"><i/>07 / WHY CYRUS</span><h2>Designed like a control system.<br/><span>Not another chat window.</span></h2></div>
-      <div className="nx-cap-grid">
-        <article className="nx-cap-card"><img src={CYRUS_IMAGES.automation} alt="" loading="lazy"/><span>01</span><div><b>Visible orchestration</b><p>Every agent has a role, state and measurable output. The graph is the product, not hidden plumbing.</p></div></article>
-        <article className="nx-cap-card"><img src={CYRUS_IMAGES.code} alt="" loading="lazy"/><span>02</span><div><b>Operator control</b><p>Autonomous execution and supervised release checkpoints coexist in the same interaction model.</p></div></article>
-        <article className="nx-cap-card"><img src={CYRUS_IMAGES.spotlight} alt="" loading="lazy"/><span>03</span><div><b>Release intelligence</b><p>Confidence, quality, coverage, risk and trace evidence stay attached to every execution record.</p></div></article>
-      </div>
-    </section>
-
-    <section className="nx-bottom-cta">
-      <div><span className="nx-eyebrow"><i/>08 / NEXT OBJECTIVE</span><h2>Give CYRUS something difficult.</h2><p>The interface is ready. The graph is waiting.</p></div>
-      <button onClick={()=>document.querySelector('.nx-console')?.scrollIntoView({behavior:'smooth'})}>Open command surface <b>↗</b></button>
-    </section>
-  </div>
+  )
 }
 
+function HomeView({go,runtimeState,busy,agents,openPalette}){
+  const highlights=[
+    ['◈','Multi-Agent System','Specialized agents',()=>go('Agents')],
+    ['⌘','Tool Integration','Runtime capabilities',()=>go('Tools')],
+    ['◫','Memory System','Persistent execution history',()=>go('Memory')],
+    ['◉','Autonomous Execution','Plan → Act → Verify',()=>go('Command')]
+  ];
+  return <main className="main home-main">
+    <header className="home-navigation">
+      <button className="home-brand" onClick={()=>go('Home')} aria-label="CYRUS home"><span className="home-brand-symbol">◆</span><span><strong>CYRUS</strong><small>AUTONOMOUS AGENTIC INTELLIGENCE SYSTEM</small></span></button>
+      <nav aria-label="Primary navigation">{NAV_ITEMS.map((item,i)=><button key={item} className={item==='Home'?'active':''} onClick={()=>go(item)}>{item}</button>)}</nav>
+      <div className="home-nav-tools"><span className="home-status"><i/>{runtimeState}</span><button className="home-command-key" onClick={openPalette}>⌘ K</button></div>
+    </header>
+    <section className="home-hero">
+      <div className="home-hero-backdrop" aria-hidden="true"><span/><i/><i/><i/></div>
+      <div className="home-hero-copy">
+        <div className="home-eyebrow"><i/> AUTONOMOUS AGENTIC INTELLIGENCE SYSTEM</div>
+        <h1>I am <span>CYRUS.</span></h1>
+        <h2>Think. Plan. Execute. Evolve.</h2>
+        <p>I am CYRUS — a fictional autonomous AI built to turn your ideas into real outcomes. I use advanced reasoning, powerful tools and a coordinated network of specialized agents to solve complex problems, execute tasks and keep learning.</p>
+        <div className="home-hero-actions">
+          <button className="home-primary" onClick={()=>go('Command')}>Enter Command <b>→</b></button>
+          <button className="home-secondary" onClick={()=>{go('Command');setTimeout(()=>document.querySelector('.command-objective')?.focus(),120)}}><span>▷</span> Watch the system</button>
+        </div>
+        <div className="home-character-caption"><span>CYRUS-07</span><i/> <span>FICTIONAL INTELLIGENCE / ACTIVE</span></div>
+      </div>
+      <div className="home-hero-character"><CyrusCharacter busy={busy} runtimeState={runtimeState} currentAgents={agents} go={go}/></div>
+      <div className="home-feature-rail">{highlights.map(([icon,title,sub,action],i)=><button className="home-feature" key={title} onClick={action}><span className="home-feature-icon">{icon}</span><span><strong>{title}</strong><small>{sub}</small></span><b>↗</b></button>)}</div>
+      <div className="home-scroll-cue"><span>SCROLL TO EXPLORE</span><i/></div>
+    </section>
+    <section className="home-next-section">
+      <div className="home-section-label">01 / THE CYRUS SYSTEM</div>
+      <div className="home-next-heading"><h2>One objective.<br/><em>Seven minds. One outcome.</em></h2><p>Move from first idea to traceable delivery inside one coordinated workspace, with every stage visible and every result inspectable.</p></div>
+      <div className="home-surface-grid">{[
+        ['01','Command','Give CYRUS a mission and choose autonomous or supervised execution.','Command'],
+        ['02','AI Agents','Explore the specialist roles that plan, research, build and verify.','Agents'],
+        ['03','Memory','Reopen previous runs, inspect outcomes and search the execution archive.','Memory'],
+        ['04','Tools','Explore the capabilities and routes exposed by the runtime.','Tools'],
+        ['05','Execution History','Filter, review and export your recorded task history.','History']
+      ].map(([num,title,desc,target])=><button className="home-surface-card" key={target} onClick={()=>go(target)}><span>{num} / SURFACE</span><h3>{title}</h3><p>{desc}</p><b>Open surface ↗</b></button>)}</div>
+      <footer className="home-footer"><span>CYRUS-07 / ORIGINAL FICTIONAL AI CHARACTER</span><span>{runtimeState} · {busy?'EXECUTING':'READY'}</span></footer>
+    </section>
+  </main>
+}
+
+function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents,metrics,seedObjective,notify,approveTask,cancelTask,runtimeState,runtimeMetrics,go,tasks=[],open}){
+  const [advanced,setAdvanced]=useState(false);
+  const [filter,setFilter]=useState('ALL');
+  const [search,setSearch]=useState('');
+  const recent=useMemo(()=>tasks.filter(item=>{
+    const q=search.trim().toLowerCase();
+    return (!q||[item.objective,item.task_id,item.status].filter(Boolean).join(' ').toLowerCase().includes(q))
+      &&(filter==='ALL'||String(item.status||'UNKNOWN').toUpperCase()===filter);
+  }).slice(0,5),[tasks,search,filter]);
+  const count=status=>tasks.filter(item=>String(item.status||'').toUpperCase()===status).length;
+  const stats=[
+    ['Total Executions',runtimeMetrics?.persisted_tasks??tasks.length,'teal','◈'],
+    ['Active',runtimeMetrics?.active_tasks??(busy?1:0),'cyan','◉'],
+    ['Awaiting Approval',runtimeMetrics?.awaiting_approval??count('AWAITING_APPROVAL'),'amber','◷'],
+    ['Completed',runtimeMetrics?.completed_tasks??count('COMPLETED'),'green','✓'],
+    ['Failed',runtimeMetrics?.failed_tasks??count('FAILED'),'red','!']
+  ];
+  const graph=[
+    ['Planner','01','planner'],['Researcher','02','researcher'],['Coder','03','coder'],['Tester','04','tester'],['Analyst','05','analyst']
+  ];
+  return <div className="workspace-page command-page">
+    <section className="command-stage">
+      <div className="command-stage-copy">
+        <div className="page-breadcrumb"><span>⌘</span> / Command</div>
+        <div className="command-kicker">CYRUS / OBJECTIVE EXECUTION</div>
+        <h1>Command</h1><p>Turn your ideas into autonomous action.</p>
+        <div className="command-entry-panel">
+          <label htmlFor="command-objective">What would you like CYRUS to do?</label>
+          <textarea id="command-objective" className="command-objective" value={prompt} maxLength={4000} onChange={e=>setPrompt(e.target.value)} onKeyDown={e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();execute()}}} placeholder="e.g. Build a web application, analyze data, or automate a workflow…"/>
+          <div className="command-entry-controls">
+            <label className="command-mode-label">Mode
+              <select value={mode} onChange={e=>setMode(e.target.value)} aria-label="Execution mode"><option value="autonomous">Autonomous</option><option value="supervised">Supervised</option></select>
+            </label>
+            <button className="command-advanced-toggle" onClick={()=>setAdvanced(v=>!v)} aria-expanded={advanced}>{advanced?'−':'＋'} Advanced Options</button>
+            <button className="command-execute" disabled={busy} onClick={execute}>{busy?'Executing…':'Execute'} <b>↗</b></button>
+          </div>
+          {advanced&&<div className="command-advanced-panel"><span>OBJECTIVE LENGTH <b>{prompt.length.toLocaleString()} / 4,000</b></span><span>CONTROL MODE <b>{mode.toUpperCase()}</b></span><span>RUNTIME <b>{runtimeState}</b></span><button onClick={()=>{setPrompt(seedObjective);notify('Example objective loaded')}}>Load example objective</button></div>}
+          {task&&<div className="command-current-task"><span className="command-task-dot"/><span>Last execution</span><b>{task.status}</b><small>{task.task_id}</small>{task.status==='AWAITING_APPROVAL'&&<button onClick={approveTask}>Approve release</button>}{busy&&task.status==='RUNNING'&&<button onClick={cancelTask}>Stop run</button>}</div>}
+        </div>
+      </div>
+      <div className="command-stage-character">
+        <div className="command-portrait-wash"/>
+        <CyrusCharacter busy={busy} runtimeState={runtimeState} currentAgents={currentAgents} go={go}/>
+        <div className="command-character-quote"><span>CYRUS-07 / SYSTEM PRINCIPLE</span><strong>Better decisions.<br/>Faster execution.</strong><small>FICTIONAL INTELLIGENCE · {runtimeState}</small></div>
+      </div>
+    </section>
+    <section className="command-stats-grid" aria-label="Execution summary">{stats.map(([label,value,accent,icon])=><article className={'command-stat '+accent} key={label}><span className="command-stat-icon">{icon}</span><div><small>{label}</small><strong>{value??0}</strong></div>{label==='Awaiting Approval'&&Number(value)>0&&<i className="stat-attention"/>}</article>)}</section>
+    <section className="command-lower-grid">
+      <article className="command-panel recent-panel">
+        <div className="command-panel-head"><div><span className="command-panel-kicker">ACTIVITY / 01</span><h2>Recent Executions</h2></div><button onClick={()=>go('History')}>View All ↗</button></div>
+        <div className="recent-controls"><input value={search} onChange={e=>setSearch(e.target.value)} aria-label="Search recent executions" placeholder="Search recent runs…"/><select value={filter} onChange={e=>setFilter(e.target.value)} aria-label="Filter recent executions"><option value="ALL">All statuses</option><option value="RUNNING">Running</option><option value="AWAITING_APPROVAL">Awaiting approval</option><option value="COMPLETED">Completed</option><option value="FAILED">Failed</option><option value="CANCELLED">Cancelled</option></select></div>
+        {recent.length?<div className="recent-list">{recent.map(item=><button className="recent-row" key={item.task_id} onClick={()=>open(item)}><span className={'recent-row-icon '+String(item.status||'unknown').toLowerCase()}>{String(item.status||'?').toUpperCase()==='COMPLETED'?'✓':String(item.status||'?').toUpperCase()==='FAILED'?'!':'◷'}</span><span className="recent-row-copy"><strong>{item.objective||'Untitled execution'}</strong><small>{item.task_id} · {item.current_agent||'CYRUS'}</small></span><span className={'recent-row-status '+String(item.status||'unknown').toLowerCase()}>{String(item.status||'UNKNOWN').replaceAll('_',' ')}</span><time>{item.created_at?new Date(item.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'—'}</time></button>)}</div>:<div className="command-empty-state"><span>◈</span><strong>No matching executions yet</strong><p>Run an objective above and its status will appear here.</p></div>}
+      </article>
+      <article className="command-panel agent-graph-panel">
+        <div className="command-panel-head"><div><span className="command-panel-kicker">ORCHESTRATION / 02</span><h2>Live Agent Graph</h2></div><button onClick={()=>go('Agents')}>Inspect ↗</button></div>
+        <div className="agent-map">
+          <svg viewBox="0 0 520 260" className="agent-map-lines" aria-hidden="true"><path d="M260 130L143 66M260 130L377 66M260 130L115 151M260 130L405 151M260 130L260 214M143 66L377 66M115 151L260 214M405 151L260 214" fill="none" stroke="currentColor" strokeOpacity=".24" strokeWidth="1.3"/><circle cx="260" cy="130" r="80" fill="none" stroke="currentColor" strokeOpacity=".1" strokeDasharray="3 8"/></svg>
+          <button className="agent-map-core" onClick={()=>go('Command')}><span>◆</span><strong>CYRUS</strong><small>CORE / 07</small></button>
+          {graph.map(([name,id,pos])=><button className={'agent-map-node '+pos} key={id} onClick={()=>go('Agents')}><span>{id}</span><b>{name}</b></button>)}
+          <div className="agent-map-legend"><span><i/>Active</span><span><i/>Idle</span><span><i/>Processing</span></div>
+        </div>
+        <div className="agent-graph-foot"><span>{currentAgents.length||7} registered agents</span><span><i/>{busy?'Execution in progress':'Ready for objective'}</span></div>
+      </article>
+    </section>
+    {task?.events?.length>0&&<section className="command-panel command-live-trace"><div className="command-panel-head"><div><span className="command-panel-kicker">EXECUTION / LIVE TRACE</span><h2>Latest signal</h2></div><span className="command-trace-count">{task.events.length} events</span></div>{task.events.slice(-5).map((event,i)=><div className="command-trace-row" key={event.event_id||i}><b>{event.agent}</b><span>{event.phase}</span><p>{event.message}</p><small>{event.duration} ms</small></div>)}</section>}
+  </div>
+}
 
 function PageHero({eyebrow,title,accent,description,image,alt,meta,imageCaption}){
   return <section className="editorial-hero">
@@ -629,10 +600,10 @@ function AgentsView({agents}){
     {id:7,name:'RELEASE',type:'DELIVERY',role:'Handoff',responsibility:'Packages the outcome with status, trace evidence and release-oriented artifacts.'}
   ];
   const list=agents.length?agents:defaults;
-  const photos=[CYRUS_IMAGES.automation,CYRUS_IMAGES.code,CYRUS_IMAGES.research,CYRUS_IMAGES.circuit,CYRUS_IMAGES.servers,CYRUS_IMAGES.history,CYRUS_IMAGES.orchestration];
+  const photos=['https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=85','https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=85','https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=900&q=85','https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=85','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85','https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&w=900&q=85','https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=85'];
   const completed=list.filter(a=>String(a.status||'READY').toUpperCase()==='COMPLETED').length;
   return <div className="section-page page-agents">
-    <PageHero eyebrow="01 / AGENT REGISTRY" title="Specialists with" accent="a shared mission." description="Meet the roles behind every execution. Each agent contributes a defined responsibility while the runtime keeps the full workflow observable." image={CYRUS_IMAGES.agents} alt="Robotics and intelligent systems hardware" meta={list.length+' AGENT DEFINITIONS'} imageCaption="THE AGENT WORKBENCH"/>
+    <PageHero eyebrow="AI AGENTS / SPECIALIST REGISTRY" title="AI" accent=" Agents" description="Specialized agents. Unified purpose. Each specialist contributes a defined capability while CYRUS keeps the workflow observable." image={CYRUS_IMAGES.agents} alt="Robotics and intelligent systems hardware" meta={list.length+' AGENT DEFINITIONS'} imageCaption="THE AGENT WORKBENCH"/>
     <div className="page-stat-rail">
       <div className="page-stat"><span>REGISTERED AGENTS</span><strong>{String(list.length).padStart(2,'0')}</strong><small>One coordinated system</small></div>
       <div className="page-stat"><span>EXECUTION STAGES</span><strong>07</strong><small>From intent to delivery</small></div>
@@ -653,66 +624,99 @@ function AgentsView({agents}){
   </div>
 }
 
+function toolGroup(tool){
+  const value=[tool.name,tool.category,tool.route,tool.description].filter(Boolean).join(' ').toLowerCase();
+  if(/research|web|search|http|api/.test(value))return 'Web & APIs';
+  if(/file|repository|database|data|storage/.test(value))return 'Data';
+  if(/code|test|analy|audit|scanner|inspect/.test(value))return 'Development';
+  if(/artifact|email|message|report|delivery/.test(value))return 'Productivity';
+  return 'System';
+}
+
 function ToolsView({tools}){
+  const [category,setCategory]=useState('All');
+  const [query,setQuery]=useState('');
   const defaults=[
-    {name:'Task orchestration',category:'CONTROL',route:'/api/execute',description:'Submit an objective and start the seven-stage execution graph.'},
-    {name:'Agent registry',category:'OBSERVABILITY',route:'/api/agents',description:'Inspect agent definitions, responsibilities and runtime capabilities.'},
-    {name:'Execution memory',category:'STORAGE',route:'/api/tasks',description:'Retrieve previous runs and recover task-level execution context.'},
-    {name:'Event stream',category:'OBSERVABILITY',route:'/api/tasks/{id}/stream',description:'Follow resumable state and trace events while an execution is active.'},
-    {name:'Release approval',category:'GOVERNANCE',route:'/api/tasks/{id}/approve',description:'Gate the release when supervised execution mode is selected.'},
-    {name:'Cooperative cancel',category:'CONTROL',route:'/api/tasks/{id}/cancel',description:'Request cancellation of an active run through the runtime API.'},
-    {name:'Runtime metrics',category:'TELEMETRY',route:'/api/metrics',description:'Review capacity, active work, queues and runtime latency.'},
-    {name:'Health probe',category:'RELIABILITY',route:'/api/health',description:'Check service liveness and current runtime mode.'}
+    {name:'Repository Scanner',category:'analysis',route:'repo.scan',description:'Maps repository surfaces and identifies the files connected to an objective.'},
+    {name:'File Analyzer',category:'analysis',route:'file.inspect',description:'Inspects source structure and retrieves file-level context.'},
+    {name:'Code Analyzer',category:'quality',route:'code.analyze',description:'Evaluates implementation shape and highlights engineering risks.'},
+    {name:'Dependency Auditor',category:'security',route:'deps.audit',description:'Reviews dependency posture and flags potential supply-chain concerns.'},
+    {name:'Test Runner',category:'validation',route:'test.run',description:'Runs deterministic validation against acceptance criteria.'},
+    {name:'Runtime Probe',category:'runtime',route:'runtime.probe',description:'Checks service readiness and operational health.'},
+    {name:'Research Gateway',category:'research',route:'research.query',description:'Provides an abstraction for research and evidence gathering.'},
+    {name:'Artifact Generator',category:'delivery',route:'artifact.generate',description:'Packages outputs and creates delivery-oriented artifacts.'}
   ];
   const list=tools.length?tools:defaults;
-  const categoryCount=new Set(list.map(t=>t.category||'RUNTIME')).size;
-  const visuals=[CYRUS_IMAGES.circuit,CYRUS_IMAGES.code,CYRUS_IMAGES.servers,CYRUS_IMAGES.automation];
+  const categories=['All','Web & APIs','Data','Development','Productivity','System'];
+  const visible=list.filter(tool=>{
+    const matchesCategory=category==='All'||toolGroup(tool)===category;
+    const value=[tool.name,tool.description,tool.route,tool.category].filter(Boolean).join(' ').toLowerCase();
+    return matchesCategory&&(!query.trim()||value.includes(query.trim().toLowerCase()));
+  });
+  const visuals=[CYRUS_IMAGES.spotlight,CYRUS_IMAGES.code,CYRUS_IMAGES.circuit,CYRUS_IMAGES.servers];
   return <div className="section-page page-tools">
-    <PageHero eyebrow="03 / TOOL REGISTRY" title="A toolkit built for" accent="engineering at scale." description="A clear inventory of the capabilities exposed to CYRUS: from objective submission and task control to live telemetry and release governance." image={CYRUS_IMAGES.tools} alt="Close-up of a detailed circuit board" meta={list.length+' AVAILABLE ROUTES'} imageCaption="ENGINEERING TOOLCHAIN"/>
-    <section className="tool-category-grid">
-      <article><img src={visuals[0]} alt="" loading="lazy"/><div><span>01 / CONTROL</span><h3>Start & steer</h3><p>Submit objectives, approve supervised releases and stop runs cooperatively.</p></div></article>
-      <article><img src={visuals[1]} alt="" loading="lazy"/><div><span>02 / INTELLIGENCE</span><h3>Inspect & learn</h3><p>Open agent definitions, read stored runs and review execution traces.</p></div></article>
-      <article><img src={visuals[2]} alt="" loading="lazy"/><div><span>03 / RELIABILITY</span><h3>Observe runtime</h3><p>Monitor service health, capacity, active work and operational latency.</p></div></article>
-    </section>
-    <section className="page-section tool-library-section">
-      <div className="section-heading"><div><span className="editorial-kicker">CAPABILITY CATALOGUE</span><h2>Every route has <em>a job to do.</em></h2></div><p>{categoryCount} capability groups · {list.length} callable surfaces</p></div>
-      <div className="tool-library">{list.map((t,i)=><article className="tool-library-card" key={t.name}>
-        <div className="tool-library-art"><img src={visuals[i%visuals.length]} alt="" loading="lazy"/><span>{String(i+1).padStart(2,'0')}</span><b>{String(t.category||'RUNTIME').toUpperCase()}</b></div>
-        <div className="tool-library-body"><h3>{t.name}</h3><p>{t.description}</p><div className="tool-route"><span>ROUTE</span><code>{t.route||'Runtime capability'}</code></div></div>
-      </article>)}</div>
+    <PageHero eyebrow="TOOLS / RUNTIME INTEGRATIONS" title="Tools" accent="" description="Powerful runtime capabilities. Explore the routes CYRUS uses to inspect, orchestrate, validate and deliver engineering work." image={CYRUS_IMAGES.tools} alt="Illuminated futuristic computing infrastructure" meta={list.length+' REGISTERED CAPABILITIES'} imageCaption="TOOL INTEGRATION ARCHITECTURE"/>
+    <section className="tool-console">
+      <div className="tool-console-toolbar">
+        <div className="tool-tabs" aria-label="Filter tools by category">{categories.map(item=><button key={item} className={category===item?'active':''} onClick={()=>setCategory(item)}>{item}</button>)}</div>
+        <label className="tool-search"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} aria-label="Search tools" placeholder="Search tools…"/>{query&&<button onClick={()=>setQuery('')} aria-label="Clear tool search">×</button>}</label>
+      </div>
+      <div className="tools-reference-layout">
+        <div className="tool-library reference-tool-library">
+          {visible.map((tool,i)=><article className="tool-library-card" key={tool.name}>
+            <div className="tool-library-art"><img src={visuals[i%visuals.length]} alt="" loading="lazy"/><span>{String(i+1).padStart(2,'0')}</span><b>ROUTE</b></div>
+            <div className="tool-library-body"><div className="tool-card-category">{toolGroup(tool).toUpperCase()}</div><h3>{tool.name}</h3><p>{tool.description}</p><div className="tool-route"><span>ENDPOINT</span><code>{tool.route||'Runtime capability'}</code></div></div>
+          </article>)}
+          {!visible.length&&<div className="memory-empty tools-empty"><div><span className="editorial-kicker">NO MATCHES</span><h3>No tools found.</h3><p>Try another keyword or select a different category.</p><button onClick={()=>{setCategory('All');setQuery('')}}>Reset filters ↺</button></div></div>}
+        </div>
+        <aside className="tool-architecture-panel">
+          <div className="architecture-panel-head"><span>CYRUS / TOOLING LAYER</span><b>LIVE MAP</b></div>
+          <h3>Tool Integration<br/><em>Architecture</em></h3>
+          <div className="architecture-stack" aria-hidden="true"><div>◇</div><div>◇</div><div>◇</div><span>CAPABILITY BUS</span></div>
+          <div className="architecture-pipeline">
+            <div><span>◆</span><b>CYRUS Agent</b><small>Intent / plan</small></div>
+            <i/>
+            <div><span>⌘</span><b>Tool Runtime</b><small>Execute / observe</small></div>
+            <i/>
+            <div><span>▧</span><b>Capability Adapter</b><small>Route / response</small></div>
+          </div>
+          <footer>Secure · Observable · Reliable</footer>
+        </aside>
+      </div>
     </section>
     <section className="page-spotlight tool-spotlight">
-      <img src={CYRUS_IMAGES.spotlight} alt="Illuminated global network and digital infrastructure" loading="lazy"/>
-      <div><span className="editorial-kicker">DESIGNED AS A SYSTEM</span><h2>Tools are not decoration.<br/><em>They move work forward.</em></h2><p>Each listed capability is presented with its real runtime route. Demo mode preserves the same visible workflow when the API is unavailable.</p><div className="spotlight-pills"><span>Explicit routes</span><span>Visible state</span><span>Observable output</span></div></div>
+      <img src={CYRUS_IMAGES.spotlight} alt="Abstract digital network infrastructure" loading="lazy"/>
+      <div><span className="editorial-kicker">DESIGNED AS A SYSTEM</span><h2>Tools are not decoration.<br/><em>They move work forward.</em></h2><p>Each capability is shown with its runtime route; the browser demo preserves the same workflow when the Flask API is unavailable.</p><div className="spotlight-pills"><span>Explicit routes</span><span>Visible state</span><span>Observable output</span></div></div>
     </section>
   </div>
 }
 
 function MemoryView({tasks,open,go}){
+  const [query,setQuery]=useState('');
   const completed=tasks.filter(t=>String(t.status||'').toUpperCase()==='COMPLETED').length;
   const awaiting=tasks.filter(t=>String(t.status||'').toUpperCase()==='AWAITING_APPROVAL').length;
   const mean=tasks.length?Math.round(tasks.reduce((sum,t)=>sum+Number(t.score||0),0)/tasks.length):0;
-  const photos=[CYRUS_IMAGES.memoryCard,CYRUS_IMAGES.circuit,CYRUS_IMAGES.servers,CYRUS_IMAGES.research,CYRUS_IMAGES.code];
+  const needle=query.trim().toLowerCase();
+  const filtered=tasks.filter(t=>!needle||[t.task_id,t.objective,t.status,t.mode,t.current_agent].filter(Boolean).join(' ').toLowerCase().includes(needle));
+  const photos=[CYRUS_IMAGES.automation,CYRUS_IMAGES.circuit,CYRUS_IMAGES.servers,CYRUS_IMAGES.research,CYRUS_IMAGES.code];
   return <div className="section-page page-memory">
-    <PageHero eyebrow="02 / OPERATIONAL MEMORY" title="Execution memory" accent="you can investigate." description="A visual archive of objectives, outcomes and confidence signals. Open any saved run to inspect its full record, trace and release evidence." image={CYRUS_IMAGES.memory} alt="Developer working at a computer with source code" meta={tasks.length+' STORED RUNS'} imageCaption="THE EXECUTION ARCHIVE"/>
+    <PageHero eyebrow="MEMORY / EXECUTION ARCHIVE" title="Memory" accent="" description="Your execution history, preserved and searchable. Explore past objectives, outcomes, run artifacts and confidence signals." image={CYRUS_IMAGES.memory} alt="Code and illuminated computing displays" meta={tasks.length+' STORED RUNS'} imageCaption="THE EXECUTION ARCHIVE"/>
     <div className="page-stat-rail">
-      <div className="page-stat"><span>STORED RUNS</span><strong>{String(tasks.length).padStart(2,'0')}</strong><small>Execution records</small></div>
-      <div className="page-stat"><span>COMPLETED</span><strong>{String(completed).padStart(2,'0')}</strong><small>Finished workflows</small></div>
+      <div className="page-stat"><span>TOTAL RUNS</span><strong>{String(tasks.length).padStart(2,'0')}</strong><small>Execution records</small></div>
+      <div className="page-stat"><span>SUCCESSFUL</span><strong>{String(completed).padStart(2,'0')}</strong><small>Completed workflows</small></div>
       <div className="page-stat"><span>AWAITING APPROVAL</span><strong>{String(awaiting).padStart(2,'0')}</strong><small>Human release gate</small></div>
       <div className="page-stat"><span>MEAN SCORE</span><strong>{tasks.length?mean:'—'}</strong><small>Across available runs</small></div>
     </div>
     <section className="page-section memory-collection">
-      <div className="section-heading"><div><span className="editorial-kicker">PERSISTENT RUN LIBRARY</span><h2>The story behind <em>every result.</em></h2></div><p>Select a run to open its full record.</p></div>
-      {tasks.length?<div className="memory-gallery">{tasks.map((t,i)=><button className="memory-gallery-card" key={t.task_id} onClick={()=>open(t)}>
+      <div className="section-heading memory-heading"><div><span className="editorial-kicker">PERSISTENT RUN LIBRARY</span><h2>Your memory, <em>at a glance.</em></h2></div><label className="memory-search"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} aria-label="Search execution memory" placeholder="Search by objective, task ID, or agent…"/>{query&&<button onClick={()=>setQuery('')} aria-label="Clear memory search">×</button>}</label></div>
+      {filtered.length?<div className="memory-gallery">{filtered.map((t,i)=><button className="memory-gallery-card" key={t.task_id} onClick={()=>open(t)}>
         <div className="memory-gallery-media"><img src={photos[i%photos.length]} alt="" loading="lazy"/><span className="memory-score">{Number(t.score||0).toFixed(1)} <small>SCORE</small></span><span className={'memory-status '+String(t.status||'UNKNOWN').toLowerCase().replace(/[^a-z_]/g,'-')}><i/>{String(t.status||'UNKNOWN').replaceAll('_',' ')}</span></div>
         <div className="memory-gallery-content"><div className="memory-record-time">{t.created_at?new Date(t.created_at).toLocaleString():'DATE UNAVAILABLE'} · {String(t.mode||'autonomous').toUpperCase()}</div><h3>{t.objective||'Untitled execution'}</h3><p>{t.current_agent?'Last agent · '+t.current_agent:'Execution record available for inspection'}</p><div className="memory-gallery-foot"><span>{t.task_id}</span><b>OPEN RECORD ↗</b></div></div>
-      </button>)}</div>:<div className="memory-empty"><img src={CYRUS_IMAGES.memory} alt="Code on a monitor in a quiet engineering workspace" loading="lazy"/><div><span className="editorial-kicker">YOUR ARCHIVE STARTS HERE</span><h3>No execution memory yet.</h3><p>Run your first engineering objective. CYRUS will create a record here so the outcome can be revisited and investigated.</p><button onClick={()=>go('Command')}>Open command surface <b>↗</b></button></div></div>}
+      </button>)}</div>:<div className="memory-empty"><img src={CYRUS_IMAGES.memory} alt="Code on a monitor in an engineering workspace" loading="lazy"/><div><span className="editorial-kicker">{tasks.length?'SEARCH COMPLETE':'YOUR ARCHIVE STARTS HERE'}</span><h3>{tasks.length?'No matching memory records.':'No execution memory yet.'}</h3><p>{tasks.length?'Adjust your search terms to locate a previous run.':'Run your first engineering objective. CYRUS will create a record here so the outcome can be revisited and investigated.'}</p><button onClick={()=>tasks.length?setQuery(''):go('Command')}>{tasks.length?'Clear search':'Open command surface'} <b>↗</b></button></div></div>}
     </section>
-    <section className="memory-retention-note"><span>MEMORY / TRACE / OUTCOME</span><p>Keep decisions connected to evidence. Execution memory gives each objective a record that can be reopened instead of disappearing into a chat transcript.</p><button onClick={()=>go('History')}>Explore execution history <b>↗</b></button></section>
+    <section className="memory-retention-note"><span>MEMORY / TRACE / OUTCOME</span><p>Keep decisions connected to evidence. Open any recorded objective to inspect its status, trace, and release artifacts.</p><button onClick={()=>go('History')}>Explore execution history <b>↗</b></button></section>
   </div>
 }
-
-
 
 function HistoryView({tasks,open}){
   const [query,setQuery]=useState('')
@@ -759,7 +763,7 @@ function HistoryView({tasks,open}){
   const clearFilters=()=>{setQuery('');setStatus('ALL');setSort('newest')}
   const activeFilters=Boolean(query.trim())||status!=='ALL'||sort!=='newest'
   return <div className="view history-view">
-    <PageHero eyebrow="04 / EXECUTION HISTORY" title="Every run leaves" accent="an evidence trail." description="Search prior objectives, review outcomes and export the records you need. The history view keeps investigation tools close to the execution evidence." image={CYRUS_IMAGES.history} alt="Abstract cybersecurity visualization on a dark screen" meta={tasks.length+' TOTAL RUNS'} imageCaption="THE RUN LEDGER"/>
+    <PageHero eyebrow="HISTORY / EXECUTION LEDGER" title="Execution" accent=" History" description="Search, filter and explore your past executions. Inspect run status, quality signals, duration and the full execution record." image={CYRUS_IMAGES.history} alt="Abstract cybersecurity visualization on a dark screen" meta={tasks.length+' TOTAL RUNS'} imageCaption="THE RUN LEDGER"/>
     <div className="history-overview" aria-label="Execution status overview">
       <div className="history-stat"><span>ALL EXECUTIONS</span><strong>{tasks.length}</strong><small>Available records</small></div>
       <div className="history-stat running"><span>IN PROGRESS</span><strong>{count('RUNNING')+count('AWAITING_APPROVAL')}</strong><small>{count('AWAITING_APPROVAL')} awaiting approval</small></div>
