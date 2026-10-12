@@ -37,3 +37,31 @@ const refreshedCss = fs.readFileSync("styles.css", "utf8");
 for (const style of ["--trip-green:#2fbb78","--trip-red:#b83d35",".editorial-hero",".page-stat-rail",".registry-grid",".tool-category-grid",".memory-gallery","prefers-reduced-motion:reduce"]) {
   assert.ok(refreshedCss.includes(style), "Missing TripPilot-inspired style: " + style);
 }
+
+
+const motionSource = fs.readFileSync("app.js", "utf8");
+for (const feature of [
+  "motion-progress",
+  "motion-reveal",
+  "motion-tilt",
+  "IntersectionObserver",
+  "prefers-reduced-motion: reduce",
+  "architecture-cube",
+  "architecture-orbit",
+  "motion-scroll-progress"
+]) {
+  assert.ok(motionSource.includes(feature), "Missing motion system behavior: " + feature);
+}
+const motionStyles = fs.readFileSync("styles.css", "utf8");
+for (const style of [
+  ".motion-progress",
+  ".motion-tilt.is-tilting",
+  ".motion-architecture",
+  "transform-style:preserve-3d",
+  "@keyframes motion-orbit-a",
+  "@keyframes motion-cube-float",
+  "@keyframes motion-row-in",
+  "@media(prefers-reduced-motion:reduce)"
+]) {
+  assert.ok(motionStyles.includes(style), "Missing 3D motion style: " + style);
+}
