@@ -2524,3 +2524,52 @@ body:after{background:radial-gradient(circle at var(--mx) var(--my),rgba(75,255,
 @media(prefers-reduced-motion:reduce){
   .doom-character-controls,.doom-character-controls button,.doom-scene .doom-smoke{transition:none!important}
 }
+
+
+/* Live backend connection settings */
+.backend-settings-button{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:32px;padding:0 10px;
+  border:1px solid rgba(112,204,70,.25);border-radius:8px;background:rgba(65,219,25,.075);
+  color:#a5ff79;font:7px var(--mono);letter-spacing:.06em;white-space:nowrap;transition:background .2s,border-color .2s,transform .2s
+}
+.backend-settings-button:hover{border-color:rgba(112,255,69,.55);background:rgba(65,219,25,.14);transform:translateY(-1px)}
+.home-status-button{border:0;background:transparent;padding:6px 0;font:8px var(--mono);cursor:pointer;white-space:nowrap}
+.home-status-button.online{color:#93ff63}
+.home-status-button.offline{color:#ffa48d}
+.home-status-button.offline i{background:#ff805e;box-shadow:0 0 10px rgba(255,128,94,.7)}
+.home-status-button:hover{filter:brightness(1.2)}
+.api-settings-backdrop{position:fixed;z-index:2000;inset:0;display:grid;place-items:center;padding:18px;background:rgba(0,5,0,.78);backdrop-filter:blur(16px);animation:api-modal-in .2s ease both}
+.api-settings-dialog{width:min(570px,100%);max-height:min(92vh,820px);overflow:auto;padding:25px;border:1px solid rgba(111,223,72,.3);border-radius:18px;background:radial-gradient(ellipse at 98% 0,rgba(45,142,20,.14),transparent 19rem),linear-gradient(145deg,#071307,#020802 75%);color:#e9f9df;box-shadow:0 32px 100px rgba(0,0,0,.6),inset 0 1px rgba(215,255,204,.05)}
+.api-settings-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
+.api-settings-head>div>span{font:7px var(--mono);letter-spacing:.14em;color:#8ec47c}
+.api-settings-head h2{margin:9px 0 0;font-size:27px;line-height:1.1;letter-spacing:-.06em;color:#efffe7}
+.api-settings-head>button{flex:0 0 32px;width:32px;height:32px;border:1px solid rgba(111,223,72,.2);border-radius:8px;background:rgba(255,255,255,.025);color:#b4d8a4;font-size:21px;line-height:1}
+.api-settings-dialog>p{margin:15px 0 21px;color:#97b38a;font-size:10px;line-height:1.8}
+.api-settings-dialog form>label{display:block;margin-bottom:8px;color:#dff1d5;font:8px var(--mono);letter-spacing:.08em}
+.api-settings-dialog form>input{display:block;width:100%;min-height:43px;padding:0 12px;border:1px solid rgba(111,223,72,.25);border-radius:8px;outline:none;background:#020a02;color:#e8fadc;font:10px var(--mono)}
+.api-settings-dialog form>input:focus{border-color:#7bff46;box-shadow:0 0 0 3px rgba(84,242,37,.08)}
+.api-settings-example{display:grid;gap:7px;margin-top:13px;padding:11px;border:1px solid rgba(111,223,72,.13);border-radius:8px;background:rgba(0,0,0,.19)}
+.api-settings-example span{font:6px var(--mono);letter-spacing:.13em;color:#789b6c}
+.api-settings-example code{overflow-wrap:anywhere;color:#a8f58c;font:8px var(--mono)}
+.api-settings-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:17px}
+.api-settings-reset,.api-settings-save{min-height:38px;padding:0 12px;border:1px solid rgba(111,223,72,.22);border-radius:7px;background:rgba(58,159,27,.08);color:#a7d991;font:8px var(--mono);cursor:pointer}
+.api-settings-save{border-color:#77ff44;background:linear-gradient(110deg,#bfff92,#55ff35);color:#071403;font-weight:600}
+.api-settings-reset:hover{background:rgba(58,159,27,.16)}
+.api-settings-save:hover{filter:brightness(1.07)}
+.api-settings-note{display:flex;gap:9px;margin-top:20px;padding-top:14px;border-top:1px solid rgba(111,223,72,.12);color:#7f9f72;font-size:8px;line-height:1.75}
+.api-settings-note i{flex:0 0 6px;width:6px;height:6px;margin-top:4px;border-radius:50%;background:#9aff68;box-shadow:0 0 10px rgba(108,255,61,.55)}
+.api-settings-deploy-link{display:inline-block;margin-top:13px;color:#aaff86;font:8px var(--mono);text-decoration:none}
+.api-settings-deploy-link:hover{text-decoration:underline}
+.api-settings-error{margin-top:8px;color:#ff9c8b;font-size:8px}
+@keyframes api-modal-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:760px){
+  .backend-settings-button{min-height:28px;padding:0 7px;font-size:6px}
+  .home-nav-tools{gap:8px}
+  .home-status-button{font-size:6px}
+  .api-settings-dialog{padding:20px;border-radius:14px}
+  .api-settings-head h2{font-size:24px}
+  .api-settings-dialog>p{font-size:9px}
+  .api-settings-actions{align-items:stretch;flex-direction:column-reverse}
+  .api-settings-reset,.api-settings-save{min-height:42px}
+}
+@media(prefers-reduced-motion:reduce){.api-settings-backdrop{animation:none}}
