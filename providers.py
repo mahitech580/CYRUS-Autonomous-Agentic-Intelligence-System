@@ -178,7 +178,7 @@ class OpenAICompatibleProvider:
     @staticmethod
     def _json(content: str):
         candidate = content.strip()
-        candidate = re.sub(r"^\`\`\`(?:json)?\s*|\s*\`\`\`$", "", candidate, flags=re.IGNORECASE)
+        candidate = re.sub(r"^\x60{3}(?:json)?\s*|\s*\x60{3}$", "", candidate, flags=re.IGNORECASE)
         try:
             return json.loads(candidate)
         except json.JSONDecodeError:
