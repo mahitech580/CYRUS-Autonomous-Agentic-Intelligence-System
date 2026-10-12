@@ -13,3 +13,13 @@ services:
         value: render-main
       - key: CYRUS_CORS_ORIGINS
         value: https://mahitech580.github.io,http://localhost:8000,http://127.0.0.1:8000
+      - key: CYRUS_LLM_API_KEY
+        sync: false
+      - key: CYRUS_LLM_PROVIDER
+        value: auto
+      - key: CYRUS_LLM_BASE_URL
+        value: https://api.openai.com/v1
+      - key: CYRUS_LLM_MODEL
+        value: gpt-4o-mini
+      - key: CYRUS_LLM_TIMEOUT_SECONDS
+        value: "25"
