@@ -86,3 +86,10 @@ for (const feature of ["function HomeView","I am","CYRUS.","home-feature-rail","
 for (const style of [".cyrus-hero-visual", ".cyrus-portrait", ".cyrus-origin-grid", "@keyframes cyrus-portrait-arrive"]) {
   assert.ok(refreshedCss.includes(style), "Missing CYRUS cinematic character styling: " + style);
 }
+
+for (const feature of ["Doctor Doom-inspired CYRUS","doom-smoke-layer","doom-turntable","doom-pointer-yaw","DOOM PROTOCOL"]) {
+  assert.ok(fs.readFileSync("app.js", "utf8").includes(feature), "Missing Doom-inspired character feature: " + feature);
+}
+for (const style of [".doom-smoke-layer", ".doom-turntable", "@keyframes doom-rotation", "@keyframes green-smoke-drift", "--doom-pointer-yaw"]) {
+  assert.ok(fs.readFileSync("styles.css", "utf8").includes(style), "Missing green smoke / 3D rotation style: " + style);
+}
