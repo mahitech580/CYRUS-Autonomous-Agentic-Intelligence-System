@@ -2573,3 +2573,17 @@ body:after{background:radial-gradient(circle at var(--mx) var(--my),rgba(75,255,
   .api-settings-reset,.api-settings-save{min-height:42px}
 }
 @media(prefers-reduced-motion:reduce){.api-settings-backdrop{animation:none}}
+
+
+/* Realtime artifact inspection panels */
+.artifact-content-panel{margin:18px 0;border:1px solid rgba(150,172,161,.22);border-radius:14px;background:rgba(7,12,10,.72);overflow:hidden}
+.artifact-content-panel summary{cursor:pointer;list-style:none;padding:14px 16px;color:var(--text-soft,#d5e0d9);font-size:10px;font-weight:800;letter-spacing:.13em}
+.artifact-content-panel summary::-webkit-details-marker{display:none}
+.artifact-content-panel summary::after{content:"+";float:right;color:var(--trip-green,#2fbb78);font-size:16px}
+.artifact-content-panel[open] summary::after{content:"−"}
+.artifact-content-panel pre{max-height:560px;overflow:auto;margin:0;padding:18px;border-top:1px solid rgba(150,172,161,.18);white-space:pre-wrap;overflow-wrap:anywhere;color:#dbe9e0;font:12px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace}
+.artifact-content-panel ol{margin:0;padding:5px 22px 18px 38px;color:var(--text-soft,#d5e0d9);font-size:13px;line-height:1.65}
+.artifact-content-panel li{padding:4px 0}
+.artifact-review-note{margin:18px 0;padding:16px;border:1px solid rgba(150,172,161,.18);border-radius:14px;background:rgba(7,12,10,.4)}
+.artifact-review-note p,.artifact-review-note li{font-size:13px;line-height:1.65;color:var(--text-soft,#d5e0d9)}
+.artifact-review-note small{display:block;margin-top:12px;color:var(--muted,#89968f);font-size:10px;line-height:1.5}

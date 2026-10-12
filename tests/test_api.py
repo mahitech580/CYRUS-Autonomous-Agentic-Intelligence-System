@@ -4,6 +4,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import server
+from providers import DeterministicProvider
 
 
 class CyrusApiContractTests(unittest.TestCase):
@@ -133,6 +134,17 @@ class CyrusApiContractTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.headers.get("Access-Control-Allow-Origin"))
+
+    def test_provider_capabilities_are_explicit_and_do_not_expose_secrets(self):
+        response = self.client.get("/api/provider")
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["provider"], server.PROVIDER.name)
+        self.assertEqual(payload["model_available"], server.PROVIDER.mode == "LIVE")
+        self.assertFalse(payload["supports_external_search"])
+        self.assertFalse(payload["supports_code_execution"])
+        self.assertNotIn("api_key", payload)
+        self.assertNotIn("authorization", str(payload).lower())
 
     def test_health_contract(self):
         response = self.client.get("/api/health")
@@ -601,6 +613,53 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.get_json()["error"], "Task not found")
 
+
+    def test_runtime_execution_emits_progress_and_never_fakes_test_results(self):
+        task = {
+            "task_id": "CYRUS-REALTIME-TEST",
+            "created_at": server.now_iso(),
+            "updated_at": server.now_iso(),
+            "objective": "Build a service with meaningful validation",
+            "mode": "autonomous",
+            "status": "RUNNING",
+            "current_agent": "ORCHESTRATOR",
+            "plan": [],
+            "research": [],
+            "implementation": "",
+            "validation_plan": [],
+            "review": {},
+            "tool_calls": 0,
+            "artifacts": [],
+            "tests_passed": 0,
+            "tests_failed": 0,
+            "coverage": 0,
+            "quality": 0,
+            "risk": "UNKNOWN",
+            "confidence": 0,
+            "score": 0,
+            "latency_ms": 0,
+            "execution_time_ms": 0,
+            "summary": "",
+            "idempotency_key": None,
+            "events": [],
+            "agents": [dict(agent, status="QUEUED") for agent in server.AGENTS],
+        }
+        with patch.object(server, "PROVIDER", DeterministicProvider()):
+            with patch.object(server, "persist_task"):
+                server._run_task(task)
+        self.assertEqual(task["status"], "COMPLETED")
+        self.assertEqual(task["tests_passed"], 0)
+        self.assertEqual(task["tests_failed"], 0)
+        self.assertEqual(task["coverage"], 0)
+        self.assertEqual(task["verification_status"], "PLAN_GENERATED_NOT_EXECUTED")
+        phases = [item["phase"] for item in task["events"]]
+        self.assertIn("DECOMPOSITION_STARTED", phases)
+        self.assertIn("DECOMPOSITION_COMPLETED", phases)
+        self.assertTrue(any(item["agent"] == "PLANNER" for item in task["events"]))
+        self.assertIn("EXECUTION_COMPLETED", phases)
+        self.assertEqual(len(task["artifacts"]), 3)
+        self.assertIn("deterministic demo", task["summary"].lower())
+        self.assertTrue(task["artifacts"][0]["content"])
 
 if __name__ == "__main__":
     unittest.main()
