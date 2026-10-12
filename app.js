@@ -624,66 +624,99 @@ function AgentsView({agents}){
   </div>
 }
 
+function toolGroup(tool){
+  const value=[tool.name,tool.category,tool.route,tool.description].filter(Boolean).join(' ').toLowerCase();
+  if(/research|web|search|http|api/.test(value))return 'Web & APIs';
+  if(/file|repository|database|data|storage/.test(value))return 'Data';
+  if(/code|test|analy|audit|scanner|inspect/.test(value))return 'Development';
+  if(/artifact|email|message|report|delivery/.test(value))return 'Productivity';
+  return 'System';
+}
+
 function ToolsView({tools}){
+  const [category,setCategory]=useState('All');
+  const [query,setQuery]=useState('');
   const defaults=[
-    {name:'Task orchestration',category:'CONTROL',route:'/api/execute',description:'Submit an objective and start the seven-stage execution graph.'},
-    {name:'Agent registry',category:'OBSERVABILITY',route:'/api/agents',description:'Inspect agent definitions, responsibilities and runtime capabilities.'},
-    {name:'Execution memory',category:'STORAGE',route:'/api/tasks',description:'Retrieve previous runs and recover task-level execution context.'},
-    {name:'Event stream',category:'OBSERVABILITY',route:'/api/tasks/{id}/stream',description:'Follow resumable state and trace events while an execution is active.'},
-    {name:'Release approval',category:'GOVERNANCE',route:'/api/tasks/{id}/approve',description:'Gate the release when supervised execution mode is selected.'},
-    {name:'Cooperative cancel',category:'CONTROL',route:'/api/tasks/{id}/cancel',description:'Request cancellation of an active run through the runtime API.'},
-    {name:'Runtime metrics',category:'TELEMETRY',route:'/api/metrics',description:'Review capacity, active work, queues and runtime latency.'},
-    {name:'Health probe',category:'RELIABILITY',route:'/api/health',description:'Check service liveness and current runtime mode.'}
+    {name:'Repository Scanner',category:'analysis',route:'repo.scan',description:'Maps repository surfaces and identifies the files connected to an objective.'},
+    {name:'File Analyzer',category:'analysis',route:'file.inspect',description:'Inspects source structure and retrieves file-level context.'},
+    {name:'Code Analyzer',category:'quality',route:'code.analyze',description:'Evaluates implementation shape and highlights engineering risks.'},
+    {name:'Dependency Auditor',category:'security',route:'deps.audit',description:'Reviews dependency posture and flags potential supply-chain concerns.'},
+    {name:'Test Runner',category:'validation',route:'test.run',description:'Runs deterministic validation against acceptance criteria.'},
+    {name:'Runtime Probe',category:'runtime',route:'runtime.probe',description:'Checks service readiness and operational health.'},
+    {name:'Research Gateway',category:'research',route:'research.query',description:'Provides an abstraction for research and evidence gathering.'},
+    {name:'Artifact Generator',category:'delivery',route:'artifact.generate',description:'Packages outputs and creates delivery-oriented artifacts.'}
   ];
   const list=tools.length?tools:defaults;
-  const categoryCount=new Set(list.map(t=>t.category||'RUNTIME')).size;
-  const visuals=[CYRUS_IMAGES.circuit,CYRUS_IMAGES.code,CYRUS_IMAGES.servers,CYRUS_IMAGES.automation];
+  const categories=['All','Web & APIs','Data','Development','Productivity','System'];
+  const visible=list.filter(tool=>{
+    const matchesCategory=category==='All'||toolGroup(tool)===category;
+    const value=[tool.name,tool.description,tool.route,tool.category].filter(Boolean).join(' ').toLowerCase();
+    return matchesCategory&&(!query.trim()||value.includes(query.trim().toLowerCase()));
+  });
+  const visuals=[CYRUS_IMAGES.spotlight,CYRUS_IMAGES.code,CYRUS_IMAGES.circuit,CYRUS_IMAGES.servers];
   return <div className="section-page page-tools">
-    <PageHero eyebrow="TOOLS / RUNTIME INTEGRATIONS" title="Tools" accent="" description="Powerful runtime integrations and real-world capabilities. Explore the routes CYRUS uses to inspect, orchestrate, validate and deliver engineering work." image={CYRUS_IMAGES.tools} alt="Close-up of a detailed circuit board" meta={list.length+' AVAILABLE ROUTES'} imageCaption="ENGINEERING TOOLCHAIN"/>
-    <section className="tool-category-grid">
-      <article><img src={visuals[0]} alt="" loading="lazy"/><div><span>01 / CONTROL</span><h3>Start & steer</h3><p>Submit objectives, approve supervised releases and stop runs cooperatively.</p></div></article>
-      <article><img src={visuals[1]} alt="" loading="lazy"/><div><span>02 / INTELLIGENCE</span><h3>Inspect & learn</h3><p>Open agent definitions, read stored runs and review execution traces.</p></div></article>
-      <article><img src={visuals[2]} alt="" loading="lazy"/><div><span>03 / RELIABILITY</span><h3>Observe runtime</h3><p>Monitor service health, capacity, active work and operational latency.</p></div></article>
-    </section>
-    <section className="page-section tool-library-section">
-      <div className="section-heading"><div><span className="editorial-kicker">CAPABILITY CATALOGUE</span><h2>Every route has <em>a job to do.</em></h2></div><p>{categoryCount} capability groups · {list.length} callable surfaces</p></div>
-      <div className="tool-library">{list.map((t,i)=><article className="tool-library-card" key={t.name}>
-        <div className="tool-library-art"><img src={visuals[i%visuals.length]} alt="" loading="lazy"/><span>{String(i+1).padStart(2,'0')}</span><b>{String(t.category||'RUNTIME').toUpperCase()}</b></div>
-        <div className="tool-library-body"><h3>{t.name}</h3><p>{t.description}</p><div className="tool-route"><span>ROUTE</span><code>{t.route||'Runtime capability'}</code></div></div>
-      </article>)}</div>
+    <PageHero eyebrow="TOOLS / RUNTIME INTEGRATIONS" title="Tools" accent="" description="Powerful runtime capabilities. Explore the routes CYRUS uses to inspect, orchestrate, validate and deliver engineering work." image={CYRUS_IMAGES.tools} alt="Illuminated futuristic computing infrastructure" meta={list.length+' REGISTERED CAPABILITIES'} imageCaption="TOOL INTEGRATION ARCHITECTURE"/>
+    <section className="tool-console">
+      <div className="tool-console-toolbar">
+        <div className="tool-tabs" aria-label="Filter tools by category">{categories.map(item=><button key={item} className={category===item?'active':''} onClick={()=>setCategory(item)}>{item}</button>)}</div>
+        <label className="tool-search"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} aria-label="Search tools" placeholder="Search tools…"/>{query&&<button onClick={()=>setQuery('')} aria-label="Clear tool search">×</button>}</label>
+      </div>
+      <div className="tools-reference-layout">
+        <div className="tool-library reference-tool-library">
+          {visible.map((tool,i)=><article className="tool-library-card" key={tool.name}>
+            <div className="tool-library-art"><img src={visuals[i%visuals.length]} alt="" loading="lazy"/><span>{String(i+1).padStart(2,'0')}</span><b>ROUTE</b></div>
+            <div className="tool-library-body"><div className="tool-card-category">{toolGroup(tool).toUpperCase()}</div><h3>{tool.name}</h3><p>{tool.description}</p><div className="tool-route"><span>ENDPOINT</span><code>{tool.route||'Runtime capability'}</code></div></div>
+          </article>)}
+          {!visible.length&&<div className="memory-empty tools-empty"><div><span className="editorial-kicker">NO MATCHES</span><h3>No tools found.</h3><p>Try another keyword or select a different category.</p><button onClick={()=>{setCategory('All');setQuery('')}}>Reset filters ↺</button></div></div>}
+        </div>
+        <aside className="tool-architecture-panel">
+          <div className="architecture-panel-head"><span>CYRUS / TOOLING LAYER</span><b>LIVE MAP</b></div>
+          <h3>Tool Integration<br/><em>Architecture</em></h3>
+          <div className="architecture-stack" aria-hidden="true"><div>◇</div><div>◇</div><div>◇</div><span>CAPABILITY BUS</span></div>
+          <div className="architecture-pipeline">
+            <div><span>◆</span><b>CYRUS Agent</b><small>Intent / plan</small></div>
+            <i/>
+            <div><span>⌘</span><b>Tool Runtime</b><small>Execute / observe</small></div>
+            <i/>
+            <div><span>▧</span><b>Capability Adapter</b><small>Route / response</small></div>
+          </div>
+          <footer>Secure · Observable · Reliable</footer>
+        </aside>
+      </div>
     </section>
     <section className="page-spotlight tool-spotlight">
-      <img src={CYRUS_IMAGES.spotlight} alt="Illuminated global network and digital infrastructure" loading="lazy"/>
-      <div><span className="editorial-kicker">DESIGNED AS A SYSTEM</span><h2>Tools are not decoration.<br/><em>They move work forward.</em></h2><p>Each listed capability is presented with its real runtime route. Demo mode preserves the same visible workflow when the API is unavailable.</p><div className="spotlight-pills"><span>Explicit routes</span><span>Visible state</span><span>Observable output</span></div></div>
+      <img src={CYRUS_IMAGES.spotlight} alt="Abstract digital network infrastructure" loading="lazy"/>
+      <div><span className="editorial-kicker">DESIGNED AS A SYSTEM</span><h2>Tools are not decoration.<br/><em>They move work forward.</em></h2><p>Each capability is shown with its runtime route; the browser demo preserves the same workflow when the Flask API is unavailable.</p><div className="spotlight-pills"><span>Explicit routes</span><span>Visible state</span><span>Observable output</span></div></div>
     </section>
   </div>
 }
 
 function MemoryView({tasks,open,go}){
+  const [query,setQuery]=useState('');
   const completed=tasks.filter(t=>String(t.status||'').toUpperCase()==='COMPLETED').length;
   const awaiting=tasks.filter(t=>String(t.status||'').toUpperCase()==='AWAITING_APPROVAL').length;
   const mean=tasks.length?Math.round(tasks.reduce((sum,t)=>sum+Number(t.score||0),0)/tasks.length):0;
-  const photos=[CYRUS_IMAGES.memoryCard,CYRUS_IMAGES.circuit,CYRUS_IMAGES.servers,CYRUS_IMAGES.research,CYRUS_IMAGES.code];
+  const needle=query.trim().toLowerCase();
+  const filtered=tasks.filter(t=>!needle||[t.task_id,t.objective,t.status,t.mode,t.current_agent].filter(Boolean).join(' ').toLowerCase().includes(needle));
+  const photos=[CYRUS_IMAGES.automation,CYRUS_IMAGES.circuit,CYRUS_IMAGES.servers,CYRUS_IMAGES.research,CYRUS_IMAGES.code];
   return <div className="section-page page-memory">
-    <PageHero eyebrow="MEMORY / EXECUTION ARCHIVE" title="Memory" accent=" — your execution archive." description="Your execution history, preserved and searchable. Explore past objectives, outcomes, run artifacts and confidence signals." image={CYRUS_IMAGES.memory} alt="Developer working at a computer with source code" meta={tasks.length+' STORED RUNS'} imageCaption="THE EXECUTION ARCHIVE"/>
+    <PageHero eyebrow="MEMORY / EXECUTION ARCHIVE" title="Memory" accent="" description="Your execution history, preserved and searchable. Explore past objectives, outcomes, run artifacts and confidence signals." image={CYRUS_IMAGES.memory} alt="Code and illuminated computing displays" meta={tasks.length+' STORED RUNS'} imageCaption="THE EXECUTION ARCHIVE"/>
     <div className="page-stat-rail">
-      <div className="page-stat"><span>STORED RUNS</span><strong>{String(tasks.length).padStart(2,'0')}</strong><small>Execution records</small></div>
-      <div className="page-stat"><span>COMPLETED</span><strong>{String(completed).padStart(2,'0')}</strong><small>Finished workflows</small></div>
+      <div className="page-stat"><span>TOTAL RUNS</span><strong>{String(tasks.length).padStart(2,'0')}</strong><small>Execution records</small></div>
+      <div className="page-stat"><span>SUCCESSFUL</span><strong>{String(completed).padStart(2,'0')}</strong><small>Completed workflows</small></div>
       <div className="page-stat"><span>AWAITING APPROVAL</span><strong>{String(awaiting).padStart(2,'0')}</strong><small>Human release gate</small></div>
       <div className="page-stat"><span>MEAN SCORE</span><strong>{tasks.length?mean:'—'}</strong><small>Across available runs</small></div>
     </div>
     <section className="page-section memory-collection">
-      <div className="section-heading"><div><span className="editorial-kicker">PERSISTENT RUN LIBRARY</span><h2>The story behind <em>every result.</em></h2></div><p>Select a run to open its full record.</p></div>
-      {tasks.length?<div className="memory-gallery">{tasks.map((t,i)=><button className="memory-gallery-card" key={t.task_id} onClick={()=>open(t)}>
+      <div className="section-heading memory-heading"><div><span className="editorial-kicker">PERSISTENT RUN LIBRARY</span><h2>Your memory, <em>at a glance.</em></h2></div><label className="memory-search"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} aria-label="Search execution memory" placeholder="Search by objective, task ID, or agent…"/>{query&&<button onClick={()=>setQuery('')} aria-label="Clear memory search">×</button>}</label></div>
+      {filtered.length?<div className="memory-gallery">{filtered.map((t,i)=><button className="memory-gallery-card" key={t.task_id} onClick={()=>open(t)}>
         <div className="memory-gallery-media"><img src={photos[i%photos.length]} alt="" loading="lazy"/><span className="memory-score">{Number(t.score||0).toFixed(1)} <small>SCORE</small></span><span className={'memory-status '+String(t.status||'UNKNOWN').toLowerCase().replace(/[^a-z_]/g,'-')}><i/>{String(t.status||'UNKNOWN').replaceAll('_',' ')}</span></div>
         <div className="memory-gallery-content"><div className="memory-record-time">{t.created_at?new Date(t.created_at).toLocaleString():'DATE UNAVAILABLE'} · {String(t.mode||'autonomous').toUpperCase()}</div><h3>{t.objective||'Untitled execution'}</h3><p>{t.current_agent?'Last agent · '+t.current_agent:'Execution record available for inspection'}</p><div className="memory-gallery-foot"><span>{t.task_id}</span><b>OPEN RECORD ↗</b></div></div>
-      </button>)}</div>:<div className="memory-empty"><img src={CYRUS_IMAGES.memory} alt="Code on a monitor in a quiet engineering workspace" loading="lazy"/><div><span className="editorial-kicker">YOUR ARCHIVE STARTS HERE</span><h3>No execution memory yet.</h3><p>Run your first engineering objective. CYRUS will create a record here so the outcome can be revisited and investigated.</p><button onClick={()=>go('Command')}>Open command surface <b>↗</b></button></div></div>}
+      </button>)}</div>:<div className="memory-empty"><img src={CYRUS_IMAGES.memory} alt="Code on a monitor in an engineering workspace" loading="lazy"/><div><span className="editorial-kicker">{tasks.length?'SEARCH COMPLETE':'YOUR ARCHIVE STARTS HERE'}</span><h3>{tasks.length?'No matching memory records.':'No execution memory yet.'}</h3><p>{tasks.length?'Adjust your search terms to locate a previous run.':'Run your first engineering objective. CYRUS will create a record here so the outcome can be revisited and investigated.'}</p><button onClick={()=>tasks.length?setQuery(''):go('Command')}>{tasks.length?'Clear search':'Open command surface'} <b>↗</b></button></div></div>}
     </section>
-    <section className="memory-retention-note"><span>MEMORY / TRACE / OUTCOME</span><p>Keep decisions connected to evidence. Execution memory gives each objective a record that can be reopened instead of disappearing into a chat transcript.</p><button onClick={()=>go('History')}>Explore execution history <b>↗</b></button></section>
+    <section className="memory-retention-note"><span>MEMORY / TRACE / OUTCOME</span><p>Keep decisions connected to evidence. Open any recorded objective to inspect its status, trace, and release artifacts.</p><button onClick={()=>go('History')}>Explore execution history <b>↗</b></button></section>
   </div>
 }
-
-
 
 function HistoryView({tasks,open}){
   const [query,setQuery]=useState('')
