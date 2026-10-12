@@ -379,85 +379,150 @@ function CoreVisual({agents,runtimeState,go}){
 }
 
 function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()=>{}}){
-  return (
-    <div className="nx-hero-visual cyrus-hero-visual">
-        <div className="cyrus-atmosphere" aria-hidden="true"><i/><i/><i/><span/></div>
-        <div className="cyrus-visual-label"><span className="cyrus-live-pip"/><span>CYRUS / CHARACTER FILE 07</span><b>FICTIONAL AI</b></div>
-        <svg className="cyrus-portrait" viewBox="0 0 760 900" role="img" aria-labelledby="cyrus-portrait-title cyrus-portrait-desc">
-          <title id="cyrus-portrait-title">CYRUS, an original fictional AI character</title>
-          <desc id="cyrus-portrait-desc">A cinematic, original dark-haired synthetic intelligence with glowing teal eyes, a black armored coat, luminous circuitry, and a geometric core emblem.</desc>
-          <defs>
-            <linearGradient id="cyrus-sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#071b25"/><stop offset=".5" stopColor="#07101b"/><stop offset="1" stopColor="#020509"/></linearGradient>
-            <linearGradient id="cyrus-face" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#b9c8c8"/><stop offset=".36" stopColor="#60747a"/><stop offset=".72" stopColor="#243640"/><stop offset="1" stopColor="#0b1821"/></linearGradient>
-            <linearGradient id="cyrus-hair" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#1b3138"/><stop offset=".45" stopColor="#080f16"/><stop offset="1" stopColor="#020509"/></linearGradient>
-            <linearGradient id="cyrus-armor" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#38515a"/><stop offset=".24" stopColor="#172830"/><stop offset=".56" stopColor="#08131b"/><stop offset="1" stopColor="#020609"/></linearGradient>
-            <linearGradient id="cyrus-metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#91b5b5"/><stop offset=".2" stopColor="#29424a"/><stop offset=".5" stopColor="#101c24"/><stop offset="1" stopColor="#05090e"/></linearGradient>
-            <linearGradient id="cyrus-energy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#bcfff0"/><stop offset=".4" stopColor="#38f1c6"/><stop offset="1" stopColor="#00a9d0"/></linearGradient>
-            <radialGradient id="cyrus-halo"><stop offset="0" stopColor="#25e8c0" stopOpacity=".32"/><stop offset=".5" stopColor="#0c8294" stopOpacity=".13"/><stop offset="1" stopColor="#06111b" stopOpacity="0"/></radialGradient>
-            <filter id="cyrus-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-            <pattern id="cyrus-microgrid" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M34 0H0V34" fill="none" stroke="#65e6d1" strokeOpacity=".1" strokeWidth=".7"/></pattern>
-          </defs>
-          <rect width="760" height="900" fill="url(#cyrus-sky)" opacity=".45"/>
-          <ellipse cx="440" cy="380" rx="320" ry="390" fill="url(#cyrus-halo)"/>
-          <rect x="0" y="0" width="760" height="900" fill="url(#cyrus-microgrid)" opacity=".48"/>
-          <g fill="none" stroke="#43e8cf" strokeOpacity=".23">
-            <circle cx="437" cy="360" r="262" strokeWidth="1.2"/>
-            <circle cx="437" cy="360" r="292" strokeDasharray="2 12"/>
-            <ellipse cx="437" cy="360" rx="190" ry="298" transform="rotate(28 437 360)"/>
-            <path d="M45 600L180 465 245 465M545 166H660V282M570 650H700V755"/>
-          </g>
-          <g fill="#4ce8d0" opacity=".65"><circle cx="180" cy="465" r="3"/><circle cx="660" cy="282" r="3"/><circle cx="700" cy="755" r="3"/></g>
-          <path d="M96 900L115 736Q133 642 223 589L300 550 491 550 594 589Q677 642 690 758L710 900Z" fill="#02060a" stroke="#1e444b" strokeWidth="2"/>
-          <path d="M206 900L224 718Q240 629 302 598L372 575 475 581 546 613Q601 650 610 754L626 900Z" fill="url(#cyrus-armor)" stroke="#38565d" strokeWidth="2"/>
-          <path d="M293 586L332 534 479 528 525 585 481 640 359 644Z" fill="#0a1720" stroke="#3a6568" strokeWidth="2"/>
-          <path d="M347 492L344 569 386 610 437 612 485 569 475 485Z" fill="url(#cyrus-face)"/>
-          <path d="M340 540L386 568 475 529 480 581 435 635 367 624 329 583Z" fill="#050d13" stroke="#2b5057" strokeWidth="2"/>
-          <path d="M269 296Q276 184 375 150Q479 120 541 205L562 307 540 405Q525 459 474 497L436 521 374 493Q317 462 287 400Z" fill="url(#cyrus-face)" stroke="#8ba7a8" strokeOpacity=".25" strokeWidth="2"/>
-          <path d="M269 286Q245 195 317 131Q368 82 438 103Q507 76 557 150Q603 206 559 323L535 286 517 233 482 201 426 224 365 205 317 256 297 330Z" fill="url(#cyrus-hair)" stroke="#29464c" strokeWidth="2"/>
-          <path d="M295 287Q267 199 334 131L363 116 344 166 377 127 373 178 416 111 407 171 456 121 444 183 488 161 493 205 528 199 540 268 551 316 526 286 503 236 477 214 426 236 368 213 330 261 312 329Z" fill="#071118"/>
-          <path d="M311 291L296 361 314 406 340 418 334 371 350 314Z" fill="#20343c" opacity=".8"/>
-          <path d="M335 312Q358 284 392 299L410 313 384 321 355 321Z" fill="#08151b"/>
-          <path d="M432 300Q465 276 494 294L508 310 477 315 449 313Z" fill="#08151b"/>
-          <path d="M339 319L379 316 391 323 375 328 345 327Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
-          <path d="M447 314L489 308 500 315 481 323 451 322Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
-          <path d="M410 318L398 362 419 371 432 361" fill="none" stroke="#263f47" strokeWidth="5" strokeLinecap="round"/>
-          <path d="M396 397Q426 410 455 390" fill="none" stroke="#162d35" strokeWidth="4" strokeLinecap="round"/>
-          <path d="M381 405L418 414 450 396 441 432 411 448 385 430Z" fill="#0c1a21" stroke="#2b4a50" strokeWidth="2"/>
-          <path d="M304 366Q320 405 344 433L370 465 393 475 368 487Q320 461 294 407L286 361Z" fill="#1b2d35" opacity=".78"/>
-          <path d="M497 274Q516 304 503 358L487 393 510 379 531 333 527 277Z" fill="#02090f" opacity=".8"/>
-          <path d="M207 651L277 605 329 630 347 702 313 771 219 780 180 717Z" fill="url(#cyrus-metal)" stroke="#4d7477" strokeWidth="2"/>
-          <path d="M501 628L541 603 603 641 640 717 594 772 517 761 483 706Z" fill="url(#cyrus-metal)" stroke="#45676b" strokeWidth="2"/>
-          <path d="M233 661L283 631 312 657 324 711 291 748 231 741 207 708Z" fill="#07131b" stroke="#2e5459" strokeWidth="2"/>
-          <path d="M527 655L552 631 588 657 615 712 583 743 530 735 508 699Z" fill="#07131b" stroke="#2e5459" strokeWidth="2"/>
-          <path d="M263 647L285 635 300 656 279 671Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
-          <path d="M549 643L564 632 580 652 563 666Z" fill="url(#cyrus-energy)" filter="url(#cyrus-glow)"/>
-          <path d="M341 652L359 628 384 643 374 719 351 758 332 707Z" fill="#071016" stroke="#3c6267" strokeWidth="2"/>
-          <path d="M465 638L486 628 507 651 511 716 485 751 467 700Z" fill="#071016" stroke="#3c6267" strokeWidth="2"/>
-          <path d="M378 648L422 627 461 649 456 736 420 770 384 734Z" fill="#0b1a22" stroke="#42676b" strokeWidth="2"/>
-          <path d="M401 665L421 652 441 666 436 700 420 713 405 699Z" fill="url(#cyrus-energy)" opacity=".9" filter="url(#cyrus-glow)"/>
-          <path d="M420 672L429 681 420 691 411 681Z" fill="#e0fff8"/>
-          <path d="M341 694L326 761 358 817M487 696L502 764 478 817M384 736L374 817M455 736L464 817" fill="none" stroke="#34d7bd" strokeOpacity=".7" strokeWidth="3"/>
-          <path d="M235 799L318 836 384 850 420 831 469 842 545 802 570 900H192Z" fill="#03070b" stroke="#28474d" strokeWidth="2"/>
-          <path d="M265 815L346 852 384 850M553 815L469 854 423 849" fill="none" stroke="#52f4d5" strokeOpacity=".55" strokeWidth="2"/>
-          <g fill="none" stroke="url(#cyrus-energy)" strokeWidth="2.5" strokeLinecap="round" filter="url(#cyrus-glow)">
-            <path d="M225 672L248 692 249 731 274 748"/>
-            <path d="M576 665L556 692 564 723 587 736"/>
-            <path d="M348 605L364 620 359 652"/>
-            <path d="M486 598L470 616 479 649"/>
-          </g>
-          <g stroke="#aac9c8" strokeOpacity=".25" fill="none">
-            <path d="M250 625L286 602 310 619M526 615L552 603 584 624"/>
-            <path d="M352 764L368 787 368 817M480 765L462 789 462 817"/>
-            <path d="M315 444L341 466 365 474M490 437L473 462 450 474"/>
-          </g>
-          <text x="420" y="881" textAnchor="middle" fill="#69ead6" fontSize="12" letterSpacing="5" opacity=".85">CYRUS / CORE 07</text>
-        </svg>
-        <div className="cyrus-nameplate"><small>INTELLIGENCE ENTITY</small><strong>CYRUS<span>—07</span></strong><em>SELF-AWARENESS: SIMULATED</em></div>
-        <div className="cyrus-hud cyrus-hud-left"><span>01 / REASONING</span><b><i/> ONLINE</b><small>Objective decomposition</small></div>
-        <div className="cyrus-hud cyrus-hud-right"><span>02 / EXECUTION</span><b>{busy?'ACTIVE':'STANDBY'}</b><small>{currentAgents.length} agents · {runtimeState}</small></div>
-        <div className="cyrus-scroll-cue"><span>SCROLL TO MEET THE SYSTEM</span><i/></div>
+  const handlePointerMove=event=>{
+    const rect=event.currentTarget.getBoundingClientRect();
+    if(!rect.width||!rect.height)return;
+    const x=(event.clientX-rect.left)/rect.width;
+    const y=(event.clientY-rect.top)/rect.height;
+    event.currentTarget.style.setProperty('--doom-tilt-x',((.5-y)*8).toFixed(2)+'deg');
+    event.currentTarget.style.setProperty('--doom-tilt-z',((x-.5)*5).toFixed(2)+'deg');
+  };
+  const resetPointer=event=>{
+    event.currentTarget.style.setProperty('--doom-tilt-x','0deg');
+    event.currentTarget.style.setProperty('--doom-tilt-z','0deg');
+  };
+  return <div className="cyrus-hero-visual doom-scene" onPointerMove={handlePointerMove} onPointerLeave={resetPointer}>
+    <div className="doom-atmosphere" aria-hidden="true"><i/><i/><i/><span className="doom-rune-ring"/></div>
+    <div className="doom-smoke" aria-hidden="true">
+      <span className="doom-smoke-puff puff-a"/><span className="doom-smoke-puff puff-b"/><span className="doom-smoke-puff puff-c"/>
+      <span className="doom-smoke-puff puff-d"/><span className="doom-smoke-puff puff-e"/><span className="doom-smoke-puff puff-f"/>
+      <span className="doom-smoke-puff puff-g"/><span className="doom-ground-fog"/>
+    </div>
+    <div className="doom-character-label"><i/><span>VICTOR VON DOOM</span><b>LATVERIA / PRIME</b></div>
+    <div className="doom-rotation">
+      <div className="doom-spinner">
+        <div className="doom-float-wrap">
+          <svg className="cyrus-portrait doom-face doom-front" viewBox="0 0 700 900" role="img" aria-labelledby="doom-title doom-desc">
+            <title id="doom-title">Doctor Doom, Marvel's armored ruler of Latveria</title>
+            <desc id="doom-desc">Fan-inspired vector depiction of Doctor Doom wearing a deep green hood and cloak, silver riveted metal mask, dark green armor and a glowing emerald core.</desc>
+            <defs>
+              <linearGradient id="doom-cloak" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#365d35"/><stop offset=".22" stopColor="#17391e"/><stop offset=".57" stopColor="#071a0b"/><stop offset="1" stopColor="#020803"/></linearGradient>
+              <linearGradient id="doom-cloak-lit" x1="0" y1="0" x2="1" y2=".3"><stop offset="0" stopColor="#568345"/><stop offset=".32" stopColor="#1b4921"/><stop offset="1" stopColor="#041007"/></linearGradient>
+              <linearGradient id="doom-steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#eff3db"/><stop offset=".17" stopColor="#8d9a87"/><stop offset=".36" stopColor="#e0e7d4"/><stop offset=".63" stopColor="#69786d"/><stop offset=".82" stopColor="#c5d0bd"/><stop offset="1" stopColor="#394a40"/></linearGradient>
+              <linearGradient id="doom-steel-dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#aab9a8"/><stop offset=".5" stopColor="#34473b"/><stop offset="1" stopColor="#101b13"/></linearGradient>
+              <linearGradient id="doom-armor" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#27412b"/><stop offset=".3" stopColor="#14281a"/><stop offset=".68" stopColor="#07150b"/><stop offset="1" stopColor="#010602"/></linearGradient>
+              <linearGradient id="doom-green" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#b9ff75"/><stop offset=".5" stopColor="#4aff3f"/><stop offset="1" stopColor="#0c9d25"/></linearGradient>
+              <radialGradient id="doom-aura"><stop offset="0" stopColor="#54ff3b" stopOpacity=".34"/><stop offset=".5" stopColor="#1bcb31" stopOpacity=".13"/><stop offset="1" stopColor="#031004" stopOpacity="0"/></radialGradient>
+              <filter id="doom-green-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="8" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              <filter id="doom-metal-shadow" x="-30%" y="-30%" width="160%" height="180%"><feGaussianBlur in="SourceAlpha" stdDeviation="6"/><feOffset dy="9"/><feComponentTransfer><feFuncA type="linear" slope=".5"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              <pattern id="doom-weave" width="18" height="18" patternUnits="userSpaceOnUse"><path d="M0 18L18 0M-5 5L5-5M13 23L23 13" stroke="#81b45c" strokeOpacity=".12" strokeWidth="1"/></pattern>
+            </defs>
+            <ellipse cx="360" cy="420" rx="280" ry="420" fill="url(#doom-aura)"/>
+            <g className="doom-cape">
+              <path d="M257 348Q190 365 139 440L87 598Q62 738 28 900H676Q640 757 611 599L559 437Q513 372 447 350L387 391Z" fill="#030904" stroke="#213c20" strokeWidth="4"/>
+              <path d="M278 357L184 408 126 570 75 872 177 900 289 621Z" fill="url(#doom-cloak-lit)" stroke="#496e39" strokeWidth="3"/>
+              <path d="M426 357L520 408 577 570 630 872 528 900 416 621Z" fill="url(#doom-cloak)" stroke="#36562c" strokeWidth="3"/>
+              <path d="M183 414L235 397 204 640 150 886 111 895 158 616Z" fill="#5d8d3d" opacity=".32"/>
+              <path d="M520 414L465 395 496 640 550 886 590 895 542 616Z" fill="#8bb94c" opacity=".17"/>
+              <path d="M276 368Q235 519 251 664L216 900H489L455 664Q471 519 429 368Z" fill="#08180b" stroke="#304d25" strokeWidth="3"/>
+              <path d="M275 379L242 492 256 706 220 900H282L314 613 315 444Z" fill="url(#doom-weave)" opacity=".8"/>
+              <path d="M429 379L462 492 448 706 484 900H422L390 613 389 444Z" fill="url(#doom-weave)" opacity=".8"/>
+              <path d="M226 430L273 387 300 451 268 553 218 620 188 585Z" fill="#1d3f21" stroke="#557a3d" strokeWidth="2"/>
+              <path d="M478 430L431 387 404 451 436 553 486 620 516 585Z" fill="#0e2914" stroke="#456c32" strokeWidth="2"/>
+            </g>
+            <g className="doom-shoulder-armor">
+              <path d="M267 395L215 398 166 455 145 538 211 579 288 524 323 449Z" fill="url(#doom-armor)" stroke="#607c49" strokeWidth="4"/>
+              <path d="M433 395L485 398 534 455 555 538 489 579 412 524 377 449Z" fill="url(#doom-armor)" stroke="#536e41" strokeWidth="4"/>
+              <path d="M177 470L224 426 261 440 222 500 166 527Z" fill="#5c8341" opacity=".62"/>
+              <path d="M523 470L476 426 439 440 478 500 534 527Z" fill="#385d2c" opacity=".7"/>
+              <path d="M172 533L213 548 232 530M528 533L487 548 468 530" fill="none" stroke="#9aae83" strokeOpacity=".5" strokeWidth="4"/>
+              <circle cx="200" cy="469" r="7" fill="url(#doom-steel)" stroke="#101c12" strokeWidth="3"/>
+              <circle cx="500" cy="469" r="7" fill="url(#doom-steel)" stroke="#101c12" strokeWidth="3"/>
+            </g>
+            <g className="doom-hood">
+              <path d="M239 184Q246 74 348 46Q456 38 493 133L508 282 485 374 435 414 265 410 219 348 213 273Z" fill="url(#doom-cloak)" stroke="#66894d" strokeWidth="4"/>
+              <path d="M229 259Q220 142 294 84L345 55 322 117 357 79 373 57 376 111 421 69 415 130 460 112 479 177 490 278 466 248 439 211 390 201 341 220 302 249 276 309Z" fill="#0a170b" stroke="#314e2b" strokeWidth="3"/>
+              <path d="M238 221Q256 111 327 76L306 131 341 101 331 154 366 102 365 158 414 96 407 163 445 137 464 206 475 281 447 244 425 220 383 232 333 246 293 278 274 330Z" fill="#18361b"/>
+              <path d="M248 244Q266 154 321 119L307 183 338 141 343 199 374 146 382 198 423 154 413 210 452 193 464 251 447 300 432 256 393 244 348 259 303 290 281 333Z" fill="#040c05"/>
+              <path d="M253 210Q220 274 240 333L270 384 302 408 292 358 276 290 292 235Z" fill="#080f08" stroke="#37552d" strokeWidth="3"/>
+              <path d="M468 210Q500 274 480 333L450 384 418 408 428 358 444 290 428 235Z" fill="#030803" stroke="#2b4823" strokeWidth="3"/>
+            </g>
+            <g className="doom-neck">
+              <path d="M300 347L293 418 326 456 371 469 418 451 447 413 437 343Z" fill="url(#doom-steel-dark)" stroke="#334a39" strokeWidth="3"/>
+              <path d="M315 376L335 428 369 445 405 427 427 376" fill="none" stroke="#91a68a" strokeOpacity=".6" strokeWidth="4"/>
+            </g>
+            <g className="doom-mask" filter="url(#doom-metal-shadow)">
+              <path d="M276 187Q291 145 348 139L402 145Q456 153 464 196L451 284 419 340 372 368 326 340 290 286Z" fill="url(#doom-steel)" stroke="#d3dfc8" strokeWidth="3"/>
+              <path d="M276 193L307 205 307 282 326 327 348 349 327 340 290 286Z" fill="#526554" opacity=".72"/>
+              <path d="M463 194L436 205 438 282 418 327 396 349 419 340 451 284Z" fill="#37483c" opacity=".77"/>
+              <path d="M293 207L335 190 350 212 333 230 301 231Z" fill="#19291e" stroke="#617767" strokeWidth="3"/>
+              <path d="M411 190L451 207 443 231 411 230 394 212Z" fill="#17281d" stroke="#617767" strokeWidth="3"/>
+              <path d="M298 214L333 204 342 215 330 221 300 224Z" fill="url(#doom-green)" filter="url(#doom-green-glow)"/>
+              <path d="M403 215L412 204 446 214 444 224 414 221Z" fill="url(#doom-green)" filter="url(#doom-green-glow)"/>
+              <path d="M370 208L351 253 365 273 378 266" fill="none" stroke="#4a5e4d" strokeWidth="7" strokeLinecap="round"/>
+              <path d="M370 220L362 252 372 261" fill="none" stroke="#eef8e0" strokeOpacity=".6" strokeWidth="2"/>
+              <path d="M332 274L369 290 408 274 397 319 370 337 343 319Z" fill="#344639" stroke="#19281c" strokeWidth="3"/>
+              <path d="M343 287L355 291M359 294L371 298M378 295L390 290M349 307L361 311M372 311L385 307" stroke="#c8d4c3" strokeWidth="3" strokeLinecap="round"/>
+              <path d="M329 321L369 341 411 321" fill="none" stroke="#26382b" strokeWidth="5"/>
+              <path d="M291 246L312 263 320 293M448 246L429 263 421 293" fill="none" stroke="#e5f1dd" strokeOpacity=".6" strokeWidth="2"/>
+              <g fill="#17271b" stroke="#d4e1cf" strokeWidth="2">
+                <circle cx="291" cy="214" r="5"/><circle cx="447" cy="214" r="5"/><circle cx="300" cy="277" r="5/><circle cx="438" cy="277" r="5"/><circle cx="316" cy="316" r="4"/><circle cx="423" cy="316" r="4"/>
+              </g>
+              <path d="M319 173L337 158 370 153 405 161 423 178" fill="none" stroke="#f4f8ec" strokeOpacity=".65" strokeWidth="3"/>
+            </g>
+            <g className="doom-armor-chest">
+              <path d="M279 413L315 388 370 409 425 388 460 413 438 546 406 594 370 620 333 594 300 546Z" fill="url(#doom-armor)" stroke="#4b6b3a" strokeWidth="4"/>
+              <path d="M315 410L341 424 332 535 308 559 294 529Z" fill="url(#doom-steel-dark)" stroke="#60795b" strokeWidth="3"/>
+              <path d="M425 410L399 424 408 535 432 559 446 529Z" fill="url(#doom-steel-dark)" stroke="#60795b" strokeWidth="3"/>
+              <path d="M341 426L370 441 399 426 406 521 370 559 334 521Z" fill="#08150a" stroke="#547342" strokeWidth="3"/>
+              <path d="M342 450L370 435 398 450 389 484 370 500 351 484Z" fill="#0e2412" stroke="#5ce53e" strokeWidth="3"/>
+              <path d="M356 457L370 449 384 457 380 473 370 481 360 473Z" fill="url(#doom-green)" filter="url(#doom-green-glow)"/>
+              <path d="M370 501L370 545M340 518L356 537M400 518L384 537" stroke="#4aff3f" strokeOpacity=".6" strokeWidth="3"/>
+              <path d="M321 562L370 579 419 562 405 594 370 620 335 594Z" fill="#020904" stroke="#274b25" strokeWidth="3"/>
+              <path d="M320 431L309 477 321 510M420 431L431 477 419 510" stroke="#6b8e59" strokeOpacity=".6" strokeWidth="3" fill="none"/>
+            </g>
+            <g className="doom-gauntlets">
+              <path d="M205 581L245 558 284 582 296 637 270 685 221 663 196 623Z" fill="url(#doom-steel-dark)" stroke="#577249" strokeWidth="4"/>
+              <path d="M494 581L454 558 415 582 403 637 429 685 478 663 503 623Z" fill="url(#doom-steel-dark)" stroke="#577249" strokeWidth="4"/>
+              <path d="M220 601L259 582 279 605 267 641 238 650 214 626Z" fill="#142a17" stroke="#9daf91" strokeWidth="2"/>
+              <path d="M479 601L440 582 420 605 432 641 461 650 485 626Z" fill="#0b200f" stroke="#8da681" strokeWidth="2"/>
+              <path d="M223 674L253 687 283 666 303 712 286 780 245 803 207 764Z" fill="url(#doom-cloak)" stroke="#29492a" strokeWidth="3"/>
+              <path d="M477 674L447 687 417 666 397 712 414 780 455 803 493 764Z" fill="url(#doom-cloak)" stroke="#29492a" strokeWidth="3"/>
+            </g>
+            <g className="doom-runes" fill="none" stroke="#62ff45" strokeWidth="2.5" filter="url(#doom-green-glow)" opacity=".9">
+              <path d="M251 485L270 506 261 529 280 546M489 485L470 506 479 529 460 546"/>
+              <path d="M312 611L333 632 333 657M428 611L407 632 407 657"/>
+              <path d="M347 660L370 682 393 660"/>
+            </g>
+            <text x="370" y="846" textAnchor="middle" fill="#90ff6a" fontSize="14" fontFamily="monospace" letterSpacing="7">DOOM / LATVERIA</text>
+          </svg>
+          <svg className="cyrus-portrait doom-face doom-back" viewBox="0 0 700 900" aria-hidden="true">
+            <defs>
+              <linearGradient id="doom-back-cloak" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#355d2b"/><stop offset=".35" stopColor="#143819"/><stop offset="1" stopColor="#020803"/></linearGradient>
+              <linearGradient id="doom-back-steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#b5c2a6"/><stop offset=".5" stopColor="#293a2e"/><stop offset="1" stopColor="#080f09"/></linearGradient>
+            </defs>
+            <ellipse cx="350" cy="425" rx="285" ry="400" fill="url(#doom-aura)"/>
+            <path d="M270 900L250 596Q218 464 233 278Q239 88 351 45Q466 70 475 278Q490 464 457 596L433 900Z" fill="url(#doom-back-cloak)" stroke="#638b43" strokeWidth="5"/>
+            <path d="M250 273Q250 104 350 68Q451 104 452 273L430 419 394 484 306 484 270 419Z" fill="#071308" stroke="#4e7535" strokeWidth="4"/>
+            <path d="M268 284Q270 136 350 103Q430 136 432 284L409 405 376 453 324 453 291 405Z" fill="#1d421d" stroke="#78975a" strokeWidth="3"/>
+            <path d="M286 270L312 177 341 143 329 231 349 176 365 232 384 143 398 241 417 192 418 289 398 371 373 407 329 407 305 371Z" fill="#0a170a"/>
+            <path d="M239 505L300 460 350 498 401 460 462 505 510 705 478 900H223L190 705Z" fill="#07120a" stroke="#3f602b" strokeWidth="4"/>
+            <path d="M290 470L350 504 410 470 448 660 408 900H292L252 660Z" fill="url(#doom-back-steel)" stroke="#546b49" strokeWidth="3"/>
+            <path d="M350 512L350 850" stroke="#80ff50" strokeOpacity=".7" strokeWidth="3"/>
+            <path d="M264 568L315 604 315 704 275 820M436 568L385 604 385 704 425 820" stroke="#73e64d" strokeOpacity=".65" strokeWidth="4" fill="none"/>
+            <path d="M249 546L294 531 326 562 315 617 274 633 240 594ZM451 546L406 531 374 562 385 617 426 633 460 594Z" fill="#0a1c0d" stroke="#77935d" strokeWidth="3"/>
+            <path d="M310 624L350 646 390 624 380 695 350 716 320 695Z" fill="#08120a" stroke="#5be13f" strokeWidth="3"/>
+            <path d="M350 654L366 673 350 691 334 673Z" fill="url(#doom-green)" filter="url(#doom-green-glow)"/>
+            <text x="350" y="846" textAnchor="middle" fill="#90ff6a" fontSize="14" fontFamily="monospace" letterSpacing="7">DOOM / LATVERIA</text>
+          </svg>
+        </div>
       </div>
-  )
+    </div>
+    <div className="doom-hud doom-hud-left"><span>ARMOR STATUS</span><b><i/> ACTIVE</b><small>Vibranium-steel alloy</small></div>
+    <div className="doom-hud doom-hud-right"><span>CORE REACTOR</span><b>{busy?'OVERDRIVE':'STABLE'}</b><small>{currentAgents.length||7} agents · {runtimeState}</small></div>
+    <div className="cyrus-nameplate doom-nameplate"><small>RULER OF LATVERIA</small><strong>DOCTOR DOOM</strong><em>VICTOR VON DOOM / CYRUS EDITION</em></div>
+    <div className="cyrus-scroll-cue"><span>ENTER THE GREEN KINGDOM</span><i/></div>
+  </div>
 }
 
 function HomeView({go,runtimeState,busy,agents,openPalette}){
