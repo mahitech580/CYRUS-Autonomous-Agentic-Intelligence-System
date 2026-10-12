@@ -606,6 +606,10 @@ function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()
       const tick=()=>{
         const elapsed=clock.getElapsedTime();
         const delta=Math.min(.05,Math.max(0,elapsed-previous));previous=elapsed;
+        const targetFov=controlsRef.current.cinematic?28:35;
+        if(reduced)camera.fov=targetFov;
+        else if(Math.abs(camera.fov-targetFov)>.025)camera.fov=T.MathUtils.lerp(camera.fov,targetFov,.045);
+        camera.updateProjectionMatrix();
         const tiltX=parseFloat(host.closest('.doom-scene')?.style.getPropertyValue('--doom-tilt-x')||'0')||0;
         const tiltZ=parseFloat(host.closest('.doom-scene')?.style.getPropertyValue('--doom-tilt-z')||'0')||0;
         tiltRig.rotation.x=T.MathUtils.lerp(tiltRig.rotation.x,tiltX*Math.PI/180,.08);
