@@ -466,7 +466,7 @@ function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()
               <path d="M329 321L369 341 411 321" fill="none" stroke="#26382b" strokeWidth="5"/>
               <path d="M291 246L312 263 320 293M448 246L429 263 421 293" fill="none" stroke="#e5f1dd" strokeOpacity=".6" strokeWidth="2"/>
               <g fill="#17271b" stroke="#d4e1cf" strokeWidth="2">
-                <circle cx="291" cy="214" r="5"/><circle cx="447" cy="214" r="5"/><circle cx="300" cy="277" r="5/><circle cx="438" cy="277" r="5"/><circle cx="316" cy="316" r="4"/><circle cx="423" cy="316" r="4"/>
+                <circle cx="291" cy="214" r="5"/><circle cx="447" cy="214" r="5"/><circle cx="300" cy="277" r="5"/><circle cx="438" cy="277" r="5"/><circle cx="316" cy="316" r="4"/><circle cx="423" cy="316" r="4"/>
               </g>
               <path d="M319 173L337 158 370 153 405 161 423 178" fill="none" stroke="#f4f8ec" strokeOpacity=".65" strokeWidth="3"/>
             </g>
@@ -499,9 +499,9 @@ function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()
           <svg className="cyrus-portrait doom-face doom-back" viewBox="0 0 700 900" aria-hidden="true">
             <defs>
               <linearGradient id="doom-back-cloak" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#355d2b"/><stop offset=".35" stopColor="#143819"/><stop offset="1" stopColor="#020803"/></linearGradient>
-              <linearGradient id="doom-back-steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#b5c2a6"/><stop offset=".5" stopColor="#293a2e"/><stop offset="1" stopColor="#080f09"/></linearGradient>
+              <linearGradient id="doom-back-steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#b5c2a6"/><stop offset=".5" stopColor="#293a2e"/><stop offset="1" stopColor="#080f09"/></linearGradient><radialGradient id="doom-back-aura"><stop offset="0" stopColor="#54ff3b" stopOpacity=".3"/><stop offset="1" stopColor="#031004" stopOpacity="0"/></radialGradient>
             </defs>
-            <ellipse cx="350" cy="425" rx="285" ry="400" fill="url(#doom-aura)"/>
+            <ellipse cx="350" cy="425" rx="285" ry="400" fill="url(#doom-back-aura)"/>
             <path d="M270 900L250 596Q218 464 233 278Q239 88 351 45Q466 70 475 278Q490 464 457 596L433 900Z" fill="url(#doom-back-cloak)" stroke="#638b43" strokeWidth="5"/>
             <path d="M250 273Q250 104 350 68Q451 104 452 273L430 419 394 484 306 484 270 419Z" fill="#071308" stroke="#4e7535" strokeWidth="4"/>
             <path d="M268 284Q270 136 350 103Q430 136 432 284L409 405 376 453 324 453 291 405Z" fill="#1d421d" stroke="#78975a" strokeWidth="3"/>
