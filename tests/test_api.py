@@ -99,6 +99,41 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(len(plan), 6)
         self.assertGreaterEqual(len(research), 4)
 
+    def test_github_pages_origin_receives_api_cors_headers(self):
+        response = self.client.get(
+            "/api/health",
+            headers={"Origin": "https://mahitech580.github.io"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Access-Control-Allow-Origin"), "https://mahitech580.github.io")
+        self.assertIn("GET", response.headers.get("Access-Control-Allow-Methods", ""))
+        self.assertIn("POST", response.headers.get("Access-Control-Allow-Methods", ""))
+        self.assertIn("Origin", response.headers.get("Vary", ""))
+
+    def test_api_preflight_accepts_execution_and_sse_headers(self):
+        response = self.client.options(
+            "/api/execute",
+            headers={
+                "Origin": "https://mahitech580.github.io",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type,idempotency-key",
+            },
+        )
+        self.assertIn(response.status_code, (200, 204))
+        self.assertEqual(response.headers.get("Access-Control-Allow-Origin"), "https://mahitech580.github.io")
+        allowed_headers = response.headers.get("Access-Control-Allow-Headers", "").lower()
+        self.assertIn("content-type", allowed_headers)
+        self.assertIn("idempotency-key", allowed_headers)
+        self.assertIn("last-event-id", allowed_headers)
+
+    def test_disallowed_origin_does_not_receive_cors_grant(self):
+        response = self.client.get(
+            "/api/health",
+            headers={"Origin": "https://malicious.example"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.headers.get("Access-Control-Allow-Origin"))
+
     def test_health_contract(self):
         response = self.client.get("/api/health")
         self.assertEqual(response.status_code, 200)
