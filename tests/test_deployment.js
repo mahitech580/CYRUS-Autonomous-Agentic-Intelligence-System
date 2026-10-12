@@ -37,3 +37,41 @@ const refreshedCss = fs.readFileSync("styles.css", "utf8");
 for (const style of ["--trip-green:#2fbb78","--trip-red:#b83d35",".editorial-hero",".page-stat-rail",".registry-grid",".tool-category-grid",".memory-gallery","prefers-reduced-motion:reduce"]) {
   assert.ok(refreshedCss.includes(style), "Missing TripPilot-inspired style: " + style);
 }
+
+
+const motionSource = fs.readFileSync("app.js", "utf8");
+for (const feature of [
+  "motion-progress",
+  "motion-reveal",
+  "motion-tilt",
+  "IntersectionObserver",
+  "prefers-reduced-motion: reduce",
+  "architecture-cube",
+  "architecture-orbit",
+  "motion-scroll-progress"
+]) {
+  assert.ok(motionSource.includes(feature), "Missing motion system behavior: " + feature);
+}
+const motionStyles = fs.readFileSync("styles.css", "utf8");
+for (const style of [
+  ".motion-progress",
+  ".motion-tilt.is-tilting",
+  ".motion-architecture",
+  "transform-style:preserve-3d",
+  "@keyframes motion-orbit-a",
+  "@keyframes motion-cube-float",
+  "@keyframes motion-row-in",
+  "@media(prefers-reduced-motion:reduce)"
+]) {
+  assert.ok(motionStyles.includes(style), "Missing 3D motion style: " + style);
+}
+
+
+assert.ok(fs.readFileSync("app.js", "utf8").includes("cyrus-motion"), "Motion preference must persist between visits");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("aria-pressed={motionEnabled}"), "Motion toggle must expose its state accessibly");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("motionEnabled?'MOTION ON':'CALM MODE'"), "Motion control must have clear on/off labels");
+assert.ok(fs.readFileSync("styles.css", "utf8").includes("html.motion-disabled"), "Calm mode must suppress animation and tilt styles");
+
+assert.ok(fs.readFileSync("app.js", "utf8").includes("--motion-image-x"), "Pointer input must drive image parallax");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("removeProperty('--motion-image-x')"), "Image parallax variables must be cleaned when the pointer leaves");
+assert.ok(fs.readFileSync("styles.css", "utf8").includes("translate3d(var(--motion-image-x,0px),var(--motion-image-y,0px),0)"), "Image parallax must use browser-safe pixel transforms");

@@ -48,8 +48,15 @@ function App(){
   const [runtimeState,setRuntimeState]=useState('CONNECTING')
   const [runtimeMetrics,setRuntimeMetrics]=useState(null)
   const [paletteOpen,setPaletteOpen]=useState(false)
+  const [motionEnabled,setMotionEnabled]=useState(()=>{try{return localStorage.getItem('cyrus-motion')!=='off'}catch{return true}})
 
   const notify=message=>{setToast(message);window.clearTimeout(window.__cyrusToastTimer);window.__cyrusToastTimer=window.setTimeout(()=>setToast(''),2500)}
+  const toggleMotion=()=>{
+    const next=!motionEnabled
+    setMotionEnabled(next)
+    try{localStorage.setItem('cyrus-motion',next?'on':'off')}catch{}
+    notify(next?'Immersive motion enabled':'Calm mode enabled')
+  }
   const loadBase=async()=>{
     try{
       const [health,a,t,h,healthMetrics]=await Promise.all([apiJson('/api/health'),apiJson('/api/agents'),apiJson('/api/tools'),apiJson('/api/tasks'),apiJson('/api/metrics')])
@@ -63,14 +70,97 @@ function App(){
     const data=await apiJson('/api/tasks/'+id);setTask(data);return data
   }
   useEffect(()=>{
-    const nodes=[...document.querySelectorAll('[data-reveal]')]
-    if(!nodes.length)return
-    const observer=new IntersectionObserver(entries=>{
-      entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('is-visible');observer.unobserve(entry.target)}})
-    },{threshold:.12})
-    nodes.forEach(node=>observer.observe(node))
-    return()=>observer.disconnect()
-  },[page])
+    const root=document.querySelector('.main')
+    if(!root)return
+    const systemReduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const reduced=systemReduced||!motionEnabled
+    document.documentElement.classList.toggle('motion-disabled',reduced)
+    const revealSelector=[
+      '.nx-hero','.nx-console','.nx-signal','.nx-workbench','.nx-observability','.nx-capabilities','.nx-bottom-cta',
+      '.editorial-hero','.page-stat-rail','.page-section','.page-spotlight','.tool-category-grid','.memory-retention-note',
+      '.history-overview','.history-console','.registry-card','.tool-library-card','.memory-gallery-card','.history-stat','.nx-cap-card'
+    ].join(',')
+    const revealNodes=[...new Set(root.querySelectorAll(revealSelector))]
+    let observer=null
+    if(reduced||!('IntersectionObserver' in window)){
+      revealNodes.forEach(node=>node.classList.add('motion-in'))
+    }else{
+      revealNodes.forEach((node,index)=>{
+        node.classList.add('motion-reveal')
+        node.style.setProperty('--motion-delay',Math.min(index%6,5)*55+'ms')
+      })
+      observer=new IntersectionObserver(entries=>{
+        entries.forEach(entry=>{
+          if(entry.isIntersecting){
+            entry.target.classList.add('motion-in')
+            observer.unobserve(entry.target)
+          }
+        })
+      },{threshold:.06,rootMargin:'0px 0px -32px 0px'})
+      revealNodes.forEach(node=>observer.observe(node))
+    }
+
+    const tiltSelector=[
+      '.nx-hero','.editorial-hero','.nx-console','.nx-panel','.nx-signal','.nx-cap-card',
+      '.registry-card','.tool-category-grid article','.tool-library-card','.memory-gallery-card','.page-spotlight',
+      '.history-stat','.history-console'
+    ].join(',')
+    const tiltNodes=[...new Set(root.querySelectorAll(tiltSelector))]
+    const listeners=[]
+    if(!reduced&&window.matchMedia('(pointer:fine)').matches){
+      tiltNodes.forEach(node=>{
+        node.classList.add('motion-tilt')
+        const strength=node.matches('.nx-hero,.editorial-hero')?1.15:node.matches('.nx-console,.history-console,.page-spotlight')?1.8:3.1
+        const onMove=event=>{
+          const rect=node.getBoundingClientRect()
+          if(!rect.width||!rect.height)return
+          const x=(event.clientX-rect.left)/rect.width
+          const y=(event.clientY-rect.top)/rect.height
+          const rx=(.5-y)*strength*2
+          const ry=(x-.5)*strength*2
+          node.style.setProperty('--motion-rotate-x',rx.toFixed(2)+'deg')
+          node.style.setProperty('--motion-rotate-y',ry.toFixed(2)+'deg')
+          node.style.setProperty('--motion-origin-x',(x*100).toFixed(1)+'%')
+          node.style.setProperty('--motion-origin-y',(y*100).toFixed(1)+'%')
+          node.style.setProperty('--motion-image-x',((.5-x)*14).toFixed(2)+'px')
+          node.style.setProperty('--motion-image-y',((.5-y)*10).toFixed(2)+'px')
+          node.classList.add('is-tilting')
+        }
+        const onLeave=()=>{
+          node.classList.remove('is-tilting')
+          node.style.removeProperty('--motion-rotate-x')
+          node.style.removeProperty('--motion-rotate-y')
+          node.style.removeProperty('--motion-origin-x')
+          node.style.removeProperty('--motion-origin-y')
+          node.style.removeProperty('--motion-image-x')
+          node.style.removeProperty('--motion-image-y')
+        }
+        node.addEventListener('pointermove',onMove,{passive:true})
+        node.addEventListener('pointerleave',onLeave,{passive:true})
+        listeners.push(()=>{node.removeEventListener('pointermove',onMove);node.removeEventListener('pointerleave',onLeave);onLeave();node.classList.remove('motion-tilt')})
+      })
+    }
+
+    let frame=0
+    const updateProgress=()=>{
+      const maximum=Math.max(1,document.documentElement.scrollHeight-window.innerHeight)
+      const progress=Math.max(0,Math.min(100,(window.scrollY/maximum)*100))
+      document.documentElement.style.setProperty('--motion-scroll-progress',progress.toFixed(2)+'%')
+    }
+    const onScroll=()=>{
+      if(frame)return
+      frame=window.requestAnimationFrame(()=>{frame=0;updateProgress()})
+    }
+    updateProgress()
+    window.addEventListener('scroll',onScroll,{passive:true})
+    return()=>{
+      observer?.disconnect()
+      listeners.forEach(cleanup=>cleanup())
+      window.removeEventListener('scroll',onScroll)
+      if(frame)window.cancelAnimationFrame(frame)
+      document.documentElement.classList.remove('motion-disabled')
+    }
+  },[page,motionEnabled])
   useEffect(()=>{
     loadBase()
     const onOnline=()=>{setRuntimeState('CONNECTING');loadBase()}
@@ -164,6 +254,7 @@ function App(){
   const go=next=>{setPage(next);setPaletteOpen(false);window.scrollTo({top:0,behavior:'smooth'})}
 
   return <div className="app-shell">
+    <div className="motion-progress" aria-hidden="true"/>
     <header className="site-nav">
       <button className="nav-brand" onClick={()=>go('Command')} aria-label="Open CYRUS Command">
         <span className="nav-brand-mark"><i/></span>
@@ -179,7 +270,7 @@ function App(){
     <main className="main">
       <div className="topbar">
         <div className="eyebrow">AUTONOMOUS ENGINEERING WORKSPACE</div>
-        <div className="top-actions"><div className="shortcut-pill">OBSERVABLE RUNTIME</div><div className="live-pill"><span className="dot"/>{runtimeState} · {busy?'RUNNING':'READY'}</div></div>
+        <div className="top-actions"><button className={'motion-toggle '+(motionEnabled?'active':'')} type="button" aria-pressed={motionEnabled} onClick={toggleMotion} title="Toggle motion effects"><span className="motion-toggle-icon" aria-hidden="true">{motionEnabled?'◉':'◌'}</span><span>{motionEnabled?'MOTION ON':'CALM MODE'}</span></button><div className="shortcut-pill">OBSERVABLE RUNTIME</div><div className="live-pill"><span className="dot"/>{runtimeState} · {busy?'RUNNING':'READY'}</div></div>
       </div>
       {page==='Command'&&<CommandView {...{prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents:task?.agents||agents.map(a=>({...a,status:'QUEUED'})),metrics:task?[
         ['EXECUTION',task.execution_time_ms?task.execution_time_ms+' ms':'—'],['TOOLS',task.tool_calls||0],['CONFIDENCE',task.confidence?task.confidence+'%':'—'],['RISK',task.risk||'—'],
@@ -306,6 +397,17 @@ function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAge
         </div>
       </div>
       <div className="nx-hero-visual">
+        <div className="motion-architecture" aria-hidden="true">
+          <div className="architecture-grid"/>
+          <div className="architecture-orbit orbit-one"/>
+          <div className="architecture-orbit orbit-two"/>
+          <div className="architecture-orbit orbit-three"/>
+          <div className="architecture-core"><span>C7</span><small>CYRUS CORE</small></div>
+          <div className="architecture-cube cube-one"><span className="cube-face front">01</span><span className="cube-face back">01</span><span className="cube-face right"/><span className="cube-face left"/><span className="cube-face top"/><span className="cube-face bottom"/></div>
+          <div className="architecture-cube cube-two"><span className="cube-face front">AI</span><span className="cube-face back">AI</span><span className="cube-face right"/><span className="cube-face left"/><span className="cube-face top"/><span className="cube-face bottom"/></div>
+          <div className="architecture-cube cube-three"><span className="cube-face front">↗</span><span className="cube-face back">↗</span><span className="cube-face right"/><span className="cube-face left"/><span className="cube-face top"/><span className="cube-face bottom"/></div>
+          <div className="architecture-signal signal-one"/><div className="architecture-signal signal-two"/><div className="architecture-signal signal-three"/>
+        </div>
         <div className="nx-visual-top"><span>CORE TELEMETRY</span><b><i/>{busy?'EXECUTING':'STANDBY'}</b></div>
         <CoreVisual agents={currentAgents} runtimeState={runtimeState} go={go}/>
         <div className="nx-visual-card left"><span>ACTIVE WORKLOADS</span><strong>{runtimeMetrics?.active_tasks||0}<small> / {runtimeMetrics?.capacity||4}</small></strong><em>capacity</em></div>

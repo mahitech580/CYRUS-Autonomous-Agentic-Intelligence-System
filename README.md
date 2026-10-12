@@ -82,7 +82,7 @@ The server is production-safe by default: development debug mode is disabled unl
 
 ## UI
 
-The Command surface contains the objective editor, execution mode switch, live seven-agent graph, metrics, trace and artifact explorer. The refreshed interface follows TripPilot's smoky charcoal surfaces, deep-red and travel-green accent system, soft-white typography, cinematic remote imagery, responsive section layouts and restrained image-motion. Agents, Memory, Tools and History each have their own image-led hero, sectioned content and operational controls.
+The Command surface contains the objective editor, execution mode switch, live seven-agent graph, metrics, trace and artifact explorer. The refreshed interface follows TripPilot's smoky charcoal surfaces, deep-red and travel-green accent system, soft-white typography and cinematic remote imagery. Its motion layer adds scroll-revealed sections, pointer-driven 3D card tilt, layered parallax imagery, a scroll-progress rail, an animated CSS 3D agent-core scene, floating wireframe cubes and orbit rings. Motion is disabled or softened when the user requests reduced motion, and the persistent Motion / Calm Mode switch provides an additional user-controlled override. Agents, Memory, Tools and History each have their own image-led hero, sectioned content and operational controls.
 
 ## Future improvements
 
