@@ -674,7 +674,7 @@ def tasks():
         return jsonify({"error": "Unsupported task status filter"}), 400
     live = list(runtime["tasks"].values())
     history = load_history()
-    merged = {item["task_id"]: item for item in history}
+    merged = {item["task_id"]: task_summary(item) for item in history}
     for task in live:
         merged[task["task_id"]] = task_summary(task)
     results = sorted(merged.values(), key=lambda x: x.get("created_at", ""), reverse=True)
