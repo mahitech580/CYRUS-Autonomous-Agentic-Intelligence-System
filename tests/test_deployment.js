@@ -88,7 +88,7 @@ for (const style of [".cyrus-hero-visual", ".cyrus-portrait", ".cyrus-origin-gri
 }
 
 const doomApp = fs.readFileSync("app.js", "utf8");
-for (const feature of ["Victor von Doom","doom-front","doom-back","onPointerMove","--doom-tilt-x","doom-smoke-puff","RULER OF LATVERIA"]) {
+for (const feature of ["VICTOR VON DOOM","doom-front","doom-back","onPointerMove","--doom-tilt-x","doom-smoke-puff","RULER OF LATVERIA"]) {
   assert.ok(doomApp.includes(feature), "Missing Doctor Doom scene behavior: " + feature);
 }
 const doomCss = fs.readFileSync("styles.css", "utf8");
