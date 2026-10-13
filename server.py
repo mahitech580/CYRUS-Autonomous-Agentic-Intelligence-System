@@ -23,7 +23,7 @@ app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("CYRUS_MAX_REQUEST_BYTES", "163
 MAX_PROMPT_CHARS = max(200, min(int(os.getenv("CYRUS_MAX_PROMPT_CHARS", "4000")), 20000))
 RELEASE_ID = os.getenv("CYRUS_RELEASE", "local")[:80]
 API_ACCESS_KEY = os.getenv("CYRUS_API_ACCESS_KEY", "").strip()
-PUBLIC_API_GET_PATHS = {"/api/health", "/api/ready", "/api/provider"}
+PUBLIC_API_GET_PATHS = {"/api/health", "/api/ready", "/api/provider", "/api/security"}
 MAX_TASK_RUNTIME_SECONDS = max(30, min(int(os.getenv("CYRUS_TASK_TIMEOUT_SECONDS", "240")), 900))
 
 DEFAULT_CORS_ORIGINS = {
@@ -507,17 +507,25 @@ def _run_task(task):
         task["latency_ms"] = elapsed
         task["status"] = "COMPLETED"
         task["current_agent"] = "RELEASE"
-        task["verification_status"] = "PLAN_GENERATED_NOT_EXECUTED"
+        task["verification_status"] = task.get("verification_status", "PLAN_GENERATED_NOT_EXECUTED")
         task["updated_at"] = now_iso()
         if PROVIDER.mode == "LIVE":
             task["summary"] = (
                 "Model-assisted workflow completed. Review scores are estimates; an implementation draft and "
-                "validation plan are available, but code was not executed in a sandbox."
+                "validation plan are available. " +
+                str(task.get("static_analysis", {}).get("checks_passed", 0)) +
+                " static checks passed and " +
+                str(task.get("static_analysis", {}).get("checks_failed", 0)) +
+                " failed; code was not executed and the proposed application tests were not run."
             )
         else:
             task["summary"] = (
                 "Deterministic demo workflow completed. Configure CYRUS_LLM_API_KEY in the Render environment "
-                "for model-powered planning, implementation, and design review. Proposed checks were not executed."
+                "for model-powered planning, implementation, and design review. " +
+                str(task.get("static_analysis", {}).get("checks_passed", 0)) +
+                " static checks passed and " +
+                str(task.get("static_analysis", {}).get("checks_failed", 0)) +
+                " failed; proposed application tests were not executed."
             )
         event(
             task, "RELEASE", "EXECUTION_COMPLETED",
