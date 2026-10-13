@@ -132,5 +132,9 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("Use environment variables for runtime credentials.")
         self.assertEqual(self.named(result, "likely_secret_scan")["status"], "PASS")
 
+    def test_25_eval_call_creates_a_review_warning(self):
+        result = self.check("value = eval(user_input)")
+        self.assertEqual(self.named(result, "execution_primitive_review")["status"], "WARN")
+
 if __name__ == "__main__":
     unittest.main()
