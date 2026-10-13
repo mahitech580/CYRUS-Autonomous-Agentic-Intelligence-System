@@ -27,5 +27,9 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(self.named(result, "draft_present")["status"], "FAIL")
         self.assertEqual(result["python_blocks_checked"], 0)
 
+    def test_04_whitespace_only_draft_fails_presence_check(self):
+        result = self.check(" \n\t  ")
+        self.assertEqual(self.named(result, "draft_present")["status"], "FAIL")
+
 if __name__ == "__main__":
     unittest.main()
