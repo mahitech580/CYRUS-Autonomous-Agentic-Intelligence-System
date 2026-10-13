@@ -1,8 +1,9 @@
 from flask import Flask, g, jsonify, request, send_from_directory, Response, stream_with_context
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor
 from providers import get_provider
 from static_analysis import analyze_draft
+from storage import HistoryStore
 from werkzeug.exceptions import HTTPException
 from pathlib import Path
 import json
@@ -111,6 +112,8 @@ MAX_CONCURRENT_TASKS = max(1, min(int(os.getenv("CYRUS_MAX_CONCURRENT_TASKS", "4
 MAX_LIVE_TASKS = max(20, min(int(os.getenv("CYRUS_MAX_LIVE_TASKS", "100")), 500))
 MAX_EXECUTIONS_PER_MINUTE = max(1, min(int(os.getenv("CYRUS_EXECUTIONS_PER_MINUTE", "12")), 120))
 history_lock = threading.RLock()
+HISTORY_STORE = HistoryStore(STORE.with_suffix(".sqlite3"))
+_legacy_migration_attempted = False
 PROVIDER = get_provider()
 
 runtime = {
@@ -135,29 +138,27 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 def load_history():
+    """Read database history and migrate the legacy JSON file once if needed."""
+    global _legacy_migration_attempted
     with history_lock:
-        if not STORE.exists():
-            return []
-        try:
-            payload = json.loads(STORE.read_text(encoding="utf-8"))
-            return payload if isinstance(payload, list) else []
-        except (OSError, json.JSONDecodeError, TypeError):
-            return []
+        items = HISTORY_STORE.load_all()
+        if items or _legacy_migration_attempted:
+            return items
+        _legacy_migration_attempted = True
+        if STORE.exists():
+            try:
+                legacy = json.loads(STORE.read_text(encoding="utf-8"))
+                if isinstance(legacy, list):
+                    HISTORY_STORE.save_all(legacy)
+                    items = HISTORY_STORE.load_all()
+            except (OSError, json.JSONDecodeError, TypeError, RuntimeError):
+                # Keep API health available; storage errors are reported by active routes.
+                return items
+        return items
 
 def save_history(items):
-    serialized = json.dumps(items[-100:], indent=2)
     with history_lock:
-        STORE.parent.mkdir(parents=True, exist_ok=True)
-        fd, temp_name = tempfile.mkstemp(prefix=".cyrus-history-", suffix=".tmp", dir=STORE.parent)
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as handle:
-                handle.write(serialized)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(temp_name, STORE)
-        finally:
-            if os.path.exists(temp_name):
-                os.unlink(temp_name)
+        HISTORY_STORE.save_all(items[-100:])
 
 def find_history_by_idempotency(key):
     if not key:
@@ -649,7 +650,8 @@ def health():
         "worker_capacity": MAX_CONCURRENT_TASKS,
         "active_tasks": active,
         "capacity_utilization": utilization,
-        "ready": active < MAX_CONCURRENT_TASKS
+        "ready": active < MAX_CONCURRENT_TASKS,
+        "history_store": HISTORY_STORE.info()
     })
 
 @app.get("/api/provider")
@@ -725,31 +727,163 @@ def runtime_metrics():
         "provider": PROVIDER.name,
         "api_access_key_required": bool(API_ACCESS_KEY),
         "persisted_tasks": len(history),
-        "average_execution_ms": round(sum(latencies) / len(latencies), 1) if latencies else 0
+        "average_execution_ms": round(sum(latencies) / len(latencies), 1) if latencies else 0,
+        "history_store": HISTORY_STORE.info()
     }
 
 @app.get("/api/metrics")
 def metrics():
     return jsonify(runtime_metrics())
 
+def all_task_records():
+    """Merge live task state over its persisted snapshot without duplicate IDs."""
+    merged = {item["task_id"]: item for item in load_history() if item.get("task_id")}
+    with runtime["lock"]:
+        live = list(runtime["tasks"].values())
+    for item in live:
+        merged[item["task_id"]] = item
+    return sorted(merged.values(), key=lambda item: item.get("created_at", ""), reverse=True)
+
+
 @app.get("/api/tasks")
 def tasks():
     try:
         limit = max(1, min(int(request.args.get("limit", "50")), 100))
+        offset = max(0, min(int(request.args.get("offset", "0")), 10000))
     except ValueError:
-        return jsonify({"error": "limit must be an integer"}), 400
+        return jsonify({"error": "limit and offset must be integers"}), 400
     status = request.args.get("status", "").strip().upper()
-    if status and status not in {"RUNNING", "AWAITING_APPROVAL", "COMPLETED", "FAILED", "CANCELLED"}:
+    allowed_statuses = {"QUEUED", "RUNNING", "AWAITING_APPROVAL", "COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"}
+    if status and status not in allowed_statuses:
         return jsonify({"error": "Unsupported task status filter"}), 400
-    live = list(runtime["tasks"].values())
-    history = load_history()
-    merged = {item["task_id"]: task_summary(item) for item in history}
-    for task in live:
-        merged[task["task_id"]] = task_summary(task)
-    results = sorted(merged.values(), key=lambda x: x.get("created_at", ""), reverse=True)
+    mode = request.args.get("mode", "").strip().lower()
+    if mode and mode not in {"autonomous", "supervised"}:
+        return jsonify({"error": "Unsupported task mode filter"}), 400
+    query = request.args.get("q", "").strip().lower()[:200]
+    results = [task_summary(item) for item in all_task_records()]
     if status:
         results = [item for item in results if item.get("status") == status]
-    return jsonify(results[:limit])
+    if mode:
+        results = [item for item in results if item.get("mode") == mode]
+    if query:
+        results = [
+            item for item in results
+            if query in str(item.get("objective", "")).lower()
+            or query in str(item.get("summary", "")).lower()
+            or query in str(item.get("task_id", "")).lower()
+        ]
+    return jsonify(results[offset:offset + limit])
+
+
+@app.get("/api/analytics")
+def analytics():
+    try:
+        days = max(1, min(int(request.args.get("days", "7")), 90))
+    except ValueError:
+        return jsonify({"error": "days must be an integer between 1 and 90"}), 400
+
+    records = all_task_records()
+    now = datetime.now(timezone.utc)
+    start_date = now.date() - timedelta(days=days - 1)
+    terminal_statuses = {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"}
+    status_counts = {name: 0 for name in (
+        "RUNNING", "QUEUED", "AWAITING_APPROVAL", "COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"
+    )}
+    daily = {}
+    latency_samples = []
+    provider_counts = {}
+    failure_counts = {}
+    for index in range(days):
+        day = start_date + timedelta(days=index)
+        daily[day.isoformat()] = {
+            "date": day.isoformat(), "label": day.strftime("%d %b"),
+            "total": 0, "completed": 0, "failed": 0, "cancelled": 0, "timed_out": 0
+        }
+
+    for item in records:
+        state = str(item.get("status", "UNKNOWN")).upper()
+        if state in status_counts:
+            status_counts[state] += 1
+        provider = str(item.get("provider") or "unknown")
+        provider_counts[provider] = provider_counts.get(provider, 0) + 1
+
+        created = None
+        raw_created = item.get("created_at")
+        if isinstance(raw_created, str):
+            try:
+                created = datetime.fromisoformat(raw_created.replace("Z", "+00:00"))
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+            except ValueError:
+                created = None
+        if created and start_date <= created.date() <= now.date():
+            bucket = daily.get(created.date().isoformat())
+            if bucket:
+                bucket["total"] += 1
+                if state == "COMPLETED":
+                    bucket["completed"] += 1
+                elif state == "FAILED":
+                    bucket["failed"] += 1
+                elif state == "CANCELLED":
+                    bucket["cancelled"] += 1
+                elif state == "TIMED_OUT":
+                    bucket["timed_out"] += 1
+
+        if state in terminal_statuses:
+            try:
+                value = int(item.get("execution_time_ms") or 0)
+                if value > 0:
+                    latency_samples.append(value)
+            except (TypeError, ValueError):
+                pass
+        failure = item.get("failure") or {}
+        failure_type = str(failure.get("type") or "") if isinstance(failure, dict) else ""
+        if failure_type:
+            failure_counts[failure_type] = failure_counts.get(failure_type, 0) + 1
+
+    terminal_total = sum(status_counts[name] for name in terminal_statuses)
+    latencies = sorted(latency_samples)
+    median = 0
+    p95 = 0
+    if latencies:
+        middle = len(latencies) // 2
+        median = latencies[middle] if len(latencies) % 2 else round((latencies[middle - 1] + latencies[middle]) / 2)
+        p95 = latencies[max(0, int(0.95 * len(latencies)) - 1)]
+    return jsonify({
+        "generated_at": now_iso(),
+        "window_days": days,
+        "source": "database_history_and_live_runtime",
+        "totals": {
+            "all": len(records),
+            "completed": status_counts["COMPLETED"],
+            "failed": status_counts["FAILED"],
+            "cancelled": status_counts["CANCELLED"],
+            "timed_out": status_counts["TIMED_OUT"],
+            "running": status_counts["RUNNING"],
+            "queued": status_counts["QUEUED"],
+            "awaiting_approval": status_counts["AWAITING_APPROVAL"],
+            "terminal": terminal_total,
+            "success_rate": round(status_counts["COMPLETED"] / terminal_total * 100, 1) if terminal_total else 0,
+        },
+        "daily": list(daily.values()),
+        "providers": [
+            {"name": name, "count": count}
+            for name, count in sorted(provider_counts.items(), key=lambda pair: pair[1], reverse=True)
+        ],
+        "latency": {
+            "samples": len(latencies),
+            "average_ms": round(sum(latencies) / len(latencies), 1) if latencies else 0,
+            "median_ms": median,
+            "p95_ms": p95,
+            "maximum_ms": max(latencies) if latencies else 0,
+        },
+        "failure_types": [
+            {"type": name, "count": count}
+            for name, count in sorted(failure_counts.items(), key=lambda pair: pair[1], reverse=True)[:6]
+        ],
+        "recent_tasks": [task_summary(item) for item in records[:8]],
+        "history_store": HISTORY_STORE.info(),
+    })
 
 @app.post("/api/tasks/<task_id>/approve")
 def approve_task(task_id):
