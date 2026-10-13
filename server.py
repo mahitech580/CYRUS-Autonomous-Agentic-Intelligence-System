@@ -364,7 +364,7 @@ def _run_task(task):
         if time.perf_counter() - started > MAX_TASK_RUNTIME_SECONDS:
             raise RuntimeError(f"Execution exceeded the {MAX_TASK_RUNTIME_SECONDS}-second task deadline")
         with runtime["lock"]:
-            task["status"] = "RUNNING
+            task["status"] = "RUNNING"
             task["current_agent"] = agent
             task["updated_at"] = now_iso()
             for item in task["agents"]:
