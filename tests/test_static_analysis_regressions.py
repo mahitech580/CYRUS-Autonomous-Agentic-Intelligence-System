@@ -198,5 +198,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         names = [item["name"] for item in result["checks"]]
         self.assertEqual(len(names), len(set(names)))
 
+    def test_39_summary_counts_match_check_statuses(self):
+        result = self.check("Draft without Python code")
+        self.assertEqual(result["checks_passed"], sum(item["status"] == "PASS" for item in result["checks"]))
+        self.assertEqual(result["checks_failed"], sum(item["status"] == "FAIL" for item in result["checks"]))
+
 if __name__ == "__main__":
     unittest.main()
