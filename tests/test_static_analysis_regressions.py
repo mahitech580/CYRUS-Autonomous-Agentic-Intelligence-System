@@ -165,5 +165,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check(fence + "python\n# reviewed draft\n" + fence)
         self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
 
+    def test_33_empty_python_block_is_parsed_without_execution(self):
+        fence = chr(96) * 3
+        result = self.check(fence + "python\n\n" + fence)
+        self.assertEqual(result["python_blocks_checked"], 1)
+        self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
+
 if __name__ == "__main__":
     unittest.main()
