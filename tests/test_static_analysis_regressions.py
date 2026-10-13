@@ -160,5 +160,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("def add(left, right):\n    return left + right")
         self.assertEqual(self.named(result, "execution_primitive_review")["status"], "PASS")
 
+    def test_32_comments_only_python_block_is_syntactically_valid(self):
+        fence = chr(96) * 3
+        result = self.check(fence + "python\n# reviewed draft\n" + fence)
+        self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
+
 if __name__ == "__main__":
     unittest.main()
