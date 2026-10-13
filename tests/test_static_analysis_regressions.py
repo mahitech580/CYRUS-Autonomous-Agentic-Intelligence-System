@@ -66,5 +66,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check(fence + "py\nprint('alias')\n" + fence)
         self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
 
+    def test_12_multiple_python_blocks_are_counted(self):
+        fence = chr(96) * 3
+        result = self.check(fence + "python\na = 1\n" + fence + "\n" + fence + "py\nb = 2\n" + fence)
+        self.assertEqual(result["python_blocks_checked"], 2)
+        self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
+
 if __name__ == "__main__":
     unittest.main()
