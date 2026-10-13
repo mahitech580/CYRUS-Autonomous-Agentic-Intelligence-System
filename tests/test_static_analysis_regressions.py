@@ -78,5 +78,12 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check(source)
         self.assertEqual(self.named(result, "python_syntax")["status"], "FAIL")
 
+    def test_14_python_that_would_raise_is_parsed_but_never_executed(self):
+        fence = chr(96) * 3
+        source = fence + "python\nraise RuntimeError('must not run')\n" + fence
+        result = self.check(source)
+        self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
+        self.assertFalse(result["code_executed"])
+
 if __name__ == "__main__":
     unittest.main()
