@@ -2960,3 +2960,41 @@ body:after{
 @media(max-width:780px){.top-actions{flex-wrap:wrap;justify-content:flex-end}.atmosphere-open-button{width:34px;height:34px}.ambient-canvas{opacity:.58}}
 @media(max-width:520px){.atmosphere-open-button{display:inline-flex}.atmosphere-studio{width:100%;max-height:calc(100dvh - 16px)}.atmosphere-preview{min-height:130px}.atmosphere-section-head h3{font-size:16px}.atmosphere-slider-label{align-items:flex-start;flex-direction:column;gap:5px}}
 @media(hover:none){.atmosphere-preset:hover,.atmosphere-open-button:hover,.home-atmosphere-shortcut:hover{transform:none}}
+
+
+/* Distinct render styles inside Atmosphere Studio's live background engine. */
+.atmosphere-modes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.atmosphere-mode{
+  display:flex;flex-direction:column;gap:7px;min-width:0;padding:9px;
+  border:1px solid rgba(255,255,255,.09);border-radius:13px;
+  background:rgba(255,255,255,.022);color:#eff5fb;text-align:left;
+  transition:transform .2s ease,border-color .2s ease,background .2s ease,box-shadow .2s ease;
+}
+.atmosphere-mode:hover{transform:translateY(-3px);border-color:rgba(var(--atmo-b-rgb),.35)}
+.atmosphere-mode.selected{border-color:rgba(var(--atmo-b-rgb),.62);background:linear-gradient(150deg,rgba(var(--atmo-a-rgb),.07),rgba(var(--atmo-b-rgb),.10));box-shadow:inset 0 0 0 1px rgba(var(--atmo-b-rgb),.06)}
+.atmosphere-mode:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+.atmosphere-mode-art{position:relative;display:block;width:100%;height:55px;overflow:hidden;border:1px solid rgba(255,255,255,.06);border-radius:8px;background:#070b13}
+.atmosphere-mode-art i,.atmosphere-mode-art b{position:absolute;display:block}
+.atmosphere-mode-art.nebula{background:radial-gradient(ellipse at 25% 70%,rgba(var(--atmo-a-rgb),.7),transparent 54%),radial-gradient(ellipse at 75% 35%,rgba(var(--atmo-b-rgb),.72),transparent 52%),#070b13}
+.atmosphere-mode-art.aurora{background:linear-gradient(180deg,#071018,#0b1020)}
+.atmosphere-mode-art.aurora i{left:-10%;width:120%;height:30px;border-radius:50%;border-top:5px solid rgba(var(--atmo-a-rgb),.7);filter:blur(1px);transform:rotate(-8deg)}
+.atmosphere-mode-art.aurora i:nth-child(1){top:8px;border-color:rgba(var(--atmo-a-rgb),.66)}
+.atmosphere-mode-art.aurora i:nth-child(2){top:21px;left:8%;border-color:rgba(var(--atmo-b-rgb),.76);transform:rotate(7deg)}
+.atmosphere-mode-art.aurora i:nth-child(3){top:31px;left:-20%;border-color:rgba(var(--atmo-c-rgb),.58);transform:rotate(-5deg)}
+.atmosphere-mode-art.grid{background:linear-gradient(180deg,rgba(var(--atmo-a-rgb),.08),transparent),repeating-linear-gradient(0deg,rgba(var(--atmo-a-rgb),.19) 0 1px,transparent 1px 12px),repeating-linear-gradient(90deg,rgba(var(--atmo-a-rgb),.16) 0 1px,transparent 1px 17px),#070b13}
+.atmosphere-mode-art.grid b{left:0;right:0;height:8px;top:27px;background:linear-gradient(transparent,rgba(var(--atmo-a-rgb),.28),transparent);box-shadow:0 0 15px rgba(var(--atmo-a-rgb),.2)}
+.atmosphere-mode-art.constellation{background:radial-gradient(ellipse at center,rgba(var(--atmo-b-rgb),.12),transparent 60%),#070b13}
+.atmosphere-mode-art.constellation i{width:3px;height:3px;border-radius:50%;background:rgba(var(--atmo-c-rgb),.95);box-shadow:0 0 7px rgba(var(--atmo-c-rgb),.55)}
+.atmosphere-mode-art.constellation i:nth-child(1){left:20%;top:28%}
+.atmosphere-mode-art.constellation i:nth-child(2){left:62%;top:18%}
+.atmosphere-mode-art.constellation i:nth-child(3){left:75%;top:72%}
+.atmosphere-mode-art.constellation b{left:20%;top:28%;width:60%;height:45%;border:1px solid rgba(var(--atmo-a-rgb),.3);border-bottom-color:transparent;border-radius:55% 40% 60% 10%;transform:rotate(23deg)}
+.atmosphere-mode>strong{font-size:10px;font-weight:600}
+.atmosphere-mode>small{min-height:27px;color:#8595aa;font-size:8px;line-height:1.55}
+.atmosphere-preview[data-mode="grid"]{background:repeating-linear-gradient(0deg,rgba(var(--atmo-a-rgb),.09) 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,rgba(var(--atmo-a-rgb),.085) 0 1px,transparent 1px 26px),#070b13}
+.atmosphere-preview[data-mode="aurora"]{background:radial-gradient(ellipse at 25% 35%,rgba(var(--atmo-a-rgb),.16),transparent 50%),linear-gradient(180deg,#06101b,#080c17)}
+.atmosphere-preview[data-mode="constellation"]{background:radial-gradient(ellipse at center,rgba(var(--atmo-b-rgb),.12),transparent 70%),#070b13}
+@media(max-width:780px){.atmosphere-modes{grid-template-columns:repeat(2,minmax(0,1fr))}.atmosphere-mode-art{height:44px}.atmosphere-mode>small{min-height:0}}
+@media(max-width:420px){.atmosphere-modes{gap:7px}.atmosphere-mode{padding:7px}.atmosphere-mode>strong{font-size:9px}}
+@media(hover:none){.atmosphere-mode:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){.atmosphere-mode{transition:none}}
