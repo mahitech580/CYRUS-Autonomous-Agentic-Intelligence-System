@@ -182,5 +182,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(result["python_blocks_checked"], 0)
         self.assertEqual(self.named(result, "python_syntax")["status"], "SKIP")
 
+    def test_36_json_fence_is_not_counted_as_python(self):
+        fence = chr(96) * 3
+        result = self.check(fence + "json\n{\"ready\": true}\n" + fence)
+        self.assertEqual(result["python_blocks_checked"], 0)
+        self.assertEqual(self.named(result, "python_syntax")["status"], "SKIP")
+
 if __name__ == "__main__":
     unittest.main()
