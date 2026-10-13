@@ -63,6 +63,7 @@ class AnalyticsApiTests(unittest.TestCase):
         self.assertEqual(payload["totals"]["success_rate"], 50.0)
         self.assertEqual(sum(day["total"] for day in payload["daily"]), 2)
         self.assertEqual(payload["latency"]["average_ms"], 1000.0)
+        self.assertEqual(payload["latency"]["p95_ms"], 1500)
         self.assertEqual(payload["failure_types"][0]["type"], "ProviderError")
         self.assertEqual(payload["providers"][0]["name"], "test-provider")
 
