@@ -192,11 +192,13 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("release", payload)
         self.assertIn("started_at", payload)
 
-    def test_backend_does_not_expose_private_repository_files(self):
-        public_css = self.client.get("/styles.css")
+    def test_backend_serves_every_browser_asset_but_not_private_python_files(self):
+        for path in ("/styles.css", "/app.js", "/demo-bridge.js", "/runtime-config.js", "/event-stream.js"):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertGreater(len(response.data), 0)
         private_python = self.client.get("/server.py")
-        self.assertEqual(public_css.status_code, 200)
-        self.assertIn(b"var(--", public_css.data[:2000])
         self.assertEqual(private_python.status_code, 404)
 
     def test_health_reports_capacity_utilization(self):
@@ -362,6 +364,39 @@ class CyrusApiContractTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", response.get_json())
+
+    def test_metrics_include_persisted_outcomes_after_runtime_restart(self):
+        records = [
+            {"task_id": "CYRUS-HIST-DONE", "created_at": "2026-10-01T10:00:00Z", "status": "COMPLETED", "execution_time_ms": 1200},
+            {"task_id": "CYRUS-HIST-FAIL", "created_at": "2026-10-02T10:00:00Z", "status": "FAILED", "execution_time_ms": 300},
+        ]
+        with patch("server.load_history", return_value=records):
+            payload = self.client.get("/api/metrics").get_json()
+        self.assertEqual(payload["total_tasks"], 2)
+        self.assertEqual(payload["completed_tasks"], 1)
+        self.assertEqual(payload["failed_tasks"], 1)
+        self.assertEqual(payload["average_execution_ms"], 750.0)
+
+    def test_history_migration_merges_legacy_rows_when_database_is_not_empty(self):
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp) / "history.json"
+            target.write_text(
+                '[{"task_id":"CYRUS-LEGACY","created_at":"2026-09-01T00:00:00Z","status":"COMPLETED"},'
+                '{"task_id":"CYRUS-DUPLICATE","created_at":"2026-09-02T00:00:00Z","status":"FAILED","summary":"old"}]',
+                encoding="utf-8",
+            )
+            store = HistoryStore(target.with_suffix(".sqlite3"))
+            store.save_all([{
+                "task_id": "CYRUS-DUPLICATE",
+                "created_at": "2026-09-02T00:00:00Z",
+                "status": "COMPLETED",
+                "summary": "database version wins",
+            }])
+            with patch.object(server, "STORE", target), patch.object(server, "HISTORY_STORE", store), patch.object(server, "_legacy_migration_attempted", False):
+                records = server.load_history()
+            by_id = {item["task_id"]: item for item in records}
+            self.assertIn("CYRUS-LEGACY", by_id)
+            self.assertEqual(by_id["CYRUS-DUPLICATE"]["summary"], "database version wins")
 
     def test_runtime_metrics_counts_approval_waiters_as_active(self):
         with server.runtime["lock"]:
