@@ -233,3 +233,41 @@ assert.ok(fs.readFileSync("app.js", "utf8").includes("apiJson('/api/tasks?'+para
 assert.ok(fs.readFileSync("server.py", "utf8").includes("RECOVERED_INTERRUPTED_RUNS = recover_interrupted_runs()"), "Startup must recover stale executions");
 assert.ok(fs.readFileSync("server.py", "utf8").includes('live_model_requires_api_access_key'), "Readiness must explain why live model use is locked");
 assert.ok(fs.readFileSync("tests/test_api.py", "utf8").includes("test_recovery_marks_interrupted_runs_failed"), "Interrupted task recovery must have a regression test");
+
+
+const atmosphereApp = fs.readFileSync("app.js", "utf8");
+for (const feature of [
+  "const ATMOSPHERE_PRESETS",
+  "function AmbientCanvas",
+  "function AtmosphereStudio",
+  "cyrus-atmosphere-preset",
+  "cyrus-atmosphere-intensity",
+  "prefers-reduced-motion: reduce",
+  "navigator.connection?.saveData",
+  "document.addEventListener('visibilitychange',visibility)",
+  "pointermove",
+  "className=\"ambient-canvas\"",
+  "role=\"dialog\"",
+  "aria-modal=\"true\"",
+  "Open Atmosphere Studio",
+  "APPLY FIELD",
+  "Math.round(baseParticles*(.58+requestedIntensity*.55))"
+]) {
+  assert.ok(atmosphereApp.includes(feature), "Missing Atmosphere Studio / performance behavior: " + feature);
+}
+const atmosphereCss = fs.readFileSync("styles.css", "utf8");
+for (const style of [
+  ".ambient-canvas",
+  ".atmosphere-backdrop",
+  ".atmosphere-studio",
+  ".atmosphere-preview",
+  ".atmosphere-presets",
+  ".atmosphere-slider",
+  ".atmosphere-footer",
+  "@keyframes atmosphere-preview-spin",
+  "@media(max-width:650px)",
+  "@media(prefers-reduced-motion:reduce)"
+]) {
+  assert.ok(atmosphereCss.includes(style), "Missing Atmosphere Studio responsive style: " + style);
+}
+console.log("Atmosphere Studio smoke: saved presets, live canvas, intensity, reduced-motion, visibility pause, accessible dialog, responsive layout OK");
