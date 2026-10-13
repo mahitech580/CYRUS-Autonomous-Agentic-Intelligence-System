@@ -209,5 +209,9 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(self.named(result, "python_syntax")["status"], "SKIP")
         self.assertEqual(result["status"], "FAILED")
 
+    def test_41_every_check_detail_is_bounded(self):
+        result = self.check("Draft " + ("x" * (MAX_DRAFT_CHARS + 100)))
+        self.assertTrue(all(len(item["detail"]) <= 300 for item in result["checks"]))
+
 if __name__ == "__main__":
     unittest.main()
