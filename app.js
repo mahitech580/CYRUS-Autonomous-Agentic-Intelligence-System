@@ -99,6 +99,8 @@ const ATMOSPHERE_PRESETS={
 
 function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
   const canvasRef=useRef(null)
+  const intensityRef=useRef(intensity)
+  intensityRef.current=intensity
   useEffect(()=>{
     const canvas=canvasRef.current
     if(!canvas)return
@@ -120,10 +122,9 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
     const pointer={x:.5,y:.36,tx:.5,ty:.36,active:false}
     const trail=[]
     const smallScreen=window.matchMedia('(max-width: 700px)').matches
-    const requestedIntensity=Math.max(.25,Math.min(1.4,Number(intensity)||.8))
     const baseParticles=Math.min(smallScreen?34:68,Math.max(18,(navigator.hardwareConcurrency||4)*8))
-    const particleCount=Math.max(12,Math.min(smallScreen?42:84,Math.round(baseParticles*(.58+requestedIntensity*.55))))
-    const particles=Array.from({length:particleCount},(_,i)=>({
+    const maxParticles=Math.max(12,Math.min(smallScreen?42:84,Math.round(baseParticles*1.35)))
+    const particles=Array.from({length:maxParticles},(_,i)=>({
       x:((i*37.17+13)%101)/100,
       y:((i*61.31+29)%101)/100,
       vx:Math.sin(i*3.7)*.00009,
@@ -160,7 +161,8 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
       pointer.y+=(pointer.ty-pointer.y)*.045
       const driftX=(pointer.x-.5)*width*.055
       const driftY=(pointer.y-.5)*height*.05
-      const strength=Math.max(.2,Math.min(1.5,Number(intensity)||.8))
+      const liveIntensity=Number(intensityRef.current)||.8
+      const strength=Math.max(.2,Math.min(1.5,liveIntensity))
       context.save()
       context.globalCompositeOperation='screen'
       const blobs=[
@@ -177,7 +179,8 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
         context.fillStyle=gradient
         context.fillRect(Math.max(0,blob.x-radius),Math.max(0,blob.y-radius),Math.min(width,radius*2),Math.min(height,radius*2))
       })
-      const coords=particles.map(p=>{
+      const visibleCount=Math.max(12,Math.min(particles.length,Math.round(baseParticles*(.58+liveIntensity*.55))))
+      const coords=particles.slice(0,visibleCount).map(p=>{
         if(animateMotion){
           p.x+=p.vx*(1+p.depth)
           p.y+=p.vy*(1+p.depth)
@@ -250,7 +253,7 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
       document.removeEventListener('visibilitychange',visibility)
       reducedQuery.removeEventListener?.('change',preference)
     }
-  },[preset,intensity,motionEnabled])
+  },[preset,motionEnabled])
   return <canvas ref={canvasRef} className="ambient-canvas" aria-hidden="true"/>
 }
 
