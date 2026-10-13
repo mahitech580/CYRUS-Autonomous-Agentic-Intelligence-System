@@ -72,5 +72,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(result["python_blocks_checked"], 2)
         self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
 
+    def test_13_one_invalid_block_fails_the_python_syntax_check(self):
+        fence = chr(96) * 3
+        source = fence + "python\nvalue = 1\n" + fence + "\n" + fence + "python\ndef broken(:\n" + fence
+        result = self.check(source)
+        self.assertEqual(self.named(result, "python_syntax")["status"], "FAIL")
+
 if __name__ == "__main__":
     unittest.main()
