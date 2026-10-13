@@ -254,5 +254,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("def work():\n    return 1")
         self.assertTrue(any("not runtime testing" in item.lower() for item in result["limitations"]))
 
+    def test_50_empty_draft_reports_consistent_failed_and_warning_counts(self):
+        result = self.check("")
+        self.assertEqual(result["checks_failed"], 1)
+        self.assertEqual(result["checks_warning"], 2)
+        self.assertEqual(result["status"], "FAILED")
+
 if __name__ == "__main__":
     unittest.main()
