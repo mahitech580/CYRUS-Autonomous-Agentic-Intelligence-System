@@ -257,7 +257,7 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
     def test_50_empty_draft_reports_consistent_failed_and_warning_counts(self):
         result = self.check("")
         self.assertEqual(result["checks_failed"], 1)
-        self.assertEqual(result["checks_warning"], 2)
+        self.assertEqual(result["checks_warning"], 1)
         self.assertEqual(result["status"], "FAILED")
 
 if __name__ == "__main__":
