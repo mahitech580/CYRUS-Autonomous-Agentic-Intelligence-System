@@ -251,7 +251,7 @@ for (const feature of [
   "aria-modal=\"true\"",
   "Open Atmosphere Studio",
   "APPLY FIELD",
-  "Math.round(baseParticles*(.58+requestedIntensity*.55))"
+  "Math.round(baseParticles*(.58+liveIntensity*.55))"
 ]) {
   assert.ok(atmosphereApp.includes(feature), "Missing Atmosphere Studio / performance behavior: " + feature);
 }
@@ -271,3 +271,7 @@ for (const style of [
   assert.ok(atmosphereCss.includes(style), "Missing Atmosphere Studio responsive style: " + style);
 }
 console.log("Atmosphere Studio smoke: saved presets, live canvas, intensity, reduced-motion, visibility pause, accessible dialog, responsive layout OK");
+
+assert.ok(atmosphereApp.includes("drawRef.current?.()},[intensity])"), "Static ambient rendering must update without recreating the canvas on slider movement");
+assert.ok(atmosphereApp.includes("particles.slice(0,visibleCount)"), "The intensity slider must control visible particle density");
+assert.ok(atmosphereApp.includes("window.addEventListener('pointermove',pointerMove,{passive:true})"), "Ambient cursor response should use passive pointer handling");
