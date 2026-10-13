@@ -20,7 +20,16 @@ MAX_HISTORY = 100
 class HistoryStore:
     def __init__(self, sqlite_path: str | Path):
         raw_url = (os.getenv("CYRUS_DATABASE_URL") or os.getenv("DATABASE_URL") or "").strip()
-        self.database_url = raw_url if raw_url.startswith(("postgres://", "postgresql://")) else ""
+        if raw_url.startswith("postgres://"):
+            raw_url = "postgresql://" + raw_url[len("postgres://"):]
+        elif raw_url.startswith("postgresql+psycopg://"):
+            raw_url = "postgresql://" + raw_url[len("postgresql+psycopg://"):]
+        if raw_url and not raw_url.startswith("postgresql://"):
+            raise ValueError(
+                "CYRUS_DATABASE_URL/DATABASE_URL must be a PostgreSQL connection string; "
+                "use CYRUS_DATABASE_PATH to configure the SQLite fallback."
+            )
+        self.database_url = raw_url
         self.backend = "postgresql" if self.database_url else "sqlite"
         self.sqlite_path = Path(os.getenv("CYRUS_DATABASE_PATH", str(sqlite_path))).expanduser()
         if self.backend == "sqlite":
