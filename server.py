@@ -338,7 +338,7 @@ def recover_interrupted_runs():
             for entry in events_list:
                 if not isinstance(entry, dict):
                     continue
-                match = re.fullmatch(r".*-E(\\d+)", str(entry.get("event_id") or ""))
+                match = re.fullmatch(r".*-E(\d+)", str(entry.get("event_id") or ""))
                 if match:
                     sequences.append(int(match.group(1)))
             task["event_sequence"] = max(sequences, default=0)
