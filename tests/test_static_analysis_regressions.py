@@ -224,5 +224,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check(source)
         self.assertNotIn(source, str(result))
 
+    def test_44_oversized_source_is_still_reported_when_no_python_is_present(self):
+        result = self.check("t" * (MAX_DRAFT_CHARS + 10))
+        self.assertEqual(self.named(result, "draft_size_limit")["status"], "FAIL")
+        self.assertEqual(result["python_blocks_checked"], 0)
+
 if __name__ == "__main__":
     unittest.main()
