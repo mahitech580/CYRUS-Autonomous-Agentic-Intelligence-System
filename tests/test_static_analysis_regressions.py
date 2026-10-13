@@ -229,5 +229,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(self.named(result, "draft_size_limit")["status"], "FAIL")
         self.assertEqual(result["python_blocks_checked"], 0)
 
+    def test_45_process_execution_warning_does_not_execute_source(self):
+        result = self.check("subprocess.run(['this-command-must-never-run'])")
+        self.assertEqual(self.named(result, "execution_primitive_review")["status"], "WARN")
+        self.assertFalse(result["code_executed"])
+
 if __name__ == "__main__":
     unittest.main()
