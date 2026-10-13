@@ -123,5 +123,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertNotIn(secret, report["detail"])
         self.assertNotIn(secret, str(result))
 
+    def test_23_aws_secret_value_is_not_echoed_in_diagnostics(self):
+        secret = "AKIAABCDEFGHIJKLMNOP"
+        result = self.check("AWS_ACCESS_KEY_ID = '" + secret + "'")
+        self.assertNotIn(secret, str(result))
+
 if __name__ == "__main__":
     unittest.main()
