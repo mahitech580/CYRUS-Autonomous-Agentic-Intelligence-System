@@ -275,3 +275,27 @@ console.log("Atmosphere Studio smoke: saved presets, live canvas, intensity, red
 assert.ok(atmosphereApp.includes("drawRef.current?.()},[intensity])"), "Static ambient rendering must update without recreating the canvas on slider movement");
 assert.ok(atmosphereApp.includes("particles.slice(0,visibleCount)"), "The intensity slider must control visible particle density");
 assert.ok(atmosphereApp.includes("window.addEventListener('pointermove',pointerMove,{passive:true})"), "Ambient cursor response should use passive pointer handling");
+
+
+for (const feature of [
+  "const ATMOSPHERE_MODES",
+  "cyrus-atmosphere-mode",
+  "mode==='aurora'",
+  "mode==='grid'",
+  "mode==='constellation'",
+  "BACKGROUND MOTION",
+  "4 VISUAL MODES"
+]) {
+  assert.ok(atmosphereApp.includes(feature), "Missing selectable procedural background mode: " + feature);
+}
+for (const style of [
+  ".atmosphere-modes",
+  ".atmosphere-mode-art.aurora",
+  ".atmosphere-mode-art.grid",
+  ".atmosphere-mode-art.constellation",
+  ".atmosphere-preview[data-mode=\"grid\"]",
+  "@media(max-width:420px)"
+]) {
+  assert.ok(atmosphereCss.includes(style), "Missing background mode styling: " + style);
+}
+console.log("Atmosphere mode smoke: 4 distinct render modes, persistence, previews, and responsive controls OK");
