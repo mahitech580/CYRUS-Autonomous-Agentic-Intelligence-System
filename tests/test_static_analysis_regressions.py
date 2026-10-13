@@ -22,5 +22,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(self.named(result, "draft_present")["status"], "FAIL")
         self.assertFalse(result["code_executed"])
 
+    def test_03_numeric_input_is_not_treated_as_source_code(self):
+        result = self.check(12345)
+        self.assertEqual(self.named(result, "draft_present")["status"], "FAIL")
+        self.assertEqual(result["python_blocks_checked"], 0)
+
 if __name__ == "__main__":
     unittest.main()
