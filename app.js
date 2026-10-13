@@ -120,7 +120,9 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
     const pointer={x:.5,y:.36,tx:.5,ty:.36,active:false}
     const trail=[]
     const smallScreen=window.matchMedia('(max-width: 700px)').matches
-    const particleCount=Math.min(smallScreen?34:68,Math.max(18,(navigator.hardwareConcurrency||4)*8))
+    const requestedIntensity=Math.max(.25,Math.min(1.4,Number(intensity)||.8))
+    const baseParticles=Math.min(smallScreen?34:68,Math.max(18,(navigator.hardwareConcurrency||4)*8))
+    const particleCount=Math.max(12,Math.min(smallScreen?42:84,Math.round(baseParticles*(.58+requestedIntensity*.55))))
     const particles=Array.from({length:particleCount},(_,i)=>({
       x:((i*37.17+13)%101)/100,
       y:((i*61.31+29)%101)/100,
@@ -146,6 +148,10 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
       pointer.active=true
       trail.push({x:pointer.tx,y:pointer.ty,life:1})
       if(trail.length>15)trail.shift()
+      if(!animateMotion){
+        pointer.x=pointer.tx;pointer.y=pointer.ty
+        draw()
+      }
     }
     const draw=()=>{
       context.clearRect(0,0,width,height)
