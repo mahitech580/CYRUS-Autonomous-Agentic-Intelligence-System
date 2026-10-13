@@ -11,7 +11,7 @@ CYRUS is a portfolio-grade Autonomous Agentic Intelligence System built as a vis
 - Python 3.11+
 - Flask 3.1
 - REST APIs
-- Persistent JSON execution memory
+- SQLite/PostgreSQL execution history and runtime telemetry
 
 ## Agent flow
 
@@ -38,7 +38,8 @@ Open `http://127.0.0.1:8000/`.
 - `GET /api/security` — API protection configuration without exposing the access key
 - `GET /api/agents`
 - `GET /api/tools`
-- `GET /api/tasks` — compact list with optional `limit` and `status` filters
+- `GET /api/tasks` — compact list with `limit`, `offset`, `status`, `mode`, and `q` filters
+- `GET /api/analytics?days=7` — dynamic outcomes, daily run counts, providers, failures, latency, and storage diagnostics (1–90 day windows)
 - `GET /api/tasks/{id}` — full execution record including agent state and trace
 - `GET /api/tasks/{id}/stream` — resumable Server-Sent Events stream for live state and trace updates
 - `POST /api/tasks/{id}/cancel` — cooperative cancellation
@@ -93,7 +94,15 @@ The frontend calls the configured API for health, agents, tools, execution submi
 
 ### Render Free plan notes
 
-Render's free web services can spin down after 15 minutes without inbound traffic; waking may take around a minute. Their local filesystem is ephemeral, so the current JSON execution history can be cleared when the instance spins down, restarts, or redeploys. For durable multi-user execution history, configure a managed persistent datastore (for example, PostgreSQL) rather than treating the free instance's local JSON file as permanent. See [Render free service limitations](https://render.com/docs/free).
+Render's free web services can spin down after 15 minutes without inbound traffic; waking may take around a minute. The local SQLite file is still on the service filesystem and can be lost after a restart or redeploy. For durable hosted history, set `CYRUS_DATABASE_URL` to a managed PostgreSQL connection string; changing the code to use SQLite alone does not make ephemeral-host data durable. See [Render free service limitations](https://render.com/docs/free).
+
+## Database-backed execution history
+
+The history adapter stores full execution snapshots, artifacts, agent traces, status changes and idempotency metadata in a database table. Local development defaults to SQLite at `cyrus_history.sqlite3`; set `CYRUS_DATABASE_PATH` to move the file. On a deployed host, set `CYRUS_DATABASE_URL` or `DATABASE_URL` to a PostgreSQL connection string to use PostgreSQL. The database driver is installed through `requirements.txt`.
+
+The Render Blueprint declares `CYRUS_DATABASE_URL` as an unsynchronized secret. For an existing service, add it under **Render → Service → Environment** and redeploy. Keep the database connection string private. When the database is empty and a legacy `cyrus_history.json` exists, CYRUS attempts a one-time import. History is capped to the latest 100 execution records by default.
+
+The new Analytics workspace refreshes `GET /api/analytics` every 20 seconds and supports 7-, 30-, and 90-day activity windows. Values are computed from stored task records plus live tasks; an empty history produces empty charts, not sample runs. The API diagnostics report which history store is active and whether the hosted SQLite filesystem is ephemeral.
 
 ## Provider configuration
 
@@ -120,7 +129,7 @@ The server is production-safe by default: development debug mode is disabled unl
 
 ## UI
 
-The Command surface contains the objective editor, execution mode switch, seven-agent graph, metrics, live trace, and artifact explorer. The refreshed interface follows TripPilot's smoky charcoal surfaces, deep-red and travel-green accent system, soft-white typography and cinematic remote imagery. Its motion layer adds scroll-revealed sections, pointer-driven 3D card tilt, layered parallax imagery, a scroll-progress rail, an animated CSS 3D agent-core scene, floating wireframe cubes and orbit rings. Motion is disabled or softened when the user requests reduced motion, and the persistent Motion / Calm Mode switch provides an additional user-controlled override. Agents, Memory, Tools and History each have their own image-led hero, sectioned content and operational controls.
+The Command surface contains the objective editor, execution mode switch, seven-agent graph, metrics, live trace, and artifact explorer. The Analytics workspace adds database-backed daily activity, outcome rates, provider distribution, failure signatures and latency summaries. The refreshed interface follows TripPilot's smoky charcoal surfaces, deep-red and travel-green accent system, soft-white typography and cinematic remote imagery. Its motion layer adds scroll-revealed sections, pointer-driven 3D card tilt, layered parallax imagery, a scroll-progress rail, an animated CSS 3D agent-core scene, floating wireframe cubes and orbit rings. Motion is disabled or softened when the user requests reduced motion, and the persistent Motion / Calm Mode switch provides an additional user-controlled override. Agents, Memory, Tools and History each have their own image-led hero, sectioned content and operational controls.
 
 ## Future improvements
 
@@ -128,5 +137,5 @@ The Command surface contains the objective editor, execution mode switch, seven-
 - Real repository workspace execution
 - Docker-backed isolated tool runtime
 - Approval workflow persistence
-- Postgres event store
+- Dedicated append-only event/audit store
 - Authentication and multi-user workspaces
