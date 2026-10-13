@@ -213,5 +213,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("Draft " + ("x" * (MAX_DRAFT_CHARS + 100)))
         self.assertTrue(all(len(item["detail"]) <= 300 for item in result["checks"]))
 
+    def test_42_python_syntax_error_reports_its_line_number(self):
+        fence = chr(96) * 3
+        result = self.check(fence + "python\ndef broken(:\n    pass\n" + fence)
+        detail = self.named(result, "python_syntax")["detail"]
+        self.assertIn("line 1", detail)
+
 if __name__ == "__main__":
     unittest.main()
