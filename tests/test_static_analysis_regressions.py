@@ -250,5 +250,9 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertNotIn("implementation", result)
         self.assertNotIn(source, str(result))
 
+    def test_49_limitation_explains_static_analysis_is_not_runtime_testing(self):
+        result = self.check("def work():\n    return 1")
+        self.assertTrue(any("not runtime testing" in item.lower() for item in result["limitations"]))
+
 if __name__ == "__main__":
     unittest.main()
