@@ -90,5 +90,9 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check(source)
         self.assertEqual(self.named(result, "likely_secret_scan")["status"], "FAIL")
 
+    def test_16_aws_access_key_pattern_is_flagged(self):
+        result = self.check("AWS_ACCESS_KEY_ID = 'AKIAABCDEFGHIJKLMNOP'")
+        self.assertEqual(self.named(result, "likely_secret_scan")["status"], "FAIL")
+
 if __name__ == "__main__":
     unittest.main()
