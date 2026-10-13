@@ -192,5 +192,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("Checklist: validate input, then persist safely.")
         self.assertEqual(result["python_blocks_checked"], 0)
 
+    def test_38_analysis_check_names_are_unique(self):
+        fence = chr(96) * 3
+        result = self.check("Draft\n" + fence + "python\nanswer = 42\n" + fence)
+        names = [item["name"] for item in result["checks"]]
+        self.assertEqual(len(names), len(set(names)))
+
 if __name__ == "__main__":
     unittest.main()
