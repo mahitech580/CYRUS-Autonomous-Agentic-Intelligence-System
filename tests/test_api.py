@@ -117,7 +117,7 @@ class CyrusApiContractTests(unittest.TestCase):
             headers={
                 "Origin": "https://mahitech580.github.io",
                 "Access-Control-Request-Method": "POST",
-                "Access-Control-Request-Headers": "content-type,idempotency-key",
+                "Access-Control-Request-Headers": "content-type,idempotency-key,x-cyrus-access-key",
             },
         )
         self.assertIn(response.status_code, (200, 204))
@@ -126,6 +126,7 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("content-type", allowed_headers)
         self.assertIn("idempotency-key", allowed_headers)
         self.assertIn("last-event-id", allowed_headers)
+        self.assertIn("x-cyrus-access-key", allowed_headers)
 
     def test_disallowed_origin_does_not_receive_cors_grant(self):
         response = self.client.get(
@@ -145,6 +146,30 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertFalse(payload["supports_code_execution"])
         self.assertNotIn("api_key", payload)
         self.assertNotIn("authorization", str(payload).lower())
+
+    def test_api_access_key_gates_private_routes_but_keeps_health_public(self):
+        with patch.object(server, "API_ACCESS_KEY", "unit-test-access-key"):
+            health = self.client.get("/api/health")
+            denied = self.client.get("/api/tasks")
+            allowed = self.client.get(
+                "/api/tasks",
+                headers={"X-CYRUS-Access-Key": "unit-test-access-key"},
+            )
+        self.assertEqual(health.status_code, 200)
+        self.assertTrue(health.get_json()["api_access_key_required"])
+        self.assertEqual(denied.status_code, 401)
+        self.assertTrue(denied.get_json()["access_key_required"])
+        self.assertEqual(allowed.status_code, 200)
+
+    def test_api_access_key_compare_is_required_for_task_streams(self):
+        with patch.object(server, "API_ACCESS_KEY", "stream-key"):
+            denied = self.client.get("/api/tasks/CYRUS-MISSING/stream")
+            allowed_missing = self.client.get(
+                "/api/tasks/CYRUS-MISSING/stream",
+                headers={"X-CYRUS-Access-Key": "stream-key"},
+            )
+        self.assertEqual(denied.status_code, 401)
+        self.assertEqual(allowed_missing.status_code, 404)
 
     def test_health_contract(self):
         response = self.client.get("/api/health")
@@ -651,13 +676,16 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(task["tests_passed"], 0)
         self.assertEqual(task["tests_failed"], 0)
         self.assertEqual(task["coverage"], 0)
-        self.assertEqual(task["verification_status"], "PLAN_GENERATED_NOT_EXECUTED")
+        self.assertEqual(task["verification_status"], "STATIC_ANALYSIS_EXECUTED;PROPOSED_TESTS_NOT_EXECUTED")
+        self.assertGreater(task["static_analysis"]["checks_passed"], 0)
+        self.assertFalse(task["static_analysis"]["code_executed"])
         phases = [item["phase"] for item in task["events"]]
         self.assertIn("DECOMPOSITION_STARTED", phases)
         self.assertIn("DECOMPOSITION_COMPLETED", phases)
         self.assertTrue(any(item["agent"] == "PLANNER" for item in task["events"]))
         self.assertIn("EXECUTION_COMPLETED", phases)
-        self.assertEqual(len(task["artifacts"]), 3)
+        self.assertEqual(len(task["artifacts"]), 4)
+        self.assertEqual(task["artifacts"][-1]["name"], "static-analysis.json")
         self.assertIn("deterministic demo", task["summary"].lower())
         self.assertTrue(task["artifacts"][0]["content"])
 
