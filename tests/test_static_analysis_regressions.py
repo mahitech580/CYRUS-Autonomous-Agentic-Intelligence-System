@@ -116,5 +116,12 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertIn("OpenAI-style secret", detail)
         self.assertIn("AWS access key", detail)
 
+    def test_22_openai_secret_value_is_not_echoed_in_diagnostics(self):
+        secret = "sk-" + ("c" * 30)
+        result = self.check("API_KEY = '" + secret + "'")
+        report = self.named(result, "likely_secret_scan")
+        self.assertNotIn(secret, report["detail"])
+        self.assertNotIn(secret, str(result))
+
 if __name__ == "__main__":
     unittest.main()
