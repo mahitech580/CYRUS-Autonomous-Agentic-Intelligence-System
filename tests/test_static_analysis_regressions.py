@@ -136,5 +136,9 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("value = eval(user_input)")
         self.assertEqual(self.named(result, "execution_primitive_review")["status"], "WARN")
 
+    def test_26_exec_call_creates_a_review_warning(self):
+        result = self.check("exec(source_text)")
+        self.assertEqual(self.named(result, "execution_primitive_review")["status"], "WARN")
+
 if __name__ == "__main__":
     unittest.main()
