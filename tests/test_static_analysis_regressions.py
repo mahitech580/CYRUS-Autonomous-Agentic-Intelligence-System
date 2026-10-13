@@ -234,5 +234,9 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(self.named(result, "execution_primitive_review")["status"], "WARN")
         self.assertFalse(result["code_executed"])
 
+    def test_46_plain_text_draft_reports_warning_status_for_skipped_python_check(self):
+        result = self.check("A plain text implementation outline.")
+        self.assertEqual(result["status"], "COMPLETED_WITH_WARNINGS")
+
 if __name__ == "__main__":
     unittest.main()
