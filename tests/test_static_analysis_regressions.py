@@ -148,5 +148,9 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("subprocess.run(['git', 'status'])")
         self.assertEqual(self.named(result, "execution_primitive_review")["status"], "WARN")
 
+    def test_29_subprocess_popen_call_creates_a_review_warning(self):
+        result = self.check("subprocess.Popen(['worker'])")
+        self.assertEqual(self.named(result, "execution_primitive_review")["status"], "WARN")
+
 if __name__ == "__main__":
     unittest.main()
