@@ -35,5 +35,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("x" * MAX_DRAFT_CHARS)
         self.assertEqual(self.named(result, "draft_size_limit")["status"], "PASS")
 
+    def test_06_draft_over_size_limit_is_rejected(self):
+        result = self.check("x" * (MAX_DRAFT_CHARS + 1))
+        self.assertEqual(self.named(result, "draft_size_limit")["status"], "FAIL")
+        self.assertEqual(result["status"], "FAILED")
+
 if __name__ == "__main__":
     unittest.main()
