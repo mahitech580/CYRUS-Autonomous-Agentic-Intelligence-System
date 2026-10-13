@@ -61,5 +61,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
         self.assertEqual(result["python_blocks_checked"], 1)
 
+    def test_11_py_alias_is_recognized_as_python(self):
+        fence = chr(96) * 3
+        result = self.check(fence + "py\nprint('alias')\n" + fence)
+        self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
+
 if __name__ == "__main__":
     unittest.main()
