@@ -143,3 +143,39 @@ assert.ok(fs.readFileSync("server.py","utf8").includes('hmac.compare_digest'), "
 assert.ok(fs.readFileSync("static_analysis.py","utf8").includes("ast.parse"), "Generated Python should be parsed without execution");
 assert.ok(fs.existsSync("tests/test_static_analysis.py"), "Static-analysis safety tests must exist");
 console.log("runtime hardening smoke: optional access-key gate, authenticated SSE, and draft static-analysis inspection OK");
+
+const platformApp = fs.readFileSync("app.js", "utf8");
+for (const feature of [
+  "const NAV_ITEMS=['Home','Platform','Command','Agents','Memory','Tools','History']",
+  "function PlatformView",
+  "RUNTIME TELEMETRY / AUTO-REFRESH 12 SEC",
+  "Promise.allSettled(paths.map(path=>apiJson(path)))",
+  "/api/health",
+  "/api/provider",
+  "/api/security",
+  "/api/metrics",
+  "/api/tasks?limit=8",
+  "THE EXECUTION LIFECYCLE / 07 STAGES",
+  "What the system",
+  "NO FAKE GREEN CHECKS",
+  "static_analysis",
+  "API connection settings",
+  "See what is real.",
+  "Explore platform & live diagnostics"
+]) {
+  assert.ok(platformApp.includes(feature), "Missing live Platform workspace capability: " + feature);
+}
+const platformCss = fs.readFileSync("styles.css", "utf8");
+for (const style of [
+  ".home-platform-preview",
+  ".home-platform-preview-grid",
+  ".platform-live-console",
+  ".platform-telemetry-grid",
+  ".platform-lifecycle-grid",
+  ".platform-capability-grid",
+  ".platform-guardrails-grid",
+  "@media(max-width:520px)"
+]) {
+  assert.ok(platformCss.includes(style), "Missing responsive Platform styles: " + style);
+}
+console.log("Platform workspace smoke: new navigation, live diagnostics, seven-stage explainer, and responsive sections OK");
