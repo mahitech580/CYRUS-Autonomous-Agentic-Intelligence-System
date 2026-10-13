@@ -989,7 +989,7 @@ function AnalyticsView({open,openApiSettings}){
               const height=count?Math.max(4,Math.round(count/maxTotal*100)):2;
               return <div className="analytics-day" key={item.date} title={item.date+': '+count+' run(s)'}>
                 <div className="analytics-bar-area"><div className="analytics-bar-stack" style={{height:height+'%'}}>
-                  {count>0&&<><i className="completed" style={{flexGrow:Number(item.completed)||0}}/><i className="failed" style={{flexGrow:Number(item.failed)||0}}/><i className="cancelled" style={{flexGrow:(Number(item.cancelled)||0)+(Number(item.timed_out)||0)}/><i className="other" style={{flexGrow:Math.max(0,count-(Number(item.completed)||0)-(Number(item.failed)||0)-(Number(item.cancelled)||0)-(Number(item.timed_out)||0))}/></>}
+                  {count>0&&<><i className="completed" style={{flexGrow:Number(item.completed)||0}}/><i className="failed" style={{flexGrow:Number(item.failed)||0}}/><i className="cancelled" style={{flexGrow:(Number(item.cancelled)||0)+(Number(item.timed_out)||0)}}/><i className="other" style={{flexGrow:Math.max(0,count-(Number(item.completed)||0)-(Number(item.failed)||0)-(Number(item.cancelled)||0)-(Number(item.timed_out)||0))}}/></>}
                 </div></div><small>{item.label}</small><b>{count}</b>
               </div>;
             })}</div>:<div className="analytics-no-data"><strong>No executions in this window.</strong><span>Run an objective in Command to populate real activity.</span></div>}
