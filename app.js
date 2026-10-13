@@ -100,6 +100,7 @@ const ATMOSPHERE_PRESETS={
 function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
   const canvasRef=useRef(null)
   const intensityRef=useRef(intensity)
+  const drawRef=useRef(null)
   intensityRef.current=intensity
   useEffect(()=>{
     const canvas=canvasRef.current
@@ -224,6 +225,7 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
       }
       context.restore()
     }
+    drawRef.current=draw
     const frame=now=>{
       raf=0
       if(document.hidden)return
@@ -254,6 +256,7 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
       reducedQuery.removeEventListener?.('change',preference)
     }
   },[preset,motionEnabled])
+  useEffect(()=>{drawRef.current?.()},[intensity])
   return <canvas ref={canvasRef} className="ambient-canvas" aria-hidden="true"/>
 }
 
