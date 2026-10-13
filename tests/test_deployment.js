@@ -229,3 +229,7 @@ console.log("Dynamic analytics smoke: real-data dashboard, API search, DB-backed
 assert.ok(fs.readFileSync("server.py", "utf8").includes('"runtime-config.js", "event-stream.js"'), "Local Flask must serve the two runtime JS assets referenced by index.html");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("Use HTTPS for remote backends."), "API settings must disallow plaintext remote backend URLs");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("apiJson('/api/tasks?'+params.toString())"), "History search must query the backend instead of filtering only the initially loaded page");
+
+assert.ok(fs.readFileSync("server.py", "utf8").includes("RECOVERED_INTERRUPTED_RUNS = recover_interrupted_runs()"), "Startup must recover stale executions");
+assert.ok(fs.readFileSync("server.py", "utf8").includes('live_model_requires_api_access_key'), "Readiness must explain why live model use is locked");
+assert.ok(fs.readFileSync("tests/test_api.py", "utf8").includes("test_recovery_marks_interrupted_runs_failed"), "Interrupted task recovery must have a regression test");
