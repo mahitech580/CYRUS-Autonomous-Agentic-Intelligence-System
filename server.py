@@ -606,6 +606,18 @@ def public_asset(name):
         return jsonify({"error": "Resource not found"}), 404
     return send_from_directory(BASE_DIR, name)
 
+@app.get("/api/security")
+def security_info():
+    """Expose security posture, never the configured access-key value."""
+    return jsonify({
+        "api_access_key_required": bool(API_ACCESS_KEY),
+        "protected_routes": "all /api routes except GET health, readiness, provider, and preflight",
+        "access_key_header": "X-CYRUS-Access-Key",
+        "model_key_in_browser": False,
+        "key_storage_in_browser": "sessionStorage per tab; only the API access key is accepted by the UI",
+    })
+
+
 @app.get("/api/health")
 def health():
     with runtime["lock"]:
