@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import server
 from providers import DeterministicProvider
+from storage import HistoryStore
 
 
 class CyrusApiContractTests(unittest.TestCase):
@@ -39,7 +40,7 @@ class CyrusApiContractTests(unittest.TestCase):
                 "events": [{"event_id": "CYRUS-DURABLE-E001", "agent": "RELEASE"}],
                 "artifacts": []
             }
-            with patch.object(server, "STORE", target):
+            with patch.object(server, "STORE", target), patch.object(server, "HISTORY_STORE", HistoryStore(target.with_suffix(".sqlite3"))):
                 server.persist_task(task)
                 persisted = server.load_history()[0]
             self.assertEqual(persisted["events"][0]["event_id"], "CYRUS-DURABLE-E001")
@@ -49,7 +50,7 @@ class CyrusApiContractTests(unittest.TestCase):
     def test_history_persistence_round_trip_is_atomic(self):
         with TemporaryDirectory() as tmp:
             target = Path(tmp) / "history.json"
-            with patch.object(server, "STORE", target):
+            with patch.object(server, "STORE", target), patch.object(server, "HISTORY_STORE", HistoryStore(target.with_suffix(".sqlite3"))):
                 server.save_history([{"task_id": "CYRUS-ATOMIC", "status": "COMPLETED"}])
                 self.assertEqual(server.load_history()[0]["task_id"], "CYRUS-ATOMIC")
 

@@ -4,3 +4,7 @@ __pycache__/
 cyrus_history.json
 .env
 .DS_Store
+
+# Local database files
+*.sqlite3
+*.db

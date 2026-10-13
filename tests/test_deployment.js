@@ -146,7 +146,7 @@ console.log("runtime hardening smoke: optional access-key gate, authenticated SS
 
 const platformApp = fs.readFileSync("app.js", "utf8");
 for (const feature of [
-  "const NAV_ITEMS=['Home','Platform','Command','Agents','Memory','Tools','History']",
+  "const NAV_ITEMS=['Home','Platform','Command','Analytics','Agents','Memory','Tools','History']",
   "function PlatformView",
   "RUNTIME TELEMETRY / AUTO-REFRESH 12 SEC",
   "Promise.allSettled(paths.map(path=>apiJson(path)))",
@@ -179,3 +179,47 @@ for (const style of [
   assert.ok(platformCss.includes(style), "Missing responsive Platform styles: " + style);
 }
 console.log("Platform workspace smoke: new navigation, live diagnostics, seven-stage explainer, and responsive sections OK");
+
+
+const analyticsApp = fs.readFileSync("app.js", "utf8");
+for (const feature of [
+  "function AnalyticsView",
+  "/api/analytics?days=",
+  "ANALYTICS ENDPOINT UNAVAILABLE",
+  "No seeded chart values or placeholder success rates",
+  "Runtime providers",
+  "Failure signatures",
+  "Latency profile",
+  "CHECK DURABILITY",
+  "CYRUS_DATABASE_URL",
+  "Database-backed execution history"
+]) {
+  assert.ok(analyticsApp.includes(feature) || fs.readFileSync("README.md", "utf8").includes(feature), "Missing dynamic analytics / database feature: " + feature);
+}
+const analyticsCss = fs.readFileSync("styles.css", "utf8");
+for (const style of [
+  ".analytics-stat-grid",
+  ".analytics-main-grid",
+  ".analytics-chart",
+  ".analytics-status-list",
+  ".analytics-provider-list",
+  ".analytics-failure-list",
+  ".analytics-recent-row",
+  "@media(max-width:520px)"
+]) {
+  assert.ok(analyticsCss.includes(style), "Missing responsive analytics component style: " + style);
+}
+const backend = fs.readFileSync("server.py", "utf8");
+for (const feature of [
+  "@app.get(\"/api/analytics\")",
+  "def all_task_records()",
+  "request.args.get(\"offset\"",
+  "request.args.get(\"q\"",
+  "HISTORY_STORE.info()"
+]) {
+  assert.ok(backend.includes(feature), "Missing database-backed API feature: " + feature);
+}
+assert.ok(fs.readFileSync("storage.py", "utf8").includes("CREATE TABLE IF NOT EXISTS"), "Database history schema must be initialized");
+assert.ok(fs.existsSync("tests/test_storage.py"), "Database persistence tests must exist");
+assert.ok(fs.existsSync("tests/test_analytics_api.py"), "Analytics API contract tests must exist");
+console.log("Dynamic analytics smoke: real-data dashboard, API search, DB-backed history and responsive layout OK");

@@ -1,7 +1,7 @@
 const {useEffect,useMemo,useRef,useState}=React
 
 const API_TIMEOUT_MS=70000
-const NAV_ITEMS=['Home','Platform','Command','Agents','Memory','Tools','History']
+const NAV_ITEMS=['Home','Platform','Command','Analytics','Agents','Memory','Tools','History']
 
 function apiUrl(path){
   const base=String(window.CYRUS_CONFIG?.apiBaseUrl||'').trim().replace(/\/+$/,'')
@@ -319,7 +319,7 @@ function App(){
         </button>
         <nav className="nav" aria-label="Workspace navigation">
           {NAV_ITEMS.map((item,i)=><button key={item} className={page===item?'active':''} onClick={()=>go(item)}>
-            <span className="nav-icon" aria-hidden="true">{({'Home':'⌂','Platform':'▦','Command':'⌘','Agents':'♙','Memory':'◫','Tools':'⌘','History':'◷'})[item]}</span>
+            <span className="nav-icon" aria-hidden="true">{({'Home':'⌂','Platform':'▦','Command':'⌘','Analytics':'▥','Agents':'♙','Memory':'◫','Tools':'⌘','History':'◷'})[item]}</span>
             <span className="label">{item}</span><span className="num">{String(i+1).padStart(2,'0')}</span>
           </button>)}
         </nav>
@@ -336,6 +336,7 @@ function App(){
           </div>
         </div>
         {page==='Platform'&&<PlatformView go={go} open={openTask} openApiSettings={()=>setApiSettingsOpen(true)}/>}
+        {page==='Analytics'&&<AnalyticsView open={openTask} openApiSettings={()=>setApiSettingsOpen(true)}/>}
         {page==='Command'&&<CommandView {...{prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents:task?.agents||agents.map(a=>({...a,status:'QUEUED'})),metrics:task?[
           ['EXECUTION',task.execution_time_ms?task.execution_time_ms+' ms':'—'],['TOOLS',task.tool_calls||0],['CONFIDENCE',task.confidence?task.confidence+'%':'—'],['RISK',task.risk||'—'],
           ['RELEASE',task.status==='COMPLETED'?'READY':'STANDBY'],['QUALITY',task.quality?task.quality+'%':'—'],['COVERAGE',task.coverage?task.coverage+'%':'—'],['LATENCY',task.latency_ms?task.latency_ms+' ms':'—']
@@ -733,7 +734,7 @@ function HomeView({go,runtimeState,busy,agents,openPalette,openApiSettings}){
   const highlights=[
     ['◈','Multi-Agent System','Specialized agents',()=>go('Agents')],
     ['⌘','Tool Integration','Runtime capabilities',()=>go('Tools')],
-    ['◫','Memory System','Persistent execution history',()=>go('Memory')],
+    ['◫','Memory System','Database-backed execution history',()=>go('Memory')],
     ['◉','Autonomous Execution','Plan → Act → Verify',()=>go('Command')]
   ];
   return <main className="main home-main">
@@ -896,7 +897,7 @@ function PlatformView({go,open,openApiSettings}){
       <div className="platform-guardrails-grid">
         <article><span>01 / CREDENTIALS</span><h3>Secrets stay server-side</h3><p>The model provider key belongs in Render Environment. The optional API access key is separate and can be entered in the connection dialog, stored per browser tab, and sent via a request header.</p></article>
         <article><span>02 / EXECUTION</span><h3>No arbitrary code runner</h3><p>Generated code is a reviewable draft. CYRUS does not execute code from the model or imply that syntax checks prove runtime correctness.</p></article>
-        <article><span>03 / PERSISTENCE</span><h3>Know your storage tier</h3><p>The current JSON history file is on the service filesystem. On a free Render instance, treat this history as non-durable across restarts; a managed database is a future hardening step.</p></article>
+        <article><span>03 / PERSISTENCE</span><h3>Know your storage tier</h3><p>Execution history uses a database adapter: PostgreSQL when CYRUS_DATABASE_URL or DATABASE_URL is configured, otherwise SQLite. SQLite on an ephemeral host is not durable across restarts; configure PostgreSQL for durable hosted history.</p></article>
         <article><span>04 / MODEL MODE</span><h3>Demo versus live model</h3><p>DEMO means deterministic fallback behavior. LIVE means a model provider is configured; a successful model-backed task is still the final check that the provider responds.</p></article>
       </div>
     </section>
@@ -904,6 +905,131 @@ function PlatformView({go,open,openApiSettings}){
     <section className="platform-next-section">
       <div><span className="editorial-kicker">NEXT / BUILD ON THE FOUNDATION</span><h2>Make the next step <em>measurable.</em></h2><p>Open a command, inspect a run, or check your actual service settings before enabling a model-backed workflow.</p></div>
       <div className="platform-next-actions"><button className="home-primary" onClick={()=>go('Command')}>Open Command <b>↗</b></button><button className="home-secondary" onClick={()=>go('History')}>Browse execution history <b>↗</b></button><button className="home-secondary" onClick={openApiSettings}>API connection settings <b>↗</b></button></div>
+    </section>
+  </div>
+}
+
+function AnalyticsView({open,openApiSettings}){
+  const [days,setDays]=useState(7);
+  const [data,setData]=useState(null);
+  const [error,setError]=useState('');
+  const [refreshing,setRefreshing]=useState(false);
+  const [updatedAt,setUpdatedAt]=useState(null);
+  const [refreshTick,setRefreshTick]=useState(0);
+
+  useEffect(()=>{
+    let active=true;
+    let inFlight=false;
+    const refresh=async()=>{
+      if(inFlight)return;
+      inFlight=true;
+      if(active)setRefreshing(true);
+      try{
+        const result=await apiJson('/api/analytics?days='+days);
+        if(active){setData(result);setError('');setUpdatedAt(new Date().toISOString());}
+      }catch(err){
+        if(active)setError(err?.message||'Analytics endpoint is unavailable.');
+      }finally{
+        inFlight=false;
+        if(active)setRefreshing(false);
+      }
+    };
+    refresh();
+    const timer=window.setInterval(refresh,20000);
+    return()=>{active=false;window.clearInterval(timer);};
+  },[days,refreshTick]);
+
+  const totals=data?.totals||{};
+  const daily=Array.isArray(data?.daily)?data.daily:[];
+  const providers=Array.isArray(data?.providers)?data.providers:[];
+  const failures=Array.isArray(data?.failure_types)?data.failure_types:[];
+  const recent=Array.isArray(data?.recent_tasks)?data.recent_tasks:[];
+  const maxTotal=Math.max(1,...daily.map(item=>Number(item.total)||0));
+  const sumProviders=providers.reduce((sum,item)=>sum+(Number(item.count)||0),0);
+  const stamp=updatedAt?new Date(updatedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}):'Awaiting first response';
+  const statusClass=value=>String(value||'unknown').toLowerCase().replace(/[^a-z0-9_-]/g,'-');
+  const fmtMs=value=>{
+    const n=Number(value);
+    if(!Number.isFinite(n)||n<=0)return '—';
+    return n>=1000?(n/1000).toFixed(2)+' s':Math.round(n)+' ms';
+  };
+  const statusRows=[
+    {label:'Completed',key:'completed',color:'completed'},
+    {label:'Failed',key:'failed',color:'failed'},
+    {label:'Cancelled',key:'cancelled',color:'cancelled'},
+    {label:'Timed out',key:'timed_out',color:'timed-out'},
+    {label:'Running',key:'running',color:'running'},
+    {label:'Awaiting approval',key:'awaiting_approval',color:'approval'}
+  ];
+  return <div className="section-page page-analytics">
+    <PageHero eyebrow="ANALYTICS / DATABASE TELEMETRY" title="The signal" accent=" behind every run." description="Live analytics computed from actual task records and in-memory execution state. No seeded chart values or placeholder success rates." image={CYRUS_IMAGES.history} alt="Source-code data visualisation representing execution history" meta="LIVE METRICS / 20 SEC REFRESH" imageCaption="ACTUAL EXECUTION DATA"/>
+    <section className="analytics-console">
+      <div className="analytics-console-head">
+        <div><span className="editorial-kicker">RUNTIME ANALYTICS / SOURCE-OF-TRUTH API</span><h2>Operational <em>readout.</em></h2><p>{data?'Updated '+stamp+' · '+(data.source||'runtime API'):'Waiting for the analytics API response.'}</p></div>
+        <div className="analytics-actions">
+          <div className="analytics-range-switch" aria-label="Analytics time window">{[7,30,90].map(value=><button type="button" key={value} className={days===value?'selected':''} onClick={()=>setDays(value)}>{value}D</button>)}</div>
+          <button className="platform-refresh-button" onClick={()=>setRefreshTick(value=>value+1)} disabled={refreshing}>{refreshing?'SYNCING…':'↻ REFRESH'}</button>
+        </div>
+      </div>
+      <div className="analytics-live-line"><span className={'platform-state-dot '+(data?'healthy':error?'unreachable':'pending')}/><b>{data?'LIVE DATA RECEIVED':error?'ANALYTICS ENDPOINT UNAVAILABLE':'CONNECTING'}</b><span>Auto-refresh · 20 seconds</span><span>Last response · {stamp}</span></div>
+      {error&&<div className="analytics-error"><div><strong>Could not refresh actual analytics.</strong><p>{error}</p><small>The page will not invent or substitute sample data. Check API settings and access permissions.</small></div><button onClick={openApiSettings}>API connection settings ↗</button></div>}
+      {!data&&!error&&<div className="analytics-empty"><span>INITIALIZING DATA FEED</span><strong>Waiting for backend analytics…</strong><div className="analytics-loading-track"><i/></div></div>}
+      {data&&<>
+        <div className="analytics-stat-grid">
+          <article><span>TASK RECORDS</span><strong>{totals.all??0}</strong><small>Live plus persisted snapshots</small><i className="analytics-stat-mark">01 / TOTAL</i></article>
+          <article><span>COMPLETED</span><strong>{totals.completed??0}</strong><small>{totals.terminal?Math.round((Number(totals.completed||0)/Number(totals.terminal))*100)+'% of terminal runs':'No terminal runs yet'}</small><i className="analytics-stat-mark">02 / FINISHED</i></article>
+          <article><span>SUCCESS RATE</span><strong>{totals.terminal?(Number(totals.success_rate)||0)+'%':'—'}</strong><small>Completed ÷ terminal executions</small><i className="analytics-stat-mark">03 / OUTCOME</i></article>
+          <article><span>AVG. EXECUTION</span><strong>{fmtMs(data.latency?.average_ms)}</strong><small>{data.latency?.samples||0} terminal-run samples</small><i className="analytics-stat-mark">04 / LATENCY</i></article>
+        </div>
+        <div className="analytics-main-grid">
+          <section className="analytics-panel analytics-timeline-panel">
+            <div className="analytics-panel-heading"><div><span className="editorial-kicker">THROUGHPUT / LAST {days} DAYS</span><h3>Run activity</h3></div><span className="analytics-panel-total">{daily.reduce((sum,item)=>sum+(Number(item.total)||0),0)} <small>RUNS</small></span></div>
+            {daily.some(item=>Number(item.total)>0)?<div className="analytics-chart" role="img" aria-label="Daily execution volume for selected period">{daily.map(item=>{
+              const count=Math.max(0,Number(item.total)||0);
+              const height=count?Math.max(4,Math.round(count/maxTotal*100)):2;
+              return <div className="analytics-day" key={item.date} title={item.date+': '+count+' run(s)'}>
+                <div className="analytics-bar-area"><div className="analytics-bar-stack" style={{height:height+'%'}}>
+                  {count>0&&<><i className="completed" style={{flexGrow:Number(item.completed)||0}}/><i className="failed" style={{flexGrow:Number(item.failed)||0}}/><i className="cancelled" style={{flexGrow:(Number(item.cancelled)||0)+(Number(item.timed_out)||0)}}/><i className="other" style={{flexGrow:Math.max(0,count-(Number(item.completed)||0)-(Number(item.failed)||0)-(Number(item.cancelled)||0)-(Number(item.timed_out)||0))}}/></>}
+                </div></div><small>{item.label}</small><b>{count}</b>
+              </div>;
+            })}</div>:<div className="analytics-no-data"><strong>No executions in this window.</strong><span>Run an objective in Command to populate real activity.</span></div>}
+            <div className="analytics-chart-legend"><span><i className="completed"/>Completed</span><span><i className="failed"/>Failed</span><span><i className="cancelled"/>Cancelled / timed out</span><span><i className="other"/>Active / other</span></div>
+          </section>
+          <section className="analytics-panel">
+            <div className="analytics-panel-heading"><div><span className="editorial-kicker">CURRENT SNAPSHOT</span><h3>Execution state</h3></div><span className="analytics-panel-total">{totals.all??0} <small>TOTAL</small></span></div>
+            <div className="analytics-status-list">{statusRows.map(item=>{
+              const count=Number(totals[item.key])||0;
+              const width=totals.all?Math.min(100,count/Math.max(1,Number(totals.all))*100):0;
+              return <div className="analytics-status-row" key={item.key}><div><span className={'analytics-state-icon '+item.color}/><b>{item.label}</b><strong>{count}</strong></div><div className="analytics-status-track"><i className={item.color} style={{width:width+'%'}}/></div></div>;
+            })}</div>
+            <div className="analytics-terminal-foot"><span>TERMINAL OUTCOMES</span><b>{totals.terminal??0}</b><small>Failure rate: {totals.terminal?Math.round((Number(totals.failed||0)+Number(totals.timed_out||0))/Number(totals.terminal)*100)+'%':'—'}</small></div>
+          </section>
+        </div>
+        <div className="analytics-lower-grid">
+          <section className="analytics-panel">
+            <div className="analytics-panel-heading"><div><span className="editorial-kicker">PROVIDER DISTRIBUTION</span><h3>Runtime providers</h3></div><span className="analytics-panel-total">{sumProviders} <small>RECORDS</small></span></div>
+            {providers.length?<div className="analytics-provider-list">{providers.map((item,index)=>{
+              const count=Number(item.count)||0;
+              const width=sumProviders?count/sumProviders*100:0;
+              return <div className="analytics-provider-row" key={item.name}><div className="analytics-provider-meta"><span><i className={'analytics-provider-swatch swatch-'+(index%4)}/><b>{item.name}</b></span><strong>{count}</strong></div><div className="analytics-provider-track"><i style={{width:width+'%'}}/></div><small>{Math.round(width)}% of stored runs</small></div>;
+            })}</div>:<div className="analytics-no-data"><strong>No provider records yet.</strong></div>}
+          </section>
+          <section className="analytics-panel">
+            <div className="analytics-panel-heading"><div><span className="editorial-kicker">FAILURE TELEMETRY</span><h3>Failure signatures</h3></div><span className="analytics-panel-total">{failures.reduce((sum,item)=>sum+(Number(item.count)||0),0)} <small>EVENTS</small></span></div>
+            {failures.length?<div className="analytics-failure-list">{failures.map(item=><div className="analytics-failure-row" key={item.type}><span className="analytics-failure-glyph">!</span><span><b>{item.type}</b><small>Recorded runtime failure</small></span><strong>{item.count}</strong></div>)}</div>:<div className="analytics-no-data"><span className="analytics-success-glyph">✓</span><strong>No recorded failure signatures.</strong><span>This refers only to stored runtime failure payloads; it is not proof of application correctness.</span></div>}
+          </section>
+          <section className="analytics-panel analytics-latency-panel">
+            <div className="analytics-panel-heading"><div><span className="editorial-kicker">COMPLETED-RUN TIMING</span><h3>Latency profile</h3></div></div>
+            <div className="analytics-latency-grid"><div><span>AVERAGE</span><strong>{fmtMs(data.latency?.average_ms)}</strong></div><div><span>MEDIAN</span><strong>{fmtMs(data.latency?.median_ms)}</strong></div><div><span>P95</span><strong>{fmtMs(data.latency?.p95_ms)}</strong></div><div><span>MAXIMUM</span><strong>{fmtMs(data.latency?.maximum_ms)}</strong></div></div>
+            <p>Only terminal executions with recorded execution time are included. Timing varies with provider response and host wake-up.</p>
+          </section>
+        </div>
+        <section className="analytics-panel analytics-recent-panel">
+          <div className="analytics-panel-heading"><div><span className="editorial-kicker">OBSERVABILITY / TASK LEDGER</span><h3>Recent executions</h3></div><button className="analytics-link-button" onClick={()=>setRefreshTick(value=>value+1)}>↻ SYNC</button></div>
+          {recent.length?<div className="analytics-recent-list">{recent.map(item=><button className="analytics-recent-row" key={item.task_id} onClick={()=>open(item)}><span className={'platform-task-dot '+statusClass(item.status)}/><span className="analytics-recent-main"><strong>{item.objective||item.task_id}</strong><small>{item.task_id} · {item.provider||'provider unknown'} · {item.created_at?new Date(item.created_at).toLocaleString():'time unavailable'}</small></span><span className={'platform-task-status '+statusClass(item.status)}>{String(item.status||'UNKNOWN').replaceAll('_',' ')}</span><b>↗</b></button>)}</div>:<div className="analytics-no-data"><strong>No execution records to display.</strong><span>Create the first run from Command and come back here.</span></div>}
+        </section>
+        <section className="analytics-storage-foot"><div><span className="editorial-kicker">STORAGE / ACTUAL BACKEND</span><strong>{data.history_store?.backend||'Unknown storage'}</strong><p>{data.history_store?.note||'Storage diagnostics were not returned.'}</p></div><span className={'analytics-storage-status '+(data.history_store?.durability==='managed_database'?'durable':'local')}>{data.history_store?.durability==='managed_database'?'MANAGED DATABASE':'CHECK DURABILITY'}</span></section>
+      </>}
     </section>
   </div>
 }

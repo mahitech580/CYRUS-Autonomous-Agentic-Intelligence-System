@@ -28,7 +28,7 @@ jobs:
         run: python -m pip check
 
       - name: Compile Python
-        run: python -m compileall -q server.py providers.py static_analysis.py tests
+        run: python -m compileall -q server.py providers.py static_analysis.py storage.py tests
 
       - name: Run API contract tests
         run: python -m unittest discover -s tests -v
