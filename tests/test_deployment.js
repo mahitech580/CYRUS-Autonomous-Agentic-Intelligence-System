@@ -132,3 +132,14 @@ assert.ok(blueprint.includes("healthCheckPath: /api/health"), "Render Blueprint 
 assert.ok(blueprint.includes("server:app"), "Render Blueprint must start the Flask application");
 assert.ok(fs.readFileSync("requirements.txt", "utf8").includes("gunicorn==23.0.0"), "Production WSGI server must be installed");
 console.log("realtime deployment smoke: API config, CORS deployment assets, SSE URL, and Render Blueprint OK");
+
+for (const feature of ["X-CYRUS-Access-Key","cyrus-api-access-key","static_analysis?.checks","STATIC ANALYSIS","sessionStorage.setItem('cyrus-api-access-key'"]) {
+  assert.ok(fs.readFileSync("app.js","utf8").includes(feature), "Missing runtime-hardening UI feature: " + feature);
+}
+assert.ok(fs.readFileSync("runtime-config.js","utf8").includes("sessionStorage.getItem(\"cyrus-api-access-key\")"), "Access key must be scoped to the browser tab");
+assert.ok(fs.readFileSync("event-stream.js","utf8").includes('headers["X-CYRUS-Access-Key"]'), "SSE requests must pass the optional access key");
+assert.ok(fs.readFileSync("server.py","utf8").includes('def security_info()'), "API must expose its non-secret security posture");
+assert.ok(fs.readFileSync("server.py","utf8").includes('hmac.compare_digest'), "API access keys must be compared in constant time");
+assert.ok(fs.readFileSync("static_analysis.py","utf8").includes("ast.parse"), "Generated Python should be parsed without execution");
+assert.ok(fs.existsSync("tests/test_static_analysis.py"), "Static-analysis safety tests must exist");
+console.log("runtime hardening smoke: optional access-key gate, authenticated SSE, and draft static-analysis inspection OK");
