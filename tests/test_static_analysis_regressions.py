@@ -85,5 +85,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
         self.assertFalse(result["code_executed"])
 
+    def test_15_openai_style_secret_pattern_is_flagged(self):
+        source = "TOKEN = 'sk-" + ("a" * 28) + "'"
+        result = self.check(source)
+        self.assertEqual(self.named(result, "likely_secret_scan")["status"], "FAIL")
+
 if __name__ == "__main__":
     unittest.main()
