@@ -219,5 +219,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         detail = self.named(result, "python_syntax")["detail"]
         self.assertIn("line 1", detail)
 
+    def test_43_secret_scan_does_not_return_source_text(self):
+        source = "credential = '" + ("z" * 50) + "'"
+        result = self.check(source)
+        self.assertNotIn(source, str(result))
+
 if __name__ == "__main__":
     unittest.main()
