@@ -256,6 +256,7 @@ def persist_task(task):
         "artifacts": task.get("artifacts", []),
         "idempotency_key": task.get("idempotency_key"),
         "current_agent": task.get("current_agent"),
+        "tool_calls": task.get("tool_calls", 0),
         "plan": task.get("plan", []),
         "research": task.get("research", []),
         "tests_passed": task.get("tests_passed", 0),
