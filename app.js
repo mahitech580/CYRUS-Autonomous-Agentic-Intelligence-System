@@ -89,6 +89,201 @@ function ApiSettingsModal({close}){
   </div>
 }
 
+const ATMOSPHERE_PRESETS={
+  nexus:{label:'Nexus',description:'Glacial blue · violet plasma',rgbA:'103,214,255',rgbB:'153,113,255',rgbC:'94,245,207',cyan:'#7ce4ff',violet:'#a18aff',green:'#68f0cb',ember:'#ff7b86'},
+  aurora:{label:'Aurora',description:'Polar mint · arctic cyan',rgbA:'68,247,193',rgbB:'54,166,255',rgbC:'192,255,130',cyan:'#55efc4',violet:'#64baff',green:'#b8ff9f',ember:'#a2ffde'},
+  ember:{label:'Solar flare',description:'Molten amber · crimson glow',rgbA:'255,143,67',rgbB:'255,64,111',rgbC:'255,209,109',cyan:'#ffb15d',violet:'#ff527c',green:'#ffd36e',ember:'#ff725b'},
+  ultraviolet:{label:'Ultraviolet',description:'Orchid plasma · electric rose',rgbA:'191,105,255',rgbB:'255,92,202',rgbC:'94,224,255',cyan:'#d29bff',violet:'#ff83d6',green:'#83eaff',ember:'#ff8bc9'},
+  monochrome:{label:'Monochrome',description:'Graphite · silver light',rgbA:'188,211,225',rgbB:'119,141,165',rgbC:'220,231,238',cyan:'#c6dae5',violet:'#8599ad',green:'#d6e6ea',ember:'#a1adb9'}
+}
+
+function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
+  const canvasRef=useRef(null)
+  useEffect(()=>{
+    const canvas=canvasRef.current
+    if(!canvas)return
+    const context=canvas.getContext('2d',{alpha:true})
+    if(!context)return
+    const root=document.documentElement
+    const palette=ATMOSPHERE_PRESETS[preset]||ATMOSPHERE_PRESETS.nexus
+    root.style.setProperty('--atmo-a-rgb',palette.rgbA)
+    root.style.setProperty('--atmo-b-rgb',palette.rgbB)
+    root.style.setProperty('--atmo-c-rgb',palette.rgbC)
+    root.style.setProperty('--cyan',palette.cyan)
+    root.style.setProperty('--violet',palette.violet)
+    root.style.setProperty('--green',palette.green)
+    root.style.setProperty('--red',palette.ember)
+    const reducedQuery=window.matchMedia('(prefers-reduced-motion: reduce)')
+    const saveData=Boolean(navigator.connection?.saveData)
+    let animateMotion=motionEnabled&&!reducedQuery.matches&&!saveData
+    let raf=0,lastFrame=0,elapsed=0,width=1,height=1,dpr=1
+    const pointer={x:.5,y:.36,tx:.5,ty:.36,active:false}
+    const trail=[]
+    const smallScreen=window.matchMedia('(max-width: 700px)').matches
+    const particleCount=Math.min(smallScreen?34:68,Math.max(18,(navigator.hardwareConcurrency||4)*8))
+    const particles=Array.from({length:particleCount},(_,i)=>({
+      x:((i*37.17+13)%101)/100,
+      y:((i*61.31+29)%101)/100,
+      vx:Math.sin(i*3.7)*.00009,
+      vy:Math.cos(i*2.3)*.00007,
+      radius:.5+(i%4)*.34,
+      phase:i*1.71,
+      depth:.3+(i%7)/10
+    }))
+    const resize=()=>{
+      dpr=Math.min(window.devicePixelRatio||1,1.6)
+      const rect=canvas.getBoundingClientRect()
+      width=Math.max(1,rect.width);height=Math.max(1,rect.height)
+      canvas.width=Math.max(1,Math.floor(width*dpr))
+      canvas.height=Math.max(1,Math.floor(height*dpr))
+      context.setTransform(dpr,0,0,dpr,0,0)
+      draw()
+    }
+    const pointerMove=event=>{
+      if(event.pointerType==='touch')return
+      pointer.tx=event.clientX/Math.max(1,window.innerWidth)
+      pointer.ty=event.clientY/Math.max(1,window.innerHeight)
+      pointer.active=true
+      trail.push({x:pointer.tx,y:pointer.ty,life:1})
+      if(trail.length>15)trail.shift()
+    }
+    const draw=()=>{
+      context.clearRect(0,0,width,height)
+      const t=elapsed
+      pointer.x+=(pointer.tx-pointer.x)*.045
+      pointer.y+=(pointer.ty-pointer.y)*.045
+      const driftX=(pointer.x-.5)*width*.055
+      const driftY=(pointer.y-.5)*height*.05
+      const strength=Math.max(.2,Math.min(1.5,Number(intensity)||.8))
+      context.save()
+      context.globalCompositeOperation='screen'
+      const blobs=[
+        {x:width*.15+Math.sin(t*.21)*width*.08+driftX*.3,y:height*.26+Math.cos(t*.19)*height*.08+driftY*.3,r:Math.max(width,height)*.43,color:palette.rgbA,alpha:.105},
+        {x:width*.79+Math.cos(t*.17)*width*.07-driftX*.18,y:height*.32+Math.sin(t*.24)*height*.1-driftY*.2,r:Math.max(width,height)*.39,color:palette.rgbB,alpha:.105},
+        {x:width*.51+Math.sin(t*.13+1.7)*width*.12+driftX*.25,y:height*.86+Math.cos(t*.15)*height*.07,r:Math.max(width,height)*.36,color:palette.rgbC,alpha:.07}
+      ]
+      blobs.forEach(blob=>{
+        const radius=blob.r
+        const gradient=context.createRadialGradient(blob.x,blob.y,0,blob.x,blob.y,radius)
+        gradient.addColorStop(0,'rgba('+blob.color+','+(blob.alpha*strength)+')')
+        gradient.addColorStop(.45,'rgba('+blob.color+','+(blob.alpha*.32*strength)+')')
+        gradient.addColorStop(1,'rgba('+blob.color+',0)')
+        context.fillStyle=gradient
+        context.fillRect(Math.max(0,blob.x-radius),Math.max(0,blob.y-radius),Math.min(width,radius*2),Math.min(height,radius*2))
+      })
+      const coords=particles.map(p=>{
+        if(animateMotion){
+          p.x+=p.vx*(1+p.depth)
+          p.y+=p.vy*(1+p.depth)
+          if(p.x<-.03)p.x=1.03;if(p.x>1.03)p.x=-.03
+          if(p.y<-.03)p.y=1.03;if(p.y>1.03)p.y=-.03
+        }
+        return {x:p.x*width+driftX*p.depth,y:p.y*height+driftY*p.depth,p}
+      })
+      context.lineWidth=.65
+      for(let i=0;i<coords.length;i++){
+        const a=coords[i]
+        for(let j=i+1;j<Math.min(coords.length,i+8);j++){
+          const b=coords[j],dx=a.x-b.x,dy=a.y-b.y,distance=Math.sqrt(dx*dx+dy*dy)
+          if(distance<105){
+            context.strokeStyle='rgba('+palette.rgbA+','+((1-distance/105)*.095*strength)+')'
+            context.beginPath();context.moveTo(a.x,a.y);context.lineTo(b.x,b.y);context.stroke()
+          }
+        }
+        const twinkle=.42+.58*(.5+.5*Math.sin(t*1.2+a.p.phase))
+        context.beginPath()
+        context.arc(a.x,a.y,a.p.radius*(.65+twinkle*.55),0,Math.PI*2)
+        context.fillStyle='rgba('+palette.rgbC+','+((.12+twinkle*.25)*strength)+')'
+        context.fill()
+      }
+      if(pointer.active){
+        trail.forEach((point,index)=>{
+          const fade=point.life*(index/trail.length)
+          const x=point.x*width,y=point.y*height
+          context.beginPath();context.arc(x,y,1.5+fade*5,0,Math.PI*2)
+          context.fillStyle='rgba('+palette.rgbA+','+(fade*.28*strength)+')';context.fill()
+          if(animateMotion)point.life*=.94
+        })
+        while(trail.length&&trail[0].life<.045)trail.shift()
+        const x=pointer.x*width,y=pointer.y*height
+        const radius=100+Math.sin(t*2)*9
+        const glow=context.createRadialGradient(x,y,0,x,y,radius)
+        glow.addColorStop(0,'rgba('+palette.rgbA+','+(.065*strength)+')')
+        glow.addColorStop(.42,'rgba('+palette.rgbB+','+(.026*strength)+')')
+        glow.addColorStop(1,'rgba('+palette.rgbA+',0)')
+        context.fillStyle=glow;context.fillRect(x-radius,y-radius,radius*2,radius*2)
+      }
+      context.restore()
+    }
+    const frame=now=>{
+      raf=0
+      if(document.hidden)return
+      if(now-lastFrame>=32){
+        elapsed+=Math.min(64,now-lastFrame)/1000
+        lastFrame=now
+        draw()
+      }
+      if(animateMotion)raf=requestAnimationFrame(frame)
+    }
+    const start=()=>{if(animateMotion&&!document.hidden&&!raf)raf=requestAnimationFrame(frame)}
+    const visibility=()=>{
+      if(document.hidden){if(raf)cancelAnimationFrame(raf);raf=0}
+      else start()
+    }
+    const preference=()=>{animateMotion=motionEnabled&&!reducedQuery.matches&&!saveData;if(animateMotion)start();else{if(raf)cancelAnimationFrame(raf);raf=0;draw()}}
+    resize()
+    if(animateMotion)start()
+    window.addEventListener('resize',resize,{passive:true})
+    window.addEventListener('pointermove',pointerMove,{passive:true})
+    document.addEventListener('visibilitychange',visibility)
+    reducedQuery.addEventListener?.('change',preference)
+    return()=>{
+      if(raf)cancelAnimationFrame(raf)
+      window.removeEventListener('resize',resize)
+      window.removeEventListener('pointermove',pointerMove)
+      document.removeEventListener('visibilitychange',visibility)
+      reducedQuery.removeEventListener?.('change',preference)
+    }
+  },[preset,intensity,motionEnabled])
+  return <canvas ref={canvasRef} className="ambient-canvas" aria-hidden="true"/>
+}
+
+function AtmosphereStudio({preset,setPreset,intensity,setIntensity,motionEnabled,toggleMotion,close}){
+  const closeRef=useRef(null)
+  useEffect(()=>{
+    closeRef.current?.focus()
+    const oldOverflow=document.body.style.overflow
+    document.body.style.overflow='hidden'
+    const keydown=event=>{if(event.key==='Escape')close()}
+    window.addEventListener('keydown',keydown)
+    return()=>{document.body.style.overflow=oldOverflow;window.removeEventListener('keydown',keydown)}
+  },[])
+  return <div className="atmosphere-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)close()}}>
+    <section className="atmosphere-studio" role="dialog" aria-modal="true" aria-labelledby="atmosphere-title" onKeyDown={event=>{
+      if(event.key!=='Tab')return
+      const controls=[...event.currentTarget.querySelectorAll('button:not(:disabled),input:not(:disabled)')]
+      if(!controls.length)return
+      const first=controls[0],last=controls[controls.length-1]
+      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+    }}>
+      <header className="atmosphere-head"><div><span className="editorial-kicker">CYRUS / VISUAL ENGINE</span><h2 id="atmosphere-title">Atmosphere <em>studio.</em></h2><p>Shape the ambient signal, color language, and movement of your workspace.</p></div><button ref={closeRef} type="button" className="atmosphere-close" onClick={close} aria-label="Close atmosphere studio">×</button></header>
+      <div className="atmosphere-preview" data-preset={preset} aria-hidden="true"><span className="atmosphere-preview-core"/><i/><i/><i/><b>CYRUS-07</b><small>AMBIENT FIELD / LIVE PREVIEW</small></div>
+      <div className="atmosphere-section-head"><div><span className="editorial-kicker">01 / COLOR FIELD</span><h3>Choose a world.</h3></div><span>5 PRESETS</span></div>
+      <div className="atmosphere-presets">
+        {Object.entries(ATMOSPHERE_PRESETS).map(([key,item])=><button type="button" key={key} className={'atmosphere-preset '+(preset===key?'selected':'')} onClick={()=>setPreset(key)} aria-pressed={preset===key}>
+          <span className={'atmosphere-swatch '+key}><i/><i/><i/></span><strong>{item.label}</strong><small>{item.description}</small><span className="atmosphere-preset-check">{preset===key?'✓ SELECTED':'SELECT'}</span>
+        </button>)}
+      </div>
+      <div className="atmosphere-section-head"><div><span className="editorial-kicker">02 / FIELD INTENSITY</span><h3>Control the energy.</h3></div><span>{Math.round(intensity*100)}%</span></div>
+      <label className="atmosphere-slider-label" htmlFor="atmosphere-intensity"><span>Background glow and particle density</span><strong>{intensity<.5?'SUBTLE':intensity>1.05?'CINEMATIC':'BALANCED'}</strong></label>
+      <input id="atmosphere-intensity" className="atmosphere-slider" type="range" min="0.25" max="1.4" step="0.05" value={intensity} onChange={event=>setIntensity(Number(event.target.value))}/>
+      <div className="atmosphere-slider-scale"><span>QUIET</span><span>IMMERSIVE</span><span>INTENSE</span></div>
+      <div className="atmosphere-footer"><button type="button" className={'atmosphere-motion-button '+(motionEnabled?'active':'')} onClick={toggleMotion}><span>{motionEnabled?'◉':'◌'}</span>{motionEnabled?'Motion enabled':'Calm mode'}</button><p>Reduced-motion settings and data-saver preferences always take priority over animation.</p><button type="button" className="atmosphere-done" onClick={close}>APPLY FIELD <b>↗</b></button></div>
+    </section>
+  </div>
+}
+
 function App(){
   const [page,setPage]=useState('Home')
   const [mode,setMode]=useState('autonomous')
@@ -105,6 +300,11 @@ function App(){
   const [paletteOpen,setPaletteOpen]=useState(false)
   const [motionEnabled,setMotionEnabled]=useState(()=>{try{return localStorage.getItem('cyrus-motion')!=='off'}catch{return true}})
   const [apiSettingsOpen,setApiSettingsOpen]=useState(false)
+  const [atmosphereOpen,setAtmosphereOpen]=useState(false)
+  const [atmospherePreset,setAtmospherePreset]=useState(()=>{try{const value=localStorage.getItem('cyrus-atmosphere-preset');return ATMOSPHERE_PRESETS[value]?value:'nexus'}catch{return 'nexus'}})
+  const [atmosphereIntensity,setAtmosphereIntensity]=useState(()=>{try{const value=Number(localStorage.getItem('cyrus-atmosphere-intensity'));return Number.isFinite(value)&&value>=.25&&value<=1.4?value:.8}catch{return .8}})
+  const changeAtmospherePreset=value=>{setAtmospherePreset(value);try{localStorage.setItem('cyrus-atmosphere-preset',value)}catch{}}
+  const changeAtmosphereIntensity=value=>{const safe=Math.max(.25,Math.min(1.4,Number(value)||.8));setAtmosphereIntensity(safe);try{localStorage.setItem('cyrus-atmosphere-intensity',String(safe))}catch{}}
 
   const notify=message=>{setToast(message);window.clearTimeout(window.__cyrusToastTimer);window.__cyrusToastTimer=window.setTimeout(()=>setToast(''),2500)}
   const toggleMotion=()=>{
@@ -310,8 +510,9 @@ function App(){
   const go=next=>{setPage(next);setPaletteOpen(false);window.scrollTo({top:0,behavior:'smooth'})}
 
   return <div className={'app-shell '+(page==='Home'?'home-shell':'workspace-shell')}>
+    <AmbientCanvas preset={atmospherePreset} intensity={atmosphereIntensity} motionEnabled={motionEnabled}/>
     <div className="motion-progress" aria-hidden="true"/>
-    {page==='Home'&&<HomeView go={go} runtimeState={runtimeState} busy={busy} agents={agents} openPalette={()=>setPaletteOpen(true)} openApiSettings={()=>setApiSettingsOpen(true)}/>}
+    {page==='Home'&&<HomeView go={go} runtimeState={runtimeState} busy={busy} agents={agents} openPalette={()=>setPaletteOpen(true)} openApiSettings={()=>setApiSettingsOpen(true)} openAtmosphere={()=>setAtmosphereOpen(true)}/>}
     {page!=='Home'&&<>
       <aside className="sidebar workspace-sidebar">
         <button className="brand" onClick={()=>go('Home')} aria-label="Open CYRUS home">
@@ -330,6 +531,7 @@ function App(){
         <div className="topbar">
           <div className="eyebrow">CYRUS / {page.toUpperCase()} WORKSPACE</div>
           <div className="top-actions">
+            <button className="atmosphere-open-button" type="button" onClick={()=>setAtmosphereOpen(true)} title="Customize colors and ambient motion">✧ ATMOSPHERE</button>
             <button className="backend-settings-button" type="button" onClick={()=>setApiSettingsOpen(true)} title="Configure the live API backend">API ↗</button>
             <button className={'motion-toggle '+(motionEnabled?'active':'')} type="button" aria-pressed={motionEnabled} onClick={toggleMotion} title="Toggle motion effects"><span className="motion-toggle-icon" aria-hidden="true">{motionEnabled?'◉':'◌'}</span><span>{motionEnabled?'MOTION ON':'CALM MODE'}</span></button>
             <div className="live-pill"><span className="dot"/>{runtimeState} · {busy?'RUNNING':'READY'}</div>
@@ -349,8 +551,9 @@ function App(){
       </main>
     </>}
     {apiSettingsOpen&&<ApiSettingsModal close={()=>setApiSettingsOpen(false)}/>}
+    {atmosphereOpen&&<AtmosphereStudio preset={atmospherePreset} setPreset={changeAtmospherePreset} intensity={atmosphereIntensity} setIntensity={changeAtmosphereIntensity} motionEnabled={motionEnabled} toggleMotion={toggleMotion} close={()=>setAtmosphereOpen(false)}/>}
     {selectedTask&&<TaskModal task={selectedTask} close={()=>setSelectedTask(null)}/>}
-    {paletteOpen&&<CommandPalette page={page} go={go} execute={execute} seedObjective={seedObjective} notify={notify} close={()=>setPaletteOpen(false)}/>}
+    {paletteOpen&&<CommandPalette page={page} go={go} execute={execute} seedObjective={seedObjective} notify={notify} openAtmosphere={()=>{setPaletteOpen(false);setAtmosphereOpen(true)}} close={()=>setPaletteOpen(false)}/>}
     {toast&&<div className="toast">{toast}</div>}
   </div>
 }
@@ -731,7 +934,7 @@ function CyrusCharacter({busy=false,runtimeState='ONLINE',currentAgents=[],go=()
   </div>;
 }
 
-function HomeView({go,runtimeState,busy,agents,openPalette,openApiSettings}){
+function HomeView({go,runtimeState,busy,agents,openPalette,openApiSettings,openAtmosphere}){
   const highlights=[
     ['◈','Multi-Agent System','Specialized agents',()=>go('Agents')],
     ['⌘','Tool Integration','Runtime capabilities',()=>go('Tools')],
@@ -742,7 +945,7 @@ function HomeView({go,runtimeState,busy,agents,openPalette,openApiSettings}){
     <header className="home-navigation">
       <button className="home-brand" onClick={()=>go('Home')} aria-label="CYRUS home"><span className="home-brand-symbol">◆</span><span><strong>CYRUS</strong><small>AUTONOMOUS AGENTIC INTELLIGENCE SYSTEM</small></span></button>
       <nav aria-label="Primary navigation">{NAV_ITEMS.map((item,i)=><button key={item} className={item==='Home'?'active':''} onClick={()=>go(item)}>{item}</button>)}</nav>
-      <div className="home-nav-tools"><button className={'home-status home-status-button '+(runtimeState==='ONLINE'?'online':runtimeState==='OFFLINE'?'offline':'')} onClick={openApiSettings} title="Configure live backend connection"><i/>{runtimeState}</button><button className="home-command-key" onClick={openApiSettings} title="Configure backend API">API ↗</button><button className="home-command-key" onClick={openPalette} title="Open command palette">⌘ K</button></div>
+      <div className="home-nav-tools"><button className="home-command-key home-atmosphere-shortcut" onClick={openAtmosphere} title="Customize background, colors and motion">✧ FX</button><button className={'home-status home-status-button '+(runtimeState==='ONLINE'?'online':runtimeState==='OFFLINE'?'offline':'')} onClick={openApiSettings} title="Configure live backend connection"><i/>{runtimeState}</button><button className="home-command-key" onClick={openApiSettings} title="Configure backend API">API ↗</button><button className="home-command-key" onClick={openPalette} title="Open command palette">⌘ K</button></div>
     </header>
     <section className="home-hero">
       <div className="home-hero-backdrop" aria-hidden="true"><span/><i/><i/><i/></div>
@@ -1361,7 +1564,7 @@ function HistoryView({tasks:initialTasks,metrics,open}){
 }
 function PageTitle({title,text,meta}){return <div className="page-title"><div><div className="eyebrow">CYRUS / CONTROL SURFACE</div><h2>{title}</h2><p>{text}</p></div><div className="title-side">{meta}</div></div>}
 function TaskModal({task,close}){return <div className="modal-back" onClick={close}><div className="modal" onClick={e=>e.stopPropagation()}><button className="close" onClick={close}>CLOSE</button><div className="eyebrow">{task.task_id}</div><h3>Execution Record</h3><p className="objective-text">{task.objective}</p><div className="metrics">{[['SCORE',task.score||0],['CONFIDENCE',(task.confidence||0)+'%'],['QUALITY',(task.quality||0)+'%'],['COVERAGE',(task.coverage||0)+'%'],['TOOLS',task.tool_calls||0],['LATENCY',(task.latency_ms||0)+' ms'],['RISK',task.risk||'—'],['STATUS',task.status]].map(x=><div className="metric" key={x[0]}><span>{x[0]}</span><strong>{x[1]}</strong></div>)}</div>{task.static_analysis?.checks?.length>0&&<section className="static-analysis-panel"><div className="section-title"><strong>STATIC ANALYSIS</strong><span>{task.static_analysis.checks_passed||0} PASS · {task.static_analysis.checks_failed||0} FAIL</span></div><p className="static-analysis-caption">Non-executing checks on the generated draft. Python snippets are parsed, never run; proposed application tests and coverage remain unverified.</p><div className="static-check-list">{task.static_analysis.checks.map((check,i)=><div className="static-check-row" key={check.name||i}><span className={'static-check-status '+String(check.status||'SKIP').toLowerCase()}>{check.status}</span><div><strong>{check.name.replaceAll('_',' ')}</strong><p>{check.detail}</p></div></div>)}</div></section>}<div className="section-title"><strong>ARTIFACTS</strong><span>{task.artifacts?.length||0}</span></div>{task.artifacts?.length?<div className="artifacts">{task.artifacts.map(a=><div className="artifact" key={a.name}><div><strong>{a.name}</strong><small>{a.language} · {a.type}</small></div><small>{a.size}</small></div>)}</div>:<div className="empty">No artifacts in this historical snapshot.</div>}{task.implementation&&<details className="artifact-content-panel"><summary>OPEN IMPLEMENTATION DRAFT · {task.implementation.length.toLocaleString()} CHARACTERS</summary><pre>{task.implementation}</pre></details>}{task.validation_plan?.length?<details className="artifact-content-panel"><summary>VALIDATION PLAN · {task.validation_plan.length} PROPOSED CHECKS · NOT EXECUTED</summary><ol>{task.validation_plan.map((check,i)=><li key={i}>{check}</li>)}</ol></details>:null}{task.review?.summary&&<div className="artifact-review-note"><div className="section-title"><strong>REVIEW SUMMARY</strong><span>{task.review.risk||'UNASSESSED'} RISK</span></div><p>{task.review.summary}</p>{task.review.findings?.length>0&&<ul>{task.review.findings.map((finding,i)=><li key={i}>{finding}</li>)}</ul>}<small>{task.score_method||'Review basis unavailable'}</small></div>}<div className="section-title" style={{marginTop:18}}><strong>EXECUTION TRACE</strong><span>{task.events?.length||0} EVENTS</span></div>{task.events?.length?<div className="trace modal-trace">{task.events.map(e=><div className="trace-row" key={e.event_id||e.time+e.agent}><span className="time mono">{e.time}</span><span className="agent mono">{e.agent}</span><span className="phase mono">{e.phase}</span><span className="msg">{e.message}</span><span className="dur mono">{e.duration} ms</span></div>)}</div>:<div className="empty">No persisted trace.</div>}{task.plan?.length?<><div className="section-title"><strong>PLAN</strong><span>{task.plan.length} STEPS</span></div><div className="detail-list">{task.plan.map((item,i)=><div className="detail-row" key={item}><span>{String(i+1).padStart(2,'0')}</span><strong>{item}</strong></div>)}</div></>:null}</div></div>}
-function CommandPalette({page,go,execute,seedObjective,notify,close}){const [query,setQuery]=useState('');const [cursor,setCursor]=useState(0);const actions=[...NAV_ITEMS.map(item=>({label:item,type:'surface',run:()=>go(item)})),{label:'Run example objective',type:'action',run:()=>{setQuery('');close();notify('Launching the example objective');setTimeout(()=>execute(),80)}}];const items=useMemo(()=>actions.filter(x=>x.label.toLowerCase().includes(query.toLowerCase())),[query]);useEffect(()=>setCursor(0),[query]);useEffect(()=>{const onKey=e=>{if(e.key==='ArrowDown'){e.preventDefault();setCursor(i=>items.length?(i+1)%items.length:0)}if(e.key==='ArrowUp'){e.preventDefault();setCursor(i=>items.length?(i-1+items.length)%items.length:0)}if(e.key==='Enter'&&items[cursor]){e.preventDefault();items[cursor].run()}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[items,cursor]);return <div className="command-palette-back" onClick={close}><div className="command-palette" onClick={e=>e.stopPropagation()}><div className="palette-head"><span className="eyebrow">COMMAND</span><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Jump to a CYRUS surface or run an action..." /></div><div className="palette-list">{items.length?items.map((item,i)=><button key={item.label} className={'palette-item '+(cursor===i?'active':'')} onMouseEnter={()=>setCursor(i)} onClick={item.run}><span>{item.label}</span><small>{cursor===i?(item.type==='action'?'ENTER · RUN':'ENTER · OPEN'):(item.type==='action'?'EXECUTE':'SURFACE')}</small></button>):<div className="empty">No CYRUS command matches that query.</div>}</div></div></div>}
+function CommandPalette({page,go,execute,seedObjective,notify,openAtmosphere,close}){const [query,setQuery]=useState('');const [cursor,setCursor]=useState(0);const actions=[...NAV_ITEMS.map(item=>({label:item,type:'surface',run:()=>go(item)})),{label:'Open Atmosphere Studio',type:'visual',run:openAtmosphere},{label:'Run example objective',type:'action',run:()=>{setQuery('');close();notify('Launching the example objective');setTimeout(()=>execute(),80)}}];const items=useMemo(()=>actions.filter(x=>x.label.toLowerCase().includes(query.toLowerCase())),[query]);useEffect(()=>setCursor(0),[query]);useEffect(()=>{const onKey=e=>{if(e.key==='ArrowDown'){e.preventDefault();setCursor(i=>items.length?(i+1)%items.length:0)}if(e.key==='ArrowUp'){e.preventDefault();setCursor(i=>items.length?(i-1+items.length)%items.length:0)}if(e.key==='Enter'&&items[cursor]){e.preventDefault();items[cursor].run()}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[items,cursor]);return <div className="command-palette-back" onClick={close}><div className="command-palette" onClick={e=>e.stopPropagation()}><div className="palette-head"><span className="eyebrow">COMMAND</span><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Jump to a CYRUS surface or run an action..." /></div><div className="palette-list">{items.length?items.map((item,i)=><button key={item.label} className={'palette-item '+(cursor===i?'active':'')} onMouseEnter={()=>setCursor(i)} onClick={item.run}><span>{item.label}</span><small>{cursor===i?(item.type==='action'?'ENTER · RUN':'ENTER · OPEN'):(item.type==='action'?'EXECUTE':'SURFACE')}</small></button>):<div className="empty">No CYRUS command matches that query.</div>}</div></div></div>}
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>)
 
