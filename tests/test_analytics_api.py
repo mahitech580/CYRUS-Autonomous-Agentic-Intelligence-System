@@ -75,6 +75,14 @@ class AnalyticsApiTests(unittest.TestCase):
         self.assertEqual(len(results), 2)
         self.assertTrue(all("Deepfake" in item["objective"] for item in results))
 
+    def test_task_search_can_find_agent_and_mode_fields(self):
+        with patch("server.load_history", return_value=self.records):
+            agent_response = self.client.get("/api/tasks?q=reviewer")
+            mode_response = self.client.get("/api/tasks?q=autonomous")
+        self.assertEqual(agent_response.status_code, 200)
+        self.assertEqual([item["task_id"] for item in agent_response.get_json()], ["CYRUS-ANALYTIC2"])
+        self.assertEqual(len(mode_response.get_json()), 2)
+
     def test_analytics_rejects_invalid_window(self):
         response = self.client.get("/api/analytics?days=hundred")
         self.assertEqual(response.status_code, 400)
