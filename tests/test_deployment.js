@@ -9,6 +9,8 @@ for (const asset of ["./styles.css", "./runtime-config.js", "./demo-bridge.js", 
 }
 
 assert.ok(index.includes('type="text/babel"'), "React JSX entry must use the Babel loader");
+assert.ok(index.includes("react.production.min.js"), "The deployed UI must use the production React bundle");
+assert.ok(index.includes("react-dom.production.min.js"), "The deployed UI must use the production ReactDOM bundle");
 assert.ok(index.includes('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'), "The 3D character runtime must load Three.js before the app");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("healthMetrics"), "Bootstrap must consume runtime metrics");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("window.CyrusEventStream.streamTaskEvents"), "App must use the resilient event-stream client");
@@ -223,3 +225,7 @@ assert.ok(fs.readFileSync("storage.py", "utf8").includes("CREATE TABLE IF NOT EX
 assert.ok(fs.existsSync("tests/test_storage.py"), "Database persistence tests must exist");
 assert.ok(fs.existsSync("tests/test_analytics_api.py"), "Analytics API contract tests must exist");
 console.log("Dynamic analytics smoke: real-data dashboard, API search, DB-backed history and responsive layout OK");
+
+assert.ok(fs.readFileSync("server.py", "utf8").includes('"runtime-config.js", "event-stream.js"'), "Local Flask must serve the two runtime JS assets referenced by index.html");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("Use HTTPS for remote backends."), "API settings must disallow plaintext remote backend URLs");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("apiJson('/api/tasks?'+params.toString())"), "History search must query the backend instead of filtering only the initially loaded page");
