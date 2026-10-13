@@ -18,6 +18,42 @@ class CyrusApiContractTests(unittest.TestCase):
             server.runtime["rate_limits"].clear()
         self.client = server.app.test_client()
 
+    def test_recovery_marks_interrupted_runs_failed_and_preserves_terminal_runs(self):
+        records = [
+            {
+                "task_id": "CYRUS-INTERRUPTED",
+                "created_at": server.now_iso(),
+                "status": "RUNNING",
+                "current_agent": "CODER",
+                "verification_status": "PENDING",
+                "agents": [
+                    {"name": "PLANNER", "status": "COMPLETED"},
+                    {"name": "CODER", "status": "RUNNING"},
+                ],
+                "events": [{"event_id": "CYRUS-INTERRUPTED-E001", "phase": "STARTED"}],
+            },
+            {
+                "task_id": "CYRUS-ALREADY-DONE",
+                "created_at": server.now_iso(),
+                "status": "COMPLETED",
+                "events": [],
+            },
+        ]
+        with TemporaryDirectory() as tmp:
+            store = HistoryStore(Path(tmp) / "history.sqlite3")
+            with patch("server.load_history", return_value=records), patch("server.save_history", side_effect=store.save_all):
+                recovered = server.recover_interrupted_runs()
+            self.assertEqual(recovered, 1)
+            stored = {item["task_id"]: item for item in store.load_all()}
+        interrupted = stored["CYRUS-INTERRUPTED"]
+        self.assertEqual(interrupted["status"], "FAILED")
+        self.assertEqual(interrupted["verification_status"], "INTERRUPTED_NOT_VERIFIED")
+        self.assertEqual(interrupted["failure"]["type"], "RuntimeRestart")
+        self.assertEqual(interrupted["agents"][0]["status"], "COMPLETED")
+        self.assertEqual(interrupted["agents"][1]["status"], "FAILED")
+        self.assertEqual(interrupted["events"][-1]["event_id"], "CYRUS-INTERRUPTED-E002")
+        self.assertEqual(stored["CYRUS-ALREADY-DONE"]["status"], "COMPLETED")
+
     def test_history_persists_trace_and_agent_state(self):
         with TemporaryDirectory() as tmp:
             target = Path(tmp) / "history.json"
@@ -165,10 +201,17 @@ class CyrusApiContractTests(unittest.TestCase):
         from types import SimpleNamespace
         with patch.object(server, "PROVIDER", SimpleNamespace(mode="LIVE", name="test-live", status="ready")), patch.object(server, "API_ACCESS_KEY", ""):
             health = self.client.get("/api/health")
+            ready = self.client.get("/api/ready")
             security = self.client.get("/api/security")
+            provider = self.client.get("/api/provider")
             private = self.client.get("/api/metrics")
             execute = self.client.post("/api/execute", json={"prompt": "Do not allow anonymous paid model use"})
         self.assertEqual(health.status_code, 200)
+        self.assertFalse(health.get_json()["ready"])
+        self.assertTrue(health.get_json()["live_model_locked"])
+        self.assertEqual(ready.status_code, 503)
+        self.assertEqual(ready.get_json()["reason"], "live_model_requires_api_access_key")
+        self.assertIn("locked", provider.get_json()["message"].lower())
         self.assertTrue(security.get_json()["api_access_key_required"])
         self.assertFalse(security.get_json()["api_access_key_configured"])
         self.assertTrue(security.get_json()["live_model_locked"])
