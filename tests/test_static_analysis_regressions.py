@@ -203,5 +203,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(result["checks_passed"], sum(item["status"] == "PASS" for item in result["checks"]))
         self.assertEqual(result["checks_failed"], sum(item["status"] == "FAIL" for item in result["checks"]))
 
+    def test_40_empty_draft_can_report_both_presence_failure_and_python_skip(self):
+        result = self.check("")
+        self.assertEqual(self.named(result, "draft_present")["status"], "FAIL")
+        self.assertEqual(self.named(result, "python_syntax")["status"], "SKIP")
+        self.assertEqual(result["status"], "FAILED")
+
 if __name__ == "__main__":
     unittest.main()
