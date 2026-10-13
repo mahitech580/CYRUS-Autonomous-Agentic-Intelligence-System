@@ -1290,7 +1290,11 @@ function HistoryView({tasks:initialTasks,metrics,open}){
       return String(right.created_at||'').localeCompare(String(left.created_at||''));
     });
   },[records,query,status,sort]);
-  const count=key=>Number(metrics?.[({RUNNING:'active_tasks',AWAITING_APPROVAL:'awaiting_approval',COMPLETED:'completed_tasks',FAILED:'failed_tasks',CANCELLED:'cancelled_tasks'})[key]])||records.filter(item=>String(item.status||'UNKNOWN').toUpperCase()===key).length;
+  const count=key=>{
+    const metricKey=({RUNNING:'active_tasks',AWAITING_APPROVAL:'awaiting_approval',COMPLETED:'completed_tasks',FAILED:'failed_tasks',CANCELLED:'cancelled_tasks',TIMED_OUT:'timed_out_tasks'})[key];
+    const metricValue=metricKey?Number(metrics?.[metricKey]):NaN;
+    return Number.isFinite(metricValue)?metricValue:records.filter(item=>String(item.status||'UNKNOWN').toUpperCase()===key).length;
+  };
   const total=Number.isFinite(Number(metrics?.total_tasks))?Number(metrics.total_tasks):records.length;
   const exportCsv=()=>{
     if(!filtered.length)return;
