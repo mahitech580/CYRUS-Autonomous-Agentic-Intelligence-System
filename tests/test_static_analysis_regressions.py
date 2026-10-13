@@ -40,5 +40,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(self.named(result, "draft_size_limit")["status"], "FAIL")
         self.assertEqual(result["status"], "FAILED")
 
+    def test_07_two_markdown_fences_are_balanced(self):
+        fence = chr(96) * 3
+        result = self.check(fence + "text" + fence)
+        self.assertEqual(self.named(result, "markdown_code_fences")["status"], "PASS")
+
 if __name__ == "__main__":
     unittest.main()
