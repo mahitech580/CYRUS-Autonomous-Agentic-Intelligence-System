@@ -31,5 +31,9 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check(" \n\t  ")
         self.assertEqual(self.named(result, "draft_present")["status"], "FAIL")
 
+    def test_05_draft_at_exact_size_limit_is_allowed(self):
+        result = self.check("x" * MAX_DRAFT_CHARS)
+        self.assertEqual(self.named(result, "draft_size_limit")["status"], "PASS")
+
 if __name__ == "__main__":
     unittest.main()
