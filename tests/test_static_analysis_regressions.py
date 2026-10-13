@@ -45,5 +45,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check(fence + "text" + fence)
         self.assertEqual(self.named(result, "markdown_code_fences")["status"], "PASS")
 
+    def test_08_odd_number_of_markdown_fences_is_rejected(self):
+        fence = chr(96) * 3
+        result = self.check("open " + fence + "python\nprint('x')")
+        self.assertEqual(self.named(result, "markdown_code_fences")["status"], "FAIL")
+
 if __name__ == "__main__":
     unittest.main()
