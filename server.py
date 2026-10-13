@@ -274,7 +274,6 @@ def persist_task(task):
         "tests_failed": task.get("tests_failed", 0),
         "coverage": task.get("coverage", 0),
         "quality": task.get("quality", 0),
-        "latency_ms": task.get("latency_ms", 0),
         "agents": task.get("agents", []),
         "events": task.get("events", []),
         "provider": task.get("provider", PROVIDER.name),
@@ -305,6 +304,59 @@ def event(task, agent, phase, message, duration_ms):
         "duration": max(0, int(duration_ms))
     })
     task["updated_at"] = now_iso()
+
+def recover_interrupted_runs():
+    """Mark persisted work from a previous process as interrupted, never silently active."""
+    with history_lock:
+        records = load_history()
+        recovered = 0
+        for task in records:
+            status = str(task.get("status") or "").upper()
+            if status not in {"RUNNING", "QUEUED", "AWAITING_APPROVAL"}:
+                continue
+
+            previous_agent = str(task.get("current_agent") or "ORCHESTRATOR")
+            task["status"] = "FAILED"
+            task["updated_at"] = now_iso()
+            task["failure"] = {
+                "type": "RuntimeRestart",
+                "message": "The backend restarted before this execution reached a terminal state. This run is incomplete; start a new execution to continue.",
+            }
+            task["summary"] = "Execution interrupted by a backend restart. This result is incomplete and must not be treated as successful."
+            task["verification_status"] = "INTERRUPTED_NOT_VERIFIED"
+            agents_list = task.get("agents")
+            if isinstance(agents_list, list):
+                for agent in agents_list:
+                    if isinstance(agent, dict) and str(agent.get("status") or "").upper() in {"RUNNING", "QUEUED", "AWAITING_APPROVAL"}:
+                        agent["status"] = "FAILED"
+
+            events_list = task.get("events")
+            if not isinstance(events_list, list):
+                events_list = []
+                task["events"] = events_list
+            sequences = []
+            for entry in events_list:
+                if not isinstance(entry, dict):
+                    continue
+                match = re.fullmatch(r".*-E(\d+)", str(entry.get("event_id") or ""))
+                if match:
+                    sequences.append(int(match.group(1)))
+            task["event_sequence"] = max(sequences, default=0)
+            event(
+                task,
+                previous_agent,
+                "RUNTIME_RECOVERY",
+                "Marked this persisted run interrupted because its worker was not present after backend restart.",
+                0,
+            )
+            recovered += 1
+        if recovered:
+            save_history(records)
+        return recovered
+
+
+RECOVERED_INTERRUPTED_RUNS = recover_interrupted_runs()
+
 
 def artifact(name, language, size, kind, content=None):
     item = {"name": name, "language": language, "size": size, "type": kind}
@@ -667,6 +719,8 @@ def health():
             if task.get("status") in {"RUNNING", "AWAITING_APPROVAL"}
         )
     utilization = round(active / MAX_CONCURRENT_TASKS, 3)
+    live_model_locked = PROVIDER.mode == "LIVE" and not API_ACCESS_KEY
+    ready = active < MAX_CONCURRENT_TASKS and not live_model_locked
     return jsonify({
         "status": "ok",
         "system": "CYRUS CORE 1.0",
@@ -676,13 +730,15 @@ def health():
         "model_available": PROVIDER.mode == "LIVE",
         "model": getattr(PROVIDER, "model", "") or None,
         "provider_configured": PROVIDER.mode == "LIVE",
-        "api_access_key_required": bool(API_ACCESS_KEY),
+        "api_access_key_required": bool(API_ACCESS_KEY) or PROVIDER.mode == "LIVE",
+        "api_access_key_configured": bool(API_ACCESS_KEY),
+        "live_model_locked": live_model_locked,
         "release": RELEASE_ID,
         "started_at": datetime.fromtimestamp(runtime["started_at"], timezone.utc).isoformat().replace("+00:00", "Z"),
         "worker_capacity": MAX_CONCURRENT_TASKS,
         "active_tasks": active,
         "capacity_utilization": utilization,
-        "ready": active < MAX_CONCURRENT_TASKS,
+        "ready": ready,
         "history_store": HISTORY_STORE.info()
     })
 
@@ -700,6 +756,8 @@ def provider_info():
         "supports_external_search": False,
         "supports_code_execution": False,
         "message": (
+            "A live model provider is configured, but private routes remain locked until CYRUS_API_ACCESS_KEY is set."
+            if live and not API_ACCESS_KEY else
             "Model requests are enabled. Responses are drafts and code is not executed."
             if live else
             "Deterministic demo mode is active. Set CYRUS_LLM_API_KEY and optionally "
@@ -715,12 +773,21 @@ def readiness():
             1 for task in runtime["tasks"].values()
             if task.get("status") in {"RUNNING", "AWAITING_APPROVAL"}
         )
-    ready = active < MAX_CONCURRENT_TASKS
+    live_model_locked = PROVIDER.mode == "LIVE" and not API_ACCESS_KEY
+    capacity_available = active < MAX_CONCURRENT_TASKS
+    ready = capacity_available and not live_model_locked
     payload = {
         "ready": ready,
         "active_tasks": active,
         "worker_capacity": MAX_CONCURRENT_TASKS,
         "provider": PROVIDER.name,
+        "live_model_locked": live_model_locked,
+        "api_access_key_required": bool(API_ACCESS_KEY) or PROVIDER.mode == "LIVE",
+        "api_access_key_configured": bool(API_ACCESS_KEY),
+        "reason": (
+            "live_model_requires_api_access_key" if live_model_locked else
+            "worker_capacity_full" if not capacity_available else None
+        ),
     }
     return jsonify(payload), 200 if ready else 503
 

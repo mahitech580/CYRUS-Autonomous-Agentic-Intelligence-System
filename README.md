@@ -96,6 +96,8 @@ The frontend calls the configured API for health, agents, tools, execution submi
 
 Render's free web services can spin down after 15 minutes without inbound traffic; waking may take around a minute. The local SQLite file is still on the service filesystem and can be lost after a restart or redeploy. For durable hosted history, set `CYRUS_DATABASE_URL` to a managed PostgreSQL connection string; changing the code to use SQLite alone does not make ephemeral-host data durable. See [Render free service limitations](https://render.com/docs/free).
 
+At process startup, persisted runs left in `RUNNING`, `QUEUED`, or `AWAITING_APPROVAL` are marked `FAILED` with `RuntimeRestart` and `INTERRUPTED_NOT_VERIFIED`. This avoids presenting work as active after the worker and approval signal have disappeared. It does not resume the interrupted work automatically; start a new task after inspecting the partial artifacts.
+
 ## Database-backed execution history
 
 The history adapter stores full execution snapshots, artifacts, agent traces, status changes and idempotency metadata in a database table. Local development defaults to SQLite at `cyrus_history.sqlite3`; set `CYRUS_DATABASE_PATH` to move the file. On a deployed host, set `CYRUS_DATABASE_URL` or `DATABASE_URL` to a PostgreSQL connection string to use PostgreSQL. The database driver is installed through `requirements.txt`.
