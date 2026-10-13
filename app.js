@@ -344,7 +344,7 @@ function App(){
         {page==='Agents'&&<AgentsView agents={agents}/>}
         {page==='Memory'&&<MemoryView tasks={tasks} open={openTask} go={go}/>}
         {page==='Tools'&&<ToolsView tools={tools}/>}
-        {page==='History'&&<HistoryView tasks={tasks} open={openTask}/>}
+        {page==='History'&&<HistoryView tasks={tasks} metrics={runtimeMetrics} open={openTask}/>}
       </main>
     </>}
     {apiSettingsOpen&&<ApiSettingsModal close={()=>setApiSettingsOpen(false)}/>}
@@ -1247,67 +1247,97 @@ function MemoryView({tasks,open,go}){
   </div>
 }
 
-function HistoryView({tasks,open}){
-  const [query,setQuery]=useState('')
-  const [status,setStatus]=useState('ALL')
-  const [sort,setSort]=useState('newest')
+function HistoryView({tasks:initialTasks,metrics,open}){
+  const [query,setQuery]=useState('');
+  const [status,setStatus]=useState('ALL');
+  const [sort,setSort]=useState('newest');
+  const [records,setRecords]=useState(initialTasks);
+  const [loading,setLoading]=useState(false);
+  const [apiError,setApiError]=useState('');
+
+  useEffect(()=>{
+    let active=true;
+    setLoading(true);
+    const timer=window.setTimeout(async()=>{
+      try{
+        const params=new URLSearchParams();
+        params.set('limit','100');
+        if(status!=='ALL')params.set('status',status);
+        if(query.trim())params.set('q',query.trim());
+        const result=await apiJson('/api/tasks?'+params.toString());
+        if(active&&Array.isArray(result)){setRecords(result);setApiError('');}
+        else if(active)throw new Error('The task API returned an unexpected response.');
+      }catch(error){
+        if(active){setRecords(initialTasks);setApiError(error?.message||'Live task search is unavailable. Showing currently loaded records.');}
+      }finally{
+        if(active)setLoading(false);
+      }
+    },220);
+    return()=>{active=false;window.clearTimeout(timer);};
+  },[query,status]);
+
   const filtered=useMemo(()=>{
-    const needle=query.trim().toLowerCase()
-    return tasks.filter(item=>{
-      const matchesStatus=status==='ALL'||String(item.status||'UNKNOWN').toUpperCase()===status
-      const searchable=[item.task_id,item.objective,item.status,item.mode,item.current_agent].filter(Boolean).join(' ').toLowerCase()
-      return matchesStatus&&(!needle||searchable.includes(needle))
+    const needle=query.trim().toLowerCase();
+    return records.filter(item=>{
+      const matchesStatus=status==='ALL'||String(item.status||'UNKNOWN').toUpperCase()===status;
+      const searchable=[item.task_id,item.objective,item.status,item.mode,item.current_agent,item.summary].filter(Boolean).join(' ').toLowerCase();
+      return matchesStatus&&(!needle||searchable.includes(needle));
     }).sort((left,right)=>{
-      if(sort==='oldest')return String(left.created_at||'').localeCompare(String(right.created_at||''))
-      if(sort==='score-high')return Number(right.score||0)-Number(left.score||0)
-      if(sort==='score-low')return Number(left.score||0)-Number(right.score||0)
-      if(sort==='duration')return Number(right.execution_time_ms||0)-Number(left.execution_time_ms||0)
-      return String(right.created_at||'').localeCompare(String(left.created_at||''))
-    })
-  },[tasks,query,status,sort])
-  const count=key=>tasks.filter(item=>String(item.status||'UNKNOWN').toUpperCase()===key).length
+      if(sort==='oldest')return String(left.created_at||'').localeCompare(String(right.created_at||''));
+      if(sort==='score-high')return Number(right.score||0)-Number(left.score||0);
+      if(sort==='score-low')return Number(left.score||0)-Number(right.score||0);
+      if(sort==='duration')return Number(right.execution_time_ms||0)-Number(left.execution_time_ms||0);
+      return String(right.created_at||'').localeCompare(String(left.created_at||''));
+    });
+  },[records,query,status,sort]);
+  const count=key=>Number(metrics?.[({RUNNING:'active_tasks',AWAITING_APPROVAL:'awaiting_approval',COMPLETED:'completed_tasks',FAILED:'failed_tasks',CANCELLED:'cancelled_tasks'})[key]])||records.filter(item=>String(item.status||'UNKNOWN').toUpperCase()===key).length;
+  const total=Number.isFinite(Number(metrics?.total_tasks))?Number(metrics.total_tasks):records.length;
   const exportCsv=()=>{
-    if(!filtered.length)return
+    if(!filtered.length)return;
     const columns=[
       ['task_id','Task ID'],['created_at','Created at'],['objective','Objective'],['status','Status'],
       ['mode','Mode'],['score','Score'],['quality','Quality'],['confidence','Confidence'],
       ['coverage','Coverage'],['execution_time_ms','Execution time (ms)'],['tool_calls','Tool calls'],
       ['tests_passed','Tests passed'],['tests_failed','Tests failed']
-    ]
+    ];
     const cell=value=>{
-      let text=String(value??'')
-      if('=+-@'.includes(text.trimStart().charAt(0)))text="'"+text
-      return '"'+text.replace(/"/g,'""')+'"'
-    }
-    const csv=[columns.map(([,label])=>cell(label)).join(','),...filtered.map(item=>columns.map(([key])=>cell(item[key])).join(','))].join(String.fromCharCode(13,10))
-    const url=URL.createObjectURL(new Blob([String.fromCharCode(0xfeff),csv],{type:'text/csv;charset=utf-8'}))
-    const link=document.createElement('a')
-    link.href=url
-    link.download='cyrus-execution-history-'+new Date().toISOString().slice(0,10)+'.csv'
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-  }
-  const clearFilters=()=>{setQuery('');setStatus('ALL');setSort('newest')}
-  const activeFilters=Boolean(query.trim())||status!=='ALL'||sort!=='newest'
+      let text=String(value??'');
+      if('=+-@'.includes(text.trimStart().charAt(0)))text="'"+text;
+      return '"'+text.replace(/"/g,'""')+'"';
+    };
+    const csv=[columns.map(([,label])=>cell(label)).join(','),...filtered.map(item=>columns.map(([key])=>cell(item[key])).join(','))].join(String.fromCharCode(13,10));
+    const url=URL.createObjectURL(new Blob([String.fromCharCode(0xfeff),csv],{type:'text/csv;charset=utf-8'}));
+    const link=document.createElement('a');
+    link.href=url;
+    link.download='cyrus-execution-history-'+new Date().toISOString().slice(0,10)+'.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  const clearFilters=()=>{setQuery('');setStatus('ALL');setSort('newest');};
+  const activeFilters=Boolean(query.trim())||status!=='ALL'||sort!=='newest';
+  const inProgress=Number(metrics?.active_tasks??(count('RUNNING')+count('AWAITING_APPROVAL')));
+  const completed=Number(metrics?.completed_tasks??count('COMPLETED'));
+  const unsuccessful=Number(metrics?.failed_tasks??count('FAILED'))+Number(metrics?.cancelled_tasks??count('CANCELLED'))+Number(metrics?.timed_out_tasks||0);
   return <div className="view history-view">
-    <PageHero eyebrow="HISTORY / EXECUTION LEDGER" title="Execution" accent=" History" description="Search, filter and explore your past executions. Inspect run status, quality signals, duration and the full execution record." image={CYRUS_IMAGES.history} alt="Abstract cybersecurity visualization on a dark screen" meta={tasks.length+' TOTAL RUNS'} imageCaption="THE RUN LEDGER"/>
+    <PageHero eyebrow="HISTORY / EXECUTION LEDGER" title="Execution" accent=" History" description="Search the backend task ledger by objective, task ID, agent or mode. Filter by status, sort results, export the matches, and open the complete run record." image={CYRUS_IMAGES.history} alt="Abstract cybersecurity visualization on a dark screen" meta={total+' TOTAL RUNS'} imageCaption="THE RUN LEDGER"/>
     <div className="history-overview" aria-label="Execution status overview">
-      <div className="history-stat"><span>ALL EXECUTIONS</span><strong>{tasks.length}</strong><small>Available records</small></div>
-      <div className="history-stat running"><span>IN PROGRESS</span><strong>{count('RUNNING')+count('AWAITING_APPROVAL')}</strong><small>{count('AWAITING_APPROVAL')} awaiting approval</small></div>
-      <div className="history-stat completed"><span>COMPLETED</span><strong>{count('COMPLETED')}</strong><small>Release-ready runs</small></div>
-      <div className="history-stat failed"><span>FAILED / CANCELLED</span><strong>{count('FAILED')+count('CANCELLED')}</strong><small>Requires attention</small></div>
+      <div className="history-stat"><span>ALL EXECUTIONS</span><strong>{total}</strong><small>Recorded task IDs</small></div>
+      <div className="history-stat running"><span>IN PROGRESS</span><strong>{inProgress}</strong><small>{count('AWAITING_APPROVAL')} awaiting approval</small></div>
+      <div className="history-stat completed"><span>COMPLETED</span><strong>{completed}</strong><small>Stored completed runs</small></div>
+      <div className="history-stat failed"><span>FAILED / CANCELLED</span><strong>{unsuccessful}</strong><small>Failed, cancelled or timed out</small></div>
     </div>
     <section className="history-console" aria-label="Execution history filters">
-      <div className="history-console-head"><div><span className="eyebrow">RECORD EXPLORER</span><h3>Find an execution.</h3></div><span className="history-result-count">{filtered.length} / {tasks.length} RECORDS</span></div>
+      <div className="history-console-head"><div><span className="eyebrow">RECORD EXPLORER / LIVE API</span><h3>Find an execution.</h3></div><span className="history-result-count">{loading?'SEARCHING…':filtered.length+' / '+records.length+' MATCHES'}</span></div>
       <div className="history-filters">
         <label className="history-search"><span aria-hidden="true">⌕</span><input aria-label="Search execution history" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search objective, task ID, agent or mode…"/>{query&&<button type="button" aria-label="Clear search" onClick={()=>setQuery('')}>×</button>}</label>
-        <label className="history-select"><span>STATUS</span><select aria-label="Filter executions by status" value={status} onChange={e=>setStatus(e.target.value)}><option value="ALL">All statuses</option><option value="RUNNING">Running</option><option value="AWAITING_APPROVAL">Awaiting approval</option><option value="COMPLETED">Completed</option><option value="FAILED">Failed</option><option value="CANCELLED">Cancelled</option></select></label>
+        <label className="history-select"><span>STATUS</span><select aria-label="Filter executions by status" value={status} onChange={e=>setStatus(e.target.value)}><option value="ALL">All statuses</option><option value="RUNNING">Running</option><option value="QUEUED">Queued</option><option value="AWAITING_APPROVAL">Awaiting approval</option><option value="COMPLETED">Completed</option><option value="FAILED">Failed</option><option value="CANCELLED">Cancelled</option><option value="TIMED_OUT">Timed out</option></select></label>
         <label className="history-select"><span>SORT BY</span><select aria-label="Sort execution history" value={sort} onChange={e=>setSort(e.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="score-high">Highest score</option><option value="score-low">Lowest score</option><option value="duration">Longest execution</option></select></label>
         <button className="history-export" type="button" onClick={exportCsv} disabled={!filtered.length} title="Export the filtered result set as CSV"><span aria-hidden="true">↧</span> EXPORT CSV</button>
         {activeFilters&&<button className="history-reset" type="button" onClick={clearFilters}>Reset filters</button>}
       </div>
+      {apiError&&<div className="history-api-notice" role="status"><span>API SEARCH UNAVAILABLE</span><p>{apiError}</p><small>Showing locally loaded records; clear this notice by restoring the backend connection.</small></div>}
       <div className="history-table-wrap">
         <div className="table history-table"><div className="table-row head"><span>OBJECTIVE / ID</span><span>STATUS</span><span>SCORE</span><span>MODE</span><span>DURATION</span><span>OPEN</span></div>
           {filtered.length?filtered.map(item=><button className="table-row history-row" key={item.task_id} onClick={()=>open(item)} aria-label={'Open execution '+item.task_id}>
@@ -1317,10 +1347,10 @@ function HistoryView({tasks,open}){
             <span className="history-mode">{String(item.mode||'autonomous').toUpperCase()}</span>
             <span className="history-duration">{Number(item.execution_time_ms||0).toLocaleString()} ms</span>
             <span className="history-open-icon">↗</span>
-          </button>):<div className="history-empty"><span>⌕</span><strong>No matching executions</strong><p>{tasks.length?'Adjust your search or status filters to see more records.':'Run an objective from Command to populate execution history.'}</p>{activeFilters&&<button type="button" onClick={clearFilters}>Clear all filters</button>}</div>}
+          </button>):<div className="history-empty"><span>⌕</span><strong>No matching executions</strong><p>{apiError?'No fallback records match the current filters.':records.length?'Adjust your search or status filters to see more records.':'Run an objective from Command to populate execution history.'}</p>{activeFilters&&<button type="button" onClick={clearFilters}>Clear all filters</button>}</div>}
         </div>
       </div>
-      <footer className="history-foot"><span>ORDERED BY {sort.replace('-',' ').toUpperCase()}</span><span>EXPORT INCLUDES FILTERED RESULTS ONLY</span></footer>
+      <footer className="history-foot"><span>ORDERED BY {sort.replace('-',' ').toUpperCase()}</span><span>EXPORT INCLUDES FILTERED RESULTS ONLY · API LIMIT 100</span></footer>
     </section>
   </div>
 }
