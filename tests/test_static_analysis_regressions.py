@@ -238,5 +238,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("A plain text implementation outline.")
         self.assertEqual(result["status"], "COMPLETED_WITH_WARNINGS")
 
+    def test_47_balanced_multiple_code_blocks_pass_markdown_structure(self):
+        fence = chr(96) * 3
+        source = fence + "text\nnotes\n" + fence + "\n" + fence + "python\nnumber = 1\n" + fence
+        result = self.check(source)
+        self.assertEqual(self.named(result, "markdown_code_fences")["status"], "PASS")
+
 if __name__ == "__main__":
     unittest.main()
