@@ -188,5 +188,9 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(result["python_blocks_checked"], 0)
         self.assertEqual(self.named(result, "python_syntax")["status"], "SKIP")
 
+    def test_37_python_block_count_is_zero_for_plain_text(self):
+        result = self.check("Checklist: validate input, then persist safely.")
+        self.assertEqual(result["python_blocks_checked"], 0)
+
 if __name__ == "__main__":
     unittest.main()
