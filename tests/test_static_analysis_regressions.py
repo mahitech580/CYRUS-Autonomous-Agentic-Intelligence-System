@@ -55,5 +55,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(self.named(result, "python_syntax")["status"], "SKIP")
         self.assertEqual(result["python_blocks_checked"], 0)
 
+    def test_10_uppercase_python_fence_is_parsed(self):
+        fence = chr(96) * 3
+        result = self.check(fence + "PYTHON\nvalue = 1\n" + fence)
+        self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
+        self.assertEqual(result["python_blocks_checked"], 1)
+
 if __name__ == "__main__":
     unittest.main()
