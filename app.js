@@ -90,11 +90,11 @@ function ApiSettingsModal({close}){
 }
 
 const ATMOSPHERE_PRESETS={
-  nexus:{label:'Nexus',description:'Glacial blue · violet plasma',rgbA:'103,214,255',rgbB:'153,113,255',rgbC:'94,245,207',cyan:'#7ce4ff',violet:'#a18aff',green:'#68f0cb',ember:'#ff7b86'},
-  aurora:{label:'Aurora',description:'Polar mint · arctic cyan',rgbA:'68,247,193',rgbB:'54,166,255',rgbC:'192,255,130',cyan:'#55efc4',violet:'#64baff',green:'#b8ff9f',ember:'#a2ffde'},
-  ember:{label:'Solar flare',description:'Molten amber · crimson glow',rgbA:'255,143,67',rgbB:'255,64,111',rgbC:'255,209,109',cyan:'#ffb15d',violet:'#ff527c',green:'#ffd36e',ember:'#ff725b'},
-  ultraviolet:{label:'Ultraviolet',description:'Orchid plasma · electric rose',rgbA:'191,105,255',rgbB:'255,92,202',rgbC:'94,224,255',cyan:'#d29bff',violet:'#ff83d6',green:'#83eaff',ember:'#ff8bc9'},
-  monochrome:{label:'Monochrome',description:'Graphite · silver light',rgbA:'188,211,225',rgbB:'119,141,165',rgbC:'220,231,238',cyan:'#c6dae5',violet:'#8599ad',green:'#d6e6ea',ember:'#a1adb9'}
+  nexus:{label:'Nexus',description:'Glacial blue · violet plasma',themeColor:'#090d17',rgbA:'103,214,255',rgbB:'153,113,255',rgbC:'94,245,207',cyan:'#7ce4ff',violet:'#a18aff',green:'#68f0cb',ember:'#ff7b86'},
+  aurora:{label:'Aurora',description:'Polar mint · arctic cyan',themeColor:'#071711',rgbA:'68,247,193',rgbB:'54,166,255',rgbC:'192,255,130',cyan:'#55efc4',violet:'#64baff',green:'#b8ff9f',ember:'#a2ffde'},
+  ember:{label:'Solar flare',description:'Molten amber · crimson glow',themeColor:'#170a0d',rgbA:'255,143,67',rgbB:'255,64,111',rgbC:'255,209,109',cyan:'#ffb15d',violet:'#ff527c',green:'#ffd36e',ember:'#ff725b'},
+  ultraviolet:{label:'Ultraviolet',description:'Orchid plasma · electric rose',themeColor:'#13091a',rgbA:'191,105,255',rgbB:'255,92,202',rgbC:'94,224,255',cyan:'#d29bff',violet:'#ff83d6',green:'#83eaff',ember:'#ff8bc9'},
+  monochrome:{label:'Monochrome',description:'Graphite · silver light',themeColor:'#0b1014',rgbA:'188,211,225',rgbB:'119,141,165',rgbC:'220,231,238',cyan:'#c6dae5',violet:'#8599ad',green:'#d6e6ea',ember:'#a1adb9'}
 }
 
 function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
@@ -116,6 +116,7 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
     root.style.setProperty('--violet',palette.violet)
     root.style.setProperty('--green',palette.green)
     root.style.setProperty('--red',palette.ember)
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content',palette.themeColor)
     const reducedQuery=window.matchMedia('(prefers-reduced-motion: reduce)')
     const saveData=Boolean(navigator.connection?.saveData)
     let animateMotion=motionEnabled&&!reducedQuery.matches&&!saveData
