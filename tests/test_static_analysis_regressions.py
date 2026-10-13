@@ -244,5 +244,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check(source)
         self.assertEqual(self.named(result, "markdown_code_fences")["status"], "PASS")
 
+    def test_48_analysis_does_not_echo_the_original_implementation_field(self):
+        source = "UNIQUE_DRAFT_CONTENT_012345"
+        result = self.check(source)
+        self.assertNotIn("implementation", result)
+        self.assertNotIn(source, str(result))
+
 if __name__ == "__main__":
     unittest.main()
