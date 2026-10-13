@@ -26,6 +26,8 @@ class CyrusApiContractTests(unittest.TestCase):
                 "created_at": server.now_iso(),
                 "updated_at": server.now_iso(),
                 "objective": "Persist execution evidence",
+                "tool_calls": 7,
+                
                 "mode": "autonomous",
                 "status": "COMPLETED",
                 "current_agent": "RELEASE",
@@ -46,6 +48,9 @@ class CyrusApiContractTests(unittest.TestCase):
             self.assertEqual(persisted["events"][0]["event_id"], "CYRUS-DURABLE-E001")
             self.assertEqual(persisted["agents"][0]["status"], "COMPLETED")
             self.assertEqual(persisted["plan"], ["one"])
+            self.assertEqual(persisted["updated_at"], task["updated_at"])
+            self.assertEqual(persisted["tool_calls"], 7)
+            self.assertEqual(persisted["latency_ms"], 12)
 
     def test_history_persistence_round_trip_is_atomic(self):
         with TemporaryDirectory() as tmp:
@@ -156,6 +161,21 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertTrue(payload["api_access_key_required"])
         self.assertNotIn("should-not-be-returned", str(payload))
 
+    def test_live_provider_without_access_key_fails_closed(self):
+        from types import SimpleNamespace
+        with patch.object(server, "PROVIDER", SimpleNamespace(mode="LIVE", name="test-live", status="ready")), patch.object(server, "API_ACCESS_KEY", ""):
+            health = self.client.get("/api/health")
+            security = self.client.get("/api/security")
+            private = self.client.get("/api/metrics")
+            execute = self.client.post("/api/execute", json={"prompt": "Do not allow anonymous paid model use"})
+        self.assertEqual(health.status_code, 200)
+        self.assertTrue(security.get_json()["api_access_key_required"])
+        self.assertFalse(security.get_json()["api_access_key_configured"])
+        self.assertTrue(security.get_json()["live_model_locked"])
+        self.assertEqual(private.status_code, 503)
+        self.assertEqual(execute.status_code, 503)
+        self.assertTrue(private.get_json()["access_key_required"])
+
     def test_api_access_key_gates_private_routes_but_keeps_health_public(self):
         with patch.object(server, "API_ACCESS_KEY", "unit-test-access-key"):
             health = self.client.get("/api/health")
@@ -192,11 +212,13 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("release", payload)
         self.assertIn("started_at", payload)
 
-    def test_backend_does_not_expose_private_repository_files(self):
-        public_css = self.client.get("/styles.css")
+    def test_backend_serves_every_browser_asset_but_not_private_python_files(self):
+        for path in ("/styles.css", "/app.js", "/demo-bridge.js", "/runtime-config.js", "/event-stream.js"):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertGreater(len(response.data), 0)
         private_python = self.client.get("/server.py")
-        self.assertEqual(public_css.status_code, 200)
-        self.assertIn(b"var(--", public_css.data[:2000])
         self.assertEqual(private_python.status_code, 404)
 
     def test_health_reports_capacity_utilization(self):
@@ -362,6 +384,39 @@ class CyrusApiContractTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", response.get_json())
+
+    def test_metrics_include_persisted_outcomes_after_runtime_restart(self):
+        records = [
+            {"task_id": "CYRUS-HIST-DONE", "created_at": "2026-10-01T10:00:00Z", "status": "COMPLETED", "execution_time_ms": 1200},
+            {"task_id": "CYRUS-HIST-FAIL", "created_at": "2026-10-02T10:00:00Z", "status": "FAILED", "execution_time_ms": 300},
+        ]
+        with patch("server.load_history", return_value=records):
+            payload = self.client.get("/api/metrics").get_json()
+        self.assertEqual(payload["total_tasks"], 2)
+        self.assertEqual(payload["completed_tasks"], 1)
+        self.assertEqual(payload["failed_tasks"], 1)
+        self.assertEqual(payload["average_execution_ms"], 750.0)
+
+    def test_history_migration_merges_legacy_rows_when_database_is_not_empty(self):
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp) / "history.json"
+            target.write_text(
+                '[{"task_id":"CYRUS-LEGACY","created_at":"2026-09-01T00:00:00Z","status":"COMPLETED"},'
+                '{"task_id":"CYRUS-DUPLICATE","created_at":"2026-09-02T00:00:00Z","status":"FAILED","summary":"old"}]',
+                encoding="utf-8",
+            )
+            store = HistoryStore(target.with_suffix(".sqlite3"))
+            store.save_all([{
+                "task_id": "CYRUS-DUPLICATE",
+                "created_at": "2026-09-02T00:00:00Z",
+                "status": "COMPLETED",
+                "summary": "database version wins",
+            }])
+            with patch.object(server, "STORE", target), patch.object(server, "HISTORY_STORE", store), patch.object(server, "_legacy_migration_attempted", False):
+                records = server.load_history()
+            by_id = {item["task_id"]: item for item in records}
+            self.assertIn("CYRUS-LEGACY", by_id)
+            self.assertEqual(by_id["CYRUS-DUPLICATE"]["summary"], "database version wins")
 
     def test_runtime_metrics_counts_approval_waiters_as_active(self):
         with server.runtime["lock"]:

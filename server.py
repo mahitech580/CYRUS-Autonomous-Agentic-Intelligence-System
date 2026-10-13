@@ -1,5 +1,6 @@
 from flask import Flask, g, jsonify, request, send_from_directory, Response, stream_with_context
 from datetime import datetime, timezone, timedelta
+import math
 from concurrent.futures import ThreadPoolExecutor
 from providers import get_provider
 from static_analysis import analyze_draft
@@ -49,6 +50,17 @@ def establish_request_context():
         return None
     if request.method == "GET" and request.path in PUBLIC_API_GET_PATHS:
         return None
+    # Never leave a configured, billable model endpoint open to anonymous execution.
+    # If an operator enables a provider key but forgets the separate API key, fail closed.
+    provider_is_live = getattr(globals().get("PROVIDER"), "mode", "DEMO") == "LIVE"
+    if provider_is_live and not API_ACCESS_KEY:
+        return jsonify({
+            "error": "Private API access is locked because a live model provider is configured without CYRUS_API_ACCESS_KEY. Set a long random key in the hosting environment before using private routes.",
+            "request_id": g.request_id,
+            "access_key_required": True,
+            "access_key_configured": False,
+            "live_model_locked": True,
+        }), 503
     if API_ACCESS_KEY and not hmac.compare_digest(
         request.headers.get("X-CYRUS-Access-Key", ""), API_ACCESS_KEY
     ):
@@ -83,7 +95,7 @@ def apply_response_hardening(response):
     response.headers["X-DNS-Prefetch-Control"] = "off"
     if request.path.startswith("/api/") and not request.path.endswith("/stream"):
         response.headers["Cache-Control"] = "no-store"
-    elif request.path in {"/styles.css", "/app.js", "/demo-bridge.js"}:
+    elif request.path in {"/styles.css", "/app.js", "/demo-bridge.js", "/runtime-config.js", "/event-stream.js"}:
         response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=86400"
     return response
 
@@ -138,23 +150,37 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 def load_history():
-    """Read database history and migrate the legacy JSON file once if needed."""
+    """Read database history and merge legacy JSON records once, preserving newer DB copies."""
     global _legacy_migration_attempted
     with history_lock:
         items = HISTORY_STORE.load_all()
-        if items or _legacy_migration_attempted:
+        if _legacy_migration_attempted:
             return items
         _legacy_migration_attempted = True
-        if STORE.exists():
-            try:
-                legacy = json.loads(STORE.read_text(encoding="utf-8"))
-                if isinstance(legacy, list):
-                    HISTORY_STORE.save_all(legacy)
-                    items = HISTORY_STORE.load_all()
-            except (OSError, json.JSONDecodeError, TypeError, RuntimeError):
-                # Keep API health available; storage errors are reported by active routes.
+        if not STORE.exists():
+            return items
+        try:
+            legacy = json.loads(STORE.read_text(encoding="utf-8"))
+            if not isinstance(legacy, list):
                 return items
-        return items
+            # Preserve database versions of duplicated task IDs while importing older,
+            # not-yet-migrated rows even when the database already contains new records.
+            merged = {}
+            for item in legacy:
+                if isinstance(item, dict) and item.get("task_id"):
+                    merged[str(item["task_id"])] = item
+            for item in items:
+                if isinstance(item, dict) and item.get("task_id"):
+                    merged[str(item["task_id"])] = item
+            combined = sorted(
+                merged.values(),
+                key=lambda item: (str(item.get("created_at") or ""), str(item.get("task_id") or "")),
+            )
+            HISTORY_STORE.save_all(combined[-100:])
+            return HISTORY_STORE.load_all()
+        except (OSError, json.JSONDecodeError, TypeError, RuntimeError):
+            # Keep API health available; storage errors remain visible on routes that write.
+            return items
 
 def save_history(items):
     with history_lock:
@@ -228,17 +254,20 @@ def persist_task(task):
         snapshot = {
         "task_id": task["task_id"],
         "created_at": task["created_at"],
+        "updated_at": task.get("updated_at", task["created_at"]),
         "objective": task["objective"],
         "mode": task["mode"],
         "status": task["status"],
         "score": task.get("score", 0),
         "execution_time_ms": task.get("execution_time_ms", 0),
+        "latency_ms": task.get("latency_ms", 0),
         "confidence": task.get("confidence", 0),
         "risk": task.get("risk", "LOW"),
         "summary": task.get("summary", ""),
         "artifacts": task.get("artifacts", []),
         "idempotency_key": task.get("idempotency_key"),
         "current_agent": task.get("current_agent"),
+        "tool_calls": task.get("tool_calls", 0),
         "plan": task.get("plan", []),
         "research": task.get("research", []),
         "tests_passed": task.get("tests_passed", 0),
@@ -607,7 +636,7 @@ def create_task(prompt, mode, idempotency_key=None):
 def index():
     return send_from_directory(BASE_DIR, "index.html")
 
-PUBLIC_ASSETS = {"styles.css", "app.js", "demo-bridge.js"}
+PUBLIC_ASSETS = {"styles.css", "app.js", "demo-bridge.js", "runtime-config.js", "event-stream.js"}
 
 @app.get("/<path:name>")
 def public_asset(name):
@@ -618,8 +647,11 @@ def public_asset(name):
 @app.get("/api/security")
 def security_info():
     """Expose security posture, never the configured access-key value."""
+    provider_is_live = getattr(globals().get("PROVIDER"), "mode", "DEMO") == "LIVE"
     return jsonify({
-        "api_access_key_required": bool(API_ACCESS_KEY),
+        "api_access_key_required": bool(API_ACCESS_KEY) or provider_is_live,
+        "api_access_key_configured": bool(API_ACCESS_KEY),
+        "live_model_locked": provider_is_live and not API_ACCESS_KEY,
         "protected_routes": "all /api routes except GET health, readiness, provider, and preflight",
         "access_key_header": "X-CYRUS-Access-Key",
         "model_key_in_browser": False,
@@ -702,27 +734,40 @@ def tools():
 
 def runtime_metrics():
     history = load_history()
+    records = all_task_records()
     with runtime["lock"]:
         live = list(runtime["tasks"].values())
         active = sum(1 for task in live if task.get("status") in {"RUNNING", "AWAITING_APPROVAL"})
         awaiting = sum(1 for task in live if task.get("status") == "AWAITING_APPROVAL")
-        completed = sum(1 for task in live if task.get("status") == "COMPLETED")
-        failed = sum(1 for task in live if task.get("status") == "FAILED")
-        cancelled = sum(1 for task in live if task.get("status") == "CANCELLED")
         queued = sum(1 for task in live if task.get("status") == "QUEUED")
-    historical = [item for item in history if item.get("status") in {"COMPLETED", "FAILED", "CANCELLED"}]
-    latencies = [item.get("execution_time_ms", 0) for item in historical if item.get("execution_time_ms")]
+    states = [str(item.get("status") or "UNKNOWN").upper() for item in records]
+    completed = states.count("COMPLETED")
+    failed = states.count("FAILED")
+    cancelled = states.count("CANCELLED")
+    timed_out = states.count("TIMED_OUT")
+    terminal_states = {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"}
+    historical = [item for item in records if str(item.get("status") or "").upper() in terminal_states]
+    latencies = []
+    for item in historical:
+        try:
+            value = int(item.get("execution_time_ms") or 0)
+            if value > 0:
+                latencies.append(value)
+        except (TypeError, ValueError):
+            continue
     return {
         "system": "CYRUS CORE 1.0",
         "release": RELEASE_ID,
         "uptime_seconds": round(max(0, time.time() - runtime["started_at"]), 1),
         "capacity": MAX_CONCURRENT_TASKS,
+        "total_tasks": len(records),
         "active_tasks": active,
         "queued_tasks": queued,
         "awaiting_approval": awaiting,
         "completed_tasks": completed,
         "failed_tasks": failed,
         "cancelled_tasks": cancelled,
+        "timed_out_tasks": timed_out,
         "model_mode": PROVIDER.mode,
         "provider": PROVIDER.name,
         "api_access_key_required": bool(API_ACCESS_KEY),
@@ -741,7 +786,9 @@ def all_task_records():
     with runtime["lock"]:
         live = list(runtime["tasks"].values())
     for item in live:
-        merged[item["task_id"]] = item
+        task_id = item.get("task_id")
+        if task_id:
+            merged[str(task_id)] = item
     return sorted(merged.values(), key=lambda item: item.get("created_at", ""), reverse=True)
 
 
@@ -771,6 +818,8 @@ def tasks():
             if query in str(item.get("objective", "")).lower()
             or query in str(item.get("summary", "")).lower()
             or query in str(item.get("task_id", "")).lower()
+            or query in str(item.get("current_agent", "")).lower()
+            or query in str(item.get("mode", "")).lower()
         ]
     return jsonify(results[offset:offset + limit])
 
@@ -848,7 +897,7 @@ def analytics():
     if latencies:
         middle = len(latencies) // 2
         median = latencies[middle] if len(latencies) % 2 else round((latencies[middle - 1] + latencies[middle]) / 2)
-        p95 = latencies[max(0, int(0.95 * len(latencies)) - 1)]
+        p95 = latencies[max(0, math.ceil(0.95 * len(latencies)) - 1)]
     return jsonify({
         "generated_at": now_iso(),
         "window_days": days,

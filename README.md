@@ -69,13 +69,13 @@ At the TESTER stage, CYRUS executes non-destructive static checks over the gener
 
 Without a model key, CYRUS uses deterministic demo heuristics. With a key, it sends separate live Chat Completions requests for planning, engineering considerations, an implementation draft, a validation plan, and review. The model adapter does not browse the web, modify repository files, execute arbitrary generated code, or run tests. The UI/API therefore report proposed checks as `PLAN_GENERATED_NOT_EXECUTED`, leave test-pass and coverage values at zero, and label review scores as model estimates rather than verified test results. Provider errors fail the task visibly rather than quietly fabricating a successful model response.
 
-The repository also includes a browser fallback bridge for a disconnected frontend demo. It does not mask failures when a remote API base URL has been configured.
+The repository retains a deterministic browser bridge for explicit disconnected demos. It does not mask a configured remote backend outage with fake successful executions; the live UI reports connectivity errors and allows the operator to correct API settings.
 
-### Browser demo
+### Browser deployment
 
 **GitHub Pages:** https://mahitech580.github.io/CYRUS-Autonomous-Agentic-Intelligence-System/
 
-The static demo is designed to degrade gracefully: when the backend cannot be reached, the UI automatically falls back to the deterministic demo runtime rather than displaying a broken application.
+GitHub Pages hosts the static UI only. Real execution, task history, metrics and the event stream need a reachable backend. When the live API is unavailable, backend-dependent features show an error instead of claiming that a run succeeded.
 
 ### Runtime verification
 
@@ -117,7 +117,7 @@ The orchestration engine uses a provider adapter in `providers.py`. It supports 
 | `CYRUS_LLM_MODEL` | Model identifier accepted by the configured provider | `gpt-4o-mini` |
 | `CYRUS_LLM_TIMEOUT_SECONDS` | Per-request timeout, bounded between 5 and 60 seconds | `25` |
 
-`render.yaml` declares both secrets as `sync: false`. For an already-created Render service, add them manually under **Environment** and redeploy. In particular, set `CYRUS_API_ACCESS_KEY` to a long random value before adding `CYRUS_LLM_API_KEY`; otherwise anyone who finds the public API URL may be able to submit work against a configured provider key. When access-key protection is enabled, the API ↗ settings dialog accepts the access key and keeps it in tab-scoped session storage; it is sent only in the `X-CYRUS-Access-Key` request header. Health, readiness, and provider-capability endpoints remain public for probes. Never reuse the model-provider secret as the API access key.
+`render.yaml` declares the model, API access, and database connection settings as host-managed values/secrets. For an already-created Render service, add missing secret entries manually under **Environment** and redeploy. If a live model key is present without `CYRUS_API_ACCESS_KEY`, private routes now fail closed instead of allowing anonymous model usage. In particular, set `CYRUS_API_ACCESS_KEY` to a long random value before adding `CYRUS_LLM_API_KEY`; otherwise anyone who finds the public API URL may be able to submit work against a configured provider key. When access-key protection is enabled, the API ↗ settings dialog accepts the access key and keeps it in tab-scoped session storage; it is sent only in the `X-CYRUS-Access-Key` request header. Health, readiness, and provider-capability endpoints remain public for probes. Never reuse the model-provider secret as the API access key.
 
 Render ignores newly added `sync: false` entries during Blueprint updates, so this manual step is expected. See the [Render Blueprint environment-variable reference](https://render.com/docs/blueprint-spec).
 
