@@ -26,6 +26,8 @@ class CyrusApiContractTests(unittest.TestCase):
                 "created_at": server.now_iso(),
                 "updated_at": server.now_iso(),
                 "objective": "Persist execution evidence",
+                "tool_calls": 7,
+                "latency_ms": 345,
                 "mode": "autonomous",
                 "status": "COMPLETED",
                 "current_agent": "RELEASE",
@@ -46,6 +48,9 @@ class CyrusApiContractTests(unittest.TestCase):
             self.assertEqual(persisted["events"][0]["event_id"], "CYRUS-DURABLE-E001")
             self.assertEqual(persisted["agents"][0]["status"], "COMPLETED")
             self.assertEqual(persisted["plan"], ["one"])
+            self.assertEqual(persisted["updated_at"], task["updated_at"])
+            self.assertEqual(persisted["tool_calls"], 7)
+            self.assertEqual(persisted["latency_ms"], 345)
 
     def test_history_persistence_round_trip_is_atomic(self):
         with TemporaryDirectory() as tmp:
