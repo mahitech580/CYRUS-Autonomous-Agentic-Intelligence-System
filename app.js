@@ -55,7 +55,8 @@ function ApiSettingsModal({close}){
     if(!candidate){setError('Enter your live backend URL.');return;}
     let parsed;
     try{parsed=new URL(candidate)}catch{setError('Enter a full URL, such as https://your-service.onrender.com');return;}
-    if(!['https:','http:'].includes(parsed.protocol)||parsed.username||parsed.password){setError('Use a valid HTTP(S) URL without credentials.');return;}
+    const localHttp=parsed.protocol==='http:'&&['localhost','127.0.0.1','::1'].includes(parsed.hostname);
+    if((parsed.protocol!=='https:'&&!localHttp)||parsed.username||parsed.password){setError('Use HTTPS for remote backends. HTTP is allowed only for localhost development, and URLs must not contain credentials.');return;}
     try{
       localStorage.setItem('cyrus-api-base-url',parsed.origin+parsed.pathname.replace(/\/+$/,''));
       const candidateKey=accessKey.trim();
