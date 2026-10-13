@@ -786,7 +786,9 @@ def all_task_records():
     with runtime["lock"]:
         live = list(runtime["tasks"].values())
     for item in live:
-        merged[item["task_id"]] = item
+        task_id = item.get("task_id")
+        if task_id:
+            merged[str(task_id)] = item
     return sorted(merged.values(), key=lambda item: item.get("created_at", ""), reverse=True)
 
 
