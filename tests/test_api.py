@@ -161,6 +161,21 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertTrue(payload["api_access_key_required"])
         self.assertNotIn("should-not-be-returned", str(payload))
 
+    def test_live_provider_without_access_key_fails_closed(self):
+        from types import SimpleNamespace
+        with patch.object(server, "PROVIDER", SimpleNamespace(mode="LIVE", name="test-live", status="ready")), patch.object(server, "API_ACCESS_KEY", ""):
+            health = self.client.get("/api/health")
+            security = self.client.get("/api/security")
+            private = self.client.get("/api/metrics")
+            execute = self.client.post("/api/execute", json={"prompt": "Do not allow anonymous paid model use"})
+        self.assertEqual(health.status_code, 200)
+        self.assertTrue(security.get_json()["api_access_key_required"])
+        self.assertFalse(security.get_json()["api_access_key_configured"])
+        self.assertTrue(security.get_json()["live_model_locked"])
+        self.assertEqual(private.status_code, 503)
+        self.assertEqual(execute.status_code, 503)
+        self.assertTrue(private.get_json()["access_key_required"])
+
     def test_api_access_key_gates_private_routes_but_keeps_health_public(self):
         with patch.object(server, "API_ACCESS_KEY", "unit-test-access-key"):
             health = self.client.get("/api/health")
