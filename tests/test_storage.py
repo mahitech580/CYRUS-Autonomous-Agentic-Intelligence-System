@@ -38,6 +38,27 @@ class HistoryStoreTests(unittest.TestCase):
                 self.assertEqual(result[0]["summary"], "finished")
                 self.assertEqual(store.info()["backend"], "sqlite")
 
+    def test_unsupported_database_url_fails_loudly(self):
+        with patch.dict(os.environ, {
+            "CYRUS_DATABASE_URL": "mysql://user:secret@example.test/cyrus",
+            "DATABASE_URL": "",
+        }):
+            with self.assertRaisesRegex(ValueError, "must be a PostgreSQL connection string"):
+                HistoryStore("unused.sqlite3")
+
+    def test_sqlalchemy_psycopg_postgres_scheme_is_normalized(self):
+        with TemporaryDirectory() as tmp:
+            # Normalize before attempting a connection; an unreachable URL fails after normalization.
+            with patch.dict(os.environ, {
+                "CYRUS_DATABASE_URL": "postgresql+psycopg://user:pass@127.0.0.1:1/cyrus",
+                "DATABASE_URL": "",
+            }):
+                from unittest.mock import patch as mock_patch
+                with mock_patch.object(HistoryStore, "_initialize", lambda self: None):
+                    store = HistoryStore(Path(tmp) / "unused.sqlite3")
+                self.assertEqual(store.backend, "postgresql")
+                self.assertTrue(store.database_url.startswith("postgresql://"))
+
     def test_history_is_bounded_to_latest_one_hundred_records(self):
         with TemporaryDirectory() as tmp:
             db_path = str(Path(tmp) / "history.sqlite3")
