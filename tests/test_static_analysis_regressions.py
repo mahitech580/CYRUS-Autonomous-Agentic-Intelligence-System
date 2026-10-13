@@ -17,5 +17,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(result["status"], "FAILED")
 
 
+    def test_02_none_input_is_handled_as_an_empty_draft(self):
+        result = self.check(None)
+        self.assertEqual(self.named(result, "draft_present")["status"], "FAIL")
+        self.assertFalse(result["code_executed"])
+
 if __name__ == "__main__":
     unittest.main()
