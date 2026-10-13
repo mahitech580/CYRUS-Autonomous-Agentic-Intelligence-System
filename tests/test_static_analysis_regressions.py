@@ -128,5 +128,9 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("AWS_ACCESS_KEY_ID = '" + secret + "'")
         self.assertNotIn(secret, str(result))
 
+    def test_24_normal_draft_passes_likely_secret_scan(self):
+        result = self.check("Use environment variables for runtime credentials.")
+        self.assertEqual(self.named(result, "likely_secret_scan")["status"], "PASS")
+
 if __name__ == "__main__":
     unittest.main()
