@@ -176,5 +176,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check(fence + "python   \nnumber = 7\n" + fence)
         self.assertEqual(self.named(result, "python_syntax")["status"], "PASS")
 
+    def test_35_javascript_fence_is_not_claimed_as_python_validation(self):
+        fence = chr(96) * 3
+        result = self.check(fence + "javascript\nconst x = 1;\n" + fence)
+        self.assertEqual(result["python_blocks_checked"], 0)
+        self.assertEqual(self.named(result, "python_syntax")["status"], "SKIP")
+
 if __name__ == "__main__":
     unittest.main()
