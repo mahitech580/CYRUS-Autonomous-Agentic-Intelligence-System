@@ -97,7 +97,14 @@ const ATMOSPHERE_PRESETS={
   monochrome:{label:'Monochrome',description:'Graphite · silver light',themeColor:'#0b1014',rgbA:'188,211,225',rgbB:'119,141,165',rgbC:'220,231,238',cyan:'#c6dae5',violet:'#8599ad',green:'#d6e6ea',ember:'#a1adb9'}
 }
 
-function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
+const ATMOSPHERE_MODES={
+  nebula:{label:'Living nebula',description:'Slow volumetric light and drift'},
+  aurora:{label:'Aurora waves',description:'Flowing ribbons of colored light'},
+  grid:{label:'Signal grid',description:'A moving technical data lattice'},
+  constellation:{label:'Constellation',description:'Particles and connected star paths'}
+}
+
+function AmbientCanvas({preset='nexus',mode='nebula',intensity=0.8,motionEnabled=true}){
   const canvasRef=useRef(null)
   const intensityRef=useRef(intensity)
   const drawRef=useRef(null)
@@ -167,6 +174,7 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
       const strength=Math.max(.2,Math.min(1.5,liveIntensity))
       context.save()
       context.globalCompositeOperation='screen'
+      const ambienceScale=mode==='constellation'?.24:mode==='grid'?.42:mode==='aurora'?.55:1
       const blobs=[
         {x:width*.15+Math.sin(t*.21)*width*.08+driftX*.3,y:height*.26+Math.cos(t*.19)*height*.08+driftY*.3,r:Math.max(width,height)*.43,color:palette.rgbA,alpha:.105},
         {x:width*.79+Math.cos(t*.17)*width*.07-driftX*.18,y:height*.32+Math.sin(t*.24)*height*.1-driftY*.2,r:Math.max(width,height)*.39,color:palette.rgbB,alpha:.105},
@@ -175,12 +183,57 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
       blobs.forEach(blob=>{
         const radius=blob.r
         const gradient=context.createRadialGradient(blob.x,blob.y,0,blob.x,blob.y,radius)
-        gradient.addColorStop(0,'rgba('+blob.color+','+(blob.alpha*strength)+')')
-        gradient.addColorStop(.45,'rgba('+blob.color+','+(blob.alpha*.32*strength)+')')
+        gradient.addColorStop(0,'rgba('+blob.color+','+(blob.alpha*strength*ambienceScale)+')')
+        gradient.addColorStop(.45,'rgba('+blob.color+','+(blob.alpha*.32*strength*ambienceScale)+')')
         gradient.addColorStop(1,'rgba('+blob.color+',0)')
         context.fillStyle=gradient
         context.fillRect(Math.max(0,blob.x-radius),Math.max(0,blob.y-radius),Math.min(width,radius*2),Math.min(height,radius*2))
       })
+      if(mode==='aurora'){
+        context.save()
+        context.lineCap='round'
+        for(let layer=0;layer<4;layer++){
+          context.beginPath()
+          const base=height*(.19+layer*.105)+(pointer.y-.5)*height*.035
+          for(let x=-12;x<=width+18;x+=12){
+            const y=base+Math.sin(x*.0045+t*.32+layer*1.2)*height*.052+Math.cos(x*.0023-t*.24+layer)*height*.027+Math.sin(t*.16+layer)*height*.018
+            if(x===-12)context.moveTo(x,y);else context.lineTo(x,y)
+          }
+          const gradient=context.createLinearGradient(0,base-height*.1,width,base+height*.1)
+          gradient.addColorStop(0,'rgba('+palette.rgbA+',0)')
+          gradient.addColorStop(.25,'rgba('+palette.rgbA+','+(.08*strength)+')')
+          gradient.addColorStop(.58,'rgba('+palette.rgbB+','+(.115*strength)+')')
+          gradient.addColorStop(.82,'rgba('+palette.rgbC+','+(.06*strength)+')')
+          gradient.addColorStop(1,'rgba('+palette.rgbC+',0)')
+          context.strokeStyle=gradient
+          context.lineWidth=13-layer*2
+          context.shadowColor='rgba('+palette.rgbB+',.24)'
+          context.shadowBlur=18
+          context.stroke()
+          context.shadowBlur=0
+          context.lineWidth=1
+          context.strokeStyle='rgba('+palette.rgbC+','+(.16*strength)+')'
+          context.stroke()
+        }
+        context.restore()
+      }else if(mode==='grid'){
+        context.save()
+        context.lineWidth=.65
+        const spacing=46
+        const offset=animateMotion?(t*11)%spacing:0
+        context.strokeStyle='rgba('+palette.rgbA+','+(.075*strength)+')'
+        context.beginPath()
+        for(let x=-spacing+offset;x<=width+spacing;x+=spacing){context.moveTo(x,0);context.lineTo(x,height)}
+        for(let y=-spacing+offset;y<=height+spacing;y+=spacing){context.moveTo(0,y);context.lineTo(width,y)}
+        context.stroke()
+        const scanY=((t*33)%(height+120))-60
+        const sweep=context.createLinearGradient(0,scanY-55,0,scanY+55)
+        sweep.addColorStop(0,'rgba('+palette.rgbA+',0)')
+        sweep.addColorStop(.5,'rgba('+palette.rgbA+','+(.055*strength)+')')
+        sweep.addColorStop(1,'rgba('+palette.rgbA+',0)')
+        context.fillStyle=sweep;context.fillRect(0,scanY-55,width,110)
+        context.restore()
+      }
       const visibleCount=Math.max(12,Math.min(particles.length,Math.round(baseParticles*(.58+liveIntensity*.55))))
       const coords=particles.slice(0,visibleCount).map(p=>{
         if(animateMotion){
@@ -256,12 +309,12 @@ function AmbientCanvas({preset='nexus',intensity=0.8,motionEnabled=true}){
       document.removeEventListener('visibilitychange',visibility)
       reducedQuery.removeEventListener?.('change',preference)
     }
-  },[preset,motionEnabled])
+  },[preset,mode,motionEnabled])
   useEffect(()=>{drawRef.current?.()},[intensity])
   return <canvas ref={canvasRef} className="ambient-canvas" aria-hidden="true"/>
 }
 
-function AtmosphereStudio({preset,setPreset,intensity,setIntensity,motionEnabled,toggleMotion,close}){
+function AtmosphereStudio({preset,setPreset,mode,setMode,intensity,setIntensity,motionEnabled,toggleMotion,close}){
   const closeRef=useRef(null)
   useEffect(()=>{
     closeRef.current?.focus()
@@ -281,14 +334,20 @@ function AtmosphereStudio({preset,setPreset,intensity,setIntensity,motionEnabled
       else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
     }}>
       <header className="atmosphere-head"><div><span className="editorial-kicker">CYRUS / VISUAL ENGINE</span><h2 id="atmosphere-title">Atmosphere <em>studio.</em></h2><p>Shape the ambient signal, color language, and movement of your workspace.</p></div><button ref={closeRef} type="button" className="atmosphere-close" onClick={close} aria-label="Close atmosphere studio">×</button></header>
-      <div className="atmosphere-preview" data-preset={preset} aria-hidden="true"><span className="atmosphere-preview-core"/><i/><i/><i/><b>CYRUS-07</b><small>AMBIENT FIELD / LIVE PREVIEW</small></div>
+      <div className="atmosphere-preview" data-preset={preset} data-mode={mode} aria-hidden="true"><span className="atmosphere-preview-core"/><i/><i/><i/><b>CYRUS-07</b><small>AMBIENT FIELD / LIVE PREVIEW</small></div>
       <div className="atmosphere-section-head"><div><span className="editorial-kicker">01 / COLOR FIELD</span><h3>Choose a world.</h3></div><span>5 PRESETS</span></div>
       <div className="atmosphere-presets">
         {Object.entries(ATMOSPHERE_PRESETS).map(([key,item])=><button type="button" key={key} className={'atmosphere-preset '+(preset===key?'selected':'')} onClick={()=>setPreset(key)} aria-pressed={preset===key}>
           <span className={'atmosphere-swatch '+key}><i/><i/><i/></span><strong>{item.label}</strong><small>{item.description}</small><span className="atmosphere-preset-check">{preset===key?'✓ SELECTED':'SELECT'}</span>
         </button>)}
       </div>
-      <div className="atmosphere-section-head"><div><span className="editorial-kicker">02 / FIELD INTENSITY</span><h3>Control the energy.</h3></div><span>{Math.round(intensity*100)}%</span></div>
+      <div className="atmosphere-section-head"><div><span className="editorial-kicker">02 / BACKGROUND MOTION</span><h3>Choose a field.</h3></div><span>4 VISUAL MODES</span></div>
+      <div className="atmosphere-modes">
+        {Object.entries(ATMOSPHERE_MODES).map(([key,item])=><button type="button" key={key} className={'atmosphere-mode '+(mode===key?'selected':'')} onClick={()=>setMode(key)} aria-pressed={mode===key}>
+          <span className={'atmosphere-mode-art '+key} aria-hidden="true"><i/><i/><i/><b/></span><strong>{item.label}</strong><small>{item.description}</small><span className="atmosphere-preset-check">{mode===key?'✓ ACTIVE FIELD':'SELECT FIELD'}</span>
+        </button>)}
+      </div>
+      <div className="atmosphere-section-head"><div><span className="editorial-kicker">03 / FIELD INTENSITY</span><h3>Control the energy.</h3></div><span>{Math.round(intensity*100)}%</span></div>
       <label className="atmosphere-slider-label" htmlFor="atmosphere-intensity"><span>Background glow and particle density</span><strong>{intensity<.5?'SUBTLE':intensity>1.05?'CINEMATIC':'BALANCED'}</strong></label>
       <input id="atmosphere-intensity" className="atmosphere-slider" type="range" min="0.25" max="1.4" step="0.05" value={intensity} onChange={event=>setIntensity(Number(event.target.value))}/>
       <div className="atmosphere-slider-scale"><span>QUIET</span><span>IMMERSIVE</span><span>INTENSE</span></div>
@@ -315,8 +374,10 @@ function App(){
   const [apiSettingsOpen,setApiSettingsOpen]=useState(false)
   const [atmosphereOpen,setAtmosphereOpen]=useState(false)
   const [atmospherePreset,setAtmospherePreset]=useState(()=>{try{const value=localStorage.getItem('cyrus-atmosphere-preset');return ATMOSPHERE_PRESETS[value]?value:'nexus'}catch{return 'nexus'}})
+  const [atmosphereMode,setAtmosphereMode]=useState(()=>{try{const value=localStorage.getItem('cyrus-atmosphere-mode');return ATMOSPHERE_MODES[value]?value:'nebula'}catch{return 'nebula'}})
   const [atmosphereIntensity,setAtmosphereIntensity]=useState(()=>{try{const value=Number(localStorage.getItem('cyrus-atmosphere-intensity'));return Number.isFinite(value)&&value>=.25&&value<=1.4?value:.8}catch{return .8}})
   const changeAtmospherePreset=value=>{setAtmospherePreset(value);try{localStorage.setItem('cyrus-atmosphere-preset',value)}catch{}}
+  const changeAtmosphereMode=value=>{if(!ATMOSPHERE_MODES[value])return;setAtmosphereMode(value);try{localStorage.setItem('cyrus-atmosphere-mode',value)}catch{}}
   const changeAtmosphereIntensity=value=>{const safe=Math.max(.25,Math.min(1.4,Number(value)||.8));setAtmosphereIntensity(safe);try{localStorage.setItem('cyrus-atmosphere-intensity',String(safe))}catch{}}
 
   const notify=message=>{setToast(message);window.clearTimeout(window.__cyrusToastTimer);window.__cyrusToastTimer=window.setTimeout(()=>setToast(''),2500)}
@@ -523,7 +584,7 @@ function App(){
   const go=next=>{setPage(next);setPaletteOpen(false);window.scrollTo({top:0,behavior:'smooth'})}
 
   return <div className={'app-shell '+(page==='Home'?'home-shell':'workspace-shell')}>
-    <AmbientCanvas preset={atmospherePreset} intensity={atmosphereIntensity} motionEnabled={motionEnabled}/>
+    <AmbientCanvas preset={atmospherePreset} mode={atmosphereMode} intensity={atmosphereIntensity} motionEnabled={motionEnabled}/>
     <div className="motion-progress" aria-hidden="true"/>
     {page==='Home'&&<HomeView go={go} runtimeState={runtimeState} busy={busy} agents={agents} openPalette={()=>setPaletteOpen(true)} openApiSettings={()=>setApiSettingsOpen(true)} openAtmosphere={()=>setAtmosphereOpen(true)}/>}
     {page!=='Home'&&<>
@@ -564,7 +625,7 @@ function App(){
       </main>
     </>}
     {apiSettingsOpen&&<ApiSettingsModal close={()=>setApiSettingsOpen(false)}/>}
-    {atmosphereOpen&&<AtmosphereStudio preset={atmospherePreset} setPreset={changeAtmospherePreset} intensity={atmosphereIntensity} setIntensity={changeAtmosphereIntensity} motionEnabled={motionEnabled} toggleMotion={toggleMotion} close={()=>setAtmosphereOpen(false)}/>}
+    {atmosphereOpen&&<AtmosphereStudio preset={atmospherePreset} setPreset={changeAtmospherePreset} mode={atmosphereMode} setMode={changeAtmosphereMode} intensity={atmosphereIntensity} setIntensity={changeAtmosphereIntensity} motionEnabled={motionEnabled} toggleMotion={toggleMotion} close={()=>setAtmosphereOpen(false)}/>}
     {selectedTask&&<TaskModal task={selectedTask} close={()=>setSelectedTask(null)}/>}
     {paletteOpen&&<CommandPalette page={page} go={go} execute={execute} seedObjective={seedObjective} notify={notify} openAtmosphere={()=>{setPaletteOpen(false);setAtmosphereOpen(true)}} close={()=>setPaletteOpen(false)}/>}
     {toast&&<div className="toast">{toast}</div>}
