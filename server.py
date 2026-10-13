@@ -2,10 +2,12 @@ from flask import Flask, g, jsonify, request, send_from_directory, Response, str
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from providers import get_provider
+from static_analysis import analyze_draft
 from werkzeug.exceptions import HTTPException
 from pathlib import Path
 import json
 import os
+import hmac
 import threading
 import time
 import uuid
@@ -20,6 +22,9 @@ app = Flask(__name__, static_folder=None)
 app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("CYRUS_MAX_REQUEST_BYTES", "16384"))
 MAX_PROMPT_CHARS = max(200, min(int(os.getenv("CYRUS_MAX_PROMPT_CHARS", "4000")), 20000))
 RELEASE_ID = os.getenv("CYRUS_RELEASE", "local")[:80]
+API_ACCESS_KEY = os.getenv("CYRUS_API_ACCESS_KEY", "").strip()
+PUBLIC_API_GET_PATHS = {"/api/health", "/api/ready", "/api/provider", "/api/security"}
+MAX_TASK_RUNTIME_SECONDS = max(30, min(int(os.getenv("CYRUS_TASK_TIMEOUT_SECONDS", "240")), 900))
 
 DEFAULT_CORS_ORIGINS = {
     "https://mahitech580.github.io",
@@ -39,6 +44,19 @@ def establish_request_context():
     candidate = request.headers.get("X-Request-ID", "").strip()
     g.request_id = candidate if REQUEST_ID_PATTERN.fullmatch(candidate) else uuid.uuid4().hex
     g.request_started = time.perf_counter()
+    if not request.path.startswith("/api/") or request.method == "OPTIONS":
+        return None
+    if request.method == "GET" and request.path in PUBLIC_API_GET_PATHS:
+        return None
+    if API_ACCESS_KEY and not hmac.compare_digest(
+        request.headers.get("X-CYRUS-Access-Key", ""), API_ACCESS_KEY
+    ):
+        return jsonify({
+            "error": "CYRUS API access key is required or invalid. Configure it in API connection settings.",
+            "request_id": g.request_id,
+            "access_key_required": True,
+        }), 401
+    return None
 
 @app.after_request
 def apply_response_hardening(response):
@@ -55,7 +73,7 @@ def apply_response_hardening(response):
     if request.path.startswith("/api/") and origin and origin in CORS_ALLOWED_ORIGINS:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Idempotency-Key, Last-Event-ID, X-Request-ID"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Idempotency-Key, Last-Event-ID, X-Request-ID, X-CYRUS-Access-Key"
         response.headers["Access-Control-Expose-Headers"] = "X-Request-ID, X-Response-Time-Ms"
         response.headers["Access-Control-Max-Age"] = "600"
         response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
@@ -198,7 +216,9 @@ def task_summary(task):
         "event_count": len(task.get("events", [])),
         "provider": task.get("provider", PROVIDER.name),
         "verification_status": task.get("verification_status", "UNKNOWN"),
-        "score_method": task.get("score_method", "UNKNOWN")
+        "score_method": task.get("score_method", "UNKNOWN"),
+        "static_checks_passed": task.get("static_analysis", {}).get("checks_passed", 0),
+        "static_checks_failed": task.get("static_analysis", {}).get("checks_failed", 0)
     }
 
 def persist_task(task):
@@ -234,6 +254,7 @@ def persist_task(task):
         "review": task.get("review", {}),
         "verification_status": task.get("verification_status", "UNKNOWN"),
         "score_method": task.get("score_method", "UNKNOWN"),
+        "static_analysis": task.get("static_analysis", {}),
         "failure": task.get("failure")
         }
         items = [item for item in items if item["task_id"] != task["task_id"]]
@@ -263,6 +284,12 @@ def artifact(name, language, size, kind, content=None):
 
 def build_demo_plan(prompt):
     return PROVIDER.plan(prompt)
+
+def check_task_cancelled(task):
+    cancel_event = runtime["cancel_events"].get(task["task_id"])
+    if cancel_event is not None and cancel_event.is_set():
+        raise TaskCancelled("Task cancellation requested")
+
 
 def cooperative_wait(task, seconds):
     cancel_event = runtime["cancel_events"].get(task["task_id"])
@@ -333,6 +360,9 @@ def _run_task(task):
     ]
 
     for index, (agent, phase, action_label) in enumerate(stages):
+        check_task_cancelled(task)
+        if time.perf_counter() - started > MAX_TASK_RUNTIME_SECONDS:
+            raise RuntimeError(f"Execution exceeded the {MAX_TASK_RUNTIME_SECONDS}-second task deadline")
         with runtime["lock"]:
             task["status"] = "RUNNING"
             task["current_agent"] = agent
@@ -376,13 +406,18 @@ def _run_task(task):
             task["validation_plan"] = PROVIDER.validation_plan(
                 task["objective"], task.get("implementation", "")
             )
-            task["verification_status"] = "PLAN_GENERATED_NOT_EXECUTED"
+            task["static_analysis"] = analyze_draft(task.get("implementation", ""))
+            task["verification_status"] = "STATIC_ANALYSIS_EXECUTED;PROPOSED_TESTS_NOT_EXECUTED"
             task["tests_passed"] = 0
             task["tests_failed"] = 0
             task["coverage"] = 0
+            task["tool_calls"] += 1
             stage_message = (
-                "Prepared " + str(len(task["validation_plan"])) +
-                " validation checks; no code was executed and no tests are marked passed."
+                "Ran " + str(len(task["static_analysis"].get("checks", []))) +
+                " non-executing static checks: " +
+                str(task["static_analysis"].get("checks_passed", 0)) + " passed, " +
+                str(task["static_analysis"].get("checks_failed", 0)) + " failed. " +
+                "Proposed application tests were not executed."
             )
         elif agent == "REVIEWER":
             task["review"] = PROVIDER.review(
@@ -427,8 +462,17 @@ def _run_task(task):
                     "design review", review_text
                 ),
             ]
-            stage_message = "Packaged the implementation draft, proposed validation checks, and review metadata."
+            static_text = json.dumps(task.get("static_analysis", {}), indent=2)
+            task["artifacts"].append(artifact(
+                "static-analysis.json", "JSON",
+                f"{max(1, len(static_text.encode('utf-8'))) / 1024:.1f} KB",
+                "non-executing static analysis", static_text
+            ))
+            stage_message = "Packaged the implementation draft, proposed validation checks, review metadata, and static-analysis report."
 
+        check_task_cancelled(task)
+        if time.perf_counter() - started > MAX_TASK_RUNTIME_SECONDS:
+            raise RuntimeError(f"Execution exceeded the {MAX_TASK_RUNTIME_SECONDS}-second task deadline")
         observed_duration = int((time.perf_counter() - stage_started) * 1000)
         with runtime["lock"]:
             for item in task["agents"]:
@@ -463,17 +507,25 @@ def _run_task(task):
         task["latency_ms"] = elapsed
         task["status"] = "COMPLETED"
         task["current_agent"] = "RELEASE"
-        task["verification_status"] = "PLAN_GENERATED_NOT_EXECUTED"
+        task["verification_status"] = task.get("verification_status", "PLAN_GENERATED_NOT_EXECUTED")
         task["updated_at"] = now_iso()
         if PROVIDER.mode == "LIVE":
             task["summary"] = (
                 "Model-assisted workflow completed. Review scores are estimates; an implementation draft and "
-                "validation plan are available, but code was not executed in a sandbox."
+                "validation plan are available. " +
+                str(task.get("static_analysis", {}).get("checks_passed", 0)) +
+                " static checks passed and " +
+                str(task.get("static_analysis", {}).get("checks_failed", 0)) +
+                " failed; code was not executed and the proposed application tests were not run."
             )
         else:
             task["summary"] = (
                 "Deterministic demo workflow completed. Configure CYRUS_LLM_API_KEY in the Render environment "
-                "for model-powered planning, implementation, and design review. Proposed checks were not executed."
+                "for model-powered planning, implementation, and design review. " +
+                str(task.get("static_analysis", {}).get("checks_passed", 0)) +
+                " static checks passed and " +
+                str(task.get("static_analysis", {}).get("checks_failed", 0)) +
+                " failed; proposed application tests were not executed."
             )
         event(
             task, "RELEASE", "EXECUTION_COMPLETED",
@@ -525,6 +577,7 @@ def create_task(prompt, mode, idempotency_key=None):
         "review": {},
         "verification_status": "PENDING",
         "score_method": "UNSCORED",
+        "static_analysis": {},
         "idempotency_key": idempotency_key,
         "events": [],
         "agents": [dict(agent, status="QUEUED") for agent in AGENTS]
@@ -561,6 +614,18 @@ def public_asset(name):
         return jsonify({"error": "Resource not found"}), 404
     return send_from_directory(BASE_DIR, name)
 
+@app.get("/api/security")
+def security_info():
+    """Expose security posture, never the configured access-key value."""
+    return jsonify({
+        "api_access_key_required": bool(API_ACCESS_KEY),
+        "protected_routes": "all /api routes except GET health, readiness, provider, and preflight",
+        "access_key_header": "X-CYRUS-Access-Key",
+        "model_key_in_browser": False,
+        "key_storage_in_browser": "sessionStorage per tab; only the API access key is accepted by the UI",
+    })
+
+
 @app.get("/api/health")
 def health():
     with runtime["lock"]:
@@ -578,6 +643,7 @@ def health():
         "model_available": PROVIDER.mode == "LIVE",
         "model": getattr(PROVIDER, "model", "") or None,
         "provider_configured": PROVIDER.mode == "LIVE",
+        "api_access_key_required": bool(API_ACCESS_KEY),
         "release": RELEASE_ID,
         "started_at": datetime.fromtimestamp(runtime["started_at"], timezone.utc).isoformat().replace("+00:00", "Z"),
         "worker_capacity": MAX_CONCURRENT_TASKS,
@@ -655,6 +721,9 @@ def runtime_metrics():
         "completed_tasks": completed,
         "failed_tasks": failed,
         "cancelled_tasks": cancelled,
+        "model_mode": PROVIDER.mode,
+        "provider": PROVIDER.name,
+        "api_access_key_required": bool(API_ACCESS_KEY),
         "persisted_tasks": len(history),
         "average_execution_ms": round(sum(latencies) / len(latencies), 1) if latencies else 0
     }
@@ -755,6 +824,9 @@ def _task_stream_snapshot(task):
         "coverage": task.get("coverage", 0),
         "risk": task.get("risk", "LOW"),
         "tool_calls": task.get("tool_calls", 0),
+        "verification_status": task.get("verification_status", "UNKNOWN"),
+        "static_checks_passed": task.get("static_analysis", {}).get("checks_passed", 0),
+        "static_checks_failed": task.get("static_analysis", {}).get("checks_failed", 0),
     }
 
 

@@ -35,6 +35,7 @@ Open `http://127.0.0.1:8000/`.
 - `GET /api/health` — liveness, provider and capacity telemetry
 - `GET /api/provider` — active provider capabilities, without exposing credentials
 - `GET /api/ready` — deployment readiness probe (returns 503 when workers are saturated)
+- `GET /api/security` — API protection configuration without exposing the access key
 - `GET /api/agents`
 - `GET /api/tools`
 - `GET /api/tasks` — compact list with optional `limit` and `status` filters
@@ -61,7 +62,9 @@ Use an `Idempotency-Key` header for retry-safe submissions. Supervised runs paus
 
 ## Runtime modes and verification honesty
 
-CYRUS emits stage-start and stage-completion events as each stage actually runs. The browser receives current task state and trace events over the resumable Server-Sent Events endpoint. Completed stage records are persisted after each update so progress is inspectable even after a reconnect.
+CYRUS emits stage-start and stage-completion events as each stage actually runs. The browser receives current task state and trace events over the resumable Server-Sent Events endpoint. Completed stage records are persisted after each update so progress is inspectable even after a reconnect. Long-running jobs check for cancellation between provider calls and have a configurable task deadline.
+
+At the TESTER stage, CYRUS executes non-destructive static checks over the generated draft: output-size and code-fence checks, Python syntax parsing with `ast.parse`, high-confidence secret-pattern screening, and review warnings for common dynamic/process-execution primitives. It never executes generated Python. The report is saved as `static-analysis.json` and displayed in the task detail view. Proposed application tests remain explicitly unexecuted and coverage remains zero until an actual sandbox is added.
 
 Without a model key, CYRUS uses deterministic demo heuristics. With a key, it sends separate live Chat Completions requests for planning, engineering considerations, an implementation draft, a validation plan, and review. The model adapter does not browse the web, modify repository files, execute arbitrary generated code, or run tests. The UI/API therefore report proposed checks as `PLAN_GENERATED_NOT_EXECUTED`, leave test-pass and coverage values at zero, and label review scores as model estimates rather than verified test results. Provider errors fail the task visibly rather than quietly fabricating a successful model response.
 
@@ -98,19 +101,22 @@ The orchestration engine uses a provider adapter in `providers.py`. It supports 
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
+| `CYRUS_API_ACCESS_KEY` | Optional shared secret that gates private API routes; set before enabling a paid model key | unset |
 | `CYRUS_LLM_API_KEY` | Provider secret; never put this in GitHub or frontend JavaScript | unset |
 | `CYRUS_LLM_PROVIDER` | `auto` selects live mode when a key exists; `deterministic` forces demo mode | `auto` |
 | `CYRUS_LLM_BASE_URL` | HTTPS endpoint base URL, including any version path | `https://api.openai.com/v1` |
 | `CYRUS_LLM_MODEL` | Model identifier accepted by the configured provider | `gpt-4o-mini` |
 | `CYRUS_LLM_TIMEOUT_SECONDS` | Per-request timeout, bounded between 5 and 60 seconds | `25` |
 
-`render.yaml` declares the API key as `sync: false`; for an already-created Render service, add `CYRUS_LLM_API_KEY` manually under **Environment** and redeploy. Render ignores newly added `sync: false` entries during Blueprint updates, so this manual step is expected. See the [Render Blueprint environment-variable reference](https://render.com/docs/blueprint-spec).
+`render.yaml` declares both secrets as `sync: false`. For an already-created Render service, add them manually under **Environment** and redeploy. In particular, set `CYRUS_API_ACCESS_KEY` to a long random value before adding `CYRUS_LLM_API_KEY`; otherwise anyone who finds the public API URL may be able to submit work against a configured provider key. When access-key protection is enabled, the API ↗ settings dialog accepts the access key and keeps it in tab-scoped session storage; it is sent only in the `X-CYRUS-Access-Key` request header. Health, readiness, and provider-capability endpoints remain public for probes. Never reuse the model-provider secret as the API access key.
+
+Render ignores newly added `sync: false` entries during Blueprint updates, so this manual step is expected. See the [Render Blueprint environment-variable reference](https://render.com/docs/blueprint-spec).
 
 Check `GET /api/provider` to see which mode is active. A response with `"mode": "DEMO"` means the backend is live but no model key is configured. A response with `"mode": "LIVE"` means the model adapter is configured; model-provider availability is still confirmed only when a real task succeeds.
 
 ## Runtime controls
 
-The server is production-safe by default: development debug mode is disabled unless `CYRUS_DEBUG=1`. Optional controls include `CYRUS_HOST`, `CYRUS_PORT`, `CYRUS_DEBUG`, `CYRUS_MAX_CONCURRENT_TASKS`, `CYRUS_MAX_LIVE_TASKS`, `CYRUS_MAX_REQUEST_BYTES`, `CYRUS_MAX_PROMPT_CHARS`, and `CYRUS_EXECUTIONS_PER_MINUTE`. The backend also uses an allowlist for public static assets so source and history files are not exposed by the Flask server.
+The server is production-safe by default: development debug mode is disabled unless `CYRUS_DEBUG=1`. Optional controls include `CYRUS_HOST`, `CYRUS_PORT`, `CYRUS_DEBUG`, `CYRUS_API_ACCESS_KEY`, `CYRUS_TASK_TIMEOUT_SECONDS`, `CYRUS_MAX_CONCURRENT_TASKS`, `CYRUS_MAX_LIVE_TASKS`, `CYRUS_MAX_REQUEST_BYTES`, `CYRUS_MAX_PROMPT_CHARS`, and `CYRUS_EXECUTIONS_PER_MINUTE`. The backend also uses an allowlist for public static assets so source and history files are not exposed by the Flask server.
 
 ## UI
 
