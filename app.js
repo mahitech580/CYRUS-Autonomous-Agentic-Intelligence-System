@@ -544,7 +544,7 @@ function App(){
         <div className="topbar">
           <div className="eyebrow">CYRUS / {page.toUpperCase()} WORKSPACE</div>
           <div className="top-actions">
-            <button className="atmosphere-open-button" type="button" onClick={()=>setAtmosphereOpen(true)} title="Customize colors and ambient motion">✧ ATMOSPHERE</button>
+            <button className="atmosphere-open-button" type="button" onClick={()=>setAtmosphereOpen(true)} title="Customize colors and ambient motion" aria-label="Open Atmosphere Studio"><span aria-hidden="true">✧</span><span className="atmosphere-button-label">ATMOSPHERE</span></button>
             <button className="backend-settings-button" type="button" onClick={()=>setApiSettingsOpen(true)} title="Configure the live API backend">API ↗</button>
             <button className={'motion-toggle '+(motionEnabled?'active':'')} type="button" aria-pressed={motionEnabled} onClick={toggleMotion} title="Toggle motion effects"><span className="motion-toggle-icon" aria-hidden="true">{motionEnabled?'◉':'◌'}</span><span>{motionEnabled?'MOTION ON':'CALM MODE'}</span></button>
             <div className="live-pill"><span className="dot"/>{runtimeState} · {busy?'RUNNING':'READY'}</div>
