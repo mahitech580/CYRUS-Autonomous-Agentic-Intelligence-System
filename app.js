@@ -1,7 +1,7 @@
 const {useEffect,useMemo,useRef,useState}=React
 
 const API_TIMEOUT_MS=70000
-const NAV_ITEMS=['Home','Command','Agents','Memory','Tools','History']
+const NAV_ITEMS=['Home','Platform','Command','Agents','Memory','Tools','History']
 
 function apiUrl(path){
   const base=String(window.CYRUS_CONFIG?.apiBaseUrl||'').trim().replace(/\/+$/,'')
@@ -319,7 +319,7 @@ function App(){
         </button>
         <nav className="nav" aria-label="Workspace navigation">
           {NAV_ITEMS.map((item,i)=><button key={item} className={page===item?'active':''} onClick={()=>go(item)}>
-            <span className="nav-icon" aria-hidden="true">{({'Home':'⌂','Command':'⌘','Agents':'♙','Memory':'◫','Tools':'⌘','History':'◷'})[item]}</span>
+            <span className="nav-icon" aria-hidden="true">{({'Home':'⌂','Platform':'▦','Command':'⌘','Agents':'♙','Memory':'◫','Tools':'⌘','History':'◷'})[item]}</span>
             <span className="label">{item}</span><span className="num">{String(i+1).padStart(2,'0')}</span>
           </button>)}
         </nav>
@@ -335,6 +335,7 @@ function App(){
             <button className="nav-command" onClick={()=>setPaletteOpen(true)}>⌘ K</button>
           </div>
         </div>
+        {page==='Platform'&&<PlatformView go={go} open={openTask} openApiSettings={()=>setApiSettingsOpen(true)}/>}
         {page==='Command'&&<CommandView {...{prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents:task?.agents||agents.map(a=>({...a,status:'QUEUED'})),metrics:task?[
           ['EXECUTION',task.execution_time_ms?task.execution_time_ms+' ms':'—'],['TOOLS',task.tool_calls||0],['CONFIDENCE',task.confidence?task.confidence+'%':'—'],['RISK',task.risk||'—'],
           ['RELEASE',task.status==='COMPLETED'?'READY':'STANDBY'],['QUALITY',task.quality?task.quality+'%':'—'],['COVERAGE',task.coverage?task.coverage+'%':'—'],['LATENCY',task.latency_ms?task.latency_ms+' ms':'—']
@@ -766,11 +767,145 @@ function HomeView({go,runtimeState,busy,agents,openPalette,openApiSettings}){
         ['02','AI Agents','Explore the specialist roles that plan, research, build and verify.','Agents'],
         ['03','Memory','Reopen previous runs, inspect outcomes and search the execution archive.','Memory'],
         ['04','Tools','Explore the capabilities and routes exposed by the runtime.','Tools'],
-        ['05','Execution History','Filter, review and export your recorded task history.','History']
+        ['05','Execution History','Filter, review and export your recorded task history.','History'],
+        ['06','Platform & Runtime','See live API health, provider mode, execution metrics, security and verification boundaries.','Platform']
       ].map(([num,title,desc,target])=><button className="home-surface-card" key={target} onClick={()=>go(target)}><span>{num} / SURFACE</span><h3>{title}</h3><p>{desc}</p><b>Open surface ↗</b></button>)}</div>
       <footer className="home-footer"><span>CYRUS-07 / ORIGINAL FICTIONAL AI CHARACTER</span><span>{runtimeState} · {busy?'EXECUTING':'READY'}</span></footer>
     </section>
+    <section className="home-platform-preview">
+      <div className="home-section-label">02 / BEHIND THE INTERFACE</div>
+      <div className="home-next-heading"><h2>See what is real.<br/><em>Know what is still a draft.</em></h2><p>CYRUS exposes its runtime status and makes the boundary between generated suggestions, static checks, and verified execution explicit.</p></div>
+      <div className="home-platform-preview-grid">
+        <article><span>01 / OBSERVE</span><b>Live service signals</b><p>Inspect API health, active workers, capacity, task history and the configured model mode.</p></article>
+        <article><span>02 / INSPECT</span><b>Trace each stage</b><p>Follow the orchestration graph and open draft artifacts, review findings and static-analysis output.</p></article>
+        <article><span>03 / VERIFY</span><b>Evidence over claims</b><p>Generated checklists are not reported as passed tests. Python snippets are parsed without running untrusted code.</p></article>
+      </div>
+      <button className="home-platform-cta" onClick={()=>go('Platform')}>Explore platform & live diagnostics <b>↗</b></button>
+    </section>
   </main>
+}
+
+function PlatformView({go,open,openApiSettings}){
+  const [snapshot,setSnapshot]=useState({health:null,provider:null,security:null,metrics:null,tasks:null});
+  const [refreshing,setRefreshing]=useState(false);
+  const [updatedAt,setUpdatedAt]=useState(null);
+  const [refreshTick,setRefreshTick]=useState(0);
+
+  useEffect(()=>{
+    let active=true;
+    let inFlight=false;
+    const refresh=async()=>{
+      if(inFlight)return;
+      inFlight=true;
+      if(active)setRefreshing(true);
+      const names=['health','provider','security','metrics','tasks'];
+      const paths=['/api/health','/api/provider','/api/security','/api/metrics','/api/tasks?limit=8'];
+      const results=await Promise.allSettled(paths.map(path=>apiJson(path)));
+      if(active){
+        const next={};
+        results.forEach((result,index)=>{
+          next[names[index]]=result.status==='fulfilled'
+            ?{data:result.value,error:null}
+            :{data:null,error:result.reason?.message||'Endpoint unavailable'};
+        });
+        setSnapshot(next);
+        setUpdatedAt(new Date().toISOString());
+        setRefreshing(false);
+      }
+      inFlight=false;
+    };
+    refresh();
+    const timer=window.setInterval(refresh,12000);
+    return()=>{active=false;window.clearInterval(timer)};
+  },[refreshTick]);
+
+  const health=snapshot.health?.data;
+  const provider=snapshot.provider?.data;
+  const security=snapshot.security?.data;
+  const metrics=snapshot.metrics?.data;
+  const recent=Array.isArray(snapshot.tasks?.data)?snapshot.tasks.data:[];
+  const apiHealthy=health?.status==='ok';
+  const providerMode=provider?.mode||health?.mode||'UNKNOWN';
+  const locked=security?.api_access_key_required??health?.api_access_key_required;
+  const stamp=updatedAt?new Date(updatedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}):'Awaiting first response';
+  const uptime=seconds=>{
+    const value=Math.max(0,Math.floor(Number(seconds)||0));
+    const days=Math.floor(value/86400),hours=Math.floor((value%86400)/3600),minutes=Math.floor((value%3600)/60);
+    return days?days+'d '+hours+'h':hours?hours+'h '+minutes+'m':minutes+'m '+(value%60)+'s';
+  };
+  const statusClass=value=>String(value||'unknown').toLowerCase().replace(/[^a-z0-9_-]/g,'-');
+
+  const stages=[
+    {n:'01',name:'ORCHESTRATOR',short:'Initialize',detail:'Validate the submitted objective, assign a run ID, establish a shared execution record and expose progress.'},
+    {n:'02',name:'PLANNER',short:'Decompose',detail:'Generate a structured plan that breaks the objective into ordered, reviewable work packages.'},
+    {n:'03',name:'RESEARCHER',short:'Consider',detail:'Surface engineering considerations and likely risks. Current provider mode does not perform live web research.'},
+    {n:'04',name:'CODER',short:'Draft',detail:'Create an implementation brief and code examples. Generated content is stored as a draft; repository files are not edited.'},
+    {n:'05',name:'TESTER',short:'Inspect',detail:'Create a proposed test plan and run non-executing static checks such as Python syntax parsing and likely-secret scanning.'},
+    {n:'06',name:'REVIEWER',short:'Assess',detail:'Review the draft and its risks. Model scores are estimates, not benchmarks or proof that software works.'},
+    {n:'07',name:'RELEASE',short:'Package',detail:'Store a task record, review summary, static-analysis report and implementation artifacts for later inspection.'}
+  ];
+  const liveFeatures=[
+    {state:'LIVE API',title:'Health & capacity',desc:'Health checks report release, uptime, provider selection, active tasks and worker utilization.',tag:'GET /api/health'},
+    {state:'LIVE STREAM',title:'Execution trace',desc:'Server-Sent Events carry task state and stage events, with reconnect support through event IDs.',tag:'GET /api/tasks/{id}/stream'},
+    {state:'LIVE DATA',title:'Task history',desc:'Read task summaries, search old runs, inspect artifacts and export history from the History workspace.',tag:'GET /api/tasks'},
+    {state:'LIVE CHECKS',title:'Draft static analysis',desc:'Parse fenced Python without execution, inspect format, and flag likely secrets or risky execution primitives.',tag:'static-analysis.json'},
+    {state:'OPTIONAL',title:'Model-backed drafting',desc:'When a server-side provider key is configured, request objective-specific plans, drafts and review outputs.',tag:'CYRUS_LLM_API_KEY'},
+    {state:'GUARDED',title:'Supervised approvals',desc:'Supervised runs pause for an explicit operator approval before the packaging stage.',tag:'POST /api/tasks/{id}/approve'}
+  ];
+  return <div className="section-page page-platform">
+    <PageHero eyebrow="PLATFORM / SYSTEM EXPLAINER" title="Inside" accent=" CYRUS" description="A real API-backed control surface with observable execution stages, model-provider diagnostics, draft analysis and explicit verification boundaries." image={CYRUS_IMAGES.spotlight} alt="Connected digital infrastructure representing a software runtime" meta="LIVE RUNTIME / OPERATOR GUIDE" imageCaption="HOW THE PLATFORM WORKS"/>
+    <section className="platform-live-console">
+      <div className="platform-live-head">
+        <div><span className="editorial-kicker">RUNTIME TELEMETRY / AUTO-REFRESH 12 SEC</span><h2>Live service <em>snapshot.</em></h2><p>These values come from the configured backend APIs. Locked or unavailable data is marked instead of guessed.</p></div>
+        <button className="platform-refresh-button" onClick={()=>setRefreshTick(value=>value+1)} disabled={refreshing}>{refreshing?'SYNCING…':'↻ REFRESH NOW'}</button>
+      </div>
+      <div className="platform-live-statusline"><span className={'platform-state-dot '+(apiHealthy?'healthy':snapshot.health?.error?'unreachable':'pending')}/><b>{apiHealthy?'API RESPONDING':snapshot.health?.error?'API UNREACHABLE':'CONNECTING TO API'}</b><span>Last response · {stamp}</span><a href={apiUrl('/api/health')} target="_blank" rel="noreferrer">Health endpoint ↗</a></div>
+      <div className="platform-telemetry-grid">
+        <article className="platform-telemetry-card"><span>PROVIDER MODE</span><strong className={providerMode==='LIVE'?'is-live':''}>{providerMode}</strong><small>{provider?.model||'Model identifier unavailable'}</small><p>{provider?.message||(snapshot.provider?.error||'Waiting for provider diagnostics.')}</p></article>
+        <article className="platform-telemetry-card"><span>ACTIVE TASKS</span><strong>{metrics?(metrics.active_tasks??0):(snapshot.metrics?.error?'LOCKED':'—')}</strong><small>{metrics?(String(metrics.capacity??'—')+' worker slots configured'):'Private metrics endpoint'}</small><p>{metrics?(Math.round(((metrics.active_tasks||0)/Math.max(1,metrics.capacity||1))*100)+'% of worker capacity in use.'):(snapshot.metrics?.error||'Waiting for metrics.')}</p></article>
+        <article className="platform-telemetry-card"><span>RECORDED RUNS</span><strong>{metrics?(metrics.persisted_tasks??0):(snapshot.metrics?.error?'LOCKED':'—')}</strong><small>{metrics?(String(metrics.completed_tasks??0)+' completed · '+String(metrics.failed_tasks??0)+' failed'):'Aggregate runtime metric'}</small><p>{metrics?(String(metrics.awaiting_approval??0)+' awaiting approval · '+String(metrics.cancelled_tasks??0)+' cancelled'):(snapshot.metrics?.error||'Waiting for metrics.')}</p></article>
+        <article className="platform-telemetry-card"><span>API ACCESS</span><strong className={locked?'is-guarded':''}>{locked===true?'KEY REQUIRED':locked===false?'OPEN API':'UNKNOWN'}</strong><small>{security?.access_key_header||'X-CYRUS-Access-Key'}</small><p>{security?.model_key_in_browser===false?'Model-provider credentials remain server-side.':(snapshot.security?.error||'Waiting for security diagnostics.')}</p></article>
+      </div>
+      <div className="platform-live-foot"><span>RELEASE <b>{health?.release||'—'}</b></span><span>UPTIME <b>{metrics?uptime(metrics.uptime_seconds):'—'}</b></span><span>WORKER LOAD <b>{health?Math.round((health.capacity_utilization||0)*100)+'%':'—'}</b></span><span>API <b>{apiHealthy?'HTTP OK':'NOT VERIFIED'}</b></span></div>
+      {(snapshot.metrics?.error||snapshot.tasks?.error)&&<div className="platform-access-notice"><strong>Some telemetry needs access.</strong><p>{snapshot.metrics?.error||snapshot.tasks?.error}. If you enabled CYRUS_API_ACCESS_KEY on Render, open API ↗ and enter that access key. Public health/provider diagnostics can work while private task metrics stay locked.</p><button onClick={()=>go('Command')}>Open Command ↗</button></div>}
+    </section>
+
+    <section className="page-section platform-lifecycle-section">
+      <div className="section-heading"><div><span className="editorial-kicker">THE EXECUTION LIFECYCLE / 07 STAGES</span><h2>From prompt to <em>inspectable output.</em></h2></div><p>Each stage updates the task record and emits events so the operator can see where a run is, what changed, and what has not been verified.</p></div>
+      <div className="platform-lifecycle-grid">{stages.map((stage,i)=><article className="platform-stage-card" key={stage.name}><div className="platform-stage-top"><span>{stage.n}</span><i>{i===0?'●':i===6?'↗':'◇'}</i></div><h3>{stage.name}</h3><strong>{stage.short}</strong><p>{stage.detail}</p><div className="platform-stage-connect"><span/>{i<stages.length-1?'NEXT STAGE':'TRACEABLE HANDOFF'}</div></article>)}</div>
+      <div className="platform-explanation-note"><b>Why seven stages?</b><span>Splitting the workflow makes each responsibility and transition inspectable. It does not imply seven independent AI models; the configured provider may power multiple stages.</span></div>
+    </section>
+
+    <section className="platform-capabilities-section">
+      <div className="section-heading"><div><span className="editorial-kicker">CAPABILITIES / CONNECTED TO THE RUNTIME</span><h2>What the system <em>actually does.</em></h2></div><p>These are documented runtime behaviors—not promises of tools that are only represented in the interface.</p></div>
+      <div className="platform-capability-grid">{liveFeatures.map((feature,i)=><article className="platform-capability-card" key={feature.title}><div className="platform-capability-meta"><span>{String(i+1).padStart(2,'0')} / {feature.state}</span><i>{['◉','≋','◫','⌕','✳','✓'][i]}</i></div><h3>{feature.title}</h3><p>{feature.desc}</p><code>{feature.tag}</code></article>)}</div>
+    </section>
+
+    <section className="page-spotlight platform-verification-spotlight">
+      <img src={CYRUS_IMAGES.code} alt="Code displayed on a monitor" loading="lazy"/>
+      <div><span className="editorial-kicker">VERIFICATION / NO FAKE GREEN CHECKS</span><h2>Static analysis is useful.<br/><em>It is not a test suite.</em></h2><p>CYRUS checks output structure, parses fenced Python snippets, looks for common secret patterns, and flags risky execution patterns. It does not run the generated application. Runtime correctness, integration behavior and test coverage remain unverified until a separate sandbox and test runner exist.</p><div className="spotlight-pills"><span>AST syntax parse</span><span>Secret patterns</span><span>No code execution</span></div><button className="home-platform-cta" onClick={()=>go('Command')}>Run an objective ↗</button></div>
+    </section>
+
+    <section className="page-section platform-data-section">
+      <div className="section-heading"><div><span className="editorial-kicker">OBSERVABILITY / TASK RECORDS</span><h2>Every run leaves a <em>trail.</em></h2></div><p>Inspect recent backend task records when access is available. Task data refreshes with the live snapshot.</p></div>
+      {recent.length?<div className="platform-recent-list">{recent.slice(0,6).map(item=><button className="platform-recent-row" key={item.task_id} onClick={()=>open(item)}><span className={'platform-task-dot '+statusClass(item.status)}/><span className="platform-recent-copy"><strong>{item.objective||'Untitled objective'}</strong><small>{item.task_id} · {item.current_agent||'No current agent'} · {item.created_at?new Date(item.created_at).toLocaleString():'timestamp unavailable'}</small></span><span className={'platform-task-status '+statusClass(item.status)}>{String(item.status||'UNKNOWN').replaceAll('_',' ')}</span><b>↗</b></button>)}</div>:<div className="platform-empty-state"><span>RECENT RUNS</span><h3>{snapshot.tasks?.error?'Task telemetry is restricted.':'No stored tasks found yet.'}</h3><p>{snapshot.tasks?.error||'Run an objective from Command and revisit this section to inspect its live status and artifact history.'}</p><button onClick={()=>go('Command')}>Open Command ↗</button></div>}
+    </section>
+
+    <section className="platform-guardrails-section">
+      <div className="section-heading"><div><span className="editorial-kicker">GUARDRAILS / OPERATIONAL CONTRACT</span><h2>Power with <em>clear boundaries.</em></h2></div><p>Security and reliability are part of the interface—not hidden in a README.</p></div>
+      <div className="platform-guardrails-grid">
+        <article><span>01 / CREDENTIALS</span><h3>Secrets stay server-side</h3><p>The model provider key belongs in Render Environment. The optional API access key is separate and can be entered in the connection dialog, stored per browser tab, and sent via a request header.</p></article>
+        <article><span>02 / EXECUTION</span><h3>No arbitrary code runner</h3><p>Generated code is a reviewable draft. CYRUS does not execute code from the model or imply that syntax checks prove runtime correctness.</p></article>
+        <article><span>03 / PERSISTENCE</span><h3>Know your storage tier</h3><p>The current JSON history file is on the service filesystem. On a free Render instance, treat this history as non-durable across restarts; a managed database is a future hardening step.</p></article>
+        <article><span>04 / MODEL MODE</span><h3>Demo versus live model</h3><p>DEMO means deterministic fallback behavior. LIVE means a model provider is configured; a successful model-backed task is still the final check that the provider responds.</p></article>
+      </div>
+    </section>
+
+    <section className="platform-next-section">
+      <div><span className="editorial-kicker">NEXT / BUILD ON THE FOUNDATION</span><h2>Make the next step <em>measurable.</em></h2><p>Open a command, inspect a run, or check your actual service settings before enabling a model-backed workflow.</p></div>
+      <div className="platform-next-actions"><button className="home-primary" onClick={()=>go('Command')}>Open Command <b>↗</b></button><button className="home-secondary" onClick={()=>go('History')}>Browse execution history <b>↗</b></button><button className="home-secondary" onClick={openApiSettings}>API connection settings <b>↗</b></button></div>
+    </section>
+  </div>
 }
 
 function CommandView({prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents,metrics,seedObjective,notify,approveTask,cancelTask,runtimeState,runtimeMetrics,go,tasks=[],open}){
