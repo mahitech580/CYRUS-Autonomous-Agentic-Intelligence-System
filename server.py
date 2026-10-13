@@ -801,6 +801,8 @@ def tasks():
             if query in str(item.get("objective", "")).lower()
             or query in str(item.get("summary", "")).lower()
             or query in str(item.get("task_id", "")).lower()
+            or query in str(item.get("current_agent", "")).lower()
+            or query in str(item.get("mode", "")).lower()
         ]
     return jsonify(results[offset:offset + limit])
 
