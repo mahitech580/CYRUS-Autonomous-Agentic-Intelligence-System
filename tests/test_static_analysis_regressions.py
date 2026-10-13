@@ -110,5 +110,11 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("-----BEGIN OPENSSH PRIVATE KEY-----\nredacted\n")
         self.assertEqual(self.named(result, "likely_secret_scan")["status"], "FAIL")
 
+    def test_21_multiple_secret_kinds_are_named_in_the_report(self):
+        source = "sk-" + ("b" * 24) + "\nAKIAABCDEFGHIJKLMNOP"
+        detail = self.named(self.check(source), "likely_secret_scan")["detail"]
+        self.assertIn("OpenAI-style secret", detail)
+        self.assertIn("AWS access key", detail)
+
 if __name__ == "__main__":
     unittest.main()
