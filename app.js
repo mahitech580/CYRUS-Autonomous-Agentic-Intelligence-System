@@ -335,7 +335,7 @@ function App(){
             <button className="nav-command" onClick={()=>setPaletteOpen(true)}>⌘ K</button>
           </div>
         </div>
-        {page==='Platform'&&<PlatformView go={go} notify={notify} open={openTask}/>}
+        {page==='Platform'&&<PlatformView go={go} open={openTask} openApiSettings={()=>setApiSettingsOpen(true)}/>}
         {page==='Command'&&<CommandView {...{prompt,setPrompt,mode,setMode,execute,busy,task,currentAgents:task?.agents||agents.map(a=>({...a,status:'QUEUED'})),metrics:task?[
           ['EXECUTION',task.execution_time_ms?task.execution_time_ms+' ms':'—'],['TOOLS',task.tool_calls||0],['CONFIDENCE',task.confidence?task.confidence+'%':'—'],['RISK',task.risk||'—'],
           ['RELEASE',task.status==='COMPLETED'?'READY':'STANDBY'],['QUALITY',task.quality?task.quality+'%':'—'],['COVERAGE',task.coverage?task.coverage+'%':'—'],['LATENCY',task.latency_ms?task.latency_ms+' ms':'—']
@@ -785,7 +785,7 @@ function HomeView({go,runtimeState,busy,agents,openPalette,openApiSettings}){
   </main>
 }
 
-function PlatformView({go,notify,open}){
+function PlatformView({go,open,openApiSettings}){
   const [snapshot,setSnapshot]=useState({health:null,provider:null,security:null,metrics:null,tasks:null});
   const [refreshing,setRefreshing]=useState(false);
   const [updatedAt,setUpdatedAt]=useState(null);
@@ -903,7 +903,7 @@ function PlatformView({go,notify,open}){
 
     <section className="platform-next-section">
       <div><span className="editorial-kicker">NEXT / BUILD ON THE FOUNDATION</span><h2>Make the next step <em>measurable.</em></h2><p>Open a command, inspect a run, or check your actual service settings before enabling a model-backed workflow.</p></div>
-      <div className="platform-next-actions"><button className="home-primary" onClick={()=>go('Command')}>Open Command <b>↗</b></button><button className="home-secondary" onClick={()=>go('History')}>Browse execution history <b>↗</b></button><button className="home-secondary" onClick={()=>window.dispatchEvent(new CustomEvent('cyrus:open-api-settings'))}>API connection settings <b>↗</b></button></div>
+      <div className="platform-next-actions"><button className="home-primary" onClick={()=>go('Command')}>Open Command <b>↗</b></button><button className="home-secondary" onClick={()=>go('History')}>Browse execution history <b>↗</b></button><button className="home-secondary" onClick={openApiSettings}>API connection settings <b>↗</b></button></div>
     </section>
   </div>
 }
