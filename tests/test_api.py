@@ -147,6 +147,14 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertNotIn("api_key", payload)
         self.assertNotIn("authorization", str(payload).lower())
 
+    def test_security_endpoint_reports_configuration_without_returning_secret(self):
+        with patch.object(server, "API_ACCESS_KEY", "should-not-be-returned"):
+            response = self.client.get("/api/security")
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["api_access_key_required"])
+        self.assertNotIn("should-not-be-returned", str(payload))
+
     def test_api_access_key_gates_private_routes_but_keeps_health_public(self):
         with patch.object(server, "API_ACCESS_KEY", "unit-test-access-key"):
             health = self.client.get("/api/health")
