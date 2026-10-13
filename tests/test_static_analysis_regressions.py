@@ -50,5 +50,10 @@ class StaticAnalysisHardeningRegressionTests(unittest.TestCase):
         result = self.check("open " + fence + "python\nprint('x')")
         self.assertEqual(self.named(result, "markdown_code_fences")["status"], "FAIL")
 
+    def test_09_missing_python_block_is_explicitly_skipped(self):
+        result = self.check("Plain text draft with no code")
+        self.assertEqual(self.named(result, "python_syntax")["status"], "SKIP")
+        self.assertEqual(result["python_blocks_checked"], 0)
+
 if __name__ == "__main__":
     unittest.main()
