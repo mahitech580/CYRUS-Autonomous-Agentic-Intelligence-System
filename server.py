@@ -50,6 +50,17 @@ def establish_request_context():
         return None
     if request.method == "GET" and request.path in PUBLIC_API_GET_PATHS:
         return None
+    # Never leave a configured, billable model endpoint open to anonymous execution.
+    # If an operator enables a provider key but forgets the separate API key, fail closed.
+    provider_is_live = getattr(globals().get("PROVIDER"), "mode", "DEMO") == "LIVE"
+    if provider_is_live and not API_ACCESS_KEY:
+        return jsonify({
+            "error": "Private API access is locked because a live model provider is configured without CYRUS_API_ACCESS_KEY. Set a long random key in the hosting environment before using private routes.",
+            "request_id": g.request_id,
+            "access_key_required": True,
+            "access_key_configured": False,
+            "live_model_locked": True,
+        }), 503
     if API_ACCESS_KEY and not hmac.compare_digest(
         request.headers.get("X-CYRUS-Access-Key", ""), API_ACCESS_KEY
     ):
@@ -636,8 +647,11 @@ def public_asset(name):
 @app.get("/api/security")
 def security_info():
     """Expose security posture, never the configured access-key value."""
+    provider_is_live = getattr(globals().get("PROVIDER"), "mode", "DEMO") == "LIVE"
     return jsonify({
-        "api_access_key_required": bool(API_ACCESS_KEY),
+        "api_access_key_required": bool(API_ACCESS_KEY) or provider_is_live,
+        "api_access_key_configured": bool(API_ACCESS_KEY),
+        "live_model_locked": provider_is_live and not API_ACCESS_KEY,
         "protected_routes": "all /api routes except GET health, readiness, provider, and preflight",
         "access_key_header": "X-CYRUS-Access-Key",
         "model_key_in_browser": False,
