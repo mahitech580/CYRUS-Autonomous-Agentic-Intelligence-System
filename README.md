@@ -32,7 +32,7 @@ Open `http://127.0.0.1:8000/`.
 
 ## Execution reports
 
-The Execution History page exports filtered summary rows as CSV. Open any execution record to inspect the full run, then use **Export JSON** to download a versioned report containing allowlisted task fields, review findings, artifacts, and trace. Credential-like fields are stripped from the report structure; exported objectives and generated drafts may still contain sensitive text, so review the file before sharing. The execution modal also offers **Export MD** for a readable Markdown report with metrics, agent stages, static-analysis checks, artifacts, the event trace, and the implementation draft. The Markdown format preserves the distinction between proposed checks and verified tests.
+The Execution History page exports filtered summary rows as CSV. Open any execution record to inspect the full run, then use **Export JSON** to download a versioned report containing allowlisted task fields, review findings, artifacts, and trace. Credential-like fields are stripped recursively, and common secret-like values in free text are replaced with redaction markers. A warning list identifies the affected field paths without echoing the detected value. This is heuristic protection, not a guarantee that every secret will be detected; review the file before sharing. The execution modal also offers **Export MD** for a readable Markdown report with metrics, agent stages, static-analysis checks, artifacts, the event trace, and the implementation draft. The Markdown format preserves the distinction between proposed checks and verified tests.
 
 ## REST API
 
