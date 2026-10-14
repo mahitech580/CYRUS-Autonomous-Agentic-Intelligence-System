@@ -49,6 +49,25 @@
     return warnings;
   }
 
+  function redactSensitiveText(value) {
+    if (typeof value === 'string') {
+      let safe = value.replace(
+        /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g,
+        '[REDACTED: private-key block]'
+      );
+      for (const [label, pattern] of SENSITIVE_TEXT_PATTERNS) {
+        const flags = pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g';
+        safe = safe.replace(new RegExp(pattern.source, flags), '[REDACTED: ' + label + ']');
+      }
+      return safe;
+    }
+    if (Array.isArray(value)) return value.map(redactSensitiveText);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, redactSensitiveText(item)]));
+    }
+    return value;
+  }
+
   function buildTaskReport(task, exportedAt = new Date().toISOString()) {
     if (!task || typeof task !== 'object' || Array.isArray(task) || typeof task.task_id !== 'string' || !task.task_id.trim()) {
       throw new TypeError('A task record with a task_id is required to create a CYRUS report.');
@@ -66,7 +85,7 @@
       exported_at: exportedAt,
       notice: 'Credential-like fields are omitted. Free-text matches are listed below but not automatically removed; inspect the report before sharing.',
       sensitive_text_warnings: sensitiveTextWarnings,
-      task: snapshot
+      task: redactSensitiveText(snapshot)
     };
   }
 
