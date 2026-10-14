@@ -23,6 +23,10 @@
   const SENSITIVE_TEXT_PATTERNS = [
     ['provider key-like value', /\bsk-[A-Za-z0-9_-]{20,}\b/],
     ['AWS access-key-like value', /\bAKIA[0-9A-Z]{16}\b/],
+    ['GitHub token-like value', /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{30,})\b/],
+    ['Google API key-like value', /\bAIza[0-9A-Za-z_-]{35}\b/],
+    ['Slack token-like value', /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/],
+    ['JWT-like value', /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/],
     ['private-key header', /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/],
     ['bearer-token-like value', /\bBearer\s+[A-Za-z0-9._~+/-]{16,}={0,2}/i]
   ];
