@@ -30,6 +30,10 @@ python server.py
 
 Open `http://127.0.0.1:8000/`.
 
+## Execution reports
+
+The Execution History page exports filtered summary rows as CSV. Open any execution record to inspect the full run, then use **Export JSON** to download a versioned report containing allowlisted task fields, review findings, artifacts, and trace. Credential-like fields are stripped from the report structure; exported objectives and generated drafts may still contain sensitive text, so review the file before sharing.
+
 ## REST API
 
 - `GET /api/health` — liveness, provider and capacity telemetry
