@@ -46,7 +46,7 @@
       .slice(0, 80) || 'execution';
   }
 
-  function downloadTaskReport(task, documentRef = root.document, urlApi = root.URL, BlobCtor = root.Blob) {
+  function downloadTaskReport(task, documentRef = root.document, urlApi = root.URL, BlobCtor = root.Blob, schedule = root.setTimeout) {
     const report = buildTaskReport(task);
     if (!documentRef || !documentRef.body || !documentRef.createElement ||
         !urlApi || !urlApi.createObjectURL || !urlApi.revokeObjectURL || !BlobCtor) {
@@ -61,8 +61,8 @@
     documentRef.body.appendChild(link);
     link.click();
     link.remove();
-    if (typeof root.setTimeout === 'function') {
-      root.setTimeout(() => urlApi.revokeObjectURL(objectUrl), 1000);
+    if (typeof schedule === 'function') {
+      schedule(() => urlApi.revokeObjectURL(objectUrl), 1000);
     } else {
       urlApi.revokeObjectURL(objectUrl);
     }
