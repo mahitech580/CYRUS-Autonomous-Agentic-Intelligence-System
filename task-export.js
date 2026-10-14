@@ -265,7 +265,16 @@
     return markdown;
   }
 
-  const api = Object.freeze({ buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport });
+  async function copyTaskMarkdownReport(task, clipboard = root.navigator && root.navigator.clipboard) {
+    const markdown = buildTaskMarkdownReport(task);
+    if (!clipboard || typeof clipboard.writeText !== 'function') {
+      throw new Error('Clipboard access is unavailable. Download the Markdown report instead.');
+    }
+    await clipboard.writeText(markdown);
+    return markdown;
+  }
+
+  const api = Object.freeze({ buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport, copyTaskMarkdownReport });
   root.CYRUS_TASK_EXPORT = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
