@@ -387,6 +387,24 @@ function App(){
     try{localStorage.setItem('cyrus-motion',next?'on':'off')}catch{}
     notify(next?'Immersive motion enabled':'Calm mode enabled')
   }
+  const cycleAtmosphereMode=()=>{
+    const modes=Object.keys(ATMOSPHERE_MODES)
+    const current=modes.indexOf(atmosphereMode)
+    const next=modes[(current+1)%modes.length]
+    changeAtmosphereMode(next)
+    notify('Background mode: '+ATMOSPHERE_MODES[next].label)
+  }
+  const resetAtmosphere=()=>{
+    changeAtmospherePreset('nexus')
+    changeAtmosphereMode('nebula')
+    changeAtmosphereIntensity(.8)
+    notify('Atmosphere restored to Nexus defaults')
+  }
+  const nudgeAtmosphereIntensity=step=>{
+    const next=Math.round(Math.max(.25,Math.min(1.4,atmosphereIntensity+step*.15))*100)/100
+    changeAtmosphereIntensity(next)
+    notify('Ambient intensity '+Math.round(next*100)+'%')
+  }
   const loadBase=async()=>{
     try{
       const [health,a,t,h,healthMetrics]=await Promise.all([apiJson('/api/health'),apiJson('/api/agents'),apiJson('/api/tools'),apiJson('/api/tasks'),apiJson('/api/metrics')])
@@ -627,7 +645,7 @@ function App(){
     {apiSettingsOpen&&<ApiSettingsModal close={()=>setApiSettingsOpen(false)}/>}
     {atmosphereOpen&&<AtmosphereStudio preset={atmospherePreset} setPreset={changeAtmospherePreset} mode={atmosphereMode} setMode={changeAtmosphereMode} intensity={atmosphereIntensity} setIntensity={changeAtmosphereIntensity} motionEnabled={motionEnabled} toggleMotion={toggleMotion} close={()=>setAtmosphereOpen(false)}/>}
     {selectedTask&&<TaskModal task={selectedTask} close={()=>setSelectedTask(null)}/>}
-    {paletteOpen&&<CommandPalette page={page} go={go} execute={execute} seedObjective={seedObjective} notify={notify} openAtmosphere={()=>{setPaletteOpen(false);setAtmosphereOpen(true)}} close={()=>setPaletteOpen(false)}/>}
+    {paletteOpen&&<CommandPalette page={page} go={go} execute={execute} notify={notify} openAtmosphere={()=>{setPaletteOpen(false);setAtmosphereOpen(true)}} motionEnabled={motionEnabled} toggleMotion={toggleMotion} cycleAtmosphereMode={cycleAtmosphereMode} resetAtmosphere={resetAtmosphere} nudgeAtmosphereIntensity={nudgeAtmosphereIntensity} close={()=>setPaletteOpen(false)}/>}
     {toast&&<div className="toast">{toast}</div>}
   </div>
 }
@@ -1638,7 +1656,41 @@ function HistoryView({tasks:initialTasks,metrics,open}){
 }
 function PageTitle({title,text,meta}){return <div className="page-title"><div><div className="eyebrow">CYRUS / CONTROL SURFACE</div><h2>{title}</h2><p>{text}</p></div><div className="title-side">{meta}</div></div>}
 function TaskModal({task,close}){return <div className="modal-back" onClick={close}><div className="modal" onClick={e=>e.stopPropagation()}><button className="close" onClick={close}>CLOSE</button><div className="eyebrow">{task.task_id}</div><h3>Execution Record</h3><p className="objective-text">{task.objective}</p><div className="metrics">{[['SCORE',task.score||0],['CONFIDENCE',(task.confidence||0)+'%'],['QUALITY',(task.quality||0)+'%'],['COVERAGE',(task.coverage||0)+'%'],['TOOLS',task.tool_calls||0],['LATENCY',(task.latency_ms||0)+' ms'],['RISK',task.risk||'—'],['STATUS',task.status]].map(x=><div className="metric" key={x[0]}><span>{x[0]}</span><strong>{x[1]}</strong></div>)}</div>{task.static_analysis?.checks?.length>0&&<section className="static-analysis-panel"><div className="section-title"><strong>STATIC ANALYSIS</strong><span>{task.static_analysis.checks_passed||0} PASS · {task.static_analysis.checks_failed||0} FAIL</span></div><p className="static-analysis-caption">Non-executing checks on the generated draft. Python snippets are parsed, never run; proposed application tests and coverage remain unverified.</p><div className="static-check-list">{task.static_analysis.checks.map((check,i)=><div className="static-check-row" key={check.name||i}><span className={'static-check-status '+String(check.status||'SKIP').toLowerCase()}>{check.status}</span><div><strong>{check.name.replaceAll('_',' ')}</strong><p>{check.detail}</p></div></div>)}</div></section>}<div className="section-title"><strong>ARTIFACTS</strong><span>{task.artifacts?.length||0}</span></div>{task.artifacts?.length?<div className="artifacts">{task.artifacts.map(a=><div className="artifact" key={a.name}><div><strong>{a.name}</strong><small>{a.language} · {a.type}</small></div><small>{a.size}</small></div>)}</div>:<div className="empty">No artifacts in this historical snapshot.</div>}{task.implementation&&<details className="artifact-content-panel"><summary>OPEN IMPLEMENTATION DRAFT · {task.implementation.length.toLocaleString()} CHARACTERS</summary><pre>{task.implementation}</pre></details>}{task.validation_plan?.length?<details className="artifact-content-panel"><summary>VALIDATION PLAN · {task.validation_plan.length} PROPOSED CHECKS · NOT EXECUTED</summary><ol>{task.validation_plan.map((check,i)=><li key={i}>{check}</li>)}</ol></details>:null}{task.review?.summary&&<div className="artifact-review-note"><div className="section-title"><strong>REVIEW SUMMARY</strong><span>{task.review.risk||'UNASSESSED'} RISK</span></div><p>{task.review.summary}</p>{task.review.findings?.length>0&&<ul>{task.review.findings.map((finding,i)=><li key={i}>{finding}</li>)}</ul>}<small>{task.score_method||'Review basis unavailable'}</small></div>}<div className="section-title" style={{marginTop:18}}><strong>EXECUTION TRACE</strong><span>{task.events?.length||0} EVENTS</span></div>{task.events?.length?<div className="trace modal-trace">{task.events.map(e=><div className="trace-row" key={e.event_id||e.time+e.agent}><span className="time mono">{e.time}</span><span className="agent mono">{e.agent}</span><span className="phase mono">{e.phase}</span><span className="msg">{e.message}</span><span className="dur mono">{e.duration} ms</span></div>)}</div>:<div className="empty">No persisted trace.</div>}{task.plan?.length?<><div className="section-title"><strong>PLAN</strong><span>{task.plan.length} STEPS</span></div><div className="detail-list">{task.plan.map((item,i)=><div className="detail-row" key={item}><span>{String(i+1).padStart(2,'0')}</span><strong>{item}</strong></div>)}</div></>:null}</div></div>}
-function CommandPalette({page,go,execute,seedObjective,notify,openAtmosphere,close}){const [query,setQuery]=useState('');const [cursor,setCursor]=useState(0);const actions=[...NAV_ITEMS.map(item=>({label:item,type:'surface',run:()=>go(item)})),{label:'Open Atmosphere Studio',type:'visual',run:openAtmosphere},{label:'Run example objective',type:'action',run:()=>{setQuery('');close();notify('Launching the example objective');setTimeout(()=>execute(),80)}}];const items=useMemo(()=>actions.filter(x=>x.label.toLowerCase().includes(query.toLowerCase())),[query]);useEffect(()=>setCursor(0),[query]);useEffect(()=>{const onKey=e=>{if(e.key==='ArrowDown'){e.preventDefault();setCursor(i=>items.length?(i+1)%items.length:0)}if(e.key==='ArrowUp'){e.preventDefault();setCursor(i=>items.length?(i-1+items.length)%items.length:0)}if(e.key==='Enter'&&items[cursor]){e.preventDefault();items[cursor].run()}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[items,cursor]);return <div className="command-palette-back" onClick={close}><div className="command-palette" onClick={e=>e.stopPropagation()}><div className="palette-head"><span className="eyebrow">COMMAND</span><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Jump to a CYRUS surface or run an action..." /></div><div className="palette-list">{items.length?items.map((item,i)=><button key={item.label} className={'palette-item '+(cursor===i?'active':'')} onMouseEnter={()=>setCursor(i)} onClick={item.run}><span>{item.label}</span><small>{cursor===i?(item.type==='action'?'ENTER · RUN':'ENTER · OPEN'):(item.type==='action'?'EXECUTE':'SURFACE')}</small></button>):<div className="empty">No CYRUS command matches that query.</div>}</div></div></div>}
+function CommandPalette({page,go,execute,notify,openAtmosphere,motionEnabled,toggleMotion,cycleAtmosphereMode,resetAtmosphere,nudgeAtmosphereIntensity,close}){
+  const [query,setQuery]=useState('')
+  const [cursor,setCursor]=useState(0)
+  const actions=[
+    ...NAV_ITEMS.map(item=>({label:item,type:'surface',keywords:'navigation page workspace',run:()=>go(item)})),
+    {label:'Open Atmosphere Studio',type:'visual',keywords:'background color animation effects fx',run:openAtmosphere},
+    {label:motionEnabled?'Enable Calm Mode':'Enable Immersive Motion',type:'setting',keywords:'motion animation accessibility reduced motion calm',run:()=>{close();toggleMotion()}},
+    {label:'Cycle Background Mode',type:'visual',keywords:'nebula aurora grid constellation',run:()=>{close();cycleAtmosphereMode()}},
+    {label:'Reset Atmosphere Defaults',type:'setting',keywords:'restore nexus preset color intensity defaults',run:()=>{close();resetAtmosphere()}},
+    {label:'Decrease Background Intensity',type:'setting',keywords:'dim lower ambient light',run:()=>{close();nudgeAtmosphereIntensity(-1)}},
+    {label:'Increase Background Intensity',type:'setting',keywords:'bright raise ambient light',run:()=>{close();nudgeAtmosphereIntensity(1)}},
+    {label:'Run example objective',type:'action',keywords:'demo run task execute',run:()=>{close();notify('Launching the example objective');window.setTimeout(()=>execute(),80)}}
+  ]
+  const items=actions.filter(item=>(item.label+' '+item.keywords).toLowerCase().includes(query.trim().toLowerCase()))
+  useEffect(()=>setCursor(0),[query])
+  useEffect(()=>{
+    const onKey=event=>{
+      if(event.key==='ArrowDown'){event.preventDefault();setCursor(i=>items.length?(i+1)%items.length:0)}
+      if(event.key==='ArrowUp'){event.preventDefault();setCursor(i=>items.length?(i-1+items.length)%items.length:0)}
+      if(event.key==='Enter'&&items[cursor]){event.preventDefault();items[cursor].run()}
+      if(event.key==='Escape')close()
+    }
+    window.addEventListener('keydown',onKey)
+    return()=>window.removeEventListener('keydown',onKey)
+  },[items,cursor,close])
+  return <div className="command-palette-back" onClick={close}>
+    <div className="command-palette" role="dialog" aria-modal="true" aria-label="CYRUS command palette" onClick={event=>event.stopPropagation()}>
+      <div className="palette-head"><span className="eyebrow">COMMAND</span><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search pages, visual controls, or actions..." aria-label="Search CYRUS commands"/></div>
+      <div className="palette-list" role="listbox" aria-label="Command results">
+        {items.length?items.map((item,index)=><button key={item.label} type="button" role="option" aria-selected={cursor===index} className={'palette-item '+(cursor===index?'active':'')} onMouseEnter={()=>setCursor(index)} onClick={item.run}><span>{item.label}</span><small>{cursor===index?(item.type==='action'?'ENTER · RUN':item.type==='setting'?'ENTER · CHANGE':'ENTER · OPEN'):item.type.toUpperCase()}</small></button>):<div className="empty" role="status">No CYRUS command matches that query.</div>}
+      </div>
+      <footer className="palette-command-hint"><span>↑↓ NAVIGATE</span><span>↵ SELECT</span><span>ESC CLOSE</span></footer>
+    </div>
+  </div>
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>)
 
