@@ -169,7 +169,8 @@ test('detects secret-like text without copying the matched value into warnings',
   assert.ok(report.sensitive_text_warnings.some(item => item.path === 'objective'));
   assert.ok(report.sensitive_text_warnings.some(item => item.patterns.includes('provider key-like value')));
   assert.equal(JSON.stringify(report.sensitive_text_warnings).includes(secret), false);
-  assert.equal(report.task.objective.includes(secret), true);
+  assert.equal(report.task.objective.includes(secret), false);
+  assert.match(report.task.objective, /REDACTED: provider key-like value/);
 });
 
 test('finds nested key-like values in event strings and private key headers', () => {
@@ -200,6 +201,25 @@ test('includes content safety warnings in the Markdown version', () => {
   });
   assert.match(markdown, /## Content safety warnings/);
   assert.match(markdown, /objective/);
-  assert.equal(markdown.includes(secret), true);
+  assert.equal(markdown.includes(secret), false);
+  assert.match(markdown, /REDACTED: AWS access-key-like value/);
   assert.match(markdown, /inspect the referenced fields before sharing/i);
+});
+
+
+test('redacts complete private-key blocks and bearer credentials from exported strings', () => {
+  const privateKey = '-----BEGIN PRIVATE KEY-----\nprivate-material-that-must-not-escape\n-----END PRIVATE KEY-----';
+  const bearer = 'Bearer ' + 'abcDEF1234567890_tokenValue987654321';
+  const report = buildTaskReport({
+    task_id: 'CYRUS-REDACTION',
+    implementation: privateKey,
+    objective: 'Use ' + bearer
+  });
+  const exported = JSON.stringify(report);
+  assert.equal(exported.includes('private-material-that-must-not-escape'), false);
+  assert.equal(exported.includes(bearer), false);
+  assert.match(report.task.implementation, /REDACTED: private-key block/);
+  assert.match(report.task.objective, /REDACTED: bearer-token-like value/);
+  assert.ok(report.sensitive_text_warnings.some(item => item.path === 'implementation'));
+  assert.ok(report.sensitive_text_warnings.some(item => item.path === 'objective'));
 });
