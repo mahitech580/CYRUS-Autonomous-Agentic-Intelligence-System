@@ -19,7 +19,7 @@ test('builds a versioned report from an execution record', () => {
   assert.equal(report.task.objective, 'Review an API boundary');
   assert.equal(report.task.events[0].event_id, 'e1');
   assert.equal('unknown_internal_field' in report.task, false);
-  assert.match(report.notice, /Review it for sensitive content/);
+  assert.match(report.notice, /not automatically removed/);
 });
 
 test('omits credential-like fields at the root and inside nested trace data', () => {
@@ -156,4 +156,50 @@ test('downloads Markdown report with the correct MIME type and extension', () =>
   assert.equal(savedBlob.options.type, 'text/markdown;charset=utf-8');
   assert.equal(savedBlob.parts[0], markdown);
   assert.ok(clicked && revoked);
+});
+
+
+test('detects secret-like text without copying the matched value into warnings', () => {
+  const secret = 'sk-' + 'abcdefghijklmnopqrstuvwxyz123456';
+  const report = buildTaskReport({
+    task_id: 'CYRUS-SECRET-WARN',
+    objective: 'Inspect this value: ' + secret,
+    implementation: 'No secrets should be printed here.'
+  });
+  assert.ok(report.sensitive_text_warnings.some(item => item.path === 'objective'));
+  assert.ok(report.sensitive_text_warnings.some(item => item.patterns.includes('provider key-like value')));
+  assert.equal(JSON.stringify(report.sensitive_text_warnings).includes(secret), false);
+  assert.equal(report.task.objective.includes(secret), true);
+});
+
+test('finds nested key-like values in event strings and private key headers', () => {
+  const report = buildTaskReport({
+    task_id: 'CYRUS-SECRET-NESTED',
+    events: [{ message: 'Authorization: Bearer abcdefghijklmnopqrstuvwxyz0123456789' }],
+    implementation: '-----BEGIN PRIVATE KEY-----'
+  });
+  assert.ok(report.sensitive_text_warnings.some(item => item.path === 'events[0].message'));
+  assert.ok(report.sensitive_text_warnings.some(item => item.path === 'implementation'));
+  assert.ok(report.sensitive_text_warnings.every(item => !('value' in item)));
+});
+
+test('does not warn on ordinary engineering prose', () => {
+  const report = buildTaskReport({
+    task_id: 'CYRUS-NO-SECRET',
+    objective: 'Create a REST API and verify project access permissions.',
+    implementation: 'Use environment variables for configuration.'
+  });
+  assert.deepEqual(report.sensitive_text_warnings, []);
+});
+
+test('includes content safety warnings in the Markdown version', () => {
+  const secret = 'AKIA' + '1234567890ABCDEF';
+  const markdown = buildTaskMarkdownReport({
+    task_id: 'CYRUS-MD-WARN',
+    objective: 'Review ' + secret
+  });
+  assert.match(markdown, /## Content safety warnings/);
+  assert.match(markdown, /objective/);
+  assert.equal(markdown.includes(secret), true);
+  assert.match(markdown, /inspect the referenced fields before sharing/i);
 });
