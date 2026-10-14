@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport } = require('../task-export.js');
+const { buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport, copyTaskMarkdownReport } = require('../task-export.js');
 
 test('builds a versioned report from an execution record', () => {
   const report = buildTaskReport({
@@ -222,4 +222,33 @@ test('redacts complete private-key blocks and bearer credentials from exported s
   assert.match(report.task.objective, /REDACTED: bearer-token-like value/);
   assert.ok(report.sensitive_text_warnings.some(item => item.path === 'implementation'));
   assert.ok(report.sensitive_text_warnings.some(item => item.path === 'objective'));
+});
+
+
+test('copies the sanitized Markdown report and returns the copied text', async () => {
+  let copied = '';
+  const clipboard = { async writeText(value) { copied = value; } };
+  const markdown = await copyTaskMarkdownReport({
+    task_id: 'CYRUS-COPY',
+    objective: 'Review the service boundary',
+    score: 8
+  }, clipboard);
+  assert.equal(copied, markdown);
+  assert.match(copied, /# CYRUS Execution Report/);
+  assert.match(copied, /CYRUS-COPY/);
+});
+
+test('reports unsupported clipboard access without claiming a copy succeeded', async () => {
+  await assert.rejects(
+    () => copyTaskMarkdownReport({ task_id: 'CYRUS-NO-CLIP' }, null),
+    /Clipboard access is unavailable/
+  );
+});
+
+test('propagates clipboard write failure to the caller', async () => {
+  const clipboard = { async writeText() { throw new Error('Permission denied'); } };
+  await assert.rejects(
+    () => copyTaskMarkdownReport({ task_id: 'CYRUS-CLIP-FAIL' }, clipboard),
+    /Permission denied/
+  );
 });
