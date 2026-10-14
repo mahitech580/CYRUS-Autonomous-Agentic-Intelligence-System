@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport, copyTaskMarkdownReport, copyTaskJsonReport } = require('../task-export.js');
+const { buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport, copyTaskMarkdownReport, copyTaskJsonReport, buildTaskCsvReport, downloadTaskCsvReport } = require('../task-export.js');
 
 test('builds a versioned report from an execution record', () => {
   const report = buildTaskReport({
@@ -297,4 +297,68 @@ test('JSON clipboard sharing reports unavailable permission cleanly', async () =
     () => copyTaskJsonReport({ task_id: 'CYRUS-JSON-NO-CLIP' }, null),
     /Clipboard access is unavailable/
   );
+});
+
+
+test('builds a two-column CSV report and includes optional fields only when present', () => {
+  const csv = buildTaskCsvReport({
+    task_id: 'CYRUS-CSV-1',
+    objective: 'Review the API',
+    status: 'COMPLETED',
+    score: 9,
+    tests_passed: 4
+  });
+  assert.ok(csv.startsWith('\uFEFFField,Value\r\n'));
+  assert.ok(csv.includes('Task ID,CYRUS-CSV-1\r\n'));
+  assert.ok(csv.includes('Objective,Review the API\r\n'));
+  assert.ok(csv.includes('Score,9\r\n'));
+  assert.equal(csv.includes('Provider,'), false);
+});
+
+test('CSV report quotes multiline values and neutralizes formula-leading task content', () => {
+  const csv = buildTaskCsvReport({
+    task_id: 'CYRUS-CSV-2',
+    objective: '=IMPORTXML("https://example.invalid","//token")',
+    summary: 'Line one\nLine two'
+  });
+  assert.ok(csv.includes('"\'=IMPORTXML(""https://example.invalid"",""//token"")"'));
+  assert.ok(csv.includes('"Line one\nLine two"'));
+});
+
+test('CSV report serializes nested fields safely and redacts known credential patterns', () => {
+  const secret = 'ghp_' + 'Z'.repeat(30);
+  const csv = buildTaskCsvReport({
+    task_id: 'CYRUS-CSV-3',
+    events: [{ message: secret, phase: 'REVIEW' }],
+    summary: 'Inspect ' + secret
+  });
+  assert.equal(csv.includes(secret), false);
+  assert.ok(csv.includes('REDACTED: GitHub token-like value'));
+  assert.ok(csv.includes('Sensitive text warnings'));
+});
+
+test('downloads CSV report with correct file extension and MIME type', () => {
+  let blob;
+  let clicked = false;
+  let revoked = false;
+  const link = { style: {}, click() { clicked = true; }, remove() {} };
+  const documentRef = {
+    body: { appendChild(node) { assert.equal(node, link); } },
+    createElement(tag) { assert.equal(tag, 'a'); return link; }
+  };
+  const urlApi = {
+    createObjectURL(value) { blob = value; return 'blob:cyrus-csv'; },
+    revokeObjectURL(value) { revoked = value === 'blob:cyrus-csv'; }
+  };
+  class FakeBlob {
+    constructor(parts, options) { this.parts = parts; this.options = options; }
+  }
+  const csv = downloadTaskCsvReport(
+    { task_id: 'CYRUS CSV/4', objective: 'CSV download' },
+    documentRef, urlApi, FakeBlob, callback => callback()
+  );
+  assert.equal(link.download, 'cyrus-CYRUS-CSV-4-report.csv');
+  assert.equal(blob.options.type, 'text/csv;charset=utf-8;');
+  assert.equal(blob.parts[0], csv);
+  assert.ok(clicked && revoked);
 });
