@@ -135,6 +135,18 @@ The Command surface contains the objective editor, execution mode switch, seven-
 
 The Atmosphere Studio adds five persistent color fields—Nexus, Aurora, Solar Flare, Ultraviolet and Monochrome—and four independently selectable procedural background modes—Living Nebula, Aurora Waves, Signal Grid and Constellation—plus a live 25–140% intensity/particle-density slider. A procedural canvas creates slow nebula light, connected particle constellations, and pointer-reactive glow without requiring a large background-video asset. The field pauses while the tab is hidden, caps its pixel ratio and animation cadence, reduces particle count for smaller hardware, and respects browser reduced-motion and data-saver preferences. The current visual preset also updates the browser theme color on supported mobile browsers. Open it using **✧ ATMOSPHERE** in a workspace, **✧ FX** on the home page, or **Open Atmosphere Studio** in the command palette. Color preset, field mode and intensity preferences are saved locally.
 
+## Command palette operator controls
+
+The command palette now exposes common visual and accessibility changes without navigating through settings:
+
+- **Cycle Background Mode** moves between Living Nebula, Aurora Waves, Signal Grid and Constellation.
+- **Enable Calm Mode / Enable Immersive Motion** toggles animation while preserving the system reduced-motion preference.
+- **Increase / Decrease Background Intensity** adjusts the ambient layer in 15-point increments, clamped to the supported 25–140% range.
+- **Reset Atmosphere Defaults** restores the Nexus color preset, Living Nebula mode and 80% intensity.
+- Search also matches descriptive keywords such as `calm`, `constellation`, `dim`, `restore` and `animation`.
+
+Use the Up/Down arrows to navigate results, Enter to run the selected command, and Escape to close the palette. The controls reuse the same saved preferences as Atmosphere Studio, so changes persist consistently across both entry points.
+
 ## Future improvements
 
 - Provider adapters for multiple LLM vendors
