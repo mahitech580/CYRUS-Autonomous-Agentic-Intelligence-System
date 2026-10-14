@@ -72,7 +72,8 @@ test('downloads a JSON blob with a filesystem-safe task filename', () => {
     { task_id: '../../CYRUS 42', objective: 'Export test' },
     documentRef,
     urlApi,
-    FakeBlob
+    FakeBlob,
+    callback => callback()
   );
 
   assert.equal(link.download, 'cyrus-CYRUS-42-report.json');
