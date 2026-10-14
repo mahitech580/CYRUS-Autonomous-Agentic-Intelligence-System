@@ -269,6 +269,57 @@
     return markdown;
   }
 
+  function csvCell(value) {
+    let text = String(value == null ? '' : value);
+    if (/^[\u0000-\u0020]*[=+\-@]/.test(text)) text = "'" + text;
+    if (/[",\r\n]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
+    return text;
+  }
+
+  function buildTaskCsvReport(task) {
+    const report = buildTaskReport(task);
+    const record = report.task;
+    const fields = [
+      ['Task ID', 'task_id'], ['Objective', 'objective'], ['Status', 'status'],
+      ['Mode', 'mode'], ['Created at', 'created_at'], ['Started at', 'started_at'],
+      ['Completed at', 'completed_at'], ['Execution time (ms)', 'execution_time_ms'],
+      ['Latency (ms)', 'latency_ms'], ['Score', 'score'], ['Quality', 'quality'],
+      ['Confidence', 'confidence'], ['Coverage', 'coverage'], ['Tool calls', 'tool_calls'],
+      ['Tests passed', 'tests_passed'], ['Tests failed', 'tests_failed'],
+      ['Risk', 'risk'], ['Verification status', 'verification_status'],
+      ['Provider', 'provider'], ['Model', 'model'], ['Summary', 'summary'], ['Error', 'error']
+    ];
+    const rows = [['Field', 'Value']];
+    for (const [label, key] of fields) {
+      if (Object.prototype.hasOwnProperty.call(record, key)) {
+        const value = record[key];
+        rows.push([label, value && typeof value === 'object' ? JSON.stringify(value) : value]);
+      }
+    }
+    rows.push(['Exported at', report.exported_at]);
+    rows.push(['Sensitive text warnings', report.sensitive_text_warnings.map(item => item.path + ': ' + item.patterns.join(', ')).join('; ')]);
+    return '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
+  }
+
+  function downloadTaskCsvReport(task, documentRef = root.document, urlApi = root.URL, BlobCtor = root.Blob, schedule = root.setTimeout) {
+    const csv = buildTaskCsvReport(task);
+    if (!documentRef || !documentRef.body || !documentRef.createElement ||
+        !urlApi || !urlApi.createObjectURL || !urlApi.revokeObjectURL || !BlobCtor) {
+      throw new Error('This browser does not support CSV report downloads.');
+    }
+    const objectUrl = urlApi.createObjectURL(new BlobCtor([csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = documentRef.createElement('a');
+    link.href = objectUrl;
+    link.download = 'cyrus-' + safeFilePart(task.task_id) + '-report.csv';
+    link.style.display = 'none';
+    documentRef.body.appendChild(link);
+    link.click();
+    link.remove();
+    if (typeof schedule === 'function') schedule(() => urlApi.revokeObjectURL(objectUrl), 1000);
+    else urlApi.revokeObjectURL(objectUrl);
+    return csv;
+  }
+
   async function copyTaskJsonReport(task, clipboard = root.navigator && root.navigator.clipboard) {
     const report = buildTaskReport(task);
     if (!clipboard || typeof clipboard.writeText !== 'function') {
@@ -287,7 +338,7 @@
     return markdown;
   }
 
-  const api = Object.freeze({ buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport, copyTaskMarkdownReport, copyTaskJsonReport });
+  const api = Object.freeze({ buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport, copyTaskMarkdownReport, copyTaskJsonReport, buildTaskCsvReport, downloadTaskCsvReport });
   root.CYRUS_TASK_EXPORT = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
