@@ -94,14 +94,43 @@
       while (!shouldStop) {
         if (signal && signal.aborted) throw makeAbortError();
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {
+          buffer += decoder.decode();
+          break;
+        }
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          processLine(line);
+
+        // SSE permits LF, CRLF, and CR line endings. Keep a trailing CR
+        // until the next chunk so a split CRLF is not mistaken for two lines.
+        let start = 0;
+        let index = 0;
+        while (index < buffer.length) {
+          const character = buffer[index];
+          if (character === "\r") {
+            if (index === buffer.length - 1) break;
+            processLine(buffer.slice(start, index));
+            index += buffer[index + 1] === "\n" ? 2 : 1;
+            start = index;
+          } else if (character === "\n") {
+            processLine(buffer.slice(start, index));
+            index += 1;
+            start = index;
+          } else {
+            index += 1;
+          }
           if (shouldStop) break;
         }
+        buffer = buffer.slice(start);
+        if (shouldStop) break;
+      }
+      // EOF terminates a pending line and dispatches accumulated data even
+      // when the server omits the optional trailing blank line.
+      if (!shouldStop) {
+        if (buffer.length) {
+          processLine(buffer);
+          buffer = "";
+        }
+        processLine("");
       }
       return { lastEventId, closeStatus };
     } finally {

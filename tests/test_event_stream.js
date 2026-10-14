@@ -125,12 +125,50 @@ async function testTransientHttpFailureIsRetried() {
   assert.equal(calls, 2);
 }
 
+
+async function testCROnlyLineEndingsAndUnterminatedFinalFrame() {
+  const seenStates = [];
+  const seenTraces = [];
+  let calls = 0;
+  const client = loadClient(async () => {
+    calls += 1;
+    return makeResponse(
+      'event: state\\rdata: {"task_id":"CYRUS-CR","status":"RUNNING"}\\r\\r' +
+      'id: CYRUS-CR-E001\\revent: trace\\rdata: {"event_id":"CYRUS-CR-E001","agent":"PLANNER"}\\r\\r' +
+      'event: close\\rdata: {"task_id":"CYRUS-CR","status":"COMPLETED"}',
+      200,
+      1
+    );
+  });
+  await client.streamTaskEvents("CYRUS-CR", null, x => seenStates.push(x), x => seenTraces.push(x));
+  assert.equal(calls, 1, "EOF-delivered close event should stop reconnection");
+  assert.equal(seenStates[0].status, "RUNNING");
+  assert.deepEqual(seenTraces.map(x => x.event_id), ["CYRUS-CR-E001"]);
+}
+
+async function testSplitCRLFLineEndingsAcrossChunks() {
+  const seenStates = [];
+  let calls = 0;
+  const client = loadClient(async () => {
+    calls += 1;
+    const payload = sse("state", {task_id: "CYRUS-CRLF", status: "COMPLETED"}) +
+      sse("close", {task_id: "CYRUS-CRLF", status: "COMPLETED"});
+    return makeResponse(payload.replace(/\\n/g, "\\r\\n"), 200, 1);
+  });
+  await client.streamTaskEvents("CYRUS-CRLF", null, x => seenStates.push(x), () => {});
+  assert.equal(calls, 1);
+  assert.equal(seenStates[0].task_id, "CYRUS-CRLF");
+  assert.equal(seenStates[0].status, "COMPLETED");
+}
+
 async function main() {
   await testCompleteStreamParsesSplitFrames();
   await testReconnectResumesFromLastDeliveredTrace();
   await testStreamLeaseTimeoutResumes();
   await testTransientHttpFailureIsRetried();
-  console.log("event-stream tests: parsing, reconnect resume, lease timeout and retry OK");
+  await testCROnlyLineEndingsAndUnterminatedFinalFrame();
+  await testSplitCRLFLineEndingsAcrossChunks();
+  console.log("event-stream tests: LF/CRLF/CR parsing, EOF delivery, reconnect resume, lease timeout and retry OK");
 }
 
 main().catch(error => {
