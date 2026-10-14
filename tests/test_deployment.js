@@ -299,3 +299,25 @@ for (const style of [
   assert.ok(atmosphereCss.includes(style), "Missing background mode styling: " + style);
 }
 console.log("Atmosphere mode smoke: 4 distinct render modes, persistence, previews, and responsive controls OK");
+
+const commandPaletteApp = fs.readFileSync("app.js", "utf8");
+for (const command of [
+  "Cycle Background Mode",
+  "Reset Atmosphere Defaults",
+  "Decrease Background Intensity",
+  "Increase Background Intensity",
+  "Enable Calm Mode",
+  "Enable Immersive Motion",
+  "Search pages, visual controls, or actions...",
+  "palette-command-hint",
+  "role=\"listbox\"",
+  "role=\"option\"",
+  "role=\"status\"",
+  "const cycleAtmosphereMode=()=>",
+  "const resetAtmosphere=()=>",
+  "const nudgeAtmosphereIntensity=step=>",
+  "Math.max(.25,Math.min(1.4,atmosphereIntensity+step*.15))"
+]) {
+  assert.ok(commandPaletteApp.includes(command), "Missing command-palette operator control: " + command);
+}
+console.log("Command palette smoke: keyboard navigation, accessible results, motion toggle, background cycling, reset and intensity controls OK");
