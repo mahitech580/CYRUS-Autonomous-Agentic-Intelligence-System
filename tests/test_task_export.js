@@ -252,3 +252,26 @@ test('propagates clipboard write failure to the caller', async () => {
     /Permission denied/
   );
 });
+
+
+test('redacts GitHub Google Slack and JWT-like values from exported text', () => {
+  const values = [
+    'ghp_' + 'A'.repeat(30),
+    'AIza' + 'B'.repeat(35),
+    'xoxb-' + 'C'.repeat(24),
+    'eyJ' + 'a'.repeat(12) + '.' + 'b'.repeat(12) + '.' + 'c'.repeat(12)
+  ];
+  const report = buildTaskReport({
+    task_id: 'CYRUS-MULTI-REDACTION',
+    objective: values.join(' ')
+  });
+  const output = JSON.stringify(report);
+  for (const value of values) {
+    assert.equal(output.includes(value), false);
+  }
+  assert.match(report.task.objective, /REDACTED: GitHub token-like value/);
+  assert.match(report.task.objective, /REDACTED: Google API key-like value/);
+  assert.match(report.task.objective, /REDACTED: Slack token-like value/);
+  assert.match(report.task.objective, /REDACTED: JWT-like value/);
+  assert.ok(report.sensitive_text_warnings.length >= 4);
+});
