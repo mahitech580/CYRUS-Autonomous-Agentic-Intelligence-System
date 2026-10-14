@@ -269,6 +269,15 @@
     return markdown;
   }
 
+  async function copyTaskJsonReport(task, clipboard = root.navigator && root.navigator.clipboard) {
+    const report = buildTaskReport(task);
+    if (!clipboard || typeof clipboard.writeText !== 'function') {
+      throw new Error('Clipboard access is unavailable. Download the JSON report instead.');
+    }
+    await clipboard.writeText(JSON.stringify(report, null, 2));
+    return report;
+  }
+
   async function copyTaskMarkdownReport(task, clipboard = root.navigator && root.navigator.clipboard) {
     const markdown = buildTaskMarkdownReport(task);
     if (!clipboard || typeof clipboard.writeText !== 'function') {
@@ -278,7 +287,7 @@
     return markdown;
   }
 
-  const api = Object.freeze({ buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport, copyTaskMarkdownReport });
+  const api = Object.freeze({ buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport, copyTaskMarkdownReport, copyTaskJsonReport });
   root.CYRUS_TASK_EXPORT = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
