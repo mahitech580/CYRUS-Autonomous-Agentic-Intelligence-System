@@ -273,5 +273,5 @@ test('redacts GitHub Google Slack and JWT-like values from exported text', () =>
   assert.match(report.task.objective, /REDACTED: Google API key-like value/);
   assert.match(report.task.objective, /REDACTED: Slack token-like value/);
   assert.match(report.task.objective, /REDACTED: JWT-like value/);
-  assert.ok(report.sensitive_text_warnings.length >= 4);
+  assert.ok(report.sensitive_text_warnings.flatMap(item => item.patterns).length >= 4);
 });
