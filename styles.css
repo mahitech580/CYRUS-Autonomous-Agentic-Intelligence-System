@@ -2998,3 +2998,10 @@ body:after{
 @media(max-width:420px){.atmosphere-modes{gap:7px}.atmosphere-mode{padding:7px}.atmosphere-mode>strong{font-size:9px}}
 @media(hover:none){.atmosphere-mode:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){.atmosphere-mode{transition:none}}
+
+
+/* Per-execution report action: clear hierarchy, keyboard visibility and touch target. */
+.modal-top-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:12px}
+.task-report-export{min-height:40px;border:1px solid rgba(98,221,170,.28);border-radius:10px;background:rgba(98,221,170,.07);color:#9de9c7;padding:8px 11px;font:8px var(--mono);letter-spacing:.08em;cursor:pointer;transition:background .18s ease,border-color .18s ease}
+.task-report-export:hover{background:rgba(98,221,170,.14);border-color:rgba(98,221,170,.5)}
+.task-report-export:focus-visible{outline:2px solid #9de9c7;outline-offset:3px}
