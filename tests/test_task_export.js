@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport, copyTaskMarkdownReport } = require('../task-export.js');
+const { buildTaskReport, downloadTaskReport, buildTaskMarkdownReport, downloadTaskMarkdownReport, copyTaskMarkdownReport, copyTaskJsonReport } = require('../task-export.js');
 
 test('builds a versioned report from an execution record', () => {
   const report = buildTaskReport({
@@ -274,4 +274,27 @@ test('redacts GitHub Google Slack and JWT-like values from exported text', () =>
   assert.match(report.task.objective, /REDACTED: Slack token-like value/);
   assert.match(report.task.objective, /REDACTED: JWT-like value/);
   assert.ok(report.sensitive_text_warnings.flatMap(item => item.patterns).length >= 4);
+});
+
+
+test('copies the sanitized JSON report and preserves the report schema', async () => {
+  let copied = '';
+  const clipboard = { async writeText(value) { copied = value; } };
+  const report = await copyTaskJsonReport({
+    task_id: 'CYRUS-COPY-JSON',
+    objective: 'Key-like value sk-' + 'abcdefghijklmnopqrstuvwxyz123456'
+  }, clipboard);
+  const parsed = JSON.parse(copied);
+  assert.equal(parsed.format, 'CYRUS_EXECUTION_REPORT');
+  assert.equal(parsed.task.task_id, 'CYRUS-COPY-JSON');
+  assert.equal(parsed.task.objective.includes('sk-abcdefghijklmnopqrstuvwxyz123456'), false);
+  assert.equal(parsed.task.objective.includes('REDACTED:'), true);
+  assert.deepEqual(parsed, report);
+});
+
+test('JSON clipboard sharing reports unavailable permission cleanly', async () => {
+  await assert.rejects(
+    () => copyTaskJsonReport({ task_id: 'CYRUS-JSON-NO-CLIP' }, null),
+    /Clipboard access is unavailable/
+  );
 });
