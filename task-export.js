@@ -55,8 +55,10 @@
 
   function redactSensitiveText(value) {
     if (typeof value === 'string') {
+      // Fail closed on truncated PEM blocks too: export data must not leak key
+      // material merely because the closing marker was omitted from a log.
       let safe = value.replace(
-        /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g,
+        /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|$)/g,
         '[REDACTED: private-key block]'
       );
       for (const [label, pattern] of SENSITIVE_TEXT_PATTERNS) {
