@@ -63,9 +63,6 @@ class ProviderEdgeCaseTests(unittest.TestCase):
         self.assertEqual(OpenAICompatibleProvider._json('{"steps":["one"]}'), {"steps": ["one"]})
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
     def test_json_parser_accepts_array(self):
         self.assertEqual(OpenAICompatibleProvider._json('["a", "b"]'), ["a", "b"])
@@ -222,3 +219,6 @@ if __name__ == "__main__":
         self.assertEqual(request.method, "POST")
         self.assertEqual(request.full_url, "https://provider.example/v1/chat/completions")
         self.assertEqual(body["model"], "test-model")
+
+if __name__ == "__main__":
+    unittest.main()
