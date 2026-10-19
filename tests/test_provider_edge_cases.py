@@ -198,3 +198,8 @@ if __name__ == "__main__":
         response = FakeResponse(json.dumps({"choices": [{"message": {"content": [{"text": "useful"}, "ignored", None]}}]}))
         with patch("providers.urlopen", return_value=response):
             self.assertEqual(make_provider()._chat("s", "u"), "useful")
+
+
+    def test_chat_strips_response_whitespace(self):
+        with patch("providers.urlopen", return_value=fake_chat_response("  answer \n")):
+            self.assertEqual(make_provider()._chat("s", "u"), "answer")
