@@ -392,5 +392,13 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             make_provider()._chat("s", "u")
         self.assertEqual(captured[0].get_header("Content-type"), "application/json")
 
+
+
+    def test_chat_sends_explicit_user_agent(self):
+        captured = []
+        with patch("providers.urlopen", side_effect=lambda req, timeout: (captured.append(req) or fake_chat_response("ok"))):
+            make_provider()._chat("s", "u")
+        self.assertEqual(captured[0].get_header("User-agent"), "CYRUS-Realtime-Backend/1.0")
+
 if __name__ == "__main__":
     unittest.main()
