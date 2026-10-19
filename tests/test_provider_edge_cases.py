@@ -477,5 +477,12 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             result = get_provider()
         self.assertEqual(result.timeout_seconds, 5.0)
 
+
+
+    def test_get_provider_clamps_high_timeout(self):
+        with patch.dict("os.environ", {"CYRUS_LLM_API_KEY": "test-key", "CYRUS_LLM_TIMEOUT_SECONDS": "500"}, clear=True):
+            result = get_provider()
+        self.assertEqual(result.timeout_seconds, 60.0)
+
 if __name__ == "__main__":
     unittest.main()
