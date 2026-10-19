@@ -192,3 +192,9 @@ if __name__ == "__main__":
         response = FakeResponse(json.dumps({"choices": [{"message": {"content": [{"text": "hello "}, {"text": "world"}]}}]}))
         with patch("providers.urlopen", return_value=response):
             self.assertEqual(make_provider()._chat("s", "u"), "hello world")
+
+
+    def test_chat_ignores_non_mapping_content_parts(self):
+        response = FakeResponse(json.dumps({"choices": [{"message": {"content": [{"text": "useful"}, "ignored", None]}}]}))
+        with patch("providers.urlopen", return_value=response):
+            self.assertEqual(make_provider()._chat("s", "u"), "useful")
