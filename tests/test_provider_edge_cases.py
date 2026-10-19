@@ -462,5 +462,13 @@ class ProviderEdgeCaseTests(unittest.TestCase):
         with patch.dict("os.environ", {"CYRUS_LLM_API_KEY": "test-key", "CYRUS_LLM_MODEL": "  "}, clear=True):
             self.assertIsInstance(get_provider(), DeterministicProvider)
 
+
+
+    def test_get_provider_invalid_timeout_uses_default(self):
+        env = {"CYRUS_LLM_API_KEY": "test-key", "CYRUS_LLM_TIMEOUT_SECONDS": "not-a-number"}
+        with patch.dict("os.environ", env, clear=True):
+            result = get_provider()
+        self.assertEqual(result.timeout_seconds, 25.0)
+
 if __name__ == "__main__":
     unittest.main()
