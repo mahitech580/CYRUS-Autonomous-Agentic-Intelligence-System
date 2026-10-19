@@ -175,3 +175,9 @@ if __name__ == "__main__":
 
     def test_string_list_allows_empty_when_minimum_zero(self):
         self.assertEqual(OpenAICompatibleProvider._string_list([], minimum=0), [])
+
+
+    def test_string_list_does_not_mutate_input(self):
+        original = [" first ", "", "second"]
+        OpenAICompatibleProvider._string_list(original)
+        self.assertEqual(original, [" first ", "", "second"])
