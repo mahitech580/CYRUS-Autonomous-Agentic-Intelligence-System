@@ -456,5 +456,11 @@ class ProviderEdgeCaseTests(unittest.TestCase):
         self.assertEqual(result.base_url, "https://api.openai.com/v1")
         self.assertEqual(result.model, "gpt-4o-mini")
 
+
+
+    def test_get_provider_falls_back_when_model_is_empty(self):
+        with patch.dict("os.environ", {"CYRUS_LLM_API_KEY": "test-key", "CYRUS_LLM_MODEL": "  "}, clear=True):
+            self.assertIsInstance(get_provider(), DeterministicProvider)
+
 if __name__ == "__main__":
     unittest.main()
