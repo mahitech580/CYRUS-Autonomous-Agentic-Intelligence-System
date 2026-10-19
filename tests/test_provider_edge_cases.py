@@ -355,5 +355,15 @@ class ProviderEdgeCaseTests(unittest.TestCase):
                 make_provider()._chat("s", "u")
         self.assertNotIn(secret, str(caught.exception))
 
+
+
+    def test_chat_redacts_bearer_token_in_http_error(self):
+        secret = "standalone-bearer-private-value"
+        error = HTTPError("https://provider.example", 401, "Unauthorized", {}, io.BytesIO(json.dumps({"detail": f"Bearer {secret}"}).encode()))
+        with patch("providers.urlopen", side_effect=error):
+            with self.assertRaises(ProviderError) as caught:
+                make_provider()._chat("s", "u")
+        self.assertNotIn(secret, str(caught.exception))
+
 if __name__ == "__main__":
     unittest.main()
