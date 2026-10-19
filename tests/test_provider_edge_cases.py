@@ -335,5 +335,15 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ProviderError, "network request failed"):
                 make_provider()._chat("s", "u")
 
+
+
+    def test_chat_redacts_api_key_assignment_in_http_error(self):
+        secret = "provider-secret-do-not-log"
+        error = HTTPError("https://provider.example", 401, "Unauthorized", {}, io.BytesIO(json.dumps({"message": f"api_key={secret}"}).encode()))
+        with patch("providers.urlopen", side_effect=error):
+            with self.assertRaises(ProviderError) as caught:
+                make_provider()._chat("s", "u")
+        self.assertNotIn(secret, str(caught.exception))
+
 if __name__ == "__main__":
     unittest.main()
