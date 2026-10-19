@@ -239,5 +239,13 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             make_provider()._chat("s", "u", -10)
         self.assertEqual(json.loads(captured[0].data)["max_tokens"], 128)
 
+
+
+    def test_chat_clamps_max_tokens_to_maximum(self):
+        captured = []
+        with patch("providers.urlopen", side_effect=lambda req, timeout: (captured.append(req) or fake_chat_response("ok"))):
+            make_provider()._chat("s", "u", 9000)
+        self.assertEqual(json.loads(captured[0].data)["max_tokens"], 5000)
+
 if __name__ == "__main__":
     unittest.main()
