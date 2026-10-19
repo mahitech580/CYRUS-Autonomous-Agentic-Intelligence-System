@@ -146,3 +146,8 @@ if __name__ == "__main__":
 
     def test_string_list_ignores_non_string_items(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["first", 7, None, {"x": 1}, "second"]), ["first", "second"])
+
+
+    def test_string_list_caps_each_item_length(self):
+        result = OpenAICompatibleProvider._string_list(["x" * 510])
+        self.assertEqual(len(result[0]), 500)
