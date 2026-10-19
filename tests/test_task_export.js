@@ -207,6 +207,17 @@ test('includes content safety warnings in the Markdown version', () => {
 });
 
 
+test('redacts truncated private-key blocks through end of exported text', () => {
+  const truncated = 'header\\n-----BEGIN PRIVATE KEY-----\\nprivate-material-that-must-not-escape';
+  const report = buildTaskReport({
+    task_id: 'CYRUS-TRUNCATED-PEM',
+    implementation: truncated
+  });
+  const output = JSON.stringify(report);
+  assert.equal(output.includes('private-material-that-must-not-escape'), false);
+  assert.match(report.task.implementation, /REDACTED: private-key block/);
+});
+
 test('redacts complete private-key blocks and bearer credentials from exported strings', () => {
   const privateKey = '-----BEGIN PRIVATE KEY-----\nprivate-material-that-must-not-escape\n-----END PRIVATE KEY-----';
   const bearer = 'Bearer ' + 'abcDEF1234567890_tokenValue987654321';
