@@ -418,5 +418,11 @@ class ProviderEdgeCaseTests(unittest.TestCase):
         with patch.dict("os.environ", {"CYRUS_LLM_PROVIDER": "demo", "CYRUS_LLM_API_KEY": "test-key"}, clear=True):
             self.assertIsInstance(get_provider(), DeterministicProvider)
 
+
+
+    def test_get_provider_offline_alias_uses_deterministic_provider(self):
+        with patch.dict("os.environ", {"CYRUS_LLM_PROVIDER": "offline", "CYRUS_LLM_API_KEY": "test-key"}, clear=True):
+            self.assertIsInstance(get_provider(), DeterministicProvider)
+
 if __name__ == "__main__":
     unittest.main()
