@@ -151,3 +151,8 @@ if __name__ == "__main__":
     def test_string_list_caps_each_item_length(self):
         result = OpenAICompatibleProvider._string_list(["x" * 510])
         self.assertEqual(len(result[0]), 500)
+
+
+    def test_string_list_caps_item_count(self):
+        result = OpenAICompatibleProvider._string_list([f"item-{n}" for n in range(12)])
+        self.assertEqual(result, [f"item-{n}" for n in range(8)])
