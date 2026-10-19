@@ -231,5 +231,13 @@ class ProviderEdgeCaseTests(unittest.TestCase):
         self.assertEqual([message["content"] for message in body["messages"]], ["system prompt", "user prompt"])
         self.assertEqual(body["temperature"], 0.2)
 
+
+
+    def test_chat_clamps_max_tokens_to_minimum(self):
+        captured = []
+        with patch("providers.urlopen", side_effect=lambda req, timeout: (captured.append(req) or fake_chat_response("ok"))):
+            make_provider()._chat("s", "u", -10)
+        self.assertEqual(json.loads(captured[0].data)["max_tokens"], 128)
+
 if __name__ == "__main__":
     unittest.main()
