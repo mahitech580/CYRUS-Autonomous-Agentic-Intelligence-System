@@ -365,5 +365,16 @@ class ProviderEdgeCaseTests(unittest.TestCase):
                 make_provider()._chat("s", "u")
         self.assertNotIn(secret, str(caught.exception))
 
+
+
+    def test_chat_handles_unreadable_http_error_body(self):
+        class BrokenBody:
+            def read(self, size=-1):
+                raise OSError("body unavailable")
+        error = HTTPError("https://provider.example", 503, "Unavailable", {}, BrokenBody())
+        with patch("providers.urlopen", side_effect=error):
+            with self.assertRaisesRegex(ProviderError, "HTTP 503"):
+                make_provider()._chat("s", "u")
+
 if __name__ == "__main__":
     unittest.main()
