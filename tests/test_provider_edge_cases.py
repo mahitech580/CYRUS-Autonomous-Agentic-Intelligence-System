@@ -171,3 +171,7 @@ if __name__ == "__main__":
     def test_string_list_rejects_blank_only_items(self):
         with self.assertRaisesRegex(ProviderError, "too few"):
             OpenAICompatibleProvider._string_list(["", "   "])
+
+
+    def test_string_list_allows_empty_when_minimum_zero(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list([], minimum=0), [])
