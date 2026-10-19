@@ -142,3 +142,7 @@ if __name__ == "__main__":
 
     def test_string_list_drops_blank_items(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["first", "", "   ", "second"]), ["first", "second"])
+
+
+    def test_string_list_ignores_non_string_items(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list(["first", 7, None, {"x": 1}, "second"]), ["first", "second"])
