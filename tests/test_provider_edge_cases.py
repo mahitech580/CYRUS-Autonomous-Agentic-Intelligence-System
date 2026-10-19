@@ -134,3 +134,7 @@ if __name__ == "__main__":
     def test_string_list_prefers_steps_key(self):
         value = {"steps": ["plan"], "considerations": ["other"]}
         self.assertEqual(OpenAICompatibleProvider._string_list(value), ["plan"])
+
+
+    def test_string_list_trims_whitespace(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list(["  first  ", "\tsecond\n"]), ["first", "second"])
