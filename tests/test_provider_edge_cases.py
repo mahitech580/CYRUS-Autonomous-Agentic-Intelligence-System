@@ -65,3 +65,7 @@ class ProviderEdgeCaseTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    def test_json_parser_accepts_array(self):
+        self.assertEqual(OpenAICompatibleProvider._json('["a", "b"]'), ["a", "b"])
