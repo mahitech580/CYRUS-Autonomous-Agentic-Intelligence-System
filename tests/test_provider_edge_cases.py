@@ -321,5 +321,12 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ProviderError, "timed out"):
                 make_provider()._chat("s", "u")
 
+
+
+    def test_chat_converts_url_error_to_safe_error(self):
+        with patch("providers.urlopen", side_effect=URLError("connection refused")):
+            with self.assertRaisesRegex(ProviderError, "Could not reach"):
+                make_provider()._chat("s", "u")
+
 if __name__ == "__main__":
     unittest.main()
