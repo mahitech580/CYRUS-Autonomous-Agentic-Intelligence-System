@@ -300,5 +300,12 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ProviderError, "empty answer"):
                 make_provider()._chat("s", "u")
 
+
+
+    def test_chat_rejects_invalid_json_body(self):
+        with patch("providers.urlopen", return_value=FakeResponse("{broken")):
+            with self.assertRaisesRegex(ProviderError, "invalid JSON"):
+                make_provider()._chat("s", "u")
+
 if __name__ == "__main__":
     unittest.main()
