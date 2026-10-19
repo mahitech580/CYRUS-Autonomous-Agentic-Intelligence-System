@@ -161,3 +161,8 @@ if __name__ == "__main__":
     def test_string_list_enforces_minimum_items(self):
         with self.assertRaisesRegex(ProviderError, "too few"):
             OpenAICompatibleProvider._string_list(["only one"], minimum=2)
+
+
+    def test_string_list_rejects_non_list_input(self):
+        with self.assertRaisesRegex(ProviderError, "unexpected list format"):
+            OpenAICompatibleProvider._string_list("not a list")
