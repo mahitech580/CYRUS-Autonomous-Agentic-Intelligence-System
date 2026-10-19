@@ -85,3 +85,7 @@ if __name__ == "__main__":
 
     def test_json_parser_recovers_object_from_prose(self):
         self.assertEqual(OpenAICompatibleProvider._json('Result follows: {"ready": true} End.'), {"ready": True})
+
+
+    def test_json_parser_recovers_array_from_prose(self):
+        self.assertEqual(OpenAICompatibleProvider._json('Items: ["alpha", "beta"] done'), ["alpha", "beta"])
