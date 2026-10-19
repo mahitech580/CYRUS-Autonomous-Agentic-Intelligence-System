@@ -89,3 +89,7 @@ if __name__ == "__main__":
 
     def test_json_parser_recovers_array_from_prose(self):
         self.assertEqual(OpenAICompatibleProvider._json('Items: ["alpha", "beta"] done'), ["alpha", "beta"])
+
+
+    def test_json_parser_accepts_integer_primitive(self):
+        self.assertEqual(OpenAICompatibleProvider._json("42"), 42)
