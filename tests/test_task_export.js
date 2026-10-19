@@ -218,6 +218,17 @@ test('redacts truncated private-key blocks through end of exported text', () => 
   assert.match(report.task.implementation, /REDACTED: private-key block/);
 });
 
+test('redacts encrypted private-key blocks even when truncated', () => {
+  const encrypted = '-----BEGIN ENCRYPTED PRIVATE KEY-----\\nencrypted-material-that-must-not-escape';
+  const report = buildTaskReport({
+    task_id: 'CYRUS-ENCRYPTED-PEM',
+    implementation: encrypted
+  });
+  const output = JSON.stringify(report);
+  assert.equal(output.includes('encrypted-material-that-must-not-escape'), false);
+  assert.match(report.task.implementation, /REDACTED: private-key block/);
+});
+
 test('redacts complete private-key blocks and bearer credentials from exported strings', () => {
   const privateKey = '-----BEGIN PRIVATE KEY-----\nprivate-material-that-must-not-escape\n-----END PRIVATE KEY-----';
   const bearer = 'Bearer ' + 'abcDEF1234567890_tokenValue987654321';
