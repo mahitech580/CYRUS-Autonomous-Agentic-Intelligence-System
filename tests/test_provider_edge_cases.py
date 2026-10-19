@@ -345,5 +345,15 @@ class ProviderEdgeCaseTests(unittest.TestCase):
                 make_provider()._chat("s", "u")
         self.assertNotIn(secret, str(caught.exception))
 
+
+
+    def test_chat_redacts_secret_assignment_in_http_error(self):
+        secret = "credential-value-must-not-escape"
+        error = HTTPError("https://provider.example", 403, "Forbidden", {}, io.BytesIO(json.dumps({"detail": f"secret={secret}"}).encode()))
+        with patch("providers.urlopen", side_effect=error):
+            with self.assertRaises(ProviderError) as caught:
+                make_provider()._chat("s", "u")
+        self.assertNotIn(secret, str(caught.exception))
+
 if __name__ == "__main__":
     unittest.main()
