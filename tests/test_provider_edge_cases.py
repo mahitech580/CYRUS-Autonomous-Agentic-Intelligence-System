@@ -208,3 +208,17 @@ if __name__ == "__main__":
     def test_chat_caps_response_length(self):
         with patch("providers.urlopen", return_value=fake_chat_response("x" * 18100)):
             self.assertEqual(len(make_provider()._chat("s", "u")), 18000)
+
+
+    def test_chat_builds_post_request_with_model(self):
+        captured = []
+        def send(request, timeout):
+            captured.append((request, timeout))
+            return fake_chat_response("ok")
+        with patch("providers.urlopen", side_effect=send):
+            make_provider(base_url="https://provider.example/v1/")._chat("sys", "usr", 700)
+        request, _ = captured[0]
+        body = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(request.method, "POST")
+        self.assertEqual(request.full_url, "https://provider.example/v1/chat/completions")
+        self.assertEqual(body["model"], "test-model")
