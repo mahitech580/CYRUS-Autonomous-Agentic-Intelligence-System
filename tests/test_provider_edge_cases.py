@@ -81,3 +81,7 @@ if __name__ == "__main__":
 
     def test_json_parser_accepts_uppercase_fence_label(self):
         self.assertEqual(OpenAICompatibleProvider._json('```JSON\n{"count": 2}\n```'), {"count": 2})
+
+
+    def test_json_parser_recovers_object_from_prose(self):
+        self.assertEqual(OpenAICompatibleProvider._json('Result follows: {"ready": true} End.'), {"ready": True})
