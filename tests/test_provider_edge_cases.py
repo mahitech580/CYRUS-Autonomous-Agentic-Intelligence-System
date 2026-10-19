@@ -121,3 +121,7 @@ if __name__ == "__main__":
 
     def test_string_list_reads_steps_key(self):
         self.assertEqual(OpenAICompatibleProvider._string_list({"steps": ["one", "two"]}), ["one", "two"])
+
+
+    def test_string_list_reads_considerations_key(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list({"considerations": ["risk", "rollback"]}), ["risk", "rollback"])
