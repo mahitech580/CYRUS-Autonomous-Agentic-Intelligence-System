@@ -186,3 +186,9 @@ if __name__ == "__main__":
     def test_chat_returns_valid_assistant_content(self):
         with patch("providers.urlopen", return_value=fake_chat_response("Provider answer")):
             self.assertEqual(make_provider()._chat("system", "user"), "Provider answer")
+
+
+    def test_chat_joins_text_content_parts(self):
+        response = FakeResponse(json.dumps({"choices": [{"message": {"content": [{"text": "hello "}, {"text": "world"}]}}]}))
+        with patch("providers.urlopen", return_value=response):
+            self.assertEqual(make_provider()._chat("s", "u"), "hello world")
