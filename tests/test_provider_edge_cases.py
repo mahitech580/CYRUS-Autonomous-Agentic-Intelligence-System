@@ -431,5 +431,15 @@ class ProviderEdgeCaseTests(unittest.TestCase):
         with patch.dict("os.environ", env, clear=True):
             self.assertIsInstance(get_provider(), OpenAICompatibleProvider)
 
+
+
+    def test_get_provider_trims_tls_url_model_and_key(self):
+        env = {"CYRUS_LLM_PROVIDER": "auto", "CYRUS_LLM_API_KEY": " key ", "CYRUS_LLM_BASE_URL": " https://provider.example/v1/ ", "CYRUS_LLM_MODEL": " model-x "}
+        with patch.dict("os.environ", env, clear=True):
+            result = get_provider()
+        self.assertEqual(result.api_key, "key")
+        self.assertEqual(result.base_url, "https://provider.example/v1")
+        self.assertEqual(result.model, "model-x")
+
 if __name__ == "__main__":
     unittest.main()
