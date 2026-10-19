@@ -107,3 +107,8 @@ if __name__ == "__main__":
     def test_json_parser_rejects_prose_without_structure(self):
         with self.assertRaisesRegex(ProviderError, "did not contain"):
             OpenAICompatibleProvider._json("No structured response was provided.")
+
+
+    def test_json_parser_reports_incomplete_structure(self):
+        with self.assertRaisesRegex(ProviderError, "incomplete JSON"):
+            OpenAICompatibleProvider._json('{"steps": [')
