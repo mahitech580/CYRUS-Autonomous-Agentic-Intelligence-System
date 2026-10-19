@@ -138,3 +138,7 @@ if __name__ == "__main__":
 
     def test_string_list_trims_whitespace(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["  first  ", "\tsecond\n"]), ["first", "second"])
+
+
+    def test_string_list_drops_blank_items(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list(["first", "", "   ", "second"]), ["first", "second"])
