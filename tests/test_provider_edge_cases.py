@@ -181,3 +181,8 @@ if __name__ == "__main__":
         original = [" first ", "", "second"]
         OpenAICompatibleProvider._string_list(original)
         self.assertEqual(original, [" first ", "", "second"])
+
+
+    def test_chat_returns_valid_assistant_content(self):
+        with patch("providers.urlopen", return_value=fake_chat_response("Provider answer")):
+            self.assertEqual(make_provider()._chat("system", "user"), "Provider answer")
