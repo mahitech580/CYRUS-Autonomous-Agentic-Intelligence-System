@@ -156,3 +156,8 @@ if __name__ == "__main__":
     def test_string_list_caps_item_count(self):
         result = OpenAICompatibleProvider._string_list([f"item-{n}" for n in range(12)])
         self.assertEqual(result, [f"item-{n}" for n in range(8)])
+
+
+    def test_string_list_enforces_minimum_items(self):
+        with self.assertRaisesRegex(ProviderError, "too few"):
+            OpenAICompatibleProvider._string_list(["only one"], minimum=2)
