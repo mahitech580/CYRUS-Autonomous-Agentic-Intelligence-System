@@ -384,5 +384,13 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             make_provider(api_key="selected-secret")._chat("s", "u")
         self.assertEqual(captured[0].get_header("Authorization"), "Bearer selected-secret")
 
+
+
+    def test_chat_sends_json_content_type(self):
+        captured = []
+        with patch("providers.urlopen", side_effect=lambda req, timeout: (captured.append(req) or fake_chat_response("ok"))):
+            make_provider()._chat("s", "u")
+        self.assertEqual(captured[0].get_header("Content-type"), "application/json")
+
 if __name__ == "__main__":
     unittest.main()
