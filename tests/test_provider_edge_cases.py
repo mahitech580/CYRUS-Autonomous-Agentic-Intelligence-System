@@ -112,3 +112,8 @@ if __name__ == "__main__":
     def test_json_parser_reports_incomplete_structure(self):
         with self.assertRaisesRegex(ProviderError, "incomplete JSON"):
             OpenAICompatibleProvider._json('{"steps": [')
+
+
+    def test_json_parser_reports_malformed_embedded_json(self):
+        with self.assertRaisesRegex(ProviderError, "invalid JSON"):
+            OpenAICompatibleProvider._json('Response: {"steps": [broken]}')
