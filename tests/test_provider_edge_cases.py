@@ -406,5 +406,11 @@ class ProviderEdgeCaseTests(unittest.TestCase):
         provider = make_provider(api_key="do-not-print-this-secret")
         self.assertNotIn("do-not-print-this-secret", repr(provider))
 
+
+
+    def test_get_provider_defaults_to_deterministic_without_key(self):
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertIsInstance(get_provider(), DeterministicProvider)
+
 if __name__ == "__main__":
     unittest.main()
