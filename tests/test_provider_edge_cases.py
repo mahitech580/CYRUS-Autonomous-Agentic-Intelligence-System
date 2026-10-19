@@ -102,3 +102,8 @@ if __name__ == "__main__":
     def test_json_parser_preserves_nested_structure(self):
         value = {"plan": [{"name": "api", "checks": [1, 2]}]}
         self.assertEqual(OpenAICompatibleProvider._json(json.dumps(value)), value)
+
+
+    def test_json_parser_rejects_prose_without_structure(self):
+        with self.assertRaisesRegex(ProviderError, "did not contain"):
+            OpenAICompatibleProvider._json("No structured response was provided.")
