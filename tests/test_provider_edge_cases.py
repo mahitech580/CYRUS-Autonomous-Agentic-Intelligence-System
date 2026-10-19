@@ -203,3 +203,8 @@ if __name__ == "__main__":
     def test_chat_strips_response_whitespace(self):
         with patch("providers.urlopen", return_value=fake_chat_response("  answer \n")):
             self.assertEqual(make_provider()._chat("s", "u"), "answer")
+
+
+    def test_chat_caps_response_length(self):
+        with patch("providers.urlopen", return_value=fake_chat_response("x" * 18100)):
+            self.assertEqual(len(make_provider()._chat("s", "u")), 18000)
