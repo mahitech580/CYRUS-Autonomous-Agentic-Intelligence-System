@@ -424,5 +424,12 @@ class ProviderEdgeCaseTests(unittest.TestCase):
         with patch.dict("os.environ", {"CYRUS_LLM_PROVIDER": "offline", "CYRUS_LLM_API_KEY": "test-key"}, clear=True):
             self.assertIsInstance(get_provider(), DeterministicProvider)
 
+
+
+    def test_get_provider_normalizes_selection_case_and_whitespace(self):
+        env = {"CYRUS_LLM_PROVIDER": " AuTo ", "CYRUS_LLM_API_KEY": " key ", "CYRUS_LLM_BASE_URL": "https://provider.example/v1", "CYRUS_LLM_MODEL": "test"}
+        with patch.dict("os.environ", env, clear=True):
+            self.assertIsInstance(get_provider(), OpenAICompatibleProvider)
+
 if __name__ == "__main__":
     unittest.main()
