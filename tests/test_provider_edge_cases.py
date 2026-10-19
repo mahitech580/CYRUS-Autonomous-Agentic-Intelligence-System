@@ -247,5 +247,16 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             make_provider()._chat("s", "u", 9000)
         self.assertEqual(json.loads(captured[0].data)["max_tokens"], 5000)
 
+
+
+    def test_chat_passes_configured_timeout(self):
+        captured = []
+        def send(request, timeout):
+            captured.append(timeout)
+            return fake_chat_response("ok")
+        with patch("providers.urlopen", side_effect=send):
+            make_provider(timeout_seconds=17.5)._chat("s", "u")
+        self.assertEqual(captured, [17.5])
+
 if __name__ == "__main__":
     unittest.main()
