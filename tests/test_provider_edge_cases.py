@@ -93,3 +93,7 @@ if __name__ == "__main__":
 
     def test_json_parser_accepts_integer_primitive(self):
         self.assertEqual(OpenAICompatibleProvider._json("42"), 42)
+
+
+    def test_json_parser_accepts_boolean_primitive(self):
+        self.assertIs(OpenAICompatibleProvider._json("true"), True)
