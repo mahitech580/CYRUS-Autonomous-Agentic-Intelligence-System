@@ -441,5 +441,11 @@ class ProviderEdgeCaseTests(unittest.TestCase):
         self.assertEqual(result.base_url, "https://provider.example/v1")
         self.assertEqual(result.model, "model-x")
 
+
+
+    def test_get_provider_treats_whitespace_key_as_missing(self):
+        with patch.dict("os.environ", {"CYRUS_LLM_API_KEY": "   "}, clear=True):
+            self.assertIsInstance(get_provider(), DeterministicProvider)
+
 if __name__ == "__main__":
     unittest.main()
