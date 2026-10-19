@@ -97,3 +97,8 @@ if __name__ == "__main__":
 
     def test_json_parser_accepts_boolean_primitive(self):
         self.assertIs(OpenAICompatibleProvider._json("true"), True)
+
+
+    def test_json_parser_preserves_nested_structure(self):
+        value = {"plan": [{"name": "api", "checks": [1, 2]}]}
+        self.assertEqual(OpenAICompatibleProvider._json(json.dumps(value)), value)
