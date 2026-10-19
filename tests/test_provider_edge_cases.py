@@ -447,5 +447,14 @@ class ProviderEdgeCaseTests(unittest.TestCase):
         with patch.dict("os.environ", {"CYRUS_LLM_API_KEY": "   "}, clear=True):
             self.assertIsInstance(get_provider(), DeterministicProvider)
 
+
+
+    def test_get_provider_uses_default_endpoint_and_model(self):
+        with patch.dict("os.environ", {"CYRUS_LLM_API_KEY": "test-key"}, clear=True):
+            result = get_provider()
+        self.assertIsInstance(result, OpenAICompatibleProvider)
+        self.assertEqual(result.base_url, "https://api.openai.com/v1")
+        self.assertEqual(result.model, "gpt-4o-mini")
+
 if __name__ == "__main__":
     unittest.main()
