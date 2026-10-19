@@ -376,5 +376,13 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ProviderError, "HTTP 503"):
                 make_provider()._chat("s", "u")
 
+
+
+    def test_chat_sends_authorization_header(self):
+        captured = []
+        with patch("providers.urlopen", side_effect=lambda req, timeout: (captured.append(req) or fake_chat_response("ok"))):
+            make_provider(api_key="selected-secret")._chat("s", "u")
+        self.assertEqual(captured[0].get_header("Authorization"), "Bearer selected-secret")
+
 if __name__ == "__main__":
     unittest.main()
