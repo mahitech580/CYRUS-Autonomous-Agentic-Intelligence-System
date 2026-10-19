@@ -279,5 +279,12 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ProviderError, "no assistant message"):
                 make_provider()._chat("s", "u")
 
+
+
+    def test_chat_rejects_non_string_content(self):
+        with patch("providers.urlopen", return_value=FakeResponse('{"choices": [{"message": {"content": 123}}]}')):
+            with self.assertRaisesRegex(ProviderError, "empty answer"):
+                make_provider()._chat("s", "u")
+
 if __name__ == "__main__":
     unittest.main()
