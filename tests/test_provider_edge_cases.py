@@ -400,5 +400,11 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             make_provider()._chat("s", "u")
         self.assertEqual(captured[0].get_header("User-agent"), "CYRUS-Realtime-Backend/1.0")
 
+
+
+    def test_provider_repr_does_not_include_api_key(self):
+        provider = make_provider(api_key="do-not-print-this-secret")
+        self.assertNotIn("do-not-print-this-secret", repr(provider))
+
 if __name__ == "__main__":
     unittest.main()
