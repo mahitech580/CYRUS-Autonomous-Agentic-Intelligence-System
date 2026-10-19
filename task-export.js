@@ -27,7 +27,7 @@
     ['Google API key-like value', /\bAIza[0-9A-Za-z_-]{35}\b/],
     ['Slack token-like value', /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/],
     ['JWT-like value', /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/],
-    ['private-key header', /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/],
+    ['private-key header', /-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----/],
     ['bearer-token-like value', /\bBearer\s+[A-Za-z0-9._~+/-]{16,}={0,2}/i]
   ];
 
@@ -58,7 +58,7 @@
       // Fail closed on truncated PEM blocks too: export data must not leak key
       // material merely because the closing marker was omitted from a log.
       let safe = value.replace(
-        /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|$)/g,
+        /-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----|$)/g,
         '[REDACTED: private-key block]'
       );
       for (const [label, pattern] of SENSITIVE_TEXT_PATTERNS) {
