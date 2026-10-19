@@ -69,3 +69,7 @@ if __name__ == "__main__":
 
     def test_json_parser_accepts_array(self):
         self.assertEqual(OpenAICompatibleProvider._json('["a", "b"]'), ["a", "b"])
+
+
+    def test_json_parser_trims_outer_whitespace(self):
+        self.assertEqual(OpenAICompatibleProvider._json('  \n {"ok": true} \t'), {"ok": True})
