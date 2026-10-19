@@ -150,7 +150,21 @@ class OpenAICompatibleProvider:
             except Exception:
                 detail = ""
             # Never include the Authorization header or request body in failures.
-            safe_detail = re.sub(r"(?i)(api[_ -]?key|authorization|bearer)\s*[:=]?\s*[^\s,;]+", r"\1=[redacted]", detail)
+            safe_detail = re.sub(
+                r"(?i)(authorization\s*[:=]\s*)(?:bearer\s+)?[^\s,;\"]+",
+                r"\1[redacted]",
+                detail,
+            )
+            safe_detail = re.sub(
+                r"(?i)((?:api[_ -]?key|token|secret)\s*[:=]\s*)[^\s,;\"]+",
+                r"\1[redacted]",
+                safe_detail,
+            )
+            safe_detail = re.sub(
+                r"(?i)\bbearer\s+[^\s,;\"]+",
+                "Bearer [redacted]",
+                safe_detail,
+            )
             raise ProviderError(f"LLM provider returned HTTP {exc.code}: {safe_detail[:350]}") from None
         except URLError as exc:
             reason = str(getattr(exc, "reason", "network error"))[:180]
