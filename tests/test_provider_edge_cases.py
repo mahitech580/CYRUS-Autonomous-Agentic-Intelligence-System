@@ -220,5 +220,16 @@ class ProviderEdgeCaseTests(unittest.TestCase):
         self.assertEqual(request.full_url, "https://provider.example/v1/chat/completions")
         self.assertEqual(body["model"], "test-model")
 
+
+
+    def test_chat_request_uses_system_user_roles_and_temperature(self):
+        captured = []
+        with patch("providers.urlopen", side_effect=lambda req, timeout: (captured.append(req) or fake_chat_response("ok"))):
+            make_provider()._chat("system prompt", "user prompt")
+        body = json.loads(captured[0].data.decode("utf-8"))
+        self.assertEqual([message["role"] for message in body["messages"]], ["system", "user"])
+        self.assertEqual([message["content"] for message in body["messages"]], ["system prompt", "user prompt"])
+        self.assertEqual(body["temperature"], 0.2)
+
 if __name__ == "__main__":
     unittest.main()
