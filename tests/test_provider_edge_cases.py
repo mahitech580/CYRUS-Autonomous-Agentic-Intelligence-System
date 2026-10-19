@@ -258,5 +258,12 @@ class ProviderEdgeCaseTests(unittest.TestCase):
             make_provider(timeout_seconds=17.5)._chat("s", "u")
         self.assertEqual(captured, [17.5])
 
+
+
+    def test_chat_rejects_top_level_array_response(self):
+        with patch("providers.urlopen", return_value=FakeResponse("[]")):
+            with self.assertRaisesRegex(ProviderError, "no assistant message"):
+                make_provider()._chat("s", "u")
+
 if __name__ == "__main__":
     unittest.main()
