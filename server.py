@@ -790,7 +790,7 @@ def create_task(prompt, mode, idempotency_key=None, parent_task_id=None, retry_n
 def index():
     return send_from_directory(BASE_DIR, "index.html")
 
-PUBLIC_ASSETS = {"styles.css", "app.js", "demo-bridge.js", "runtime-config.js", "event-stream.js"}
+PUBLIC_ASSETS = {"styles.css", "app.js", "demo-bridge.js", "runtime-config.js", "event-stream.js", "task-export.js"}
 
 @app.get("/<path:name>")
 def public_asset(name):
