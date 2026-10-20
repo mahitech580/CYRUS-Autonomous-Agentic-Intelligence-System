@@ -304,3 +304,8 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("{\"api_key\": \"matrix-json-secret-090\"}")
         self.assertNotIn("matrix-json-secret-090", result)
         self.assertIn("[redacted", result.lower())
+
+    def test_redacts_provider_style_api_key(self):
+        result = _redact_provider_error_detail("provider credential sk-abcdefghijklmnopqrstuvwxyz0123456789")
+        self.assertNotIn("sk-abcdefghijklmnopqrstuvwxyz0123456789", result)
+        self.assertIn("[redacted", result.lower())
