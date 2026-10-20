@@ -325,3 +325,7 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
         self.assertNotIn("matrix-first-secret-094", result)
         self.assertNotIn("matrix-second-secret-094", result)
         self.assertIn("[redacted", result.lower())
+
+    def test_json_parses_object(self):
+        self.assertEqual(OpenAICompatibleProvider._json('{"ok": true}'), {"ok": True})
+
