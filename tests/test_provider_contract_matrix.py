@@ -269,3 +269,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("Bearer tokenFirst123 Bearer tokenSecond456")
                 self.assertNotIn("tokenFirst123", result)
                 self.assertNotIn("tokenSecond456", result)
+
+    def test_redaction_caps_output_at_three_hundred_fifty_chars(self):
+        self.assertEqual(len(_redact_provider_error_detail("x" * 900)), 350)
