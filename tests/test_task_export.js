@@ -19,7 +19,8 @@ test('builds a versioned report from an execution record', () => {
   assert.equal(report.task.objective, 'Review an API boundary');
   assert.equal(report.task.events[0].event_id, 'e1');
   assert.equal('unknown_internal_field' in report.task, false);
-  assert.match(report.notice, /not automatically removed/);
+  assert.match(report.notice, /redacted heuristically/);
+  assert.match(report.notice, /detection is not exhaustive/);
 });
 
 test('omits credential-like fields at the root and inside nested trace data', () => {
