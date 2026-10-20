@@ -54,3 +54,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
     def test_string_list_rejects_none(self):
         with self.assertRaisesRegex(ProviderError, "unexpected list format"):
                     OpenAICompatibleProvider._string_list(None)
+
+    def test_string_list_rejects_empty_list(self):
+        with self.assertRaisesRegex(ProviderError, "too few usable list items"):
+                    OpenAICompatibleProvider._string_list([])
