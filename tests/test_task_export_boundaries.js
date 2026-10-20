@@ -22,3 +22,8 @@ test("rejects task without identifier", () => {
 test("rejects whitespace task identifier", () => {
   assert.throws(() => reportApi.buildTaskReport(task({task_id: '   '})), TypeError);
 });
+
+test("omits unallowlisted root fields", () => {
+  const report = reportApi.buildTaskReport(task({internal_debug_dump: 'must not be exported'}));
+    assert.equal(report.task.internal_debug_dump, undefined);
+});
