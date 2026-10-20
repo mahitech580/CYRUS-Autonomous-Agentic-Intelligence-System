@@ -329,3 +329,7 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
     def test_json_parses_object(self):
         self.assertEqual(OpenAICompatibleProvider._json('{"ok": true}'), {"ok": True})
 
+
+    def test_json_parses_array(self):
+        self.assertEqual(OpenAICompatibleProvider._json('["alpha", "beta"]'), ["alpha", "beta"])
+
