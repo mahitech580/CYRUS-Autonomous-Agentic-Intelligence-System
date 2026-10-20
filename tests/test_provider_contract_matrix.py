@@ -265,3 +265,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_preserves_safe_url_path(self):
         self.assertIn("/v1/chat/completions", _redact_provider_error_detail("request to /v1/chat/completions failed"))
+
+    def test_redaction_preserves_safe_json_fields(self):
+        self.assertIn('"status": 429', _redact_provider_error_detail('{"status": 429, "message": "rate limited"}'))
