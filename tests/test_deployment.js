@@ -364,3 +364,37 @@ assert.ok(fs.readFileSync("tests/test_api.py", "utf8").includes("test_task_linea
 assert.ok(fs.readFileSync("tests/test_task_export.js", "utf8").includes("preserves retry lineage across JSON"), "Lineage export must have report regression coverage");
 console.log("Retry lineage smoke: bounded API, timeline UI, responsive styling and JSON/Markdown/CSV contracts OK");
 
+const retryAnalyticsServer = fs.readFileSync("server.py", "utf8");
+const retryAnalyticsApp = fs.readFileSync("app.js", "utf8");
+const retryAnalyticsCss = fs.readFileSync("styles.css", "utf8");
+for (const field of [
+  '"retry_outcomes": retry_outcomes',
+  '"by_depth": [',
+  '"eligible_after_failure": eligible_after_failure',
+  '"recovered_after_failure": recovered_after_failure'
+]) {
+  assert.ok(retryAnalyticsServer.includes(field), "Missing analytics retry-recovery field: " + field);
+}
+for (const feature of [
+  "const retryOutcomes=data?.retry_outcomes||{}",
+  "Retry health",
+  "RECOVERED AFTER FAILURE",
+  "analytics-retry-stat-grid",
+  "analytics-retry-depths",
+  "recovery_rate"
+]) {
+  assert.ok(retryAnalyticsApp.includes(feature), "Missing retry-health analytics UI: " + feature);
+}
+for (const style of [
+  ".analytics-retry-panel",
+  ".analytics-retry-stat-grid",
+  ".analytics-retry-depth-row",
+  ".analytics-retry-track",
+  "@media(max-width:620px)"
+]) {
+  assert.ok(retryAnalyticsCss.includes(style), "Missing retry analytics style: " + style);
+}
+assert.ok(fs.readFileSync("tests/test_analytics_api.py", "utf8").includes("test_analytics_measures_retry_outcomes_recovery_and_depth"), "Retry analytics calculations must have an API regression test");
+console.log("Retry analytics smoke: aggregate metrics, depth breakdown, recovery UI and responsive layout OK");
+
+
