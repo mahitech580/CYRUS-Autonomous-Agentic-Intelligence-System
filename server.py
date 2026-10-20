@@ -1458,6 +1458,75 @@ def task_stream(task_id):
     return response
 
 
+@app.get("/api/tasks/<task_id>/lineage")
+def task_lineage(task_id):
+    """Return a bounded, summary-only view of the retry chain containing this task."""
+    records = all_task_records()
+    by_id = {
+        str(item.get("task_id")): item
+        for item in records
+        if item.get("task_id")
+    }
+    target = by_id.get(task_id)
+    if target is None:
+        return jsonify({"error": "Task not found"}), 404
+
+    # Walk to a known ancestor without trusting stored parent pointers to be valid.
+    # Older history may have pruned a parent, and malformed records can contain cycles.
+    current = task_id
+    ancestor_path = []
+    visited_ancestors = set()
+    while current in by_id and current not in visited_ancestors and len(ancestor_path) < 50:
+        visited_ancestors.add(current)
+        ancestor_path.append(current)
+        parent_id = by_id[current].get("parent_task_id")
+        if not isinstance(parent_id, str) or parent_id not in by_id or parent_id in visited_ancestors:
+            break
+        current = parent_id
+    root_id = ancestor_path[-1] if ancestor_path else task_id
+
+    children = {}
+    for item in by_id.values():
+        child_id = str(item.get("task_id") or "")
+        parent_id = item.get("parent_task_id")
+        if child_id and isinstance(parent_id, str) and parent_id in by_id:
+            children.setdefault(parent_id, []).append(child_id)
+    for parent_id, child_ids in children.items():
+        child_ids.sort(key=lambda child_id: (
+            _retry_attempt_number(by_id[child_id]),
+            str(by_id[child_id].get("created_at") or ""),
+            child_id,
+        ))
+
+    # Breadth-first traversal includes historical sibling attempts if they exist.
+    # The cap makes this safe even if history contains a malformed or cyclic graph.
+    queue = [root_id]
+    visited = set()
+    ordered_ids = []
+    while queue and len(ordered_ids) < 50:
+        current_id = queue.pop(0)
+        if current_id in visited or current_id not in by_id:
+            continue
+        visited.add(current_id)
+        ordered_ids.append(current_id)
+        queue.extend(child_id for child_id in children.get(current_id, []) if child_id not in visited)
+
+    truncated = bool(queue)
+    if task_id not in ordered_ids:
+        if len(ordered_ids) >= 50:
+            ordered_ids[-1] = task_id
+        else:
+            ordered_ids.append(task_id)
+    attempts = [task_summary(by_id[item_id]) for item_id in ordered_ids if item_id in by_id]
+    return jsonify({
+        "current_task_id": task_id,
+        "root_task_id": root_id,
+        "attempt_count": len(attempts),
+        "truncated": truncated,
+        "attempts": attempts,
+    })
+
+
 @app.get("/api/tasks/<task_id>")
 def task_detail(task_id):
     with runtime["lock"]:
