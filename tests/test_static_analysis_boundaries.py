@@ -44,3 +44,7 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
     def test_no_python_fence_marks_syntax_check_skipped(self):
         result = analyze_draft("Plain text implementation notes")
                     self.assertEqual(self.check(result, "python_syntax")["status"], "SKIP")
+
+    def test_python_fence_alias_py_is_parsed(self):
+        result = analyze_draft(FENCE + "py\nx = 1\n" + FENCE)
+                    self.assertEqual(self.check(result, "python_syntax")["status"], "PASS")
