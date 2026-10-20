@@ -117,3 +117,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_none_input(self):
         self.assertFalse(_provider_url_is_allowed(None))
+
+    def test_reject_integer_input(self):
+        self.assertFalse(_provider_url_is_allowed(123))
