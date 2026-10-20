@@ -1429,12 +1429,19 @@ def task_stream(task_id):
 
 @app.get("/api/tasks/<task_id>")
 def task_detail(task_id):
-    task = runtime["tasks"].get(task_id)
+    with runtime["lock"]:
+        task = runtime["tasks"].get(task_id)
     if task:
         return jsonify(task)
     for item in load_history():
-        if item["task_id"] == task_id:
-            return jsonify(item)
+        if item.get("task_id") == task_id:
+            # Old history snapshots predate retry metadata. Project current
+            # policy defaults into the response without rewriting old records.
+            snapshot = dict(item)
+            snapshot.setdefault("retry_number", 0)
+            snapshot.setdefault("retry_reason", None)
+            snapshot.setdefault("max_task_retries", MAX_TASK_RETRIES)
+            return jsonify(snapshot)
     return jsonify({"error": "Task not found"}), 404
 
 @app.get("/api/memory")
