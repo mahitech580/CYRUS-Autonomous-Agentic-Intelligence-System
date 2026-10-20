@@ -12,3 +12,6 @@ from providers import (
 class ProviderBoundaryMatrixTests(unittest.TestCase):
     """Focused, offline-only boundary tests; no external provider requests."""
 
+
+    def test_https_allowed_base_path(self):
+        self.assertTrue(_provider_url_is_allowed("https://provider.example/v1"))
