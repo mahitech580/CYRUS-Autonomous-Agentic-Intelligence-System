@@ -341,3 +341,8 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
     def test_json_extracts_object_after_prose(self):
         self.assertEqual(OpenAICompatibleProvider._json('Result follows: {"risk": "LOW"}'), {"risk": "LOW"})
 
+
+    def test_json_rejects_text_without_structure(self):
+        with self.assertRaisesRegex(ProviderError, "did not contain"):
+            OpenAICompatibleProvider._json("provider responded with plain text only")
+
