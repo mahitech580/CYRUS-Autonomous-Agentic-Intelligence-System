@@ -74,3 +74,8 @@ test("markdown escapes task identifier pipes", () => {
   const markdown = reportApi.buildTaskMarkdownReport(task({task_id: 'id|with|pipes'}), '2026-10-20T10:00:00.000Z');
     assert.ok(markdown.includes('id\\|with\\|pipes'));
 });
+
+test("markdown states validation is proposed not executed", () => {
+  const markdown = reportApi.buildTaskMarkdownReport(task({validation_plan: ['Check the boundary'] }));
+    assert.ok(markdown.includes('These are proposed checks. This report does not imply the checks were executed.'));
+});
