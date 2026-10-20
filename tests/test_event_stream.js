@@ -117,9 +117,9 @@ async function testAllStandardLineEndingsAcrossChunkBoundaries() {
   const trace = {event_id: "CYRUS-CR-E001", agent: "PLANNER"};
   const close = {task_id: "CYRUS-CR", status: "COMPLETED"};
   const body =
-    "event: state\\r\\ndata: " + JSON.stringify(state) + "\\r\\n\\r\\n" +
-    "event: trace\\rid: CYRUS-CR-E001\\rdata: " + JSON.stringify(trace) + "\\r\\r" +
-    "event: close\\ndata: " + JSON.stringify(close) + "\\n\\n";
+    "event: state\r\ndata: " + JSON.stringify(state) + "\r\n\r\n" +
+    "event: trace\rid: CYRUS-CR-E001\rdata: " + JSON.stringify(trace) + "\r\r" +
+    "event: close\ndata: " + JSON.stringify(close) + "\n\n";
   let calls = 0;
   const client = loadClient(async () => {
     calls += 1;
