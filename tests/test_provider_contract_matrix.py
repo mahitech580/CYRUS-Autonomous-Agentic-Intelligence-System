@@ -23,3 +23,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_trims_newline_padding(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["\n alpha \n"]), ["alpha"])
+
+    def test_string_list_retains_internal_newlines(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list(["alpha\nbeta"]), ["alpha\nbeta"])
