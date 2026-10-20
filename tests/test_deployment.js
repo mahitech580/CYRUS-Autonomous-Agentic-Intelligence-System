@@ -321,3 +321,46 @@ for (const command of [
   assert.ok(commandPaletteApp.includes(command), "Missing command-palette operator control: " + command);
 }
 console.log("Command palette smoke: keyboard navigation, accessible results, motion toggle, background cycling, reset and intensity controls OK");
+
+const lineageServer = fs.readFileSync("server.py", "utf8");
+const lineageApp = fs.readFileSync("app.js", "utf8");
+const lineageStyles = fs.readFileSync("styles.css", "utf8");
+const lineageExports = fs.readFileSync("task-export.js", "utf8");
+for (const contract of [
+  '@app.get("/api/tasks/<task_id>/lineage")',
+  '"current_task_id": task_id',
+  '"root_task_id": root_id',
+  '"attempts": attempts',
+  'while queue and len(ordered_ids) < 50'
+]) {
+  assert.ok(lineageServer.includes(contract), "Missing bounded lineage API contract: " + contract);
+}
+for (const feature of [
+  "function TaskModal",
+  "+'/lineage'",
+  "RETRY LINEAGE",
+  "task-lineage-list",
+  "aria-current",
+  "effective_max_task_retries"
+]) {
+  assert.ok(lineageApp.includes(feature), "Missing retry lineage inspector feature: " + feature);
+}
+for (const style of [
+  ".task-lineage-list",
+  ".task-lineage-row.current",
+  ".task-lineage-status.status-failed",
+  "@media(max-width:700px)"
+]) {
+  assert.ok(lineageStyles.includes(style), "Missing retry lineage timeline style: " + style);
+}
+for (const reportFeature of [
+  "'retry_lineage'",
+  "'## Retry lineage'",
+  "['Retry lineage', 'retry_lineage']"
+]) {
+  assert.ok(lineageExports.includes(reportFeature), "Missing retry lineage report field: " + reportFeature);
+}
+assert.ok(fs.readFileSync("tests/test_api.py", "utf8").includes("test_task_lineage_returns_root_to_leaf_summaries"), "Lineage ordering must have an API regression test");
+assert.ok(fs.readFileSync("tests/test_task_export.js", "utf8").includes("cover lineage in JSON"), "Lineage export must have report regression coverage");
+console.log("Retry lineage smoke: bounded API, timeline UI, responsive styling and JSON/Markdown/CSV contracts OK");
+
