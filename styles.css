@@ -3005,3 +3005,18 @@ body:after{
 .task-report-export{min-height:40px;border:1px solid rgba(98,221,170,.28);border-radius:10px;background:rgba(98,221,170,.07);color:#9de9c7;padding:8px 11px;font:8px var(--mono);letter-spacing:.08em;cursor:pointer;transition:background .18s ease,border-color .18s ease}
 .task-report-export:hover{background:rgba(98,221,170,.14);border-color:rgba(98,221,170,.5)}
 .task-report-export:focus-visible{outline:2px solid #9de9c7;outline-offset:3px}
+
+
+/* Retry is a new, auditable execution—not a continuation of the failed record. */
+.modal-top-actions{flex-wrap:wrap}
+.task-report-retry{min-height:40px;border:1px solid rgba(255,190,115,.5);border-radius:10px;background:rgba(255,171,89,.12);color:#ffd2a4;padding:8px 12px;font:8px var(--mono);letter-spacing:.08em;cursor:pointer;transition:background .18s ease,border-color .18s ease}
+.task-report-retry:hover:not(:disabled){background:rgba(255,171,89,.2);border-color:rgba(255,190,115,.8)}
+.task-report-retry:focus-visible,.task-lineage-panel button:focus-visible{outline:2px solid #ffd2a4;outline-offset:3px}
+.task-report-retry:disabled{opacity:.55;cursor:progress}
+.task-lineage-panel{display:flex;justify-content:space-between;align-items:center;gap:14px;margin:14px 0 18px;padding:13px 15px;border:1px solid rgba(255,190,115,.24);border-radius:12px;background:linear-gradient(110deg,rgba(255,171,89,.075),rgba(98,221,170,.035))}
+.task-lineage-panel>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.task-lineage-panel strong{color:#ffd2a4;font:9px var(--mono);letter-spacing:.1em}
+.task-lineage-panel span{color:var(--muted);font:10px/1.55 var(--mono);overflow-wrap:anywhere}
+.task-lineage-panel button{flex-shrink:0;min-height:36px;padding:7px 10px;border:1px solid rgba(98,221,170,.25);border-radius:8px;background:rgba(98,221,170,.06);color:#9de9c7;font:8px var(--mono);cursor:pointer}
+.task-lineage-panel button:hover{background:rgba(98,221,170,.14)}
+@media(max-width:700px){.task-lineage-panel{align-items:flex-start;flex-direction:column}.modal-top-actions{justify-content:flex-start}.task-report-retry,.task-report-export{max-width:100%;white-space:normal}}
