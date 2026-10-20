@@ -289,3 +289,8 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("credential=matrix-credential-secret-087")
         self.assertNotIn("matrix-credential-secret-087", result)
         self.assertIn("[redacted", result.lower())
+
+    def test_redacts_authorization_bearer_header(self):
+        result = _redact_provider_error_detail("Authorization: Bearer matrix-header-secret-088")
+        self.assertNotIn("matrix-header-secret-088", result)
+        self.assertIn("[redacted", result.lower())
