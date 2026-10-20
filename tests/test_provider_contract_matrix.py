@@ -259,3 +259,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_scrubs_bearer_with_punctuation(self):
         self.assertNotIn("punctBearerABC123", _redact_provider_error_detail("failure Bearer punctBearerABC123."))
+
+    def test_redaction_preserves_error_code(self):
+        self.assertIn("HTTP 503", _redact_provider_error_detail("HTTP 503: provider unavailable"))
