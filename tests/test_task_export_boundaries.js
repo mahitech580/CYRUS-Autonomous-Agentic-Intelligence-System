@@ -45,3 +45,8 @@ test("includes report schema and export timestamp", () => {
     assert.equal(report.schema_version, 1);
     assert.equal(report.exported_at, '2026-10-20T10:00:00.000Z');
 });
+
+test("preserves unicode objective text", () => {
+  const report = reportApi.buildTaskReport(task({objective: 'Analyze 東京, café, and 🚀 safely'}));
+    assert.equal(report.task.objective, 'Analyze 東京, café, and 🚀 safely');
+});
