@@ -1,0 +1,26 @@
+"""Offline configuration-matrix tests for provider selection and timeout bounds."""
+import unittest
+from unittest.mock import patch
+
+from providers import DeterministicProvider, OpenAICompatibleProvider, get_provider
+
+
+BASE_ENV = {
+    "CYRUS_LLM_PROVIDER": "auto",
+    "CYRUS_LLM_API_KEY": "synthetic-test-key",
+    "CYRUS_LLM_BASE_URL": "https://provider.example/v1",
+    "CYRUS_LLM_MODEL": "synthetic-model",
+    "CYRUS_LLM_TIMEOUT_SECONDS": "25",
+}
+
+
+def provider_with_env(**overrides):
+    env = dict(BASE_ENV)
+    env.update({key: str(value) for key, value in overrides.items()})
+    with patch.dict("os.environ", env, clear=True):
+        return get_provider()
+
+
+class ProviderConfigurationMatrixTests(unittest.TestCase):
+    """Verify offline/live selection and clamped provider timeout settings."""
+
