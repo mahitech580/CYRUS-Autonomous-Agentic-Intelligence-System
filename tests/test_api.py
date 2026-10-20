@@ -461,7 +461,39 @@ class CyrusApiContractTests(unittest.TestCase):
         payload = response.get_json()
         self.assertLessEqual(payload["attempt_count"], 50)
         self.assertEqual(len({item["task_id"] for item in payload["attempts"]}), payload["attempt_count"])
-        self.assertTrue(payload["truncated"] is False or payload["truncated"] is True)
+        self.assertIsInstance(payload["truncated"], bool)
+
+    def test_task_lineage_caps_large_histories_and_marks_truncation(self):
+        root = {
+            "task_id": "CYRUS-LINEAGE-CAP-ROOT",
+            "objective": "Bound retry history",
+            "mode": "autonomous",
+            "status": "TIMED_OUT",
+            "retry_number": 0,
+            "created_at": "2026-10-20T10:00:00Z",
+        }
+        with server.runtime["lock"]:
+            server.runtime["tasks"][root["task_id"]] = root
+            for index in range(60):
+                task_id = "CYRUS-LINEAGE-CAP-" + str(index).zfill(3)
+                server.runtime["tasks"][task_id] = {
+                    "task_id": task_id,
+                    "objective": "Bound retry history",
+                    "mode": "autonomous",
+                    "status": "FAILED",
+                    "parent_task_id": root["task_id"],
+                    "retry_number": 1,
+                    "created_at": "2026-10-20T10:01:00Z",
+                }
+        with patch.object(server, "load_history", return_value=[]):
+            response = self.client.get("/api/tasks/CYRUS-LINEAGE-CAP-ROOT/lineage")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["attempt_count"], 50)
+        self.assertTrue(payload["truncated"])
+        self.assertEqual(payload["root_task_id"], root["task_id"])
+        self.assertEqual(len({item["task_id"] for item in payload["attempts"]}), 50)
 
     def test_retry_rejects_non_terminal_tasks(self):
         with server.runtime["lock"]:
