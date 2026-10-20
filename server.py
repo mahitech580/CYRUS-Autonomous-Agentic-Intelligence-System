@@ -146,6 +146,10 @@ class CapacityError(RuntimeError):
 class TaskCancelled(RuntimeError):
     pass
 
+class TaskTimedOut(RuntimeError):
+    """Raised when an execution exceeds its configured wall-clock budget."""
+    pass
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -386,15 +390,20 @@ def cooperative_wait(task, seconds):
             return
         cancel_event.wait(timeout=min(0.1, remaining))
 
-def wait_for_supervised_approval(task):
+def wait_for_supervised_approval(task, started_at):
+    """Wait for release approval without exceeding the task's wall-clock budget."""
     approval_event = runtime["approval_events"].get(task["task_id"])
     cancel_event = runtime["cancel_events"].get(task["task_id"])
     if approval_event is None:
         raise RuntimeError("Supervised approval control is unavailable")
+    deadline = started_at + MAX_TASK_RUNTIME_SECONDS
     while True:
         if cancel_event and cancel_event.is_set():
             raise TaskCancelled("Task cancellation requested")
-        if approval_event.wait(timeout=0.1):
+        remaining = deadline - time.perf_counter()
+        if remaining <= 0:
+            raise TaskTimedOut(f"Execution exceeded the {MAX_TASK_RUNTIME_SECONDS}-second task deadline")
+        if approval_event.wait(timeout=min(0.1, remaining)):
             return
 
 def execute_task(task):
@@ -410,6 +419,18 @@ def execute_task(task):
                 if item.get("name") == task.get("current_agent"):
                     item["status"] = "CANCELLED"
             event(task, task.get("current_agent", "ORCHESTRATOR"), "CANCELLED", "Execution stopped by operator request.", 0)
+        persist_task(task)
+    except TaskTimedOut as exc:
+        with runtime["lock"]:
+            task["status"] = "TIMED_OUT"
+            task["failure"] = {"type": type(exc).__name__, "message": str(exc)[:500]}
+            task["summary"] = "CYRUS stopped the execution because its configured task deadline expired."
+            task["updated_at"] = now_iso()
+            task["execution_time_ms"] = max(0, int((time.perf_counter() - task.get("runtime_started_at", time.perf_counter())) * 1000))
+            for item in task.get("agents", []):
+                if item.get("name") == task.get("current_agent"):
+                    item["status"] = "TIMED_OUT"
+            event(task, task.get("current_agent", "ORCHESTRATOR"), "TIMED_OUT", "Execution stopped at its configured task deadline.", 0)
         persist_task(task)
     except Exception as exc:
         with runtime["lock"]:
@@ -444,7 +465,7 @@ def _run_task(task):
     for index, (agent, phase, action_label) in enumerate(stages):
         check_task_cancelled(task)
         if time.perf_counter() - started > MAX_TASK_RUNTIME_SECONDS:
-            raise RuntimeError(f"Execution exceeded the {MAX_TASK_RUNTIME_SECONDS}-second task deadline")
+            raise TaskTimedOut(f"Execution exceeded the {MAX_TASK_RUNTIME_SECONDS}-second task deadline")
         with runtime["lock"]:
             task["status"] = "RUNNING"
             task["current_agent"] = agent
@@ -575,7 +596,7 @@ def _run_task(task):
                     0,
                 )
             persist_task(task)
-            wait_for_supervised_approval(task)
+            wait_for_supervised_approval(task, started)
             with runtime["lock"]:
                 task["status"] = "RUNNING"
                 task["approval_required"] = False
@@ -634,6 +655,7 @@ def create_task(prompt, mode, idempotency_key=None):
         "task_id": task_id,
         "created_at": now_iso(),
         "updated_at": now_iso(),
+        "runtime_started_at": time.perf_counter(),
         "objective": prompt,
         "mode": mode,
         "status": "RUNNING",
