@@ -99,3 +99,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_json_extracts_nested_object_after_prose(self):
         self.assertEqual(OpenAICompatibleProvider._json('Draft JSON follows: {"meta": {"count": 2}}'), {"meta": {"count": 2}})
+
+    def test_json_accepts_uppercase_fence_label(self):
+        self.assertEqual(OpenAICompatibleProvider._json('```JSON\n{"ok": true}\n```'), {"ok": True})
