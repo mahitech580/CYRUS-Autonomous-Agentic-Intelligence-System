@@ -124,3 +124,9 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_honors_maximum_one(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["one", "two"], maximum=1), ["one"])
+
+    def test_string_list_truncates_items_to_five_hundred_chars(self):
+        long_item = "x" * 600
+                result = OpenAICompatibleProvider._string_list([long_item])[0]
+                self.assertEqual(len(result), 500)
+                self.assertEqual(result, "x" * 500)
