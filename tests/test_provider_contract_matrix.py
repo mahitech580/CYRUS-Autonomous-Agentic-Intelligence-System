@@ -109,3 +109,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
     def test_json_rejects_incomplete_object(self):
         with self.assertRaisesRegex(ProviderError, "incomplete JSON"):
                     OpenAICompatibleProvider._json('{"value": 1')
+
+    def test_json_rejects_malformed_object(self):
+        with self.assertRaisesRegex(ProviderError, "invalid JSON"):
+                    OpenAICompatibleProvider._json('{"value": }')
