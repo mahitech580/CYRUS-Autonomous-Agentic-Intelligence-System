@@ -1267,6 +1267,8 @@ function AnalyticsView({open,openApiSettings}){
   const providers=Array.isArray(data?.providers)?data.providers:[];
   const failures=Array.isArray(data?.failure_types)?data.failure_types:[];
   const recent=Array.isArray(data?.recent_tasks)?data.recent_tasks:[];
+  const retryOutcomes=data?.retry_outcomes||{};
+  const retryDepths=Array.isArray(retryOutcomes.by_depth)?retryOutcomes.by_depth:[];
   const maxTotal=Math.max(1,...daily.map(item=>Number(item.total)||0));
   const sumProviders=providers.reduce((sum,item)=>sum+(Number(item.count)||0),0);
   const stamp=updatedAt?new Date(updatedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}):'Awaiting first response';
@@ -1304,6 +1306,36 @@ function AnalyticsView({open,openApiSettings}){
           <article><span>SUCCESS RATE</span><strong>{totals.terminal?(Number(totals.success_rate)||0)+'%':'—'}</strong><small>Completed ÷ terminal executions</small><i className="analytics-stat-mark">03 / OUTCOME</i></article>
           <article><span>AVG. EXECUTION</span><strong>{fmtMs(data.latency?.average_ms)}</strong><small>{data.latency?.samples||0} terminal-run samples</small><i className="analytics-stat-mark">04 / LATENCY</i></article>
         </div>
+        <section className="analytics-panel analytics-retry-panel">
+          <div className="analytics-panel-heading">
+            <div><span className="editorial-kicker">RECOVERY / EXPLICIT RETRIES</span><h3>Retry health</h3></div>
+            <span className="analytics-panel-total">{retryOutcomes.lineages_with_retries??0} <small>LINEAGES</small></span>
+          </div>
+          <div className="analytics-retry-stat-grid">
+            <article><span>RETRY ATTEMPTS</span><strong>{retryOutcomes.total_attempts??0}</strong><small>{retryOutcomes.active??0} currently active</small></article>
+            <article><span>COMPLETION RATE</span><strong>{retryOutcomes.terminal?(Number(retryOutcomes.completion_rate)||0)+'%':'—'}</strong><small>{retryOutcomes.completed??0} completed of terminal retry attempts</small></article>
+            <article><span>RECOVERED AFTER FAILURE</span><strong>{retryOutcomes.recovered_after_failure??0}</strong><small>{retryOutcomes.resolved_after_failure??0} resolved retry attempts after an unsuccessful parent</small></article>
+            <article><span>MAX RETRY DEPTH</span><strong>{retryOutcomes.max_depth??0}</strong><small>Retries after the original attempt</small></article>
+          </div>
+          {retryDepths.length?<div className="analytics-retry-depths" aria-label="Retry outcomes by attempt depth">
+            <div className="analytics-retry-depth-heading"><span>ATTEMPT DEPTH</span><span>OUTCOMES</span><span>SHARE</span></div>
+            {retryDepths.map(item=>{
+              const count=Math.max(0,Number(item.total)||0);
+              const completed=Math.max(0,Number(item.completed)||0);
+              const failed=Math.max(0,Number(item.failed)||0);
+              const cancelled=Math.max(0,Number(item.cancelled)||0);
+              const timedOut=Math.max(0,Number(item.timed_out)||0);
+              const active=Math.max(0,Number(item.active)||0);
+              const percentage=count?Math.round(completed/count*100):0;
+              return <div className="analytics-retry-depth-row" key={item.retry_number}>
+                <strong>RETRY {item.retry_number}</strong>
+                <div className="analytics-retry-depth-copy"><span>{count} attempts</span><small>{completed} completed · {failed} failed · {cancelled+timedOut} cancelled/timed out · {active} active</small></div>
+                <div className="analytics-retry-depth-visual"><div className="analytics-retry-track" role="img" aria-label={percentage+' percent completed at retry depth '+item.retry_number}><i className="completed" style={{width:(count?completed/count*100:0)+'%'}}/><i className="failed" style={{width:(count?failed/count*100:0)+'%'}}/><i className="cancelled" style={{width:(count?(cancelled+timedOut)/count*100:0)+'%'}}/><i className="other" style={{width:(count?active/count*100:0)+'%'}}/></div><span>{percentage}% complete</span></div>
+              </div>;
+            })}
+          </div>:<div className="analytics-no-data"><strong>No retry attempts yet.</strong><span>Retries are explicit and available for eligible failed, cancelled, or timed-out records.</span></div>}
+          <p className="analytics-retry-note">Only stored retry attempts are counted. Completion rate includes terminal retry attempts; recovery rate is based on resolved retries whose parent attempt ended unsuccessfully. These metrics do not imply that generated code or proposed tests were executed.</p>
+        </section>
         <div className="analytics-main-grid">
           <section className="analytics-panel analytics-timeline-panel">
             <div className="analytics-panel-heading"><div><span className="editorial-kicker">THROUGHPUT / LAST {days} DAYS</span><h3>Run activity</h3></div><span className="analytics-panel-total">{daily.reduce((sum,item)=>sum+(Number(item.total)||0),0)} <small>RUNS</small></span></div>
