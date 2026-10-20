@@ -337,3 +337,7 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
     def test_json_parses_fenced_object(self):
         self.assertEqual(OpenAICompatibleProvider._json('```json\n{"quality": 82}\n```'), {"quality": 82})
 
+
+    def test_json_extracts_object_after_prose(self):
+        self.assertEqual(OpenAICompatibleProvider._json('Result follows: {"risk": "LOW"}'), {"risk": "LOW"})
+
