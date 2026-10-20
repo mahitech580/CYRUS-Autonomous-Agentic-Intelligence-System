@@ -150,3 +150,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_secure_websocket_scheme(self):
         self.assertFalse(_provider_url_is_allowed("wss://provider.example/v1"))
+
+    def test_reject_mailto_scheme(self):
+        self.assertFalse(_provider_url_is_allowed("mailto:ops@example.com"))
