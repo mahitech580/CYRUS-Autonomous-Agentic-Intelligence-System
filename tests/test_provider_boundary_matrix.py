@@ -240,3 +240,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_https_empty_host_with_query(self):
         self.assertFalse(_provider_url_is_allowed("https://?missing-host=1"))
+
+    def test_reject_encoded_localhost_lookalike(self):
+        self.assertFalse(_provider_url_is_allowed("http://localhost%2eattacker.example/v1"))
