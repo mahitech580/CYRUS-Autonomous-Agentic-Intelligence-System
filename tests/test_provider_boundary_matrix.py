@@ -201,3 +201,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_loopback_ip_lookalike_domain(self):
         self.assertFalse(_provider_url_is_allowed("http://127.0.0.1.attacker.example/v1"))
+
+    def test_reject_localhost_trailing_dot(self):
+        self.assertFalse(_provider_url_is_allowed("http://localhost./v1"))
