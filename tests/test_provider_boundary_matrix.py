@@ -314,3 +314,8 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("upstream rejected AKIAABCDEFGHIJKLMNOP")
         self.assertNotIn("AKIAABCDEFGHIJKLMNOP", result)
         self.assertIn("[redacted", result.lower())
+
+    def test_redacts_private_key_block(self):
+        result = _redact_provider_error_detail("-----BEGIN PRIVATE KEY-----\\nmatrix-private-key-body-093\\n-----END PRIVATE KEY-----")
+        self.assertNotIn("matrix-private-key-body-093", result)
+        self.assertIn("[redacted", result.lower())
