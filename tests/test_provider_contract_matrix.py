@@ -156,3 +156,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_filters_booleans_and_numbers(self):
         self.assertEqual(OpenAICompatibleProvider._string_list([True, 42, "valid"]), ["valid"])
+
+    def test_string_list_filters_whitespace_only_items(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list(["   ", "\n", "valid"]), ["valid"])
