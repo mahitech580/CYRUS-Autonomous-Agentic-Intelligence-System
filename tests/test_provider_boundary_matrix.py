@@ -350,3 +350,7 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
     def test_string_list_trims_and_filters_items(self):
         self.assertEqual(OpenAICompatibleProvider._string_list([" alpha ", "", 3, "beta"]), ["alpha", "beta"])
 
+
+    def test_string_list_reads_steps_from_object(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list({"steps": ["one", "two"]}), ["one", "two"])
+
