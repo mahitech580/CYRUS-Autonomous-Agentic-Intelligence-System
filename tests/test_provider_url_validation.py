@@ -76,5 +76,20 @@ class ProviderUrlValidationTests(unittest.TestCase):
         self.assertEqual(provider.base_url, "http://127.0.0.1:8080/v1")
 
 
+    def test_localhost_hostname_is_case_insensitive(self):
+        self.assertTrue(_provider_url_is_allowed("http://LOCALHOST:8080/v1"))
+
+    def test_high_ipv4_loopback_address_is_allowed(self):
+        self.assertTrue(_provider_url_is_allowed("http://127.254.10.20:8080/v1"))
+
+    def test_missing_scheme_is_rejected(self):
+        self.assertFalse(_provider_url_is_allowed("provider.example/v1"))
+
+    def test_url_with_empty_hostname_is_rejected(self):
+        self.assertFalse(_provider_url_is_allowed("https:///v1"))
+
+    def test_http_localhost_with_userinfo_is_rejected(self):
+        self.assertFalse(_provider_url_is_allowed("http://user@localhost:8080/v1"))
+
 if __name__ == "__main__":
     unittest.main()
