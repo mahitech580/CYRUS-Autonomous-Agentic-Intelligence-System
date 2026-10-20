@@ -105,3 +105,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_json_accepts_fence_without_label(self):
         self.assertEqual(OpenAICompatibleProvider._json('```\n{"ok": true}\n```'), {"ok": True})
+
+    def test_json_rejects_incomplete_object(self):
+        with self.assertRaisesRegex(ProviderError, "incomplete JSON"):
+                    OpenAICompatibleProvider._json('{"value": 1')
