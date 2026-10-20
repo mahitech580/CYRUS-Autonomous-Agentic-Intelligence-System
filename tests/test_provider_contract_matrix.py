@@ -204,3 +204,8 @@ class ProviderContractMatrixTests(unittest.TestCase):
     def test_redaction_scrubs_quoted_client_secret_value(self):
         result = _redact_provider_error_detail('{"client_secret": "client-secret-123"}')
                 self.assertNotIn("client-secret-123", result)
+
+    def test_redaction_scrubs_bearer_with_mixed_case(self):
+        result = _redact_provider_error_detail("bEaReR MixedCaseToken12345")
+                self.assertNotIn("MixedCaseToken12345", result)
+                self.assertIn("[redacted]", result)
