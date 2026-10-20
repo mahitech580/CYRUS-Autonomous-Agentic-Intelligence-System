@@ -87,3 +87,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_http_allowed_localhost_no_path(self):
         self.assertTrue(_provider_url_is_allowed("http://localhost"))
+
+    def test_http_allowed_localhost_port_80(self):
+        self.assertTrue(_provider_url_is_allowed("http://localhost:80/v1"))
