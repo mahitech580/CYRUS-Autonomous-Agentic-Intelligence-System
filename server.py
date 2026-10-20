@@ -27,6 +27,11 @@ RELEASE_ID = os.getenv("CYRUS_RELEASE", "local")[:80]
 API_ACCESS_KEY = os.getenv("CYRUS_API_ACCESS_KEY", "").strip()
 PUBLIC_API_GET_PATHS = {"/api/health", "/api/ready", "/api/provider", "/api/security"}
 MAX_TASK_RUNTIME_SECONDS = max(30, min(int(os.getenv("CYRUS_TASK_TIMEOUT_SECONDS", "240")), 900))
+try:
+    MAX_TASK_RETRIES = int(os.getenv("CYRUS_MAX_TASK_RETRIES", "3"))
+except ValueError:
+    MAX_TASK_RETRIES = 3
+MAX_TASK_RETRIES = max(0, min(MAX_TASK_RETRIES, 10))
 
 DEFAULT_CORS_ORIGINS = {
     "https://mahitech580.github.io",
@@ -235,7 +240,16 @@ def normalize_idempotency_key(raw):
         raise ValueError("Idempotency-Key must contain only safe ASCII characters and be at most 100 characters")
     return candidate
 
+def _retry_attempt_number(task):
+    try:
+        return max(0, min(int(task.get("retry_number") or 0), 1_000_000))
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
 def task_summary(task):
+    retry_number = _retry_attempt_number(task)
+    status = str(task.get("status") or "").upper()
     return {
         "task_id": task["task_id"],
         "created_at": task.get("created_at"),
@@ -260,7 +274,12 @@ def task_summary(task):
         "verification_status": task.get("verification_status", "UNKNOWN"),
         "score_method": task.get("score_method", "UNKNOWN"),
         "static_checks_passed": task.get("static_analysis", {}).get("checks_passed", 0),
-        "static_checks_failed": task.get("static_analysis", {}).get("checks_failed", 0)
+        "static_checks_failed": task.get("static_analysis", {}).get("checks_failed", 0),
+        "parent_task_id": task.get("parent_task_id"),
+        "retry_number": retry_number,
+        "retry_reason": task.get("retry_reason"),
+        "max_task_retries": task.get("max_task_retries", MAX_TASK_RETRIES),
+        "can_retry": status in {"FAILED", "CANCELLED", "TIMED_OUT"} and retry_number < MAX_TASK_RETRIES
     }
 
 def persist_task(task):
@@ -281,6 +300,10 @@ def persist_task(task):
         "summary": task.get("summary", ""),
         "artifacts": task.get("artifacts", []),
         "idempotency_key": task.get("idempotency_key"),
+        "parent_task_id": task.get("parent_task_id"),
+        "retry_number": _retry_attempt_number(task),
+        "retry_reason": task.get("retry_reason"),
+        "max_task_retries": task.get("max_task_retries", MAX_TASK_RETRIES),
         "current_agent": task.get("current_agent"),
         "tool_calls": task.get("tool_calls", 0),
         "plan": task.get("plan", []),
@@ -664,7 +687,7 @@ def prune_live_tasks_locked():
             task_id = task["task_id"]
             runtime["tasks"].pop(task_id, None)
 
-def create_task(prompt, mode, idempotency_key=None):
+def create_task(prompt, mode, idempotency_key=None, parent_task_id=None, retry_number=0, retry_reason=None):
     task_id = "CYRUS-" + uuid.uuid4().hex[:8].upper()
     task = {
         "task_id": task_id,
@@ -697,9 +720,21 @@ def create_task(prompt, mode, idempotency_key=None):
         "score_method": "UNSCORED",
         "static_analysis": {},
         "idempotency_key": idempotency_key,
+        "parent_task_id": parent_task_id,
+        "retry_number": max(0, min(int(retry_number or 0), 1_000_000)),
+        "retry_reason": retry_reason,
+        "max_task_retries": MAX_TASK_RETRIES,
         "events": [],
         "agents": [dict(agent, status="QUEUED") for agent in AGENTS]
     }
+    if parent_task_id:
+        event(
+            task,
+            "ORCHESTRATOR",
+            "RETRY_CREATED",
+            f"Created retry {task['retry_number']} from {parent_task_id}; previous outcome: {retry_reason or 'terminal failure'}.",
+            0,
+        )
     with runtime["lock"]:
         active = sum(1 for item in runtime["tasks"].values() if item.get("status") in {"RUNNING", "AWAITING_APPROVAL"})
         if active >= MAX_CONCURRENT_TASKS:
@@ -1063,6 +1098,154 @@ def approve_task(task_id):
         "status": "APPROVAL_GRANTED",
         "summary": "CYRUS will resume the release stage."
     }), 202
+
+@app.post("/api/tasks/<task_id>/retry")
+def retry_task(task_id):
+    """Create a fresh execution from a terminal task, preserving retry lineage."""
+    with runtime["lock"]:
+        source = runtime["tasks"].get(task_id)
+    if source is None:
+        source = next(
+            (item for item in reversed(load_history()) if item.get("task_id") == task_id),
+            None,
+        )
+    if source is None:
+        return jsonify({"error": "Task not found"}), 404
+
+    source_status = str(source.get("status") or "").upper()
+    if source_status not in {"FAILED", "CANCELLED", "TIMED_OUT"}:
+        return jsonify({
+            "error": "Only failed, cancelled, or timed-out tasks can be retried",
+            "status": source_status or "UNKNOWN",
+        }), 409
+
+    previous_retry_number = _retry_attempt_number(source)
+    if previous_retry_number >= MAX_TASK_RETRIES:
+        return jsonify({
+            "error": "The configured retry limit has been reached for this execution lineage",
+            "retry_number": previous_retry_number,
+            "max_task_retries": MAX_TASK_RETRIES,
+        }), 409
+
+    objective = source.get("objective")
+    mode = source.get("mode", "autonomous")
+    if not isinstance(objective, str) or not objective.strip():
+        return jsonify({"error": "The source task has no valid objective to retry"}), 409
+    objective = objective.strip()
+    if mode not in {"autonomous", "supervised"}:
+        return jsonify({"error": "The source task has an invalid execution mode"}), 409
+
+    try:
+        idempotency_key = normalize_idempotency_key(request.headers.get("Idempotency-Key"))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    allowed, retry_after = rate_limit_execution(request.remote_addr)
+    if not allowed:
+        limited = jsonify({
+            "error": "Execution submission rate limit exceeded",
+            "retry_after_seconds": retry_after,
+        })
+        limited.headers["Retry-After"] = str(retry_after)
+        return limited, 429
+
+    next_retry_number = previous_retry_number + 1
+    failure = source.get("failure")
+    failure_type = failure.get("type") if isinstance(failure, dict) else None
+    retry_reason = source_status + (":" + str(failure_type)[:80] if failure_type else "")
+    fingerprint = {
+        "prompt": objective,
+        "mode": mode,
+        "retry_of": task_id,
+        "retry_number": next_retry_number,
+    }
+
+    if idempotency_key:
+        with runtime["lock"]:
+            existing = runtime["idempotency"].get(idempotency_key)
+            if existing:
+                if existing.get("fingerprint") != fingerprint:
+                    return jsonify({"error": "Idempotency-Key was already used for a different request"}), 409
+                existing_task = runtime["tasks"].get(existing.get("task_id")) if existing.get("task_id") else None
+                if existing_task:
+                    return jsonify({
+                        "task_id": existing_task["task_id"],
+                        "status": existing_task.get("status", "RUNNING"),
+                        "retry_of": task_id,
+                        "retry_number": next_retry_number,
+                        "deduplicated": True,
+                    }), 200
+                historical = find_history_by_idempotency(idempotency_key)
+                if historical:
+                    return jsonify({
+                        "task_id": historical["task_id"],
+                        "status": historical.get("status", "UNKNOWN"),
+                        "retry_of": task_id,
+                        "retry_number": _retry_attempt_number(historical),
+                        "deduplicated": True,
+                    }), 200
+                return jsonify({"error": "Retry with this Idempotency-Key is already being created"}), 409
+
+            historical = find_history_by_idempotency(idempotency_key)
+            if historical:
+                same_retry = (
+                    historical.get("parent_task_id") == task_id
+                    and _retry_attempt_number(historical) == next_retry_number
+                    and historical.get("objective") == objective
+                    and historical.get("mode", "autonomous") == mode
+                )
+                if not same_retry:
+                    return jsonify({"error": "Idempotency-Key was already used for a different request"}), 409
+                runtime["idempotency"][idempotency_key] = {
+                    "fingerprint": fingerprint,
+                    "task_id": historical["task_id"],
+                }
+                return jsonify({
+                    "task_id": historical["task_id"],
+                    "status": historical.get("status", "UNKNOWN"),
+                    "retry_of": task_id,
+                    "retry_number": next_retry_number,
+                    "deduplicated": True,
+                }), 200
+
+            runtime["idempotency"][idempotency_key] = {
+                "fingerprint": fingerprint,
+                "task_id": None,
+            }
+
+    try:
+        task = create_task(
+            objective,
+            mode,
+            idempotency_key=idempotency_key,
+            parent_task_id=task_id,
+            retry_number=next_retry_number,
+            retry_reason=retry_reason,
+        )
+        if idempotency_key:
+            with runtime["lock"]:
+                runtime["idempotency"][idempotency_key]["task_id"] = task["task_id"]
+    except CapacityError as exc:
+        if idempotency_key:
+            with runtime["lock"]:
+                runtime["idempotency"].pop(idempotency_key, None)
+        return jsonify({"error": str(exc)}), 429
+    except Exception:
+        if idempotency_key:
+            with runtime["lock"]:
+                runtime["idempotency"].pop(idempotency_key, None)
+        raise
+
+    return jsonify({
+        "task_id": task["task_id"],
+        "status": task["status"],
+        "mode": mode,
+        "retry_of": task_id,
+        "retry_number": next_retry_number,
+        "max_task_retries": MAX_TASK_RETRIES,
+        "deduplicated": False,
+    }), 202
+
 
 @app.post("/api/tasks/<task_id>/cancel")
 def cancel_task(task_id):
