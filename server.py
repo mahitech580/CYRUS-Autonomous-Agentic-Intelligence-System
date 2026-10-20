@@ -123,6 +123,7 @@ TOOLS = [
 MAX_CONCURRENT_TASKS = max(1, min(int(os.getenv("CYRUS_MAX_CONCURRENT_TASKS", "4")), 16))
 MAX_LIVE_TASKS = max(20, min(int(os.getenv("CYRUS_MAX_LIVE_TASKS", "100")), 500))
 MAX_EXECUTIONS_PER_MINUTE = max(1, min(int(os.getenv("CYRUS_EXECUTIONS_PER_MINUTE", "12")), 120))
+MAX_RATE_LIMIT_KEYS = 1000
 history_lock = threading.RLock()
 HISTORY_STORE = HistoryStore(STORE.with_suffix(".sqlite3"))
 _legacy_migration_attempted = False
@@ -199,17 +200,27 @@ def rate_limit_execution(remote_addr):
     now = time.monotonic()
     window_start = now - 60
     with runtime["lock"]:
-        stamps = runtime["rate_limits"].setdefault(key, deque())
+        rate_limits = runtime["rate_limits"]
+        if key not in rate_limits and len(rate_limits) >= MAX_RATE_LIMIT_KEYS:
+            # Remove expired clients before deciding whether a new key can be tracked.
+            stale_keys = [
+                name for name, values in rate_limits.items()
+                if not values or values[-1] <= window_start
+            ]
+            for name in stale_keys:
+                rate_limits.pop(name, None)
+            # Refuse an untracked client rather than letting attacker-controlled
+            # address churn grow this in-memory limiter without a hard bound.
+            if len(rate_limits) >= MAX_RATE_LIMIT_KEYS:
+                return False, 60
+
+        stamps = rate_limits.setdefault(key, deque())
         while stamps and stamps[0] <= window_start:
             stamps.popleft()
         if len(stamps) >= MAX_EXECUTIONS_PER_MINUTE:
             retry_after = max(1, int(stamps[0] + 60 - now))
             return False, retry_after
         stamps.append(now)
-        if len(runtime["rate_limits"]) > 1000:
-            stale_keys = [name for name, values in runtime["rate_limits"].items() if not values or values[-1] <= window_start]
-            for name in stale_keys[:100]:
-                runtime["rate_limits"].pop(name, None)
     return True, 0
 
 def normalize_idempotency_key(raw):
