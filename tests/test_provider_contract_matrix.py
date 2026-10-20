@@ -141,3 +141,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_enforces_minimum_exactly(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["one", "two"], minimum=2), ["one", "two"])
+
+    def test_string_list_rejects_below_custom_minimum(self):
+        with self.assertRaisesRegex(ProviderError, "too few usable list items"):
+                    OpenAICompatibleProvider._string_list(["one", "two", "three"], minimum=4)
