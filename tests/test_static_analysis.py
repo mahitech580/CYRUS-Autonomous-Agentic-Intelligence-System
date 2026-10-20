@@ -29,6 +29,24 @@ class DraftStaticAnalysisTests(unittest.TestCase):
         self.assertEqual(secret_check["status"], "FAIL")
         self.assertNotIn("sk-", secret_check["detail"])
 
+    def test_common_provider_tokens_are_flagged_without_echoing_values(self):
+        values = [
+            "ghp_" + "G" * 30,
+            "github_pat_" + "H" * 35,
+            "AIza" + "I" * 35,
+            "xoxb-" + "S" * 24,
+            "eyJ" + "a" * 12 + "." + "b" * 12 + "." + "c" * 12,
+            "Bearer " + "T" * 28,
+        ]
+        result = analyze_draft(" ".join(values))
+        check = next(item for item in result["checks"] if item["name"] == "likely_secret_scan")
+        self.assertEqual(check["status"], "FAIL")
+        for label in ("GitHub token", "Google API key", "Slack token", "JWT", "bearer token"):
+            self.assertIn(label, check["detail"])
+        for value in values:
+            self.assertNotIn(value, check["detail"])
+        self.assertFalse(result["code_executed"])
+
     def test_unbalanced_code_fence_is_flagged(self):
         result = analyze_draft("Draft with a fence " + chr(96) * 3 + "python")
         check = next(item for item in result["checks"] if item["name"] == "markdown_code_fences")
