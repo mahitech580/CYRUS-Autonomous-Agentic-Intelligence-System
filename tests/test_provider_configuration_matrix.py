@@ -24,3 +24,6 @@ def provider_with_env(**overrides):
 class ProviderConfigurationMatrixTests(unittest.TestCase):
     """Verify offline/live selection and clamped provider timeout settings."""
 
+
+    def test_no_api_key_uses_demo(self):
+        self.assertIsInstance(provider_with_env(CYRUS_LLM_API_KEY=""), DeterministicProvider)
