@@ -156,3 +156,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_https_empty_hostname(self):
         self.assertFalse(_provider_url_is_allowed("https:///v1"))
+
+    def test_reject_http_empty_hostname(self):
+        self.assertFalse(_provider_url_is_allowed("http:///v1"))
