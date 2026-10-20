@@ -15,6 +15,9 @@ import os
 import re
 
 
+MAX_PROVIDER_RESPONSE_BYTES = 2_000_000
+
+
 class ProviderError(RuntimeError):
     """A safe, user-facing error raised when the configured model is unavailable."""
 
@@ -145,7 +148,12 @@ class OpenAICompatibleProvider:
         )
         try:
             with urlopen(request, timeout=self.timeout_seconds) as response:
-                payload = json.loads(response.read(2_000_000).decode("utf-8"))
+                raw_response = response.read(MAX_PROVIDER_RESPONSE_BYTES + 1)
+                if len(raw_response) > MAX_PROVIDER_RESPONSE_BYTES:
+                    raise ProviderError(
+                        f"LLM provider response exceeded the {MAX_PROVIDER_RESPONSE_BYTES}-byte limit."
+                    )
+                payload = json.loads(raw_response.decode("utf-8"))
         except HTTPError as exc:
             try:
                 detail = exc.read(1200).decode("utf-8", errors="replace")
