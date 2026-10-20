@@ -20,3 +20,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_accepts_unicode(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["café", "東京"]), ["café", "東京"])
+
+    def test_string_list_trims_newline_padding(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list(["\n alpha \n"]), ["alpha"])
