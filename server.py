@@ -267,6 +267,15 @@ def task_summary(task):
     retry_limit = _task_retry_limit(task)
     effective_retry_limit = _effective_task_retry_limit(task)
     status = str(task.get("status") or "").upper()
+    artifacts = task.get("artifacts")
+    if not isinstance(artifacts, list):
+        artifacts = []
+    events = task.get("events")
+    if not isinstance(events, list):
+        events = []
+    static_analysis = task.get("static_analysis")
+    if not isinstance(static_analysis, dict):
+        static_analysis = {}
     return {
         "task_id": task["task_id"],
         "created_at": task.get("created_at"),
@@ -285,13 +294,13 @@ def task_summary(task):
         "tool_calls": task.get("tool_calls", 0),
         "tests_passed": task.get("tests_passed", 0),
         "tests_failed": task.get("tests_failed", 0),
-        "artifact_count": len(task.get("artifacts", [])),
-        "event_count": len(task.get("events", [])),
+        "artifact_count": len(artifacts),
+        "event_count": len(events),
         "provider": task.get("provider", PROVIDER.name),
         "verification_status": task.get("verification_status", "UNKNOWN"),
         "score_method": task.get("score_method", "UNKNOWN"),
-        "static_checks_passed": task.get("static_analysis", {}).get("checks_passed", 0),
-        "static_checks_failed": task.get("static_analysis", {}).get("checks_failed", 0),
+        "static_checks_passed": static_analysis.get("checks_passed", 0),
+        "static_checks_failed": static_analysis.get("checks_failed", 0),
         "parent_task_id": task.get("parent_task_id"),
         "retry_number": retry_number,
         "retry_reason": task.get("retry_reason"),
@@ -949,7 +958,7 @@ def all_task_records():
         task_id = item.get("task_id")
         if task_id:
             merged[str(task_id)] = item
-    return sorted(merged.values(), key=lambda item: item.get("created_at", ""), reverse=True)
+    return sorted(merged.values(), key=lambda item: str(item.get("created_at") or ""), reverse=True)
 
 
 @app.get("/api/tasks")
