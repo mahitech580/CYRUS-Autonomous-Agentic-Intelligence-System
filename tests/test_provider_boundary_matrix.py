@@ -36,3 +36,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_https_allowed_models_endpoint(self):
         self.assertTrue(_provider_url_is_allowed("https://provider.example/v1/models"))
+
+    def test_https_allowed_nested_subdomain(self):
+        self.assertTrue(_provider_url_is_allowed("https://api.eu.provider.example/v1"))
