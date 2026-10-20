@@ -309,3 +309,8 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("provider credential sk-abcdefghijklmnopqrstuvwxyz0123456789")
         self.assertNotIn("sk-abcdefghijklmnopqrstuvwxyz0123456789", result)
         self.assertIn("[redacted", result.lower())
+
+    def test_redacts_aws_access_key_identifier(self):
+        result = _redact_provider_error_detail("upstream rejected AKIAABCDEFGHIJKLMNOP")
+        self.assertNotIn("AKIAABCDEFGHIJKLMNOP", result)
+        self.assertIn("[redacted", result.lower())
