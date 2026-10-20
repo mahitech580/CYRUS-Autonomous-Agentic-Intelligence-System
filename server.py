@@ -279,7 +279,7 @@ def task_summary(task):
         "parent_task_id": task.get("parent_task_id"),
         "retry_number": retry_number,
         "retry_reason": task.get("retry_reason"),
-        "max_task_retries": task.get("max_task_retries", MAX_TASK_RETRIES),
+        "max_task_retries": MAX_TASK_RETRIES,
         "can_retry": status in {"FAILED", "CANCELLED", "TIMED_OUT"} and retry_number < MAX_TASK_RETRIES
     }
 
@@ -1440,7 +1440,9 @@ def task_detail(task_id):
             snapshot = dict(item)
             snapshot.setdefault("retry_number", 0)
             snapshot.setdefault("retry_reason", None)
-            snapshot.setdefault("max_task_retries", MAX_TASK_RETRIES)
+            # The retry budget is deployment policy, not immutable task data.
+            # Older records may contain the cap from a prior deployment.
+            snapshot["max_task_retries"] = MAX_TASK_RETRIES
             return jsonify(snapshot)
     return jsonify({"error": "Task not found"}), 404
 
