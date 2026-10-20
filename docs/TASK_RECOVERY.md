@@ -30,9 +30,21 @@ A successful new attempt returns HTTP 202. A recognized duplicate returns HTTP 2
 
 Each source task can have one direct retry child. Repeating the action with a fresh key returns that child instead of creating sibling jobs. To retry again after the child fails, open that child and retry it; this creates a traceable chain and keeps the retry depth meaningful.
 
+## Lineage endpoint
+
+```http
+GET /api/tasks/{task_id}/lineage
+X-CYRUS-Access-Key: <only when API access protection is enabled>
+```
+
+The endpoint returns `current_task_id`, `root_task_id`, `attempt_count`, `truncated`, and an `attempts` array ordered from the root toward descendants. The graph walk tolerates missing legacy parents, duplicate historical branches, and cyclic or malformed parent pointers without looping forever. It caps the connected result at 50 summaries and marks `truncated: true` when more records remain.
+
+The result deliberately uses the compact task summary schema. It does **not** include implementation drafts, raw trace payloads, artifacts, or provider credentials. The execution inspector renders this response as an attempt timeline. Selecting an attempt opens that task record; retrying still requires the selected record to have a terminal, retryable status and remaining budget.
+
+
 ## Data and report behavior
 
-Retry metadata is saved with the normal execution history snapshot and appears in compact task results. The task modal shows the source attempt and offers a link back to it. JSON, Markdown, and CSV reports carry the lineage so exported records can be correlated without relying on browser state.
+Retry metadata is saved with the normal execution history snapshot and appears in compact task results. The task modal shows the connected retry chain and lets operators open each attempt. JSON, Markdown, and CSV reports carry the lineage so exported records can be correlated without relying on browser state.
 
 Artifacts, review scores, and static-analysis results from the parent are **not copied into the new attempt**. The retry starts with a clean runtime record, and its verification results are populated only by its own execution. The previous failure is preserved in the previous record, not re-labelled as the new attempt's result.
 
