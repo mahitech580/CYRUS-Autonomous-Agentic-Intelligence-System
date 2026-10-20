@@ -709,6 +709,26 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn('"status":"COMPLETED"', body)
         self.assertEqual(response.headers["Cache-Control"], "no-cache, no-transform")
 
+    def test_task_event_stream_ignores_cursor_from_another_task(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-STREAM-TARGET"] = {
+                "task_id": "CYRUS-STREAM-TARGET",
+                "status": "COMPLETED",
+                "current_agent": "RELEASE",
+                "updated_at": server.now_iso(),
+                "events": [
+                    {"event_id": "CYRUS-STREAM-TARGET-E001", "agent": "PLANNER"},
+                    {"event_id": "CYRUS-STREAM-TARGET-E002", "agent": "RELEASE"},
+                ],
+            }
+        response = self.client.get(
+            "/api/tasks/CYRUS-STREAM-TARGET/stream",
+            headers={"Last-Event-ID": "CYRUS-ANOTHER-TASK-E999"},
+        )
+        body = response.get_data(as_text=True)
+        self.assertIn("CYRUS-STREAM-TARGET-E001", body)
+        self.assertIn("CYRUS-STREAM-TARGET-E002", body)
+
     def test_task_event_stream_resumes_after_last_event_id(self):
         with server.runtime["lock"]:
             server.runtime["tasks"]["CYRUS-RESUME"] = {
