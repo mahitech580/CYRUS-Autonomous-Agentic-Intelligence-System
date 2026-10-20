@@ -96,3 +96,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_json_extracts_array_after_prose(self):
         self.assertEqual(OpenAICompatibleProvider._json('Checks: ["input", "output"]'), ["input", "output"])
+
+    def test_json_extracts_nested_object_after_prose(self):
+        self.assertEqual(OpenAICompatibleProvider._json('Draft JSON follows: {"meta": {"count": 2}}'), {"meta": {"count": 2}})
