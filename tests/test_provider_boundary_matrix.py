@@ -102,3 +102,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_http_allowed_ipv4_loopback_host_case_irrelevant(self):
         self.assertTrue(_provider_url_is_allowed("http://LOCALHOST/v1"))
+
+    def test_https_allowed_unicode_path(self):
+        self.assertTrue(_provider_url_is_allowed("https://provider.example/v1/chat/completions"))
