@@ -299,3 +299,8 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("provider returned Bearer matrix-inline-secret-089")
         self.assertNotIn("matrix-inline-secret-089", result)
         self.assertIn("[redacted", result.lower())
+
+    def test_redacts_quoted_json_api_key(self):
+        result = _redact_provider_error_detail("{\"api_key\": \"matrix-json-secret-090\"}")
+        self.assertNotIn("matrix-json-secret-090", result)
+        self.assertIn("[redacted", result.lower())
