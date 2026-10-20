@@ -415,6 +415,9 @@ class CyrusApiContractTests(unittest.TestCase):
                 "mode": "autonomous",
                 "status": "FAILED",
                 "created_at": "2026-10-20T09:00:00Z",
+                "artifacts": None,
+                "events": None,
+                "static_analysis": None,
             },
             {
                 "task_id": "CYRUS-HISTORY-RETRY",
@@ -433,6 +436,9 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["attempt_count"], 2)
         self.assertEqual(response.get_json()["attempts"][0]["retry_number"], 0)
+        self.assertEqual(response.get_json()["attempts"][0]["artifact_count"], 0)
+        self.assertEqual(response.get_json()["attempts"][0]["event_count"], 0)
+        self.assertEqual(response.get_json()["attempts"][0]["static_checks_passed"], 0)
         self.assertEqual(missing.status_code, 404)
         self.assertEqual(missing.get_json()["error"], "Task not found")
 
