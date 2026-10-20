@@ -189,3 +189,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_http_link_local_ipv6(self):
         self.assertFalse(_provider_url_is_allowed("http://[fe80::1]/v1"))
+
+    def test_reject_localhost_lookalike_domain(self):
+        self.assertFalse(_provider_url_is_allowed("http://localhost.evil/v1"))
