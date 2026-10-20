@@ -66,3 +66,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_http_allowed_ipv4_loopback_subnet(self):
         self.assertTrue(_provider_url_is_allowed("http://127.1.2.3:8080/v1"))
+
+    def test_http_allowed_high_ipv4_loopback(self):
+        self.assertTrue(_provider_url_is_allowed("http://127.254.10.20:8080/v1"))
