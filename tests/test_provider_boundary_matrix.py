@@ -210,3 +210,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_non_numeric_port(self):
         self.assertFalse(_provider_url_is_allowed("https://provider.example:bad/v1"))
+
+    def test_reject_out_of_range_port(self):
+        self.assertFalse(_provider_url_is_allowed("https://provider.example:99999/v1"))
