@@ -248,8 +248,17 @@ def _retry_attempt_number(task):
         return 0
 
 
+def _task_retry_limit(task):
+    try:
+        limit = int(task.get("max_task_retries", MAX_TASK_RETRIES))
+    except (TypeError, ValueError, OverflowError):
+        limit = MAX_TASK_RETRIES
+    return max(0, min(limit, 10))
+
+
 def task_summary(task):
     retry_number = _retry_attempt_number(task)
+    retry_limit = _task_retry_limit(task)
     status = str(task.get("status") or "").upper()
     return {
         "task_id": task["task_id"],
@@ -279,8 +288,8 @@ def task_summary(task):
         "parent_task_id": task.get("parent_task_id"),
         "retry_number": retry_number,
         "retry_reason": task.get("retry_reason"),
-        "max_task_retries": MAX_TASK_RETRIES,
-        "can_retry": status in {"FAILED", "CANCELLED", "TIMED_OUT"} and retry_number < MAX_TASK_RETRIES
+        "max_task_retries": retry_limit,
+        "can_retry": status in {"FAILED", "CANCELLED", "TIMED_OUT"} and retry_number < retry_limit
     }
 
 def persist_task(task):
@@ -688,7 +697,7 @@ def prune_live_tasks_locked():
             task_id = task["task_id"]
             runtime["tasks"].pop(task_id, None)
 
-def create_task(prompt, mode, idempotency_key=None, parent_task_id=None, retry_number=0, retry_reason=None):
+def create_task(prompt, mode, idempotency_key=None, parent_task_id=None, retry_number=0, retry_reason=None, max_task_retries=None):
     task_id = "CYRUS-" + uuid.uuid4().hex[:8].upper()
     task = {
         "task_id": task_id,
@@ -724,7 +733,7 @@ def create_task(prompt, mode, idempotency_key=None, parent_task_id=None, retry_n
         "parent_task_id": parent_task_id,
         "retry_number": max(0, min(int(retry_number or 0), 1_000_000)),
         "retry_reason": retry_reason,
-        "max_task_retries": MAX_TASK_RETRIES,
+        "max_task_retries": MAX_TASK_RETRIES if max_task_retries is None else max(0, min(int(max_task_retries), 10)),
         "events": [],
         "agents": [dict(agent, status="QUEUED") for agent in AGENTS]
     }
@@ -1121,11 +1130,12 @@ def retry_task(task_id):
         }), 409
 
     previous_retry_number = _retry_attempt_number(source)
-    if previous_retry_number >= MAX_TASK_RETRIES:
+    retry_limit = _task_retry_limit(source)
+    if previous_retry_number >= retry_limit:
         return jsonify({
             "error": "The configured retry limit has been reached for this execution lineage",
             "retry_number": previous_retry_number,
-            "max_task_retries": MAX_TASK_RETRIES,
+            "max_task_retries": retry_limit,
         }), 409
 
     objective = source.get("objective")
@@ -1252,7 +1262,7 @@ def retry_task(task_id):
                 "mode": existing_retry.get("mode", mode),
                 "retry_of": task_id,
                 "retry_number": next_retry_number,
-                "max_task_retries": MAX_TASK_RETRIES,
+                "max_task_retries": retry_limit,
                 "deduplicated": True,
             }), 200
 
@@ -1264,6 +1274,7 @@ def retry_task(task_id):
                 parent_task_id=task_id,
                 retry_number=next_retry_number,
                 retry_reason=retry_reason,
+                max_task_retries=retry_limit,
             )
             if idempotency_key:
                 with runtime["lock"]:
@@ -1285,7 +1296,7 @@ def retry_task(task_id):
             "mode": mode,
             "retry_of": task_id,
             "retry_number": next_retry_number,
-            "max_task_retries": MAX_TASK_RETRIES,
+            "max_task_retries": retry_limit,
             "deduplicated": False,
         }), 202
     finally:
@@ -1440,9 +1451,9 @@ def task_detail(task_id):
             snapshot = dict(item)
             snapshot.setdefault("retry_number", 0)
             snapshot.setdefault("retry_reason", None)
-            # The retry budget is deployment policy, not immutable task data.
-            # Older records may contain the cap from a prior deployment.
-            snapshot["max_task_retries"] = MAX_TASK_RETRIES
+            # Legacy history has no retry budget; existing lineage metadata is
+            # intentionally preserved so exported reports remain historically accurate.
+            snapshot.setdefault("max_task_retries", MAX_TASK_RETRIES)
             return jsonify(snapshot)
     return jsonify({"error": "Task not found"}), 404
 
