@@ -256,3 +256,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_scrubs_bearer_before_semicolon(self):
         self.assertNotIn("semiBearerABC123", _redact_provider_error_detail("failure Bearer semiBearerABC123; status=401"))
+
+    def test_redaction_scrubs_bearer_with_punctuation(self):
+        self.assertNotIn("punctBearerABC123", _redact_provider_error_detail("failure Bearer punctBearerABC123."))
