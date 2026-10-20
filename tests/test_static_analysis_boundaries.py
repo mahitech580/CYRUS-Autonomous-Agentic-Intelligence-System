@@ -32,3 +32,7 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
     def test_text_at_size_limit_passes_size_check(self):
         result = analyze_draft("x" * MAX_DRAFT_CHARS)
                     self.assertEqual(self.check(result, "draft_size_limit")["status"], "PASS")
+
+    def test_text_one_character_over_limit_fails_size_check(self):
+        result = analyze_draft("x" * (MAX_DRAFT_CHARS + 1))
+                    self.assertEqual(self.check(result, "draft_size_limit")["status"], "FAIL")
