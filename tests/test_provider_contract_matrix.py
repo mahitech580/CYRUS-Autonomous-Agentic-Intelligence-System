@@ -35,3 +35,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_supports_checks_key(self):
         self.assertEqual(OpenAICompatibleProvider._string_list({"checks": ["check one", "check two"]}), ["check one", "check two"])
+
+    def test_string_list_supports_steps_key_precedence(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list({"steps": ["step"], "checks": ["check"]}), ["step"])
