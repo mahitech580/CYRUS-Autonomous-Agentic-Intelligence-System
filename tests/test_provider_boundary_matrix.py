@@ -75,3 +75,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_http_allowed_ipv4_loopback_max_port(self):
         self.assertTrue(_provider_url_is_allowed("http://127.3.4.5:65535/v1"))
+
+    def test_http_allowed_ipv6_loopback(self):
+        self.assertTrue(_provider_url_is_allowed("http://[::1]:8080/v1"))
