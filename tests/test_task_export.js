@@ -23,6 +23,34 @@ test('builds a versioned report from an execution record', () => {
   assert.match(report.notice, /detection is not exhaustive/);
 });
 
+test('preserves retry lineage across JSON, Markdown and CSV exports', () => {
+  const task = {
+    task_id: 'CYRUS-RETRY-002',
+    objective: 'Retry a timed-out execution',
+    status: 'RUNNING',
+    parent_task_id: 'CYRUS-RETRY-001',
+    retry_number: 2,
+    retry_reason: 'TIMED_OUT:TaskTimedOut',
+    max_task_retries: 3
+  };
+  const json = buildTaskReport(task);
+  assert.equal(json.task.parent_task_id, 'CYRUS-RETRY-001');
+  assert.equal(json.task.retry_number, 2);
+  assert.equal(json.task.retry_reason, 'TIMED_OUT:TaskTimedOut');
+  assert.equal(json.task.max_task_retries, 3);
+
+  const markdown = buildTaskMarkdownReport(task);
+  assert.match(markdown, /Retry of:\\*\\* CYRUS-RETRY-001/);
+  assert.match(markdown, /Retry attempt:\\*\\* 2/);
+  assert.match(markdown, /Retry reason:\\*\\* TIMED_OUT:TaskTimedOut/);
+
+  const csv = buildTaskCsvReport(task);
+  assert.ok(csv.includes('Retry source task,CYRUS-RETRY-001\\r\\n'));
+  assert.ok(csv.includes('Retry number,2\\r\\n'));
+  assert.ok(csv.includes('Retry reason,TIMED_OUT:TaskTimedOut\\r\\n'));
+  assert.ok(csv.includes('Retry limit,3\\r\\n'));
+});
+
 test('omits credential-like fields at the root and inside nested trace data', () => {
   const report = buildTaskReport({
     task_id: 'CYRUS-SECURE',
