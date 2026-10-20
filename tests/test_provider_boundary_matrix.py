@@ -180,3 +180,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_http_link_local_ipv4(self):
         self.assertFalse(_provider_url_is_allowed("http://169.254.10.20/v1"))
+
+    def test_reject_http_global_ipv6(self):
+        self.assertFalse(_provider_url_is_allowed("http://[2001:4860:4860::8888]/v1"))
