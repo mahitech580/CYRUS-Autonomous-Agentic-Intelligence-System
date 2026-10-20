@@ -3033,6 +3033,7 @@ body:after{
 .task-lineage-row:hover:not(:disabled){background:rgba(98,221,170,.065)!important;border-color:rgba(98,221,170,.3)!important}
 .task-lineage-row:focus-visible{outline:2px solid #9de9c7;outline-offset:2px}
 .task-lineage-row:disabled{cursor:default;opacity:1;border-color:rgba(255,190,115,.4)!important;background:rgba(255,171,89,.07)!important}
+.task-lineage-row.current{cursor:default;border-color:rgba(255,190,115,.4)!important;background:rgba(255,171,89,.07)!important}
 .task-lineage-step{font:8px var(--mono);letter-spacing:.05em;color:var(--muted);white-space:nowrap}
 .task-lineage-record{display:flex;flex-direction:column;gap:4px;min-width:0}
 .task-lineage-record>strong{font:10px var(--mono)!important;letter-spacing:0!important;color:var(--text)!important;overflow-wrap:anywhere}
