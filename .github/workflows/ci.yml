@@ -42,4 +42,5 @@ jobs:
           node tests/test_demo_bridge.js
           node tests/test_event_stream.js
           node tests/test_task_export.js
+          node --test tests/test_task_export_boundaries.js
           node tests/test_deployment.js
