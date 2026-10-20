@@ -284,3 +284,8 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("password=matrix-password-secret-086")
         self.assertNotIn("matrix-password-secret-086", result)
         self.assertIn("[redacted", result.lower())
+
+    def test_redacts_credential_assignment(self):
+        result = _redact_provider_error_detail("credential=matrix-credential-secret-087")
+        self.assertNotIn("matrix-credential-secret-087", result)
+        self.assertIn("[redacted", result.lower())
