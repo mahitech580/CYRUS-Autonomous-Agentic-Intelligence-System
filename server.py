@@ -575,7 +575,7 @@ def _run_task(task):
 
         check_task_cancelled(task)
         if time.perf_counter() - started > MAX_TASK_RUNTIME_SECONDS:
-            raise RuntimeError(f"Execution exceeded the {MAX_TASK_RUNTIME_SECONDS}-second task deadline")
+            raise TaskTimedOut(f"Execution exceeded the {MAX_TASK_RUNTIME_SECONDS}-second task deadline")
         observed_duration = int((time.perf_counter() - stage_started) * 1000)
         with runtime["lock"]:
             for item in task["agents"]:
