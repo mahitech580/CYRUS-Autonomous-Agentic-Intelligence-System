@@ -72,3 +72,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_json_preserves_unicode_values(self):
         self.assertEqual(OpenAICompatibleProvider._json('{"city": "東京"}'), {"city": "東京"})
+
+    def test_json_parses_nested_objects(self):
+        self.assertEqual(OpenAICompatibleProvider._json('{"review": {"risk": "LOW"}}'), {"review": {"risk": "LOW"}})
