@@ -63,3 +63,7 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
         source = FENCE + "python\nx = 1\n" + FENCE + "\n" + FENCE + "python\ndef broken(:\n" + FENCE
                     result = analyze_draft(source)
                     self.assertEqual(self.check(result, "python_syntax")["status"], "FAIL")
+
+    def test_unmatched_fence_marks_fence_check_failed(self):
+        result = analyze_draft("notes " + FENCE + "python")
+                    self.assertEqual(self.check(result, "markdown_code_fences")["status"], "FAIL")
