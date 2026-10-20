@@ -235,3 +235,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_scrubs_uppercase_api_key_label(self):
         self.assertNotIn("upperCaseSecret123", _redact_provider_error_detail("API_KEY=upperCaseSecret123"))
+
+    def test_redaction_scrubs_uppercase_access_token_label(self):
+        self.assertNotIn("accessTokenABC123", _redact_provider_error_detail("ACCESS_TOKEN: accessTokenABC123"))
