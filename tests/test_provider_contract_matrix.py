@@ -32,3 +32,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_supports_considerations_key(self):
         self.assertEqual(OpenAICompatibleProvider._string_list({"considerations": ["risk one", "risk two"]}), ["risk one", "risk two"])
+
+    def test_string_list_supports_checks_key(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list({"checks": ["check one", "check two"]}), ["check one", "check two"])
