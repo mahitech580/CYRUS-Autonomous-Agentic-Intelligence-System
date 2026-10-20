@@ -213,3 +213,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_out_of_range_port(self):
         self.assertFalse(_provider_url_is_allowed("https://provider.example:99999/v1"))
+
+    def test_reject_malformed_ipv6_bracket(self):
+        self.assertFalse(_provider_url_is_allowed("http://[::1/v1"))
