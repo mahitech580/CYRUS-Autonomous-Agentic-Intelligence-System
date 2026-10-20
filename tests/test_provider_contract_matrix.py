@@ -46,3 +46,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
     def test_string_list_rejects_string(self):
         with self.assertRaisesRegex(ProviderError, "unexpected list format"):
                     OpenAICompatibleProvider._string_list("alpha")
+
+    def test_string_list_rejects_integer(self):
+        with self.assertRaisesRegex(ProviderError, "unexpected list format"):
+                    OpenAICompatibleProvider._string_list(3)
