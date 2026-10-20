@@ -67,6 +67,52 @@ class AnalyticsApiTests(unittest.TestCase):
         self.assertEqual(payload["failure_types"][0]["type"], "ProviderError")
         self.assertEqual(payload["providers"][0]["name"], "test-provider")
 
+    def test_analytics_measures_retry_outcomes_recovery_and_depth(self):
+        original_a = task_record(
+            "CYRUS-RETRY-ROOT-A", "Retry analytics", "FAILED", 250,
+            {"type": "ProviderError", "message": "synthetic failure"},
+        )
+        retry_a = task_record("CYRUS-RETRY-A-1", "Retry analytics", "COMPLETED", 700)
+        retry_a.update(parent_task_id=original_a["task_id"], retry_number=1, max_task_retries=3)
+
+        original_b = task_record(
+            "CYRUS-RETRY-ROOT-B", "Retry analytics", "TIMED_OUT", 1000,
+            {"type": "TaskTimedOut", "message": "synthetic timeout"},
+        )
+        retry_b1 = task_record("CYRUS-RETRY-B-1", "Retry analytics", "FAILED", 400)
+        retry_b1.update(parent_task_id=original_b["task_id"], retry_number=1, max_task_retries=3)
+        retry_b2 = task_record("CYRUS-RETRY-B-2", "Retry analytics", "COMPLETED", 600)
+        retry_b2.update(
+            parent_task_id=retry_b1["task_id"],
+            retry_number=2,
+            retry_reason="FAILED:ProviderError",
+            max_task_retries=3,
+        )
+        records = [original_a, retry_a, original_b, retry_b1, retry_b2]
+
+        with patch("server.load_history", return_value=records):
+            response = self.client.get("/api/analytics?days=7")
+
+        self.assertEqual(response.status_code, 200)
+        retry_data = response.get_json()["retry_outcomes"]
+        self.assertEqual(retry_data["total_attempts"], 3)
+        self.assertEqual(retry_data["lineages_with_retries"], 2)
+        self.assertEqual(retry_data["completed"], 2)
+        self.assertEqual(retry_data["failed"], 1)
+        self.assertEqual(retry_data["timed_out"], 0)
+        self.assertEqual(retry_data["active"], 0)
+        self.assertEqual(retry_data["terminal"], 3)
+        self.assertEqual(retry_data["completion_rate"], 66.7)
+        self.assertEqual(retry_data["eligible_after_failure"], 3)
+        self.assertEqual(retry_data["resolved_after_failure"], 3)
+        self.assertEqual(retry_data["recovered_after_failure"], 2)
+        self.assertEqual(retry_data["recovery_rate"], 66.7)
+        self.assertEqual(retry_data["max_depth"], 2)
+        self.assertEqual(
+            [(item["retry_number"], item["total"], item["completed"], item["failed"]) for item in retry_data["by_depth"]],
+            [(1, 2, 1, 1), (2, 1, 1, 0)],
+        )
+
     def test_task_list_supports_backend_search_and_mode_filter(self):
         with patch("server.load_history", return_value=self.records):
             response = self.client.get("/api/tasks?q=deepfake&mode=autonomous&limit=10")
