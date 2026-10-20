@@ -240,3 +240,8 @@ class ProviderContractMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("authorization: Bearer abcdef12345")
                 self.assertNotIn("abcdef12345", result)
                 self.assertIn("[redacted]", result)
+
+    def test_redaction_scrubs_api_key_with_hyphen(self):
+        result = _redact_provider_error_detail("api-key: abcdef12345")
+                self.assertNotIn("abcdef12345", result)
+                self.assertIn("[redacted]", result)
