@@ -50,3 +50,8 @@ test("preserves unicode objective text", () => {
   const report = reportApi.buildTaskReport(task({objective: 'Analyze 東京, café, and 🚀 safely'}));
     assert.equal(report.task.objective, 'Analyze 東京, café, and 🚀 safely');
 });
+
+test("does not warn on ordinary engineering prose", () => {
+  const report = reportApi.buildTaskReport(task({summary: 'Provider returned a timeout; retry after backoff.'}));
+    assert.equal(report.sensitive_text_warnings.length, 0);
+});
