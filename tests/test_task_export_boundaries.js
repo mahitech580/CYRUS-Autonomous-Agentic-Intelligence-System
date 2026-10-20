@@ -55,3 +55,10 @@ test("does not warn on ordinary engineering prose", () => {
   const report = reportApi.buildTaskReport(task({summary: 'Provider returned a timeout; retry after backoff.'}));
     assert.equal(report.sensitive_text_warnings.length, 0);
 });
+
+test("redacts provider style key from summary", () => {
+  const secret = 'sk-' + 'a'.repeat(24);
+    const report = reportApi.buildTaskReport(task({summary: 'Provider error: ' + secret}));
+    assert.ok(!report.task.summary.includes(secret));
+    assert.ok(report.task.summary.includes('[REDACTED:'));
+});
