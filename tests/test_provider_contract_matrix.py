@@ -66,3 +66,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
     def test_string_list_enforces_custom_minimum(self):
         with self.assertRaisesRegex(ProviderError, "too few usable list items"):
                     OpenAICompatibleProvider._string_list(["one", "two"], minimum=3)
+
+    def test_json_ignores_outer_whitespace(self):
+        self.assertEqual(OpenAICompatibleProvider._json('  \n {"ok": true} \t '), {"ok": True})
