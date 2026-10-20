@@ -45,3 +45,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_https_allowed_documentation_ipv4(self):
         self.assertTrue(_provider_url_is_allowed("https://192.0.2.10/v1"))
+
+    def test_https_allowed_ipv6_literal(self):
+        self.assertTrue(_provider_url_is_allowed("https://[2001:db8::1]/v1"))
