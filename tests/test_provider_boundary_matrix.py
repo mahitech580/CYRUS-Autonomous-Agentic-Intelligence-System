@@ -15,3 +15,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_https_allowed_base_path(self):
         self.assertTrue(_provider_url_is_allowed("https://provider.example/v1"))
+
+    def test_https_allowed_api_subdomain(self):
+        self.assertTrue(_provider_url_is_allowed("https://api.provider.example/v1"))
