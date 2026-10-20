@@ -138,3 +138,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
     def test_string_list_truncates_item_over_limit_by_one(self):
         item = "z" * 501
                 self.assertEqual(len(OpenAICompatibleProvider._string_list([item])[0]), 500)
+
+    def test_string_list_enforces_minimum_exactly(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list(["one", "two"], minimum=2), ["one", "two"])
