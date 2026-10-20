@@ -978,6 +978,26 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 405)
         self.assertIn("method", response.get_json()["error"].lower())
 
+    def test_legacy_history_detail_receives_current_retry_defaults_without_mutation(self):
+        legacy = {
+            "task_id": "CYRUS-LEGACY-FAILED",
+            "objective": "Retry legacy persisted work",
+            "mode": "autonomous",
+            "status": "FAILED",
+        }
+        with patch.object(server, "load_history", return_value=[legacy]), patch.object(
+            server, "MAX_TASK_RETRIES", 0
+        ):
+            response = self.client.get("/api/tasks/CYRUS-LEGACY-FAILED")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["retry_number"], 0)
+        self.assertIsNone(payload["retry_reason"])
+        self.assertEqual(payload["max_task_retries"], 0)
+        self.assertNotIn("retry_number", legacy)
+        self.assertNotIn("max_task_retries", legacy)
+
     def test_missing_task_is_explicit(self):
         response = self.client.get("/api/tasks/CYRUS-MISSING")
         self.assertEqual(response.status_code, 404)
