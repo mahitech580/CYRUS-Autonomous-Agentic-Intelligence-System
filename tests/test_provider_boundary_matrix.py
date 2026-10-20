@@ -39,3 +39,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_https_allowed_nested_subdomain(self):
         self.assertTrue(_provider_url_is_allowed("https://api.eu.provider.example/v1"))
+
+    def test_https_allowed_low_port(self):
+        self.assertTrue(_provider_url_is_allowed("https://provider.example:1/v1"))
