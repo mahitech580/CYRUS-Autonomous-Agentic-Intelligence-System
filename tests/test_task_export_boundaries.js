@@ -33,3 +33,8 @@ test("omits case insensitive secret field names", () => {
     assert.equal(report.task.API_KEY, undefined);
     assert.equal(report.task.Authorization, undefined);
 });
+
+test("recursively omits secret fields inside arrays", () => {
+  const report = reportApi.buildTaskReport(task({events: [{message: 'started', access_token: 'hidden'}, [{password: 'hidden', status: 'ok'}]]}));
+    assert.deepEqual(report.task.events, [{message: 'started'}, [{status: 'ok'}]]);
+});
