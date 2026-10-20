@@ -129,6 +129,37 @@ class CyrusApiContractTests(unittest.TestCase):
         finally:
             server.runtime["executor"] = original
 
+    def test_completed_future_is_not_retained_when_worker_finishes_during_submit(self):
+        class CompletedFuture:
+            def done(self):
+                return True
+
+        class ImmediateExecutor:
+            def submit(self, callback, task):
+                # Force the worker cleanup to happen before submit returns its Future.
+                callback(task)
+                return CompletedFuture()
+
+        def finish_immediately(task):
+            with server.runtime["lock"]:
+                task["status"] = "COMPLETED"
+                server.runtime["futures"].pop(task["task_id"], None)
+                server.runtime["cancel_events"].pop(task["task_id"], None)
+                server.runtime["approval_events"].pop(task["task_id"], None)
+
+        original_executor = server.runtime["executor"]
+        server.runtime["executor"] = ImmediateExecutor()
+        try:
+            with patch.object(server, "execute_task", side_effect=finish_immediately):
+                task = server.create_task("Finish before future registration", "autonomous")
+            with server.runtime["lock"]:
+                self.assertEqual(task["status"], "COMPLETED")
+                self.assertNotIn(task["task_id"], server.runtime["futures"])
+                self.assertNotIn(task["task_id"], server.runtime["cancel_events"])
+                self.assertNotIn(task["task_id"], server.runtime["approval_events"])
+        finally:
+            server.runtime["executor"] = original_executor
+
     def test_provider_contract_is_exposed(self):
         response = self.client.get("/api/health")
         payload = response.get_json()
