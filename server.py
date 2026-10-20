@@ -1213,6 +1213,33 @@ def retry_task(task_id):
                 "task_id": None,
             }
 
+    # A task may have one direct retry child. If a caller retries the same
+    # source with a fresh key (for example after losing the first response),
+    # return that attempt instead of creating parallel siblings.
+    existing_retry = next(
+        (
+            item for item in all_task_records()
+            if item.get("parent_task_id") == task_id
+            and _retry_attempt_number(item) == next_retry_number
+        ),
+        None,
+    )
+    if existing_retry:
+        if idempotency_key:
+            with runtime["lock"]:
+                entry = runtime["idempotency"].get(idempotency_key)
+                if entry and entry.get("fingerprint") == fingerprint:
+                    entry["task_id"] = existing_retry["task_id"]
+        return jsonify({
+            "task_id": existing_retry["task_id"],
+            "status": existing_retry.get("status", "UNKNOWN"),
+            "mode": existing_retry.get("mode", mode),
+            "retry_of": task_id,
+            "retry_number": next_retry_number,
+            "max_task_retries": MAX_TASK_RETRIES,
+            "deduplicated": True,
+        }), 200
+
     try:
         task = create_task(
             objective,
