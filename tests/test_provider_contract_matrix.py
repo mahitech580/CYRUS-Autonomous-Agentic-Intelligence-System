@@ -229,3 +229,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_returns_empty_for_empty_string(self):
         self.assertEqual(_redact_provider_error_detail(""), "")
+
+    def test_redaction_returns_empty_for_none(self):
+        self.assertEqual(_redact_provider_error_detail(None), "")
