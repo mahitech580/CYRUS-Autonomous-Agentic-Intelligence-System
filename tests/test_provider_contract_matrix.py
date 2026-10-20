@@ -171,3 +171,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
                 before = values.copy()
                 self.assertEqual(OpenAICompatibleProvider._string_list(values), ["one", "two"])
                 self.assertEqual(values, before)
+
+    def test_redaction_returns_empty_for_empty_string(self):
+        self.assertEqual(_redact_provider_error_detail(""), "")
