@@ -72,3 +72,8 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
         result = analyze_draft(FENCE + "javascript\nconst x = 1;\n" + FENCE)
                     self.assertEqual(self.check(result, "markdown_code_fences")["status"], "PASS")
                     self.assertEqual(self.check(result, "python_syntax")["status"], "SKIP")
+
+    def test_safe_python_block_reports_one_checked_block(self):
+        result = analyze_draft(FENCE + "python\ndef add(a, b):\n    return a + b\n" + FENCE)
+                    self.assertEqual(result["python_blocks_checked"], 1)
+                    self.assertFalse(result["code_executed"])
