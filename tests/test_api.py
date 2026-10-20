@@ -297,6 +297,47 @@ class CyrusApiContractTests(unittest.TestCase):
             self.assertEqual(len(children), 1)
             self.assertNotIn("retry-race-key-two", server.runtime["idempotency"])
 
+    def test_retry_lineage_cap_is_persisted_and_live_cap_is_stricter(self):
+        source = {
+            "task_id": "CYRUS-RETRY-POLICY-SOURCE",
+            "created_at": server.now_iso(),
+            "updated_at": server.now_iso(),
+            "objective": "Respect recorded and active retry caps",
+            "mode": "autonomous",
+            "status": "FAILED",
+            "retry_number": 0,
+            "max_task_retries": 3,
+            "failure": {"type": "RuntimeError", "message": "synthetic"},
+            "events": [],
+        }
+        with server.runtime["lock"]:
+            server.runtime["tasks"][source["task_id"]] = source
+
+        with patch.object(server, "MAX_TASK_RETRIES", 1), patch.object(
+            server, "execute_task", lambda task: None
+        ):
+            first = self.client.post(
+                "/api/tasks/CYRUS-RETRY-POLICY-SOURCE/retry",
+                headers={"Idempotency-Key": "retry-policy-first"},
+            )
+            child_id = first.get_json()["task_id"]
+            detail = self.client.get("/api/tasks/" + child_id).get_json()
+            with server.runtime["lock"]:
+                server.runtime["tasks"][child_id]["status"] = "FAILED"
+            exhausted = self.client.post(
+                "/api/tasks/" + child_id + "/retry",
+                headers={"Idempotency-Key": "retry-policy-second"},
+            )
+
+        self.assertEqual(first.status_code, 202)
+        self.assertEqual(first.get_json()["max_task_retries"], 3)
+        self.assertEqual(first.get_json()["effective_max_task_retries"], 1)
+        self.assertEqual(detail["max_task_retries"], 3)
+        self.assertEqual(detail["effective_max_task_retries"], 1)
+        self.assertEqual(exhausted.status_code, 409)
+        self.assertEqual(exhausted.get_json()["max_task_retries"], 3)
+        self.assertEqual(exhausted.get_json()["effective_max_task_retries"], 1)
+
     def test_retry_rejects_non_terminal_tasks(self):
         with server.runtime["lock"]:
             server.runtime["tasks"]["CYRUS-STILL-RUNNING"] = {
@@ -995,6 +1036,7 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(payload["retry_number"], 0)
         self.assertIsNone(payload["retry_reason"])
         self.assertEqual(payload["max_task_retries"], 0)
+        self.assertEqual(payload["effective_max_task_retries"], 0)
         self.assertNotIn("retry_number", legacy)
         self.assertNotIn("max_task_retries", legacy)
 
