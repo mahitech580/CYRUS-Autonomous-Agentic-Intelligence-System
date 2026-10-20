@@ -129,3 +129,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_newline_only_url(self):
         self.assertFalse(_provider_url_is_allowed("\n\t"))
+
+    def test_reject_missing_scheme(self):
+        self.assertFalse(_provider_url_is_allowed("provider.example/v1"))
