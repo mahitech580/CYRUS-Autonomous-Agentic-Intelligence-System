@@ -82,6 +82,6 @@ test("markdown states validation is proposed not executed", () => {
 
 test("csv report starts with utf8 bom and uses crlf", () => {
   const csv = reportApi.buildTaskCsvReport(task());
-    assert.ok(csv.startsWith('\\uFEFF'));
-    assert.ok(csv.includes('\\r\\n'));
+    assert.ok(csv.startsWith('\uFEFF'));
+    assert.ok(csv.includes('\r\n'));
 });
