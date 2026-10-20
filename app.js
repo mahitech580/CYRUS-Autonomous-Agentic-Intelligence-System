@@ -621,6 +621,11 @@ function App(){
     if(!id)return notify('Execution record is missing a task ID')
     try{setSelectedTask(await loadTask(id))}catch(error){notify(error.message||'Unable to open execution')}
   }
+  const openTaskRecord=async id=>{
+    if(!id)return notify('Source execution ID is missing')
+    try{setSelectedTask(await apiJson('/api/tasks/'+encodeURIComponent(id)))}
+    catch(error){notify(error.message||'Unable to open source execution')}
+  }
   const go=next=>{setPage(next);setPaletteOpen(false);window.scrollTo({top:0,behavior:'smooth'})}
 
   return <div className={'app-shell '+(page==='Home'?'home-shell':'workspace-shell')}>
@@ -666,7 +671,7 @@ function App(){
     </>}
     {apiSettingsOpen&&<ApiSettingsModal close={()=>setApiSettingsOpen(false)}/>}
     {atmosphereOpen&&<AtmosphereStudio preset={atmospherePreset} setPreset={changeAtmospherePreset} mode={atmosphereMode} setMode={changeAtmosphereMode} intensity={atmosphereIntensity} setIntensity={changeAtmosphereIntensity} motionEnabled={motionEnabled} toggleMotion={toggleMotion} close={()=>setAtmosphereOpen(false)}/>}
-    {selectedTask&&<TaskModal task={selectedTask} close={()=>setSelectedTask(null)} notify={notify} onRetry={retryTask} retryBusy={retryingTaskId===selectedTask.task_id} openTask={openTask}/>}
+    {selectedTask&&<TaskModal task={selectedTask} close={()=>setSelectedTask(null)} notify={notify} onRetry={retryTask} retryBusy={retryingTaskId===selectedTask.task_id} openTask={openTaskRecord}/>}
     {paletteOpen&&<CommandPalette page={page} go={go} execute={execute} notify={notify} openAtmosphere={()=>{setPaletteOpen(false);setAtmosphereOpen(true)}} motionEnabled={motionEnabled} toggleMotion={toggleMotion} cycleAtmosphereMode={cycleAtmosphereMode} resetAtmosphere={resetAtmosphere} nudgeAtmosphereIntensity={nudgeAtmosphereIntensity} close={()=>setPaletteOpen(false)}/>}
     {toast&&<div className="toast">{toast}</div>}
   </div>
