@@ -177,3 +177,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_returns_empty_for_none(self):
         self.assertEqual(_redact_provider_error_detail(None), "")
+
+    def test_redaction_preserves_safe_diagnostic_text(self):
+        self.assertEqual(_redact_provider_error_detail("connection refused by upstream"), "connection refused by upstream")
