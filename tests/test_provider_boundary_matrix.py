@@ -204,3 +204,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_localhost_trailing_dot(self):
         self.assertFalse(_provider_url_is_allowed("http://localhost./v1"))
+
+    def test_reject_subdomain_localhost_suffix(self):
+        self.assertFalse(_provider_url_is_allowed("http://foo.localhost/v1"))
