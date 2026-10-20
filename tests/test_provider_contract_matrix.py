@@ -81,3 +81,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_json_parses_boolean_false(self):
         self.assertEqual(OpenAICompatibleProvider._json('{"enabled": false}'), {"enabled": False})
+
+    def test_json_parses_null(self):
+        self.assertEqual(OpenAICompatibleProvider._json('{"value": null}'), {"value": None})
