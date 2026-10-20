@@ -226,3 +226,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
     def test_redaction_scrubs_openssh_private_key_block(self):
         detail = "-----BEGIN OPENSSH PRIVATE KEY-----\\nkey-private-body-ssh\\n-----END OPENSSH PRIVATE KEY-----"
                 self.assertNotIn("key-private-body-ssh", _redact_provider_error_detail(detail))
+
+    def test_redaction_returns_empty_for_empty_string(self):
+        self.assertEqual(_redact_provider_error_detail(""), "")
