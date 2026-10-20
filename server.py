@@ -457,9 +457,11 @@ def execute_task(task):
             event(task, task["current_agent"], "FAILURE", "Execution failed safely. Inspect the failure payload and request ID.", 0)
         persist_task(task)
     finally:
-        runtime["futures"].pop(task["task_id"], None)
-        runtime["cancel_events"].pop(task["task_id"], None)
-        runtime["approval_events"].pop(task["task_id"], None)
+        # These maps share lifecycle with task creation and API cancellation.
+        with runtime["lock"]:
+            runtime["futures"].pop(task["task_id"], None)
+            runtime["cancel_events"].pop(task["task_id"], None)
+            runtime["approval_events"].pop(task["task_id"], None)
 
 def _run_task(task):
     """Execute real provider work and publish durable stage-by-stage progress."""
@@ -716,6 +718,10 @@ def create_task(prompt, mode, idempotency_key=None):
         raise
     with runtime["lock"]:
         runtime["futures"][task_id] = future
+        # A very short task may finish before submit() returns and its worker
+        # cleanup runs before this Future is registered. Do not retain it stale.
+        if future.done():
+            runtime["futures"].pop(task_id, None)
     return task
 
 @app.get("/")
