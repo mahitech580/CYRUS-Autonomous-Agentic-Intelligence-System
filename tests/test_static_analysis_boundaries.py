@@ -67,3 +67,8 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
     def test_unmatched_fence_marks_fence_check_failed(self):
         result = analyze_draft("notes " + FENCE + "python")
                     self.assertEqual(self.check(result, "markdown_code_fences")["status"], "FAIL")
+
+    def test_balanced_fences_without_python_are_not_syntax_tested(self):
+        result = analyze_draft(FENCE + "javascript\nconst x = 1;\n" + FENCE)
+                    self.assertEqual(self.check(result, "markdown_code_fences")["status"], "PASS")
+                    self.assertEqual(self.check(result, "python_syntax")["status"], "SKIP")
