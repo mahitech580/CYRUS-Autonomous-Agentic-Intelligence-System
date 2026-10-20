@@ -670,7 +670,7 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("started_at", payload)
 
     def test_backend_serves_every_browser_asset_but_not_private_python_files(self):
-        for path in ("/styles.css", "/app.js", "/demo-bridge.js", "/runtime-config.js", "/event-stream.js"):
+        for path in ("/styles.css", "/app.js", "/demo-bridge.js", "/runtime-config.js", "/event-stream.js", "/task-export.js"):
             with self.subTest(path=path):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
