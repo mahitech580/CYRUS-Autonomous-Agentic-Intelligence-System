@@ -153,3 +153,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_mailto_scheme(self):
         self.assertFalse(_provider_url_is_allowed("mailto:ops@example.com"))
+
+    def test_reject_https_empty_hostname(self):
+        self.assertFalse(_provider_url_is_allowed("https:///v1"))
