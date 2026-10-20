@@ -111,3 +111,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_https_allowed_punycode_host(self):
         self.assertTrue(_provider_url_is_allowed("https://xn--bcher-kva.example/v1"))
+
+    def test_https_allowed_ipv4_loopback_literal(self):
+        self.assertTrue(_provider_url_is_allowed("https://127.0.0.1/v1"))
