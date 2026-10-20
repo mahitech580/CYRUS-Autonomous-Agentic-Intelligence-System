@@ -262,3 +262,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_preserves_error_code(self):
         self.assertIn("HTTP 503", _redact_provider_error_detail("HTTP 503: provider unavailable"))
+
+    def test_redaction_preserves_safe_url_path(self):
+        self.assertIn("/v1/chat/completions", _redact_provider_error_detail("request to /v1/chat/completions failed"))
