@@ -144,3 +144,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_data_scheme(self):
         self.assertFalse(_provider_url_is_allowed("data:text/plain,provider"))
+
+    def test_reject_websocket_scheme(self):
+        self.assertFalse(_provider_url_is_allowed("ws://provider.example/v1"))
