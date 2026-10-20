@@ -40,3 +40,7 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
     def test_size_check_detail_includes_configured_limit(self):
         result = analyze_draft("x" * (MAX_DRAFT_CHARS + 1))
                     self.assertIn(str(MAX_DRAFT_CHARS), self.check(result, "draft_size_limit")["detail"])
+
+    def test_no_python_fence_marks_syntax_check_skipped(self):
+        result = analyze_draft("Plain text implementation notes")
+                    self.assertEqual(self.check(result, "python_syntax")["status"], "SKIP")
