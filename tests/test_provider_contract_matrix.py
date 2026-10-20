@@ -117,3 +117,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
     def test_string_list_caps_default_length_at_eight(self):
         values = ["item " + str(i) for i in range(10)]
                 self.assertEqual(len(OpenAICompatibleProvider._string_list(values)), 8)
+
+    def test_string_list_honors_custom_maximum(self):
+        values = ["one", "two", "three", "four"]
+                self.assertEqual(OpenAICompatibleProvider._string_list(values, maximum=2), ["one", "two"])
