@@ -114,3 +114,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_https_allowed_ipv4_loopback_literal(self):
         self.assertTrue(_provider_url_is_allowed("https://127.0.0.1/v1"))
+
+    def test_reject_none_input(self):
+        self.assertFalse(_provider_url_is_allowed(None))
