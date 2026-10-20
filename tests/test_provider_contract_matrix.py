@@ -102,3 +102,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_json_accepts_uppercase_fence_label(self):
         self.assertEqual(OpenAICompatibleProvider._json('```JSON\n{"ok": true}\n```'), {"ok": True})
+
+    def test_json_accepts_fence_without_label(self):
+        self.assertEqual(OpenAICompatibleProvider._json('```\n{"ok": true}\n```'), {"ok": True})
