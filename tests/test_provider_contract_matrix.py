@@ -87,3 +87,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_json_parses_escaped_quotes(self):
         self.assertEqual(OpenAICompatibleProvider._json('{"message": "say \\\"hello\\\""}'), {"message": 'say "hello"'})
+
+    def test_json_parses_empty_object(self):
+        self.assertEqual(OpenAICompatibleProvider._json('{}'), {})
