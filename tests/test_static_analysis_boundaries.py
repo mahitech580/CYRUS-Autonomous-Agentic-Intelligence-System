@@ -24,3 +24,7 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
         result = analyze_draft(None)
                     self.assertEqual(self.check(result, "draft_present")["status"], "FAIL")
                     self.assertFalse(result["code_executed"])
+
+    def test_integer_input_is_safely_normalized(self):
+        result = analyze_draft(42)
+                    self.assertEqual(self.check(result, "draft_present")["status"], "FAIL")
