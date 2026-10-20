@@ -105,3 +105,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_https_allowed_unicode_path(self):
         self.assertTrue(_provider_url_is_allowed("https://provider.example/v1/chat/completions"))
+
+    def test_https_allowed_trailing_dot_host(self):
+        self.assertTrue(_provider_url_is_allowed("https://provider.example./v1"))
