@@ -38,3 +38,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_supports_steps_key_precedence(self):
         self.assertEqual(OpenAICompatibleProvider._string_list({"steps": ["step"], "checks": ["check"]}), ["step"])
+
+    def test_string_list_rejects_tuple(self):
+        with self.assertRaisesRegex(ProviderError, "unexpected list format"):
+                    OpenAICompatibleProvider._string_list(("alpha", "beta"))
