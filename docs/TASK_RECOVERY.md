@@ -53,6 +53,20 @@ The lineage response contains `current_task_id`, `root_task_id`, `attempt_count`
 
 The execution inspector renders this response as an attempt timeline. Selecting an attempt opens that task record; retrying still requires the selected record to have a terminal, retryable status and remaining effective budget. When the lineage endpoint is unavailable, the inspector keeps the current execution usable and shows a retry-history warning instead of discarding the record.
 
+## Retry analytics
+
+The Analytics API `GET /api/analytics?days=7` returns a `retry_outcomes` object using actual task records, not seeded demo values. The workspace displays retry totals, outcomes by depth, active retry attempts, and recovery after an unsuccessful parent.
+
+- `total_attempts` counts retry records only; the original task is not included.
+- `lineages_with_retries` counts distinct connected roots represented among retry records.
+- `by_depth` provides each retry number's total, completed, failed, cancelled, timed-out, active, and terminal counts.
+- `completion_rate` is completed retry attempts divided by terminal retry attempts. Running or awaiting-approval attempts are not in that denominator.
+- `eligible_after_failure` counts retry attempts whose recorded parent ended as `FAILED`, `CANCELLED`, or `TIMED_OUT`.
+- `resolved_after_failure` counts those attempts that are terminal; `recovered_after_failure` counts the subset that completed.
+- `recovery_rate` is completed retry attempts divided by resolved retry attempts after an unsuccessful parent. It is `0` if no such attempts have resolved yet.
+
+These are execution-history metrics, not proof that generated code or proposed application tests ran. The retry ancestry walk has a 50-hop/cycle guard when counting roots; the separate lineage endpoint has its own 50-record presentation limit.
+
 ## Data and report behavior
 
 Retry metadata is saved with the normal execution history snapshot and appears in compact task results. The task modal shows the connected retry chain and lets operators open each attempt. JSON, Markdown, and CSV reports carry the lineage so exported records can be correlated without relying on browser state.
