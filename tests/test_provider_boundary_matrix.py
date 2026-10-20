@@ -123,3 +123,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_empty_url(self):
         self.assertFalse(_provider_url_is_allowed(""))
+
+    def test_reject_whitespace_url(self):
+        self.assertFalse(_provider_url_is_allowed("   \t  "))
