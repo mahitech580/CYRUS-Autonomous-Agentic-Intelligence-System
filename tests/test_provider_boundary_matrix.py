@@ -243,3 +243,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_encoded_localhost_lookalike(self):
         self.assertFalse(_provider_url_is_allowed("http://localhost%2eattacker.example/v1"))
+
+    def test_reject_integer_encoded_loopback(self):
+        self.assertFalse(_provider_url_is_allowed("http://2130706433/v1"))
