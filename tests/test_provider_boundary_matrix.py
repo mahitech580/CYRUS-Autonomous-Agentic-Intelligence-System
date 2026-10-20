@@ -294,3 +294,8 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("Authorization: Bearer matrix-header-secret-088")
         self.assertNotIn("matrix-header-secret-088", result)
         self.assertIn("[redacted", result.lower())
+
+    def test_redacts_inline_bearer_value(self):
+        result = _redact_provider_error_detail("provider returned Bearer matrix-inline-secret-089")
+        self.assertNotIn("matrix-inline-secret-089", result)
+        self.assertIn("[redacted", result.lower())
