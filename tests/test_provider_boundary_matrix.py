@@ -135,3 +135,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_relative_path(self):
         self.assertFalse(_provider_url_is_allowed("/v1/chat/completions"))
+
+    def test_reject_ftp_scheme(self):
+        self.assertFalse(_provider_url_is_allowed("ftp://provider.example/v1"))
