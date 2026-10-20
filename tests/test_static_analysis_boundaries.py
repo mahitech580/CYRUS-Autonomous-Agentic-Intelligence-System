@@ -15,3 +15,7 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
     def test_empty_source_is_reported_as_missing(self):
         result = analyze_draft("")
                     self.assertEqual(self.check(result, "draft_present")["status"], "FAIL")
+
+    def test_whitespace_source_is_reported_as_missing(self):
+        result = analyze_draft(" \n\t ")
+                    self.assertEqual(self.check(result, "draft_present")["status"], "FAIL")
