@@ -48,3 +48,6 @@ class ProviderConfigurationMatrixTests(unittest.TestCase):
 
     def test_endpoint_with_userinfo_falls_back_to_demo(self):
         self.assertIsInstance(provider_with_env(CYRUS_LLM_BASE_URL="https://user@provider.example/v1"), DeterministicProvider)
+
+    def test_empty_model_falls_back_to_demo(self):
+        self.assertIsInstance(provider_with_env(CYRUS_LLM_MODEL="  "), DeterministicProvider)
