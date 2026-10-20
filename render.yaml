@@ -27,3 +27,5 @@ services:
         value: gpt-4o-mini
       - key: CYRUS_LLM_TIMEOUT_SECONDS
         value: "25"
+      - key: CYRUS_MAX_TASK_RETRIES
+        value: "3"
