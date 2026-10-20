@@ -196,6 +196,10 @@ class CyrusApiContractTests(unittest.TestCase):
                     "/api/tasks/CYRUS-RETRY-SOURCE/retry",
                     headers={"Idempotency-Key": "retry-timeout-001"},
                 )
+                third = self.client.post(
+                    "/api/tasks/CYRUS-RETRY-SOURCE/retry",
+                    headers={"Idempotency-Key": "retry-timeout-002"},
+                )
         finally:
             server.runtime["executor"] = original_executor
 
@@ -208,6 +212,9 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(second.status_code, 200)
         self.assertTrue(second.get_json()["deduplicated"])
         self.assertEqual(second.get_json()["task_id"], created["task_id"])
+        self.assertEqual(third.status_code, 200)
+        self.assertTrue(third.get_json()["deduplicated"])
+        self.assertEqual(third.get_json()["task_id"], created["task_id"])
         with server.runtime["lock"]:
             retried = server.runtime["tasks"][created["task_id"]]
             self.assertEqual(retried["parent_task_id"], source["task_id"])
