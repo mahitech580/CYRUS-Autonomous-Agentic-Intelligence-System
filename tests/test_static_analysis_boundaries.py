@@ -48,3 +48,7 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
     def test_python_fence_alias_py_is_parsed(self):
         result = analyze_draft(FENCE + "py\nx = 1\n" + FENCE)
                     self.assertEqual(self.check(result, "python_syntax")["status"], "PASS")
+
+    def test_python_fence_language_is_case_insensitive(self):
+        result = analyze_draft(FENCE + "PYTHON\nx = 1\n" + FENCE)
+                    self.assertEqual(self.check(result, "python_syntax")["status"], "PASS")
