@@ -214,3 +214,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("Bearer tokenFirst123 Bearer tokenSecond456")
                 self.assertNotIn("tokenFirst123", result)
                 self.assertNotIn("tokenSecond456", result)
+
+    def test_redaction_scrubs_rsa_private_key_block(self):
+        detail = "-----BEGIN RSA PRIVATE KEY-----\\nkey-private-body\\n-----END RSA PRIVATE KEY-----"
+                self.assertNotIn("key-private-body", _redact_provider_error_detail(detail))
