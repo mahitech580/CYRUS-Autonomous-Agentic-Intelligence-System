@@ -130,3 +130,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
                 result = OpenAICompatibleProvider._string_list([long_item])[0]
                 self.assertEqual(len(result), 500)
                 self.assertEqual(result, "x" * 500)
+
+    def test_string_list_keeps_item_at_exact_limit(self):
+        item = "z" * 500
+                self.assertEqual(OpenAICompatibleProvider._string_list([item]), [item])
