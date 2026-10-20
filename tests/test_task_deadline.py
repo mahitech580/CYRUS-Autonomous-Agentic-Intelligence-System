@@ -36,6 +36,13 @@ class TaskDeadlineTests(unittest.TestCase):
         with patch.object(server, "MAX_TASK_RUNTIME_SECONDS", 30):
             server.wait_for_supervised_approval(self.task)
 
+    def test_cancellation_remains_responsive_during_approval_wait(self):
+        self.task["_runtime_started_monotonic"] = time.perf_counter()
+        server.runtime["cancel_events"][self.task["task_id"]].set()
+        with patch.object(server, "MAX_TASK_RUNTIME_SECONDS", 30):
+            with self.assertRaises(server.TaskCancelled):
+                server.wait_for_supervised_approval(self.task)
+
     def test_task_timeout_is_persisted_as_terminal_timed_out_state(self):
         with patch.object(server, "_run_task", side_effect=server.TaskTimedOut("deadline expired")), \
              patch.object(server, "persist_task") as persist:
