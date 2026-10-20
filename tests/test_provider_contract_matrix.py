@@ -232,3 +232,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_limits_scanned_input_before_processing(self):
         self.assertLessEqual(len(_redact_provider_error_detail("safe " * 1000)), 350)
+
+    def test_redaction_scrubs_uppercase_api_key_label(self):
+        self.assertNotIn("upperCaseSecret123", _redact_provider_error_detail("API_KEY=upperCaseSecret123"))
