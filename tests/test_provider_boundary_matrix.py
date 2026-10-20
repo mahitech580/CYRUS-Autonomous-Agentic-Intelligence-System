@@ -165,3 +165,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_http_public_ipv4(self):
         self.assertFalse(_provider_url_is_allowed("http://8.8.8.8/v1"))
+
+    def test_reject_http_private_10_range(self):
+        self.assertFalse(_provider_url_is_allowed("http://10.0.0.1/v1"))
