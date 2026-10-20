@@ -77,3 +77,7 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
         result = analyze_draft(FENCE + "python\ndef add(a, b):\n    return a + b\n" + FENCE)
                     self.assertEqual(result["python_blocks_checked"], 1)
                     self.assertFalse(result["code_executed"])
+
+    def test_os_system_call_is_flagged_for_review(self):
+        result = analyze_draft("os.system('echo hello')")
+                    self.assertEqual(self.check(result, "execution_primitive_review")["status"], "WARN")
