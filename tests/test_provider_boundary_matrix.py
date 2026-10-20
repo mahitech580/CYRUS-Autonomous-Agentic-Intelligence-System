@@ -27,3 +27,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_https_allowed_standard_port(self):
         self.assertTrue(_provider_url_is_allowed("https://provider.example:443/v1"))
+
+    def test_https_allowed_custom_port(self):
+        self.assertTrue(_provider_url_is_allowed("https://provider.example:8443/v1"))
