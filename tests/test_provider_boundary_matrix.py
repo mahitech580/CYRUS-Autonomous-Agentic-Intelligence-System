@@ -51,3 +51,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_https_allowed_ipv6_loopback_over_tls(self):
         self.assertTrue(_provider_url_is_allowed("https://[::1]:443/v1"))
+
+    def test_http_allowed_localhost(self):
+        self.assertTrue(_provider_url_is_allowed("http://localhost:8080/v1"))
