@@ -48,6 +48,7 @@ The Execution History page exports filtered summary rows as CSV. Open any execut
 - `GET /api/tasks/{id}/stream` — resumable Server-Sent Events stream for live state and trace updates
 - `POST /api/tasks/{id}/cancel` — cooperative cancellation
 - `POST /api/tasks/{id}/approve` — supervised release approval
+- `POST /api/tasks/{id}/retry` — bounded, idempotency-aware retry for failed, cancelled, or timed-out tasks
 - `GET /api/memory`
 - `GET /api/metrics` — worker capacity, active runs and latency statistics
 - `POST /api/execute` — idempotency-aware, rate-limited execution submission
@@ -63,7 +64,9 @@ The Execution History page exports filtered summary rows as CSV. Open any execut
 
 Modes: `autonomous` and `supervised`.
 
-Use an `Idempotency-Key` header for retry-safe submissions. Supervised runs pause after REVIEWER and remain in `AWAITING_APPROVAL` until explicitly approved. Request IDs are returned as `X-Request-ID` and execution events contain stable event IDs for trace correlation. The browser client retries transient stream failures with bounded exponential backoff and resumes using `Last-Event-ID`, so reconnects continue from the last delivered trace event instead of replaying the entire stream.
+Use an `Idempotency-Key` header for retry-safe submissions. The **Retry execution** action creates a new task only when the previous attempt is `FAILED`, `CANCELLED`, or `TIMED_OUT`; it preserves the objective and mode but creates a fresh task ID and event trace. The API records `parent_task_id`, `retry_number`, and a safe `retry_reason` so retry ancestry survives history reloads and appears in JSON, Markdown, and CSV reports. A source task gets at most one direct retry child, so a lost response or repeat click cannot create parallel siblings. Retries are explicit—not automatic provider replays—and they do not inherit old artifacts or imply that previous checks passed. Configure `CYRUS_MAX_TASK_RETRIES` between 0 and 10 (default `3`; `0` disables retries). See [Task retry and recovery policy](docs/TASK_RECOVERY.md).
+
+Supervised runs pause after REVIEWER and remain in `AWAITING_APPROVAL` until explicitly approved. Request IDs are returned as `X-Request-ID` and execution events contain stable event IDs for trace correlation. The browser client retries transient stream failures with bounded exponential backoff and resumes using `Last-Event-ID`, so reconnects continue from the last delivered trace event instead of replaying the entire stream.
 
 ## Runtime modes and verification honesty
 
@@ -122,6 +125,7 @@ The orchestration engine uses a provider adapter in `providers.py`. It supports 
 | `CYRUS_LLM_BASE_URL` | HTTPS endpoint base URL, including any version path | `https://api.openai.com/v1` |
 | `CYRUS_LLM_MODEL` | Model identifier accepted by the configured provider | `gpt-4o-mini` |
 | `CYRUS_LLM_TIMEOUT_SECONDS` | Per-request timeout, bounded between 5 and 60 seconds | `25` |
+| `CYRUS_MAX_TASK_RETRIES` | Maximum explicit retry depth for a task lineage (0 disables retries; bounded 0–10) | `3` |
 
 Provider endpoint URLs are validated before use: remote endpoints require HTTPS, plain HTTP is allowed only for real loopback hosts, and credentials in URL user-info/query/fragment fields are rejected. Live responses are limited to 2,000,000 bytes and upstream error details are scrubbed for common credential patterns. See [Provider adapter security](docs/PROVIDER_SECURITY.md) for the limits and their caveats.
 
