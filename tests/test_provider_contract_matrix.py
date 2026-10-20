@@ -165,3 +165,9 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_supports_minimum_zero_for_empty_list(self):
         self.assertEqual(OpenAICompatibleProvider._string_list([], minimum=0), [])
+
+    def test_string_list_returns_trimmed_result_without_mutating_input(self):
+        values = [" one ", " two "]
+                before = values.copy()
+                self.assertEqual(OpenAICompatibleProvider._string_list(values), ["one", "two"])
+                self.assertEqual(values, before)
