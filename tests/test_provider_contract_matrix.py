@@ -29,3 +29,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_retains_duplicates(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["same", "same"]), ["same", "same"])
+
+    def test_string_list_supports_considerations_key(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list({"considerations": ["risk one", "risk two"]}), ["risk one", "risk two"])
