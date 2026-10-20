@@ -249,3 +249,8 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_short_ipv4_loopback_form(self):
         self.assertFalse(_provider_url_is_allowed("http://127.1/v1"))
+
+    def test_redacts_api_key_assignment(self):
+        result = _redact_provider_error_detail("api_key=matrix-api-key-secret-080")
+        self.assertNotIn("matrix-api-key-secret-080", result)
+        self.assertIn("[redacted", result.lower())
