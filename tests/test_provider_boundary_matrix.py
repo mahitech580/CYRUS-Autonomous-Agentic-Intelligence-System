@@ -234,3 +234,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_fragment(self):
         self.assertFalse(_provider_url_is_allowed("https://provider.example/v1#credentials"))
+
+    def test_reject_gopher_scheme(self):
+        self.assertFalse(_provider_url_is_allowed("gopher://provider.example/v1"))
