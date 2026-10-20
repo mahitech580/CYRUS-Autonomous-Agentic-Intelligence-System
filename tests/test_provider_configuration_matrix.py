@@ -36,3 +36,6 @@ class ProviderConfigurationMatrixTests(unittest.TestCase):
 
     def test_explicit_offline_mode_uses_demo(self):
         self.assertIsInstance(provider_with_env(CYRUS_LLM_PROVIDER="offline"), DeterministicProvider)
+
+    def test_https_remote_endpoint_enables_live_provider(self):
+        self.assertIsInstance(provider_with_env(), OpenAICompatibleProvider)
