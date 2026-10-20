@@ -43,7 +43,7 @@ The Execution History page exports filtered summary rows as CSV. Open any execut
 - `GET /api/agents`
 - `GET /api/tools`
 - `GET /api/tasks` — compact list with `limit`, `offset`, `status`, `mode`, and `q` filters
-- `GET /api/analytics?days=7` — dynamic outcomes, daily run counts, providers, failures, latency, and storage diagnostics (1–90 day windows)
+- `GET /api/analytics?days=7` — dynamic outcomes, daily run counts, providers, failures, latency, retry recovery by attempt depth, and storage diagnostics (1–90 day windows)
 - `GET /api/tasks/{id}` — full execution record including agent state and trace
 - `GET /api/tasks/{id}/lineage` — bounded, summary-only original-to-retry attempt chain (maximum 50 records)
 - `GET /api/tasks/{id}/stream` — resumable Server-Sent Events stream for live state and trace updates
@@ -112,7 +112,7 @@ The history adapter stores full execution snapshots, artifacts, agent traces, st
 
 The Render Blueprint declares `CYRUS_DATABASE_URL` as an unsynchronized secret. For an existing service, add it under **Render → Service → Environment** and redeploy. Keep the database connection string private. When the database is empty and a legacy `cyrus_history.json` exists, CYRUS attempts a one-time import. History is capped to the latest 100 execution records by default.
 
-The new Analytics workspace refreshes `GET /api/analytics` every 20 seconds and supports 7-, 30-, and 90-day activity windows. Values are computed from stored task records plus live tasks; an empty history produces empty charts, not sample runs. The API diagnostics report which history store is active and whether the hosted SQLite filesystem is ephemeral.
+The new Analytics workspace refreshes `GET /api/analytics` every 20 seconds and supports 7-, 30-, and 90-day activity windows. Values are computed from stored task records plus live tasks; an empty history produces empty charts, not sample runs. The API diagnostics report which history store is active and whether the hosted SQLite filesystem is ephemeral. The same response includes `retry_outcomes`: retry-attempt status totals and a depth-by-depth breakdown, plus the number of resolved retry attempts that completed after an unsuccessful parent attempt. Retry completion rate excludes nonterminal attempts; recovery rate uses only resolved child attempts whose parent ended unsuccessfully. These metrics describe recorded executions and do not claim that generated code or proposed tests ran.
 
 ## Provider configuration
 
