@@ -235,3 +235,8 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_preserves_safe_diagnostic_text(self):
         self.assertEqual(_redact_provider_error_detail("connection refused by upstream"), "connection refused by upstream")
+
+    def test_redaction_scrubs_lowercase_authorization(self):
+        result = _redact_provider_error_detail("authorization: Bearer abcdef12345")
+                self.assertNotIn("abcdef12345", result)
+                self.assertIn("[redacted]", result)
