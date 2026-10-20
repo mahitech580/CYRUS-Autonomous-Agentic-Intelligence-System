@@ -89,7 +89,7 @@
       format: 'CYRUS_EXECUTION_REPORT',
       schema_version: 1,
       exported_at: exportedAt,
-      notice: 'Credential-like fields are omitted. Free-text matches are listed below but not automatically removed; inspect the report before sharing.',
+      notice: 'Credential-like fields are omitted. Common secret-like values in free text are redacted heuristically; detection is not exhaustive, so inspect the report before sharing.',
       sensitive_text_warnings: sensitiveTextWarnings,
       task: redactSensitiveText(snapshot)
     };
