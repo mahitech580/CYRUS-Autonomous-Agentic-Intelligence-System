@@ -222,3 +222,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_url_username_and_password(self):
         self.assertFalse(_provider_url_is_allowed("https://user:pass@provider.example/v1"))
+
+    def test_reject_percent_encoded_userinfo(self):
+        self.assertFalse(_provider_url_is_allowed("https://%75ser@provider.example/v1"))
