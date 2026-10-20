@@ -10,3 +10,7 @@ function task(overrides = {}) {
 test("rejects null task record", () => {
   assert.throws(() => reportApi.buildTaskReport(null), TypeError);
 });
+
+test("rejects array task record", () => {
+  assert.throws(() => reportApi.buildTaskReport([]), TypeError);
+});
