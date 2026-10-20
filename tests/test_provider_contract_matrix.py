@@ -268,3 +268,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_preserves_safe_json_fields(self):
         self.assertIn('"status": 429', _redact_provider_error_detail('{"status": 429, "message": "rate limited"}'))
+
+    def test_redaction_caps_unicode_diagnostic_length(self):
+        self.assertEqual(len(_redact_provider_error_detail("界" * 500)), 350)
