@@ -39,3 +39,6 @@ class ProviderConfigurationMatrixTests(unittest.TestCase):
 
     def test_https_remote_endpoint_enables_live_provider(self):
         self.assertIsInstance(provider_with_env(), OpenAICompatibleProvider)
+
+    def test_remote_http_endpoint_falls_back_to_demo(self):
+        self.assertIsInstance(provider_with_env(CYRUS_LLM_BASE_URL="http://provider.example/v1"), DeterministicProvider)
