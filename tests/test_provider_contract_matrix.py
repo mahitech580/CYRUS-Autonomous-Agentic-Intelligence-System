@@ -200,3 +200,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail('{"password": "private-pass-123"}')
                 self.assertNotIn("private-pass-123", result)
                 self.assertIn("[redacted]", result)
+
+    def test_redaction_scrubs_quoted_client_secret_value(self):
+        result = _redact_provider_error_detail('{"client_secret": "client-secret-123"}')
+                self.assertNotIn("client-secret-123", result)
