@@ -244,3 +244,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_scrubs_client_secret_with_hyphen(self):
         self.assertNotIn("clientSecretABC123", _redact_provider_error_detail("client-secret: clientSecretABC123"))
+
+    def test_redaction_scrubs_secret_with_colon_spacing(self):
+        self.assertNotIn("colonSecretABC123", _redact_provider_error_detail("secret : colonSecretABC123"))
