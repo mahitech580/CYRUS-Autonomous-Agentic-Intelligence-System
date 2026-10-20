@@ -187,13 +187,13 @@
       '## Retry lineage',
       '',
       Array.isArray(record.retry_lineage) && record.retry_lineage.length
-        ? '| Attempt | Task ID | Status | Parent | Reason |\\n| --- | --- | --- | --- | --- |\\n' + record.retry_lineage.map(attempt =>
+        ? '| Attempt | Task ID | Status | Parent | Reason |\n| --- | --- | --- | --- | --- |\n' + record.retry_lineage.map(attempt =>
             '| ' + markdownCell((Number(attempt.retry_number) || 0) === 0 ? 'Original' : 'Retry ' + attempt.retry_number) + ' | ' +
             markdownCell(attempt.task_id || 'unknown') + ' | ' +
             markdownCell(attempt.status || 'UNKNOWN') + ' | ' +
             markdownCell(attempt.parent_task_id || '—') + ' | ' +
             markdownCell(attempt.retry_reason || '—') + ' |'
-          ).join('\\n')
+          ).join('\n')
         : '_Lineage was not loaded when this report was created._',
       '',
       '## Agent stages',
