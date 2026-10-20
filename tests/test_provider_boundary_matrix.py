@@ -33,3 +33,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_https_allowed_uppercase_scheme(self):
         self.assertTrue(_provider_url_is_allowed("HTTPS://PROVIDER.EXAMPLE/v1"))
+
+    def test_https_allowed_models_endpoint(self):
+        self.assertTrue(_provider_url_is_allowed("https://provider.example/v1/models"))
