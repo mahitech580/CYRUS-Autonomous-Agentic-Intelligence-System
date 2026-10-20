@@ -30,3 +30,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_https_allowed_custom_port(self):
         self.assertTrue(_provider_url_is_allowed("https://provider.example:8443/v1"))
+
+    def test_https_allowed_uppercase_scheme(self):
+        self.assertTrue(_provider_url_is_allowed("HTTPS://PROVIDER.EXAMPLE/v1"))
