@@ -54,3 +54,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_http_allowed_localhost(self):
         self.assertTrue(_provider_url_is_allowed("http://localhost:8080/v1"))
+
+    def test_http_allowed_uppercase_localhost(self):
+        self.assertTrue(_provider_url_is_allowed("http://LOCALHOST:8080/v1"))
