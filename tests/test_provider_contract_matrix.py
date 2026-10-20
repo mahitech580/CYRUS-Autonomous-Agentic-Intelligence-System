@@ -277,5 +277,5 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_does_not_mutate_input_string(self):
         detail = "api_key=mutableSecret123"
-                    _redact_provider_error_detail(detail)
-                    self.assertEqual(detail, "api_key=mutableSecret123")
+        _redact_provider_error_detail(detail)
+        self.assertEqual(detail, "api_key=mutableSecret123")
