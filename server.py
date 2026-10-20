@@ -1194,6 +1194,8 @@ def retry_task(task_id):
                         "status": existing_task.get("status", "RUNNING"),
                         "retry_of": task_id,
                         "retry_number": next_retry_number,
+                        "max_task_retries": _task_retry_limit(existing_task),
+                        "effective_max_task_retries": _effective_task_retry_limit(existing_task),
                         "deduplicated": True,
                     }), 200
                 historical = find_history_by_idempotency(idempotency_key)
@@ -1203,6 +1205,8 @@ def retry_task(task_id):
                         "status": historical.get("status", "UNKNOWN"),
                         "retry_of": task_id,
                         "retry_number": _retry_attempt_number(historical),
+                        "max_task_retries": _task_retry_limit(historical),
+                        "effective_max_task_retries": _effective_task_retry_limit(historical),
                         "deduplicated": True,
                     }), 200
                 return jsonify({"error": "Retry with this Idempotency-Key is already being created"}), 409
@@ -1226,6 +1230,8 @@ def retry_task(task_id):
                     "status": historical.get("status", "UNKNOWN"),
                     "retry_of": task_id,
                     "retry_number": next_retry_number,
+                    "max_task_retries": _task_retry_limit(historical),
+                    "effective_max_task_retries": _effective_task_retry_limit(historical),
                     "deduplicated": True,
                 }), 200
 
@@ -1245,6 +1251,8 @@ def retry_task(task_id):
                 "error": "A retry is already being created for this task",
                 "status": "RETRY_IN_PROGRESS",
                 "retry_of": task_id,
+                "max_task_retries": lineage_retry_limit,
+                "effective_max_task_retries": retry_limit,
             }), 409
         runtime["retry_reservations"].add(task_id)
 
