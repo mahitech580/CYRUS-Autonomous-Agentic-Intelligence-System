@@ -30,3 +30,6 @@ class ProviderConfigurationMatrixTests(unittest.TestCase):
 
     def test_explicit_demo_mode_overrides_api_key(self):
         self.assertIsInstance(provider_with_env(CYRUS_LLM_PROVIDER="demo"), DeterministicProvider)
+
+    def test_explicit_deterministic_mode_uses_demo(self):
+        self.assertIsInstance(provider_with_env(CYRUS_LLM_PROVIDER="deterministic"), DeterministicProvider)
