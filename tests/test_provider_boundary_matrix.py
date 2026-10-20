@@ -319,3 +319,9 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("-----BEGIN PRIVATE KEY-----\\nmatrix-private-key-body-093\\n-----END PRIVATE KEY-----")
         self.assertNotIn("matrix-private-key-body-093", result)
         self.assertIn("[redacted", result.lower())
+
+    def test_redacts_multiple_assignments(self):
+        result = _redact_provider_error_detail("api_key=matrix-first-secret-094 password=matrix-second-secret-094")
+        self.assertNotIn("matrix-first-secret-094", result)
+        self.assertNotIn("matrix-second-secret-094", result)
+        self.assertIn("[redacted", result.lower())
