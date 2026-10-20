@@ -39,3 +39,4 @@ Artifacts, review scores, and static-analysis results from the parent are **not 
 - Use an `Idempotency-Key` when a client may repeat a POST after a timeout or lost response.
 - `TIMED_OUT` is terminal for polling and can be retried when budget remains. It is not a verified test failure or a claim that generated code was executed.
 - A process restart remains distinct from retry: the interrupted task is marked incomplete/failed and must be explicitly retried by an operator.
+- The retry reservation and the wider live-task/idempotency maps are process-local, matching the current Render Blueprint's single Gunicorn worker. If the service is changed to multiple workers or scaled across instances, move retry claims and idempotency coordination into a shared transactional store before treating sibling prevention as a cross-process guarantee.
