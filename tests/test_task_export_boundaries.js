@@ -69,3 +69,8 @@ test("warning does not echo detected secret value", () => {
     assert.ok(report.sensitive_text_warnings.length > 0);
     assert.ok(!JSON.stringify(report.sensitive_text_warnings).includes(secret));
 });
+
+test("markdown escapes task identifier pipes", () => {
+  const markdown = reportApi.buildTaskMarkdownReport(task({task_id: 'id|with|pipes'}), '2026-10-20T10:00:00.000Z');
+    assert.ok(markdown.includes('id\\|with\\|pipes'));
+});
