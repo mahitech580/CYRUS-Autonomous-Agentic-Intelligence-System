@@ -25,18 +25,16 @@ class TaskDeadlineTests(unittest.TestCase):
         server.runtime["futures"].pop(self.task["task_id"], None)
 
     def test_approval_wait_expires_at_task_deadline(self):
+        self.task["_runtime_started_monotonic"] = time.perf_counter() - 31
         with patch.object(server, "MAX_TASK_RUNTIME_SECONDS", 30):
             with self.assertRaises(server.TaskTimedOut):
-                server.wait_for_supervised_approval(
-                    self.task, started_at=time.perf_counter() - 31
-                )
+                server.wait_for_supervised_approval(self.task)
 
     def test_approval_wait_returns_when_operator_approves(self):
         server.runtime["approval_events"][self.task["task_id"]].set()
+        self.task["_runtime_started_monotonic"] = time.perf_counter()
         with patch.object(server, "MAX_TASK_RUNTIME_SECONDS", 30):
-            server.wait_for_supervised_approval(
-                self.task, started_at=time.perf_counter()
-            )
+            server.wait_for_supervised_approval(self.task)
 
     def test_task_timeout_is_persisted_as_terminal_timed_out_state(self):
         with patch.object(server, "_run_task", side_effect=server.TaskTimedOut("deadline expired")), \
