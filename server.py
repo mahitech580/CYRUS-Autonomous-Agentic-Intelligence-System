@@ -143,6 +143,7 @@ runtime = {
     "idempotency": {},
     "cancel_events": {},
     "approval_events": {},
+    "retry_reservations": set(),
     "rate_limits": {}
 }
 
@@ -1213,66 +1214,83 @@ def retry_task(task_id):
                 "task_id": None,
             }
 
-    # A task may have one direct retry child. If a caller retries the same
-    # source with a fresh key (for example after losing the first response),
-    # return that attempt instead of creating parallel siblings.
-    existing_retry = next(
-        (
-            item for item in all_task_records()
-            if item.get("parent_task_id") == task_id
-            and _retry_attempt_number(item) == next_retry_number
-        ),
-        None,
-    )
-    if existing_retry:
-        if idempotency_key:
-            with runtime["lock"]:
-                entry = runtime["idempotency"].get(idempotency_key)
-                if entry and entry.get("fingerprint") == fingerprint:
-                    entry["task_id"] = existing_retry["task_id"]
+    # Reserve a source lineage before scanning history or submitting the worker.
+    # Without the reservation two simultaneous requests with different keys could
+    # both observe "no child" and start sibling executions.
+    with runtime["lock"]:
+        if task_id in runtime["retry_reservations"]:
+            if idempotency_key:
+                runtime["idempotency"].pop(idempotency_key, None)
+            return jsonify({
+                "error": "A retry is already being created for this task",
+                "status": "RETRY_IN_PROGRESS",
+                "retry_of": task_id,
+            }), 409
+        runtime["retry_reservations"].add(task_id)
+
+    try:
+        # A task may have one direct retry child. If a caller retries the same
+        # source with a fresh key (for example after losing the first response),
+        # return that attempt instead of creating parallel siblings.
+        existing_retry = next(
+            (
+                item for item in all_task_records()
+                if item.get("parent_task_id") == task_id
+                and _retry_attempt_number(item) == next_retry_number
+            ),
+            None,
+        )
+        if existing_retry:
+            if idempotency_key:
+                with runtime["lock"]:
+                    entry = runtime["idempotency"].get(idempotency_key)
+                    if entry and entry.get("fingerprint") == fingerprint:
+                        entry["task_id"] = existing_retry["task_id"]
+            return jsonify({
+                "task_id": existing_retry["task_id"],
+                "status": existing_retry.get("status", "UNKNOWN"),
+                "mode": existing_retry.get("mode", mode),
+                "retry_of": task_id,
+                "retry_number": next_retry_number,
+                "max_task_retries": MAX_TASK_RETRIES,
+                "deduplicated": True,
+            }), 200
+
+        try:
+            task = create_task(
+                objective,
+                mode,
+                idempotency_key=idempotency_key,
+                parent_task_id=task_id,
+                retry_number=next_retry_number,
+                retry_reason=retry_reason,
+            )
+            if idempotency_key:
+                with runtime["lock"]:
+                    runtime["idempotency"][idempotency_key]["task_id"] = task["task_id"]
+        except CapacityError as exc:
+            if idempotency_key:
+                with runtime["lock"]:
+                    runtime["idempotency"].pop(idempotency_key, None)
+            return jsonify({"error": str(exc)}), 429
+        except Exception:
+            if idempotency_key:
+                with runtime["lock"]:
+                    runtime["idempotency"].pop(idempotency_key, None)
+            raise
+
         return jsonify({
-            "task_id": existing_retry["task_id"],
-            "status": existing_retry.get("status", "UNKNOWN"),
-            "mode": existing_retry.get("mode", mode),
+            "task_id": task["task_id"],
+            "status": task["status"],
+            "mode": mode,
             "retry_of": task_id,
             "retry_number": next_retry_number,
             "max_task_retries": MAX_TASK_RETRIES,
-            "deduplicated": True,
-        }), 200
-
-    try:
-        task = create_task(
-            objective,
-            mode,
-            idempotency_key=idempotency_key,
-            parent_task_id=task_id,
-            retry_number=next_retry_number,
-            retry_reason=retry_reason,
-        )
-        if idempotency_key:
-            with runtime["lock"]:
-                runtime["idempotency"][idempotency_key]["task_id"] = task["task_id"]
-    except CapacityError as exc:
-        if idempotency_key:
-            with runtime["lock"]:
-                runtime["idempotency"].pop(idempotency_key, None)
-        return jsonify({"error": str(exc)}), 429
-    except Exception:
-        if idempotency_key:
-            with runtime["lock"]:
-                runtime["idempotency"].pop(idempotency_key, None)
-        raise
-
-    return jsonify({
-        "task_id": task["task_id"],
-        "status": task["status"],
-        "mode": mode,
-        "retry_of": task_id,
-        "retry_number": next_retry_number,
-        "max_task_retries": MAX_TASK_RETRIES,
-        "deduplicated": False,
-    }), 202
-
+            "deduplicated": False,
+        }), 202
+    finally:
+        with runtime["lock"]:
+            runtime["retry_reservations"].discard(task_id)
 
 @app.post("/api/tasks/<task_id>/cancel")
 def cancel_task(task_id):
