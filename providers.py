@@ -164,14 +164,15 @@ class OpenAICompatibleProvider:
             safe_detail = _redact_provider_error_detail(detail)
             raise ProviderError(f"LLM provider returned HTTP {exc.code}: {safe_detail[:350]}") from None
         except URLError as exc:
-            reason = str(getattr(exc, "reason", "network error"))[:180]
+            reason = _redact_provider_error_detail(str(getattr(exc, "reason", "network error"))) or "network error"
             raise ProviderError(f"Could not reach the configured LLM provider: {reason}") from None
         except TimeoutError:
             raise ProviderError("The configured LLM provider timed out.") from None
         except (json.JSONDecodeError, UnicodeDecodeError):
             raise ProviderError("The configured LLM provider returned invalid JSON.") from None
         except OSError as exc:
-            raise ProviderError(f"LLM network request failed: {str(exc)[:180]}") from None
+            reason = _redact_provider_error_detail(str(exc)) or "network error"
+            raise ProviderError(f"LLM network request failed: {reason}") from None
 
         try:
             choices = payload["choices"]
