@@ -14,3 +14,7 @@ test("rejects null task record", () => {
 test("rejects array task record", () => {
   assert.throws(() => reportApi.buildTaskReport([]), TypeError);
 });
+
+test("rejects task without identifier", () => {
+  assert.throws(() => reportApi.buildTaskReport({objective: 'missing id'}), TypeError);
+});
