@@ -153,3 +153,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
     def test_string_list_rejects_steps_key_with_none(self):
         with self.assertRaisesRegex(ProviderError, "unexpected list format"):
                     OpenAICompatibleProvider._string_list({"steps": None, "checks": ["ignored"]})
+
+    def test_string_list_filters_booleans_and_numbers(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list([True, 42, "valid"]), ["valid"])
