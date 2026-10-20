@@ -133,7 +133,7 @@ Check `GET /api/provider` to see which mode is active. A response with `"mode": 
 
 ## Runtime controls
 
-The server is production-safe by default: development debug mode is disabled unless `CYRUS_DEBUG=1`. Optional controls include `CYRUS_HOST`, `CYRUS_PORT`, `CYRUS_DEBUG`, `CYRUS_API_ACCESS_KEY`, `CYRUS_TASK_TIMEOUT_SECONDS`, `CYRUS_MAX_CONCURRENT_TASKS`, `CYRUS_MAX_LIVE_TASKS`, `CYRUS_MAX_REQUEST_BYTES`, `CYRUS_MAX_PROMPT_CHARS`, and `CYRUS_EXECUTIONS_PER_MINUTE`. The backend also uses an allowlist for public static assets so source and history files are not exposed by the Flask server.
+The server is production-safe by default: development debug mode is disabled unless `CYRUS_DEBUG=1`. Optional controls include `CYRUS_HOST`, `CYRUS_PORT`, `CYRUS_DEBUG`, `CYRUS_API_ACCESS_KEY`, `CYRUS_TASK_TIMEOUT_SECONDS`, `CYRUS_MAX_CONCURRENT_TASKS`, `CYRUS_MAX_LIVE_TASKS`, `CYRUS_MAX_REQUEST_BYTES`, `CYRUS_MAX_PROMPT_CHARS`, and `CYRUS_EXECUTIONS_PER_MINUTE`. The backend also uses an allowlist for public static assets so source and history files are not exposed by the Flask server. The per-process execution rate limiter also caps tracked client keys at 1,000; it is not a distributed quota, so see [API rate-limiting behavior](docs/RATE_LIMITING.md) before scaling to multiple instances.
 
 ## UI
 
