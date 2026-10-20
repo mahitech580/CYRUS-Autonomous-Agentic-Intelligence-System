@@ -346,3 +346,7 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
         with self.assertRaisesRegex(ProviderError, "did not contain"):
             OpenAICompatibleProvider._json("provider responded with plain text only")
 
+
+    def test_string_list_trims_and_filters_items(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list([" alpha ", "", 3, "beta"]), ["alpha", "beta"])
+
