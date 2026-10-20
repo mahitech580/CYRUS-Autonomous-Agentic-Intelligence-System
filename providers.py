@@ -151,22 +151,9 @@ class OpenAICompatibleProvider:
                 detail = exc.read(1200).decode("utf-8", errors="replace")
             except Exception:
                 detail = ""
-            # Never include the Authorization header or request body in failures.
-            safe_detail = re.sub(
-                r"(?i)(authorization\s*[:=]\s*)(?:bearer\s+)?[^\s,;\"]+",
-                r"\1[redacted]",
-                detail,
-            )
-            safe_detail = re.sub(
-                r"(?i)((?:api[_ -]?key|token|secret)\s*[:=]\s*)[^\s,;\"]+",
-                r"\1[redacted]",
-                safe_detail,
-            )
-            safe_detail = re.sub(
-                r"(?i)\bbearer\s+[^\s,;\"]+",
-                "Bearer [redacted]",
-                safe_detail,
-            )
+            # Treat provider error bodies as untrusted: redact credentials before
+            # surfacing details from JSON, headers, query strings, or plain text.
+            safe_detail = _redact_provider_error_detail(detail)
             raise ProviderError(f"LLM provider returned HTTP {exc.code}: {safe_detail[:350]}") from None
         except URLError as exc:
             reason = str(getattr(exc, "reason", "network error"))[:180]
@@ -302,6 +289,27 @@ class OpenAICompatibleProvider:
             "findings": findings,
             "summary": str(result.get("summary", "Review completed; verify the draft before implementation."))[:1200],
         }
+
+
+def _redact_provider_error_detail(detail: str) -> str:
+    """Remove common credential values from an untrusted provider error body."""
+    safe = str(detail or "")[:1200]
+    credential_assignment = re.compile(
+        r'''(?i)(["']?(?:authorization|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|client[_ -]?secret|token|secret|password|credential)["']?\s*[:=]\s*)(["']?)(?:bearer\s+)?([^"'\s,;}&]+)(["']?)'''
+    )
+    safe = credential_assignment.sub(
+        lambda match: match.group(1) + match.group(2) + "[redacted]" + match.group(4),
+        safe,
+    )
+    safe = re.sub(r'''(?i)\bbearer\s+[^ \t\r\n,;}"']+''', "Bearer [redacted]", safe)
+    safe = re.sub(r"\bsk-[A-Za-z0-9_-]{16,}\b", "[redacted-api-key]", safe)
+    safe = re.sub(r"\bAKIA[0-9A-Z]{16}\b", "[redacted-access-key]", safe)
+    safe = re.sub(
+        r"(?is)-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----.*?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+        "[redacted-private-key-block]",
+        safe,
+    )
+    return safe[:350]
 
 
 def _provider_url_is_allowed(base_url: str) -> bool:
