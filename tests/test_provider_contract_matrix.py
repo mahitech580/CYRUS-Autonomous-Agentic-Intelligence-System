@@ -241,3 +241,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_scrubs_refresh_token_with_spaces(self):
         self.assertNotIn("refreshTokenABC123", _redact_provider_error_detail("refresh token = refreshTokenABC123"))
+
+    def test_redaction_scrubs_client_secret_with_hyphen(self):
+        self.assertNotIn("clientSecretABC123", _redact_provider_error_detail("client-secret: clientSecretABC123"))
