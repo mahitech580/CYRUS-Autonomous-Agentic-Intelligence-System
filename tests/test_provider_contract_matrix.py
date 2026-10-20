@@ -62,3 +62,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
     def test_string_list_rejects_list_of_non_strings(self):
         with self.assertRaisesRegex(ProviderError, "too few usable list items"):
                     OpenAICompatibleProvider._string_list([1, None, False])
+
+    def test_string_list_enforces_custom_minimum(self):
+        with self.assertRaisesRegex(ProviderError, "too few usable list items"):
+                    OpenAICompatibleProvider._string_list(["one", "two"], minimum=3)
