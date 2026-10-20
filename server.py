@@ -1291,6 +1291,16 @@ def retry_task(task_id):
     finally:
         with runtime["lock"]:
             runtime["retry_reservations"].discard(task_id)
+            # If the attempt failed before a child ID was assigned, release
+            # this request's placeholder key so the caller can safely retry.
+            if idempotency_key:
+                entry = runtime["idempotency"].get(idempotency_key)
+                if (
+                    entry
+                    and entry.get("fingerprint") == fingerprint
+                    and not entry.get("task_id")
+                ):
+                    runtime["idempotency"].pop(idempotency_key, None)
 
 @app.post("/api/tasks/<task_id>/cancel")
 def cancel_task(task_id):
