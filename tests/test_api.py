@@ -459,9 +459,12 @@ class CyrusApiContractTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
-        self.assertLessEqual(payload["attempt_count"], 50)
-        self.assertEqual(len({item["task_id"] for item in payload["attempts"]}), payload["attempt_count"])
-        self.assertIsInstance(payload["truncated"], bool)
+        self.assertEqual(payload["attempt_count"], 2)
+        self.assertEqual(
+            {item["task_id"] for item in payload["attempts"]},
+            {"CYRUS-CYCLE-A", "CYRUS-CYCLE-B"},
+        )
+        self.assertFalse(payload["truncated"])
 
     def test_task_lineage_caps_large_histories_and_marks_truncation(self):
         root = {
