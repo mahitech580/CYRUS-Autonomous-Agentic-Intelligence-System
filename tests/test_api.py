@@ -160,6 +160,94 @@ class CyrusApiContractTests(unittest.TestCase):
         finally:
             server.runtime["executor"] = original_executor
 
+    def test_retry_creates_new_task_with_persistent_lineage_and_deduplicates(self):
+        source = {
+            "task_id": "CYRUS-RETRY-SOURCE",
+            "created_at": server.now_iso(),
+            "updated_at": server.now_iso(),
+            "objective": "Re-run the interrupted objective",
+            "mode": "supervised",
+            "status": "TIMED_OUT",
+            "retry_number": 0,
+            "failure": {"type": "TaskTimedOut", "message": "deadline elapsed"},
+            "events": [],
+        }
+        with server.runtime["lock"]:
+            server.runtime["tasks"][source["task_id"]] = source
+
+        class CompletedFuture:
+            def done(self):
+                return True
+
+        class InlineExecutor:
+            def submit(self, callback, task):
+                callback(task)
+                return CompletedFuture()
+
+        original_executor = server.runtime["executor"]
+        server.runtime["executor"] = InlineExecutor()
+        try:
+            with patch.object(server, "execute_task", lambda task: None):
+                first = self.client.post(
+                    "/api/tasks/CYRUS-RETRY-SOURCE/retry",
+                    headers={"Idempotency-Key": "retry-timeout-001"},
+                )
+                second = self.client.post(
+                    "/api/tasks/CYRUS-RETRY-SOURCE/retry",
+                    headers={"Idempotency-Key": "retry-timeout-001"},
+                )
+        finally:
+            server.runtime["executor"] = original_executor
+
+        self.assertEqual(first.status_code, 202)
+        created = first.get_json()
+        self.assertEqual(created["retry_of"], source["task_id"])
+        self.assertEqual(created["retry_number"], 1)
+        self.assertEqual(created["mode"], "supervised")
+        self.assertFalse(created["deduplicated"])
+        self.assertEqual(second.status_code, 200)
+        self.assertTrue(second.get_json()["deduplicated"])
+        self.assertEqual(second.get_json()["task_id"], created["task_id"])
+        with server.runtime["lock"]:
+            retried = server.runtime["tasks"][created["task_id"]]
+            self.assertEqual(retried["parent_task_id"], source["task_id"])
+            self.assertEqual(retried["retry_number"], 1)
+            self.assertEqual(retried["retry_reason"], "TIMED_OUT:TaskTimedOut")
+            self.assertEqual(retried["events"][0]["phase"], "RETRY_CREATED")
+            self.assertNotIn(created["task_id"], server.runtime["futures"])
+
+    def test_retry_rejects_non_terminal_tasks(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-STILL-RUNNING"] = {
+                "task_id": "CYRUS-STILL-RUNNING",
+                "objective": "Do not fork active work",
+                "mode": "autonomous",
+                "status": "RUNNING",
+                "retry_number": 0,
+            }
+        response = self.client.post(
+            "/api/tasks/CYRUS-STILL-RUNNING/retry",
+            headers={"Idempotency-Key": "retry-running-001"},
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.get_json()["status"], "RUNNING")
+
+    def test_retry_enforces_configured_lineage_limit(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-RETRY-EXHAUSTED"] = {
+                "task_id": "CYRUS-RETRY-EXHAUSTED",
+                "objective": "Stop after the configured retry budget",
+                "mode": "autonomous",
+                "status": "FAILED",
+                "retry_number": server.MAX_TASK_RETRIES,
+            }
+        response = self.client.post(
+            "/api/tasks/CYRUS-RETRY-EXHAUSTED/retry",
+            headers={"Idempotency-Key": "retry-exhausted-001"},
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.get_json()["max_task_retries"], server.MAX_TASK_RETRIES)
+
     def test_provider_contract_is_exposed(self):
         response = self.client.get("/api/health")
         payload = response.get_json()
