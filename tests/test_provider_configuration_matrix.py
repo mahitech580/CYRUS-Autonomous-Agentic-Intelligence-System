@@ -51,3 +51,6 @@ class ProviderConfigurationMatrixTests(unittest.TestCase):
 
     def test_empty_model_falls_back_to_demo(self):
         self.assertIsInstance(provider_with_env(CYRUS_LLM_MODEL="  "), DeterministicProvider)
+
+    def test_invalid_timeout_uses_default(self):
+        self.assertEqual(provider_with_env(CYRUS_LLM_TIMEOUT_SECONDS="not-a-number").timeout_seconds, 25.0)
