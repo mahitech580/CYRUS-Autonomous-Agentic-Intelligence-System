@@ -90,15 +90,40 @@
       }
     };
 
+    const takeCompleteLines = finalChunk => {
+      const lines = [];
+      let lineStart = 0;
+      for (let index = 0; index < buffer.length; index += 1) {
+        const character = buffer[index];
+        if (character === "\n") {
+          lines.push(buffer.slice(lineStart, index));
+          lineStart = index + 1;
+        } else if (character === "\r") {
+          // Hold a trailing CR until the next chunk so split CRLF is one delimiter.
+          if (index === buffer.length - 1 && !finalChunk) break;
+          lines.push(buffer.slice(lineStart, index));
+          if (buffer[index + 1] === "\n") index += 1;
+          lineStart = index + 1;
+        }
+      }
+      buffer = buffer.slice(lineStart);
+      return lines;
+    };
+
     try {
       while (!shouldStop) {
         if (signal && signal.aborted) throw makeAbortError();
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {
+          buffer += decoder.decode();
+          for (const line of takeCompleteLines(true)) {
+            processLine(line);
+            if (shouldStop) break;
+          }
+          break;
+        }
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() || "";
-        for (const line of lines) {
+        for (const line of takeCompleteLines(false)) {
           processLine(line);
           if (shouldStop) break;
         }
