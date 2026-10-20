@@ -5,7 +5,7 @@
     'execution_time_ms', 'latency_ms', 'score', 'quality', 'confidence',
     'coverage', 'tool_calls', 'tests_passed', 'tests_failed', 'risk',
     'verification_status', 'summary', 'error', 'provider', 'model',
-    'parent_task_id', 'retry_number', 'retry_reason', 'max_task_retries',
+    'parent_task_id', 'retry_number', 'retry_reason', 'max_task_retries', 'effective_max_task_retries',
     'agents', 'plan', 'research', 'implementation', 'validation_plan',
     'static_analysis', 'review', 'artifacts', 'events', 'score_method'
   ];
@@ -163,6 +163,7 @@
       record.parent_task_id ? '- **Retry of:** ' + markdownCell(record.parent_task_id) : null,
       record.parent_task_id ? '- **Retry attempt:** ' + markdownCell(record.retry_number ?? 1) : null,
       record.parent_task_id && record.retry_reason ? '- **Retry reason:** ' + markdownCell(record.retry_reason) : null,
+      record.parent_task_id ? '- **Effective retry cap:** ' + markdownCell(record.effective_max_task_retries ?? record.max_task_retries ?? 'unknown') : null,
       '',
       '> ' + report.notice,
       '',
@@ -296,6 +297,7 @@
       ['Provider', 'provider'], ['Model', 'model'],
       ['Retry source task', 'parent_task_id'], ['Retry number', 'retry_number'],
       ['Retry reason', 'retry_reason'], ['Retry limit', 'max_task_retries'],
+      ['Effective retry limit', 'effective_max_task_retries'],
       ['Summary', 'summary'], ['Error', 'error']
     ];
     const rows = [['Field', 'Value']];
