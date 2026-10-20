@@ -192,3 +192,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_localhost_lookalike_domain(self):
         self.assertFalse(_provider_url_is_allowed("http://localhost.evil/v1"))
+
+    def test_reject_localhost_hyphen_suffix(self):
+        self.assertFalse(_provider_url_is_allowed("http://localhost-attacker.example/v1"))
