@@ -42,6 +42,17 @@ The endpoint returns `current_task_id`, `root_task_id`, `attempt_count`, `trunca
 The result deliberately uses the compact task summary schema. It does **not** include implementation drafts, raw trace payloads, artifacts, or provider credentials. The execution inspector renders this response as an attempt timeline. Selecting an attempt opens that task record; retrying still requires the selected record to have a terminal, retryable status and remaining budget.
 
 
+## Inspect retry history
+
+```http
+GET /api/tasks/{task_id}/lineage
+X-CYRUS-Access-Key: <only when API access protection is enabled>
+```
+
+The lineage response contains `current_task_id`, `root_task_id`, `attempt_count`, `truncated`, and an `attempts` array ordered from the connected root toward its descendants. Each item is a compact task summary with its recorded/effective retry caps, parent task ID, retry number and safe retry reason. It does **not** return implementation drafts, artifacts or event bodies. The server guards against missing parents and cyclic metadata and caps the response at 50 connected attempts; `truncated: true` signals that the display cap was reached. Unknown task IDs return HTTP 404.
+
+The execution inspector renders this response as an attempt timeline. Selecting an attempt opens that task record; retrying still requires the selected record to have a terminal, retryable status and remaining effective budget. When the lineage endpoint is unavailable, the inspector keeps the current execution usable and shows a retry-history warning instead of discarding the record.
+
 ## Data and report behavior
 
 Retry metadata is saved with the normal execution history snapshot and appears in compact task results. The task modal shows the connected retry chain and lets operators open each attempt. JSON, Markdown, and CSV reports carry the lineage so exported records can be correlated without relying on browser state.
