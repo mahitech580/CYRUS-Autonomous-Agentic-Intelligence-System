@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
+from ipaddress import ip_address
 import json
 import os
 import re
@@ -302,6 +304,43 @@ class OpenAICompatibleProvider:
         }
 
 
+def _provider_url_is_allowed(base_url: str) -> bool:
+    """Require HTTPS remotely; allow plain HTTP only for a real loopback host.
+
+    Prefix checks are unsafe here: localhost.attacker.test begins with the
+    string http://localhost but still sends the provider key to a remote host.
+    """
+    if not isinstance(base_url, str) or not base_url.strip():
+        return False
+    try:
+        parsed = urlsplit(base_url.strip())
+        hostname = parsed.hostname
+        # Accessing .port validates malformed port values from urlsplit.
+        _ = parsed.port
+    except ValueError:
+        return False
+
+    if (
+        not hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        return False
+
+    scheme = parsed.scheme.lower()
+    if scheme == 'https':
+        return True
+    if scheme != 'http':
+        return False
+    if hostname.lower() == 'localhost':
+        return True
+    try:
+        return ip_address(hostname).is_loopback
+    except ValueError:
+        return False
+
 def get_provider() -> ExecutionProvider:
     """Use the configured OpenAI-compatible provider when a key is present.
 
@@ -321,7 +360,7 @@ def get_provider() -> ExecutionProvider:
     except ValueError:
         timeout_seconds = 25.0
     timeout_seconds = max(5.0, min(timeout_seconds, 60.0))
-    if not base_url.startswith(("https://", "http://localhost", "http://127.0.0.1")):
+    if not _provider_url_is_allowed(base_url):
         # A custom non-TLS remote provider is rejected to avoid sending the API key in clear text.
         return DeterministicProvider()
     if not model:
