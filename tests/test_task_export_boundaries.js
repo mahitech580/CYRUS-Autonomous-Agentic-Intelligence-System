@@ -38,3 +38,10 @@ test("recursively omits secret fields inside arrays", () => {
   const report = reportApi.buildTaskReport(task({events: [{message: 'started', access_token: 'hidden'}, [{password: 'hidden', status: 'ok'}]]}));
     assert.deepEqual(report.task.events, [{message: 'started'}, [{status: 'ok'}]]);
 });
+
+test("includes report schema and export timestamp", () => {
+  const report = reportApi.buildTaskReport(task(), '2026-10-20T10:00:00.000Z');
+    assert.equal(report.format, 'CYRUS_EXECUTION_REPORT');
+    assert.equal(report.schema_version, 1);
+    assert.equal(report.exported_at, '2026-10-20T10:00:00.000Z');
+});
