@@ -79,3 +79,9 @@ test("markdown states validation is proposed not executed", () => {
   const markdown = reportApi.buildTaskMarkdownReport(task({validation_plan: ['Check the boundary'] }));
     assert.ok(markdown.includes('These are proposed checks. This report does not imply the checks were executed.'));
 });
+
+test("csv report starts with utf8 bom and uses crlf", () => {
+  const csv = reportApi.buildTaskCsvReport(task());
+    assert.ok(csv.startsWith('\\uFEFF'));
+    assert.ok(csv.includes('\\r\\n'));
+});
