@@ -17,3 +17,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_accepts_two_items(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["alpha", "beta"]), ["alpha", "beta"])
+
+    def test_string_list_accepts_unicode(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list(["café", "東京"]), ["café", "東京"])
