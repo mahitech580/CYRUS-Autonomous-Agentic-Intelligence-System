@@ -760,6 +760,24 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("CYRUS-STREAM-TARGET-E001", body)
         self.assertIn("CYRUS-STREAM-TARGET-E002", body)
 
+    def test_task_event_stream_replays_when_cursor_sequence_is_oversized(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-LONG-CURSOR"] = {
+                "task_id": "CYRUS-LONG-CURSOR",
+                "status": "COMPLETED",
+                "current_agent": "RELEASE",
+                "updated_at": server.now_iso(),
+                "events": [
+                    {"event_id": "CYRUS-LONG-CURSOR-E001", "agent": "PLANNER"},
+                ],
+            }
+        response = self.client.get(
+            "/api/tasks/CYRUS-LONG-CURSOR/stream",
+            headers={"Last-Event-ID": "CYRUS-LONG-CURSOR-E" + ("9" * 5000)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("CYRUS-LONG-CURSOR-E001", response.get_data(as_text=True))
+
     def test_task_event_stream_resumes_after_last_event_id(self):
         with server.runtime["lock"]:
             server.runtime["tasks"]["CYRUS-RESUME"] = {
