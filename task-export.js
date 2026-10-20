@@ -5,6 +5,7 @@
     'execution_time_ms', 'latency_ms', 'score', 'quality', 'confidence',
     'coverage', 'tool_calls', 'tests_passed', 'tests_failed', 'risk',
     'verification_status', 'summary', 'error', 'provider', 'model',
+    'parent_task_id', 'retry_number', 'retry_reason', 'max_task_retries',
     'agents', 'plan', 'research', 'implementation', 'validation_plan',
     'static_analysis', 'review', 'artifacts', 'events', 'score_method'
   ];
@@ -289,7 +290,10 @@
       ['Confidence', 'confidence'], ['Coverage', 'coverage'], ['Tool calls', 'tool_calls'],
       ['Tests passed', 'tests_passed'], ['Tests failed', 'tests_failed'],
       ['Risk', 'risk'], ['Verification status', 'verification_status'],
-      ['Provider', 'provider'], ['Model', 'model'], ['Summary', 'summary'], ['Error', 'error']
+      ['Provider', 'provider'], ['Model', 'model'],
+      ['Retry source task', 'parent_task_id'], ['Retry number', 'retry_number'],
+      ['Retry reason', 'retry_reason'], ['Retry limit', 'max_task_retries'],
+      ['Summary', 'summary'], ['Error', 'error']
     ];
     const rows = [['Field', 'Value']];
     for (const [label, key] of fields) {
