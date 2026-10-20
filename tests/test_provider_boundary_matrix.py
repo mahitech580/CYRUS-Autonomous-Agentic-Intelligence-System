@@ -126,3 +126,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_whitespace_url(self):
         self.assertFalse(_provider_url_is_allowed("   \t  "))
+
+    def test_reject_newline_only_url(self):
+        self.assertFalse(_provider_url_is_allowed("\n\t"))
