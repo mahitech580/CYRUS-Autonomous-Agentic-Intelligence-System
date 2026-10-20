@@ -1059,6 +1059,107 @@ def analytics():
         if failure_type:
             failure_counts[failure_type] = failure_counts.get(failure_type, 0) + 1
 
+    records_by_id = {
+        str(item.get("task_id")): item
+        for item in records
+        if item.get("task_id")
+    }
+    retry_records = [
+        item for item in records
+        if _retry_attempt_number(item) > 0
+    ]
+    retry_status_counts = {
+        "COMPLETED": 0, "FAILED": 0, "CANCELLED": 0, "TIMED_OUT": 0,
+        "RUNNING": 0, "QUEUED": 0, "AWAITING_APPROVAL": 0,
+    }
+    retry_depth_counts = {}
+    retry_roots = set()
+    eligible_after_failure = 0
+    resolved_after_failure = 0
+    recovered_after_failure = 0
+    max_retry_depth = 0
+
+    for item in retry_records:
+        depth = _retry_attempt_number(item)
+        max_retry_depth = max(max_retry_depth, depth)
+        state = str(item.get("status") or "UNKNOWN").upper()
+        if state in retry_status_counts:
+            retry_status_counts[state] += 1
+        bucket = retry_depth_counts.setdefault(depth, {
+            "retry_number": depth, "total": 0, "completed": 0, "failed": 0,
+            "cancelled": 0, "timed_out": 0, "active": 0, "terminal": 0,
+        })
+        bucket["total"] += 1
+        bucket_key = {
+            "COMPLETED": "completed", "FAILED": "failed", "CANCELLED": "cancelled",
+            "TIMED_OUT": "timed_out",
+        }.get(state)
+        if bucket_key:
+            bucket[bucket_key] += 1
+        if state in {"RUNNING", "QUEUED", "AWAITING_APPROVAL"}:
+            bucket["active"] += 1
+        if state in terminal_statuses:
+            bucket["terminal"] += 1
+
+        parent_id = item.get("parent_task_id")
+        parent = records_by_id.get(parent_id) if isinstance(parent_id, str) else None
+        parent_status = str(parent.get("status") or "UNKNOWN").upper() if parent else ""
+        if parent_status in {"FAILED", "CANCELLED", "TIMED_OUT"}:
+            eligible_after_failure += 1
+            if state in terminal_statuses:
+                resolved_after_failure += 1
+                if state == "COMPLETED":
+                    recovered_after_failure += 1
+
+        # Resolve the root with a hard guard for stale or cyclic historical pointers.
+        root_id = str(item.get("task_id") or "")
+        cursor = root_id
+        visited = set()
+        for _ in range(50):
+            if not cursor or cursor in visited:
+                break
+            visited.add(cursor)
+            current = records_by_id.get(cursor)
+            next_parent = current.get("parent_task_id") if current else None
+            if not isinstance(next_parent, str) or next_parent not in records_by_id:
+                root_id = cursor
+                break
+            cursor = next_parent
+        if root_id:
+            retry_roots.add(root_id)
+
+    retry_terminal_total = sum(
+        retry_status_counts[name] for name in terminal_statuses
+    )
+    retry_outcomes = {
+        "total_attempts": len(retry_records),
+        "lineages_with_retries": len(retry_roots),
+        "completed": retry_status_counts["COMPLETED"],
+        "failed": retry_status_counts["FAILED"],
+        "cancelled": retry_status_counts["CANCELLED"],
+        "timed_out": retry_status_counts["TIMED_OUT"],
+        "active": (
+            retry_status_counts["RUNNING"]
+            + retry_status_counts["QUEUED"]
+            + retry_status_counts["AWAITING_APPROVAL"]
+        ),
+        "terminal": retry_terminal_total,
+        "completion_rate": round(
+            retry_status_counts["COMPLETED"] / retry_terminal_total * 100, 1
+        ) if retry_terminal_total else 0,
+        "eligible_after_failure": eligible_after_failure,
+        "resolved_after_failure": resolved_after_failure,
+        "recovered_after_failure": recovered_after_failure,
+        "recovery_rate": round(
+            recovered_after_failure / resolved_after_failure * 100, 1
+        ) if resolved_after_failure else 0,
+        "max_depth": max_retry_depth,
+        "by_depth": [
+            retry_depth_counts[depth]
+            for depth in sorted(retry_depth_counts)
+        ],
+    }
+
     terminal_total = sum(status_counts[name] for name in terminal_statuses)
     latencies = sorted(latency_samples)
     median = 0
@@ -1084,6 +1185,7 @@ def analytics():
             "success_rate": round(status_counts["COMPLETED"] / terminal_total * 100, 1) if terminal_total else 0,
         },
         "daily": list(daily.values()),
+        "retry_outcomes": retry_outcomes,
         "providers": [
             {"name": name, "count": count}
             for name, count in sorted(provider_counts.items(), key=lambda pair: pair[1], reverse=True)
