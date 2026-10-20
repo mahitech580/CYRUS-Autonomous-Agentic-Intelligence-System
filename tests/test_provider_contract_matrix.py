@@ -238,3 +238,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_scrubs_uppercase_access_token_label(self):
         self.assertNotIn("accessTokenABC123", _redact_provider_error_detail("ACCESS_TOKEN: accessTokenABC123"))
+
+    def test_redaction_scrubs_refresh_token_with_spaces(self):
+        self.assertNotIn("refreshTokenABC123", _redact_provider_error_detail("refresh token = refreshTokenABC123"))
