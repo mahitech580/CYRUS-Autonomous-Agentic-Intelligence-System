@@ -237,3 +237,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_gopher_scheme(self):
         self.assertFalse(_provider_url_is_allowed("gopher://provider.example/v1"))
+
+    def test_reject_https_empty_host_with_query(self):
+        self.assertFalse(_provider_url_is_allowed("https://?missing-host=1"))
