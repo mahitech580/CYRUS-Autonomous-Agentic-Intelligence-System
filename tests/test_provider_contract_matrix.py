@@ -218,3 +218,7 @@ class ProviderContractMatrixTests(unittest.TestCase):
     def test_redaction_scrubs_rsa_private_key_block(self):
         detail = "-----BEGIN RSA PRIVATE KEY-----\\nkey-private-body\\n-----END RSA PRIVATE KEY-----"
                 self.assertNotIn("key-private-body", _redact_provider_error_detail(detail))
+
+    def test_redaction_scrubs_ec_private_key_block(self):
+        detail = "-----BEGIN EC PRIVATE KEY-----\\nkey-private-body-ec\\n-----END EC PRIVATE KEY-----"
+                self.assertNotIn("key-private-body-ec", _redact_provider_error_detail(detail))
