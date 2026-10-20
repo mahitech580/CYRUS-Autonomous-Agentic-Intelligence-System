@@ -65,7 +65,10 @@ class CyrusApiContractTests(unittest.TestCase):
                 "updated_at": server.now_iso(),
                 "objective": "Persist execution evidence",
                 "tool_calls": 7,
-                
+                "parent_task_id": "CYRUS-DURABLE-PARENT",
+                "retry_number": 2,
+                "retry_reason": "TIMED_OUT:TaskTimedOut",
+                "max_task_retries": 4,
                 "mode": "autonomous",
                 "status": "COMPLETED",
                 "current_agent": "RELEASE",
@@ -89,6 +92,10 @@ class CyrusApiContractTests(unittest.TestCase):
             self.assertEqual(persisted["updated_at"], task["updated_at"])
             self.assertEqual(persisted["tool_calls"], 7)
             self.assertEqual(persisted["latency_ms"], 12)
+            self.assertEqual(persisted["parent_task_id"], "CYRUS-DURABLE-PARENT")
+            self.assertEqual(persisted["retry_number"], 2)
+            self.assertEqual(persisted["retry_reason"], "TIMED_OUT:TaskTimedOut")
+            self.assertEqual(persisted["max_task_retries"], 4)
 
     def test_history_persistence_round_trip_is_atomic(self):
         with TemporaryDirectory() as tmp:
