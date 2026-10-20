@@ -69,3 +69,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_json_ignores_outer_whitespace(self):
         self.assertEqual(OpenAICompatibleProvider._json('  \n {"ok": true} \t '), {"ok": True})
+
+    def test_json_preserves_unicode_values(self):
+        self.assertEqual(OpenAICompatibleProvider._json('{"city": "東京"}'), {"city": "東京"})
