@@ -89,3 +89,7 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
     def test_subprocess_popen_call_is_flagged_for_review(self):
         result = analyze_draft("subprocess.Popen(['echo', 'hello'])")
                     self.assertEqual(self.check(result, "execution_primitive_review")["status"], "WARN")
+
+    def test_subprocess_call_call_is_flagged_for_review(self):
+        result = analyze_draft("subprocess.call(['echo', 'hello'])")
+                    self.assertEqual(self.check(result, "execution_primitive_review")["status"], "WARN")
