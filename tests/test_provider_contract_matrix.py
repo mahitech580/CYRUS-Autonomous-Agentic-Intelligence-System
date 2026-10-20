@@ -274,3 +274,8 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_truncates_very_long_safe_message(self):
         self.assertEqual(len(_redact_provider_error_detail("network failure " * 200)), 350)
+
+    def test_redaction_does_not_mutate_input_string(self):
+        detail = "api_key=mutableSecret123"
+                    _redact_provider_error_detail(detail)
+                    self.assertEqual(detail, "api_key=mutableSecret123")
