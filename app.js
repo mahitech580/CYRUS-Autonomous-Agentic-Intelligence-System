@@ -1314,7 +1314,7 @@ function AnalyticsView({open,openApiSettings}){
           <div className="analytics-retry-stat-grid">
             <article><span>RETRY ATTEMPTS</span><strong>{retryOutcomes.total_attempts??0}</strong><small>{retryOutcomes.active??0} currently active</small></article>
             <article><span>COMPLETION RATE</span><strong>{retryOutcomes.terminal?(Number(retryOutcomes.completion_rate)||0)+'%':'—'}</strong><small>{retryOutcomes.completed??0} completed of terminal retry attempts</small></article>
-            <article><span>RECOVERED AFTER FAILURE</span><strong>{retryOutcomes.recovered_after_failure??0}</strong><small>{retryOutcomes.resolved_after_failure??0} resolved retry attempts after an unsuccessful parent</small></article>
+            <article><span>RECOVERED AFTER FAILURE</span><strong>{retryOutcomes.recovered_after_failure??0}</strong><small>{retryOutcomes.recovery_rate??0}% of resolved retries following an unsuccessful parent</small></article>
             <article><span>MAX RETRY DEPTH</span><strong>{retryOutcomes.max_depth??0}</strong><small>Retries after the original attempt</small></article>
           </div>
           {retryDepths.length?<div className="analytics-retry-depths" aria-label="Retry outcomes by attempt depth">
