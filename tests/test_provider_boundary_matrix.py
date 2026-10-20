@@ -228,3 +228,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_query_api_key(self):
         self.assertFalse(_provider_url_is_allowed("https://provider.example/v1?api_key=not-for-urls"))
+
+    def test_reject_query_access_token(self):
+        self.assertFalse(_provider_url_is_allowed("https://provider.example/v1?access_token=not-for-urls"))
