@@ -338,6 +338,131 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(exhausted.get_json()["max_task_retries"], 3)
         self.assertEqual(exhausted.get_json()["effective_max_task_retries"], 1)
 
+    def test_task_lineage_returns_root_to_leaf_summaries_from_live_state(self):
+        records = [
+            {
+                "task_id": "CYRUS-LINEAGE-ROOT",
+                "created_at": "2026-10-20T10:00:00Z",
+                "objective": "Inspect retryable behavior",
+                "mode": "autonomous",
+                "status": "TIMED_OUT",
+                "retry_number": 0,
+                "max_task_retries": 3,
+                "events": [],
+                "implementation": "must not appear in a lineage summary",
+            },
+            {
+                "task_id": "CYRUS-LINEAGE-RETRY-1",
+                "created_at": "2026-10-20T10:01:00Z",
+                "objective": "Inspect retryable behavior",
+                "mode": "autonomous",
+                "status": "FAILED",
+                "parent_task_id": "CYRUS-LINEAGE-ROOT",
+                "retry_number": 1,
+                "max_task_retries": 3,
+                "retry_reason": "TIMED_OUT:TaskTimedOut",
+                "events": [],
+                "implementation": "must not appear in a lineage summary",
+            },
+            {
+                "task_id": "CYRUS-LINEAGE-RETRY-2",
+                "created_at": "2026-10-20T10:02:00Z",
+                "objective": "Inspect retryable behavior",
+                "mode": "autonomous",
+                "status": "RUNNING",
+                "parent_task_id": "CYRUS-LINEAGE-RETRY-1",
+                "retry_number": 2,
+                "max_task_retries": 3,
+                "events": [],
+                "implementation": "must not appear in a lineage summary",
+            },
+            {
+                "task_id": "CYRUS-UNRELATED",
+                "created_at": "2026-10-20T10:03:00Z",
+                "objective": "An unrelated execution",
+                "mode": "autonomous",
+                "status": "COMPLETED",
+                "events": [],
+            },
+        ]
+        with server.runtime["lock"]:
+            for item in records:
+                server.runtime["tasks"][item["task_id"]] = item
+        with patch.object(server, "load_history", return_value=[]):
+            response = self.client.get("/api/tasks/CYRUS-LINEAGE-RETRY-1/lineage")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["current_task_id"], "CYRUS-LINEAGE-RETRY-1")
+        self.assertEqual(payload["root_task_id"], "CYRUS-LINEAGE-ROOT")
+        self.assertEqual(payload["attempt_count"], 3)
+        self.assertFalse(payload["truncated"])
+        self.assertEqual(
+            [item["task_id"] for item in payload["attempts"]],
+            ["CYRUS-LINEAGE-ROOT", "CYRUS-LINEAGE-RETRY-1", "CYRUS-LINEAGE-RETRY-2"],
+        )
+        self.assertTrue(payload["attempts"][0]["can_retry"])
+        self.assertEqual(payload["attempts"][1]["parent_task_id"], "CYRUS-LINEAGE-ROOT")
+        self.assertEqual(payload["attempts"][1]["retry_reason"], "TIMED_OUT:TaskTimedOut")
+        self.assertNotIn("implementation", payload["attempts"][0])
+        self.assertNotIn("CYRUS-UNRELATED", str(payload))
+
+    def test_task_lineage_works_for_legacy_historical_records_and_missing_tasks(self):
+        historical = [
+            {
+                "task_id": "CYRUS-HISTORY-ROOT",
+                "objective": "Legacy record",
+                "mode": "autonomous",
+                "status": "FAILED",
+                "created_at": "2026-10-20T09:00:00Z",
+            },
+            {
+                "task_id": "CYRUS-HISTORY-RETRY",
+                "objective": "Legacy record",
+                "mode": "autonomous",
+                "status": "TIMED_OUT",
+                "created_at": "2026-10-20T09:01:00Z",
+                "parent_task_id": "CYRUS-HISTORY-ROOT",
+                "retry_number": 1,
+            },
+        ]
+        with patch.object(server, "load_history", return_value=historical):
+            response = self.client.get("/api/tasks/CYRUS-HISTORY-RETRY/lineage")
+            missing = self.client.get("/api/tasks/CYRUS-HISTORY-MISSING/lineage")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["attempt_count"], 2)
+        self.assertEqual(response.get_json()["attempts"][0]["retry_number"], 0)
+        self.assertEqual(missing.status_code, 404)
+        self.assertEqual(missing.get_json()["error"], "Task not found")
+
+    def test_task_lineage_cycle_does_not_loop_forever(self):
+        with server.runtime["lock"]:
+            server.runtime["tasks"]["CYRUS-CYCLE-A"] = {
+                "task_id": "CYRUS-CYCLE-A",
+                "objective": "Malformed lineage",
+                "mode": "autonomous",
+                "status": "FAILED",
+                "parent_task_id": "CYRUS-CYCLE-B",
+                "retry_number": 1,
+            }
+            server.runtime["tasks"]["CYRUS-CYCLE-B"] = {
+                "task_id": "CYRUS-CYCLE-B",
+                "objective": "Malformed lineage",
+                "mode": "autonomous",
+                "status": "FAILED",
+                "parent_task_id": "CYRUS-CYCLE-A",
+                "retry_number": 2,
+            }
+        with patch.object(server, "load_history", return_value=[]):
+            response = self.client.get("/api/tasks/CYRUS-CYCLE-A/lineage")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertLessEqual(payload["attempt_count"], 50)
+        self.assertEqual(len({item["task_id"] for item in payload["attempts"]}), payload["attempt_count"])
+        self.assertTrue(payload["truncated"] is False or payload["truncated"] is True)
+
     def test_retry_rejects_non_terminal_tasks(self):
         with server.runtime["lock"]:
             server.runtime["tasks"]["CYRUS-STILL-RUNNING"] = {
