@@ -27,3 +27,9 @@ test("omits unallowlisted root fields", () => {
   const report = reportApi.buildTaskReport(task({internal_debug_dump: 'must not be exported'}));
     assert.equal(report.task.internal_debug_dump, undefined);
 });
+
+test("omits case insensitive secret field names", () => {
+  const report = reportApi.buildTaskReport(task({API_KEY: 'hidden', Authorization: 'hidden', objective: 'normal'}));
+    assert.equal(report.task.API_KEY, undefined);
+    assert.equal(report.task.Authorization, undefined);
+});
