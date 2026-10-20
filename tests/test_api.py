@@ -1,4 +1,5 @@
 import unittest
+import threading
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -15,6 +16,7 @@ class CyrusApiContractTests(unittest.TestCase):
             server.runtime["futures"].clear()
             server.runtime["idempotency"].clear()
             server.runtime["cancel_events"].clear()
+            server.runtime["retry_reservations"].clear()
             server.runtime["rate_limits"].clear()
         self.client = server.app.test_client()
 
@@ -222,6 +224,78 @@ class CyrusApiContractTests(unittest.TestCase):
             self.assertEqual(retried["retry_reason"], "TIMED_OUT:TaskTimedOut")
             self.assertEqual(retried["events"][0]["phase"], "RETRY_CREATED")
             self.assertNotIn(created["task_id"], server.runtime["futures"])
+
+    def test_retry_reservation_prevents_parallel_children_with_different_keys(self):
+        source = {
+            "task_id": "CYRUS-RETRY-RACE-SOURCE",
+            "created_at": server.now_iso(),
+            "updated_at": server.now_iso(),
+            "objective": "Serialize retry submission",
+            "mode": "autonomous",
+            "status": "FAILED",
+            "retry_number": 0,
+            "failure": {"type": "RuntimeError", "message": "synthetic"},
+            "events": [],
+        }
+        with server.runtime["lock"]:
+            server.runtime["tasks"][source["task_id"]] = source
+
+        lookup_started = threading.Event()
+        allow_lookup = threading.Event()
+        original_all_task_records = server.all_task_records
+        responses = {}
+
+        def pause_first_lineage_scan():
+            lookup_started.set()
+            if not allow_lookup.wait(timeout=3):
+                raise RuntimeError("test did not release retry lineage scan")
+            return original_all_task_records()
+
+        def first_request():
+            with server.app.test_client() as client:
+                responses["first"] = client.post(
+                    "/api/tasks/CYRUS-RETRY-RACE-SOURCE/retry",
+                    headers={"Idempotency-Key": "retry-race-key-one"},
+                )
+
+        original_executor = server.runtime["executor"]
+        class InlineExecutor:
+            def submit(self, callback, task):
+                callback(task)
+                class CompletedFuture:
+                    def done(self):
+                        return True
+                return CompletedFuture()
+
+        server.runtime["executor"] = InlineExecutor()
+        worker = threading.Thread(target=first_request)
+        try:
+            with patch.object(server, "all_task_records", side_effect=pause_first_lineage_scan), \
+                 patch.object(server, "execute_task", lambda task: None):
+                worker.start()
+                self.assertTrue(lookup_started.wait(timeout=2))
+                second = self.client.post(
+                    "/api/tasks/CYRUS-RETRY-RACE-SOURCE/retry",
+                    headers={"Idempotency-Key": "retry-race-key-two"},
+                )
+                allow_lookup.set()
+                worker.join(timeout=3)
+        finally:
+            allow_lookup.set()
+            worker.join(timeout=3)
+            server.runtime["executor"] = original_executor
+
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(responses["first"].status_code, 202)
+        self.assertEqual(second.status_code, 409)
+        self.assertEqual(second.get_json()["status"], "RETRY_IN_PROGRESS")
+        with server.runtime["lock"]:
+            children = [
+                task for task in server.runtime["tasks"].values()
+                if task.get("parent_task_id") == source["task_id"]
+            ]
+            self.assertEqual(len(children), 1)
+            self.assertNotIn("retry-race-key-two", server.runtime["idempotency"])
 
     def test_retry_rejects_non_terminal_tasks(self):
         with server.runtime["lock"]:
