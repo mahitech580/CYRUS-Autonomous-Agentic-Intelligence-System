@@ -259,3 +259,8 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("access_token: matrix-access-token-secret-081")
         self.assertNotIn("matrix-access-token-secret-081", result)
         self.assertIn("[redacted", result.lower())
+
+    def test_redacts_refresh_token_assignment(self):
+        result = _redact_provider_error_detail("refresh_token=matrix-refresh-token-secret-082")
+        self.assertNotIn("matrix-refresh-token-secret-082", result)
+        self.assertIn("[redacted", result.lower())
