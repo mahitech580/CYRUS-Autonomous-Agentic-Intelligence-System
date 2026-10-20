@@ -271,3 +271,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_caps_unicode_diagnostic_length(self):
         self.assertEqual(len(_redact_provider_error_detail("界" * 500)), 350)
+
+    def test_redaction_truncates_very_long_safe_message(self):
+        self.assertEqual(len(_redact_provider_error_detail("network failure " * 200)), 350)
