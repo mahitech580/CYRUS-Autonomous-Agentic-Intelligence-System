@@ -246,3 +246,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_integer_encoded_loopback(self):
         self.assertFalse(_provider_url_is_allowed("http://2130706433/v1"))
+
+    def test_reject_short_ipv4_loopback_form(self):
+        self.assertFalse(_provider_url_is_allowed("http://127.1/v1"))
