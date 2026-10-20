@@ -93,3 +93,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_json_parses_empty_array(self):
         self.assertEqual(OpenAICompatibleProvider._json('[]'), [])
+
+    def test_json_extracts_array_after_prose(self):
+        self.assertEqual(OpenAICompatibleProvider._json('Checks: ["input", "output"]'), ["input", "output"])
