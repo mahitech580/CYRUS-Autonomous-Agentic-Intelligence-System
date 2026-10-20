@@ -361,6 +361,6 @@ for (const reportFeature of [
   assert.ok(lineageExports.includes(reportFeature), "Missing retry lineage report field: " + reportFeature);
 }
 assert.ok(fs.readFileSync("tests/test_api.py", "utf8").includes("test_task_lineage_returns_root_to_leaf_summaries"), "Lineage ordering must have an API regression test");
-assert.ok(fs.readFileSync("tests/test_task_export.js", "utf8").includes("cover lineage in JSON"), "Lineage export must have report regression coverage");
+assert.ok(fs.readFileSync("tests/test_task_export.js", "utf8").includes("preserves retry lineage across JSON"), "Lineage export must have report regression coverage");
 console.log("Retry lineage smoke: bounded API, timeline UI, responsive styling and JSON/Markdown/CSV contracts OK");
 
