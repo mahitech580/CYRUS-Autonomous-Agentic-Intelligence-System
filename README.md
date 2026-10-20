@@ -45,6 +45,7 @@ The Execution History page exports filtered summary rows as CSV. Open any execut
 - `GET /api/tasks` — compact list with `limit`, `offset`, `status`, `mode`, and `q` filters
 - `GET /api/analytics?days=7` — dynamic outcomes, daily run counts, providers, failures, latency, and storage diagnostics (1–90 day windows)
 - `GET /api/tasks/{id}` — full execution record including agent state and trace
+- `GET /api/tasks/{id}/lineage` — bounded, summary-only original-to-retry attempt chain (maximum 50 records)
 - `GET /api/tasks/{id}/stream` — resumable Server-Sent Events stream for live state and trace updates
 - `POST /api/tasks/{id}/cancel` — cooperative cancellation
 - `POST /api/tasks/{id}/approve` — supervised release approval
