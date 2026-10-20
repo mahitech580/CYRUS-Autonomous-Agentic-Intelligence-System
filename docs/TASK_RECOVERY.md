@@ -6,7 +6,7 @@ CYRUS retries are operator initiated. A retry is a **new execution record**, not
 
 Only tasks in `FAILED`, `CANCELLED`, or `TIMED_OUT` can be retried. A running, queued, awaiting-approval, or completed task returns HTTP 409. Missing task IDs return HTTP 404. A retry also requires a usable stored objective and an allowed mode.
 
-The server reads the current retry budget from `CYRUS_MAX_TASK_RETRIES` (default `3`, clamped to 0–10). A value of `0` disables retry requests. The number is the maximum retry depth after the original attempt: attempt 1 may produce retry 1, retry 1 may produce retry 2, and so on until the configured cap.
+A new task records the retry budget from `CYRUS_MAX_TASK_RETRIES` (default `3`, clamped to 0–10). A value of `0` disables retries. That recorded cap is inherited by descendants, so raising the environment value later does not expand an existing lineage. The active deployment cap is also enforced as a stricter ceiling: the effective limit is the lower of the stored lineage cap and the current environment setting. Each retry increments the attempt number, and no request can create an attempt beyond that effective limit.
 
 ## Retry endpoint
 
@@ -21,6 +21,10 @@ No request body is needed. The server reuses only the source objective and execu
 - `parent_task_id`: the immediate source attempt.
 - `retry_number`: the attempt number in the lineage.
 - `retry_reason`: terminal status and, when available, the exception type—not the raw failure message.
+- `max_task_retries`: the configured cap recorded when that lineage was created.
+- `effective_max_task_retries`: the active cap after applying any stricter deployment setting.
+
+History keeps the recorded cap. API responses and report exports also expose the effective cap so the UI does not offer a retry that the current deployment will reject.
 
 A successful new attempt returns HTTP 202. A recognized duplicate returns HTTP 200 with `deduplicated: true`. Invalid or conflicting idempotency keys return HTTP 400 or 409. A saturated worker pool or exhausted submission rate limit returns HTTP 429; rate-limited responses carry `Retry-After`.
 
