@@ -26,3 +26,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_retains_internal_newlines(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["alpha\nbeta"]), ["alpha\nbeta"])
+
+    def test_string_list_retains_duplicates(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list(["same", "same"]), ["same", "same"])
