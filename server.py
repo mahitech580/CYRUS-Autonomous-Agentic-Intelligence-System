@@ -1127,7 +1127,8 @@ def task_stream(task_id):
         return jsonify({"error": "Task not found"}), 404
 
     raw_last_id = request.headers.get("Last-Event-ID", "").strip()
-    match = re.fullmatch(r".*-E(\d+)", raw_last_id)
+    # A cursor is meaningful only for this task; reject IDs from another stream.
+    match = re.fullmatch(re.escape(task_id) + r"-E(\d+)", raw_last_id)
     last_sequence = int(match.group(1)) if match else 0
 
     @stream_with_context
