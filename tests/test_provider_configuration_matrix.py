@@ -33,3 +33,6 @@ class ProviderConfigurationMatrixTests(unittest.TestCase):
 
     def test_explicit_deterministic_mode_uses_demo(self):
         self.assertIsInstance(provider_with_env(CYRUS_LLM_PROVIDER="deterministic"), DeterministicProvider)
+
+    def test_explicit_offline_mode_uses_demo(self):
+        self.assertIsInstance(provider_with_env(CYRUS_LLM_PROVIDER="offline"), DeterministicProvider)
