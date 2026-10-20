@@ -250,3 +250,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_redaction_scrubs_password_with_equal_sign(self):
         self.assertNotIn("equalsPassword123", _redact_provider_error_detail("password=equalsPassword123"))
+
+    def test_redaction_scrubs_bearer_before_comma(self):
+        self.assertNotIn("commaBearerABC123", _redact_provider_error_detail("failure Bearer commaBearerABC123, status=401"))
