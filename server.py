@@ -249,6 +249,7 @@ def _retry_attempt_number(task):
 
 
 def _task_retry_limit(task):
+    """Return the retry cap recorded for this lineage, bounded to supported values."""
     try:
         limit = int(task.get("max_task_retries", MAX_TASK_RETRIES))
     except (TypeError, ValueError, OverflowError):
@@ -256,9 +257,15 @@ def _task_retry_limit(task):
     return max(0, min(limit, 10))
 
 
+def _effective_task_retry_limit(task):
+    """Apply the active deployment cap as a stricter ceiling on a stored lineage cap."""
+    return min(_task_retry_limit(task), MAX_TASK_RETRIES)
+
+
 def task_summary(task):
     retry_number = _retry_attempt_number(task)
     retry_limit = _task_retry_limit(task)
+    effective_retry_limit = _effective_task_retry_limit(task)
     status = str(task.get("status") or "").upper()
     return {
         "task_id": task["task_id"],
@@ -289,7 +296,8 @@ def task_summary(task):
         "retry_number": retry_number,
         "retry_reason": task.get("retry_reason"),
         "max_task_retries": retry_limit,
-        "can_retry": status in {"FAILED", "CANCELLED", "TIMED_OUT"} and retry_number < retry_limit
+        "effective_max_task_retries": effective_retry_limit,
+        "can_retry": status in {"FAILED", "CANCELLED", "TIMED_OUT"} and retry_number < effective_retry_limit
     }
 
 def persist_task(task):
@@ -1130,12 +1138,14 @@ def retry_task(task_id):
         }), 409
 
     previous_retry_number = _retry_attempt_number(source)
-    retry_limit = _task_retry_limit(source)
+    lineage_retry_limit = _task_retry_limit(source)
+    retry_limit = _effective_task_retry_limit(source)
     if previous_retry_number >= retry_limit:
         return jsonify({
             "error": "The configured retry limit has been reached for this execution lineage",
             "retry_number": previous_retry_number,
-            "max_task_retries": retry_limit,
+            "max_task_retries": lineage_retry_limit,
+            "effective_max_task_retries": retry_limit,
         }), 409
 
     objective = source.get("objective")
@@ -1262,7 +1272,8 @@ def retry_task(task_id):
                 "mode": existing_retry.get("mode", mode),
                 "retry_of": task_id,
                 "retry_number": next_retry_number,
-                "max_task_retries": retry_limit,
+                "max_task_retries": _task_retry_limit(existing_retry),
+                "effective_max_task_retries": _effective_task_retry_limit(existing_retry),
                 "deduplicated": True,
             }), 200
 
@@ -1274,7 +1285,7 @@ def retry_task(task_id):
                 parent_task_id=task_id,
                 retry_number=next_retry_number,
                 retry_reason=retry_reason,
-                max_task_retries=retry_limit,
+                max_task_retries=lineage_retry_limit,
             )
             if idempotency_key:
                 with runtime["lock"]:
@@ -1296,7 +1307,8 @@ def retry_task(task_id):
             "mode": mode,
             "retry_of": task_id,
             "retry_number": next_retry_number,
-            "max_task_retries": retry_limit,
+            "max_task_retries": lineage_retry_limit,
+            "effective_max_task_retries": retry_limit,
             "deduplicated": False,
         }), 202
     finally:
@@ -1443,17 +1455,20 @@ def task_detail(task_id):
     with runtime["lock"]:
         task = runtime["tasks"].get(task_id)
     if task:
-        return jsonify(task)
+        snapshot = dict(task)
+        snapshot.setdefault("retry_number", 0)
+        snapshot.setdefault("retry_reason", None)
+        snapshot.setdefault("max_task_retries", MAX_TASK_RETRIES)
+        snapshot["effective_max_task_retries"] = _effective_task_retry_limit(snapshot)
+        return jsonify(snapshot)
     for item in load_history():
         if item.get("task_id") == task_id:
-            # Old history snapshots predate retry metadata. Project current
-            # policy defaults into the response without rewriting old records.
+            # Older records predate retry metadata; never rewrite the stored snapshot.
             snapshot = dict(item)
             snapshot.setdefault("retry_number", 0)
             snapshot.setdefault("retry_reason", None)
-            # Legacy history has no retry budget; existing lineage metadata is
-            # intentionally preserved so exported reports remain historically accurate.
             snapshot.setdefault("max_task_retries", MAX_TASK_RETRIES)
+            snapshot["effective_max_task_retries"] = _effective_task_retry_limit(snapshot)
             return jsonify(snapshot)
     return jsonify({"error": "Task not found"}), 404
 
