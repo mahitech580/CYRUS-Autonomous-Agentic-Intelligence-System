@@ -250,3 +250,8 @@ class ProviderContractMatrixTests(unittest.TestCase):
         result = _redact_provider_error_detail("api key = abcdef12345")
                 self.assertNotIn("abcdef12345", result)
                 self.assertIn("[redacted]", result)
+
+    def test_redaction_scrubs_quoted_password_value(self):
+        result = _redact_provider_error_detail('{"password": "private-pass-123"}')
+                self.assertNotIn("private-pass-123", result)
+                self.assertIn("[redacted]", result)
