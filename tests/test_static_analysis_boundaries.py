@@ -93,3 +93,7 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
     def test_subprocess_call_call_is_flagged_for_review(self):
         result = analyze_draft("subprocess.call(['echo', 'hello'])")
                     self.assertEqual(self.check(result, "execution_primitive_review")["status"], "WARN")
+
+    def test_near_match_module_name_is_not_flagged_as_subprocess(self):
+        result = analyze_draft("subprocesses.run(['echo'])")
+                    self.assertEqual(self.check(result, "execution_primitive_review")["status"], "PASS")
