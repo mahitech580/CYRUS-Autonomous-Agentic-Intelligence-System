@@ -5,7 +5,7 @@
     'execution_time_ms', 'latency_ms', 'score', 'quality', 'confidence',
     'coverage', 'tool_calls', 'tests_passed', 'tests_failed', 'risk',
     'verification_status', 'summary', 'error', 'provider', 'model',
-    'parent_task_id', 'retry_number', 'retry_reason', 'max_task_retries', 'effective_max_task_retries',
+    'parent_task_id', 'retry_number', 'retry_reason', 'max_task_retries', 'effective_max_task_retries', 'retry_lineage',
     'agents', 'plan', 'research', 'implementation', 'validation_plan',
     'static_analysis', 'review', 'artifacts', 'events', 'score_method'
   ];
@@ -184,6 +184,18 @@
       '| Tool calls | ' + markdownCell(record.tool_calls ?? '—') + ' |',
       '| Verification | ' + markdownCell(record.verification_status || 'not reported') + ' |',
       '',
+      '## Retry lineage',
+      '',
+      Array.isArray(record.retry_lineage) && record.retry_lineage.length
+        ? '| Attempt | Task ID | Status | Parent | Reason |\\n| --- | --- | --- | --- | --- |\\n' + record.retry_lineage.map(attempt =>
+            '| ' + markdownCell((Number(attempt.retry_number) || 0) === 0 ? 'Original' : 'Retry ' + attempt.retry_number) + ' | ' +
+            markdownCell(attempt.task_id || 'unknown') + ' | ' +
+            markdownCell(attempt.status || 'UNKNOWN') + ' | ' +
+            markdownCell(attempt.parent_task_id || '—') + ' | ' +
+            markdownCell(attempt.retry_reason || '—') + ' |'
+          ).join('\\n')
+        : '_Lineage was not loaded when this report was created._',
+      '',
       '## Agent stages',
       '',
       Array.isArray(record.agents) && record.agents.length
@@ -298,6 +310,7 @@
       ['Retry source task', 'parent_task_id'], ['Retry number', 'retry_number'],
       ['Retry reason', 'retry_reason'], ['Retry limit', 'max_task_retries'],
       ['Effective retry limit', 'effective_max_task_retries'],
+      ['Retry lineage', 'retry_lineage'],
       ['Summary', 'summary'], ['Error', 'error']
     ];
     const rows = [['Field', 'Value']];
