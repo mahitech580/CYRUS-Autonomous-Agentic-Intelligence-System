@@ -78,3 +78,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_json_parses_nested_arrays(self):
         self.assertEqual(OpenAICompatibleProvider._json('{"checks": [["one"], ["two"]]}'), {"checks": [["one"], ["two"]]})
+
+    def test_json_parses_boolean_false(self):
+        self.assertEqual(OpenAICompatibleProvider._json('{"enabled": false}'), {"enabled": False})
