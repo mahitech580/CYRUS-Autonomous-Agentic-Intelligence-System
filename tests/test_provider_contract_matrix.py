@@ -162,3 +162,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_keeps_order_of_valid_values(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["third", 5, "first", "second"]), ["third", "first", "second"])
+
+    def test_string_list_supports_minimum_zero_for_empty_list(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list([], minimum=0), [])
