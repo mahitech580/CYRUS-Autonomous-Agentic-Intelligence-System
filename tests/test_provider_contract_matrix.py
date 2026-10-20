@@ -14,3 +14,6 @@ from providers import (
 class ProviderContractMatrixTests(unittest.TestCase):
     """Lock down edge-case behavior at the provider response boundary."""
 
+
+    def test_string_list_accepts_two_items(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list(["alpha", "beta"]), ["alpha", "beta"])
