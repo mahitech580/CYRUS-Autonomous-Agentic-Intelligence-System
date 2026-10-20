@@ -231,3 +231,6 @@ class ProviderBoundaryMatrixTests(unittest.TestCase):
 
     def test_reject_query_access_token(self):
         self.assertFalse(_provider_url_is_allowed("https://provider.example/v1?access_token=not-for-urls"))
+
+    def test_reject_fragment(self):
+        self.assertFalse(_provider_url_is_allowed("https://provider.example/v1#credentials"))
