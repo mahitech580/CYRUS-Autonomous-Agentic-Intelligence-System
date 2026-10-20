@@ -159,3 +159,6 @@ class ProviderContractMatrixTests(unittest.TestCase):
 
     def test_string_list_filters_whitespace_only_items(self):
         self.assertEqual(OpenAICompatibleProvider._string_list(["   ", "\n", "valid"]), ["valid"])
+
+    def test_string_list_keeps_order_of_valid_values(self):
+        self.assertEqual(OpenAICompatibleProvider._string_list(["third", 5, "first", "second"]), ["third", "first", "second"])
