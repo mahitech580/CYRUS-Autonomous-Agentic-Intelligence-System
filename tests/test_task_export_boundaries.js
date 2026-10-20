@@ -62,3 +62,10 @@ test("redacts provider style key from summary", () => {
     assert.ok(!report.task.summary.includes(secret));
     assert.ok(report.task.summary.includes('[REDACTED:'));
 });
+
+test("warning does not echo detected secret value", () => {
+  const secret = 'sk-' + 'b'.repeat(24);
+    const report = reportApi.buildTaskReport(task({summary: secret}));
+    assert.ok(report.sensitive_text_warnings.length > 0);
+    assert.ok(!JSON.stringify(report.sensitive_text_warnings).includes(secret));
+});
