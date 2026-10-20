@@ -28,3 +28,7 @@ class StaticAnalysisBoundaryMatrixTests(unittest.TestCase):
     def test_integer_input_is_safely_normalized(self):
         result = analyze_draft(42)
                     self.assertEqual(self.check(result, "draft_present")["status"], "FAIL")
+
+    def test_text_at_size_limit_passes_size_check(self):
+        result = analyze_draft("x" * MAX_DRAFT_CHARS)
+                    self.assertEqual(self.check(result, "draft_size_limit")["status"], "PASS")
