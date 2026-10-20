@@ -110,6 +110,30 @@ async function testStreamLeaseTimeoutResumes() {
   assert.deepEqual(seenTraces.map(x => x.event_id), ["CYRUS-C-E003"]);
 }
 
+async function testAllStandardLineEndingsAcrossChunkBoundaries() {
+  const states = [];
+  const traces = [];
+  const state = {task_id: "CYRUS-CR", status: "RUNNING"};
+  const trace = {event_id: "CYRUS-CR-E001", agent: "PLANNER"};
+  const close = {task_id: "CYRUS-CR", status: "COMPLETED"};
+  const body =
+    "event: state\r\ndata: " + JSON.stringify(state) + "\r\n\r\n" +
+    "event: trace\rid: CYRUS-CR-E001\rdata: " + JSON.stringify(trace) + "\r\r" +
+    "event: close\ndata: " + JSON.stringify(close) + "\n\n";
+  let calls = 0;
+  const client = loadClient(async () => {
+    calls += 1;
+    return makeResponse(body, 200, 1);
+  });
+  await client.streamTaskEvents(
+    "CYRUS-CR", null, value => states.push(value), value => traces.push(value),
+    {baseDelayMs: 0, maxDelayMs: 0, maxReconnects: 0}
+  );
+  assert.equal(calls, 1);
+  assert.equal(states[0].task_id, "CYRUS-CR");
+  assert.deepEqual(traces.map(value => value.event_id), ["CYRUS-CR-E001"]);
+}
+
 async function testTransientHttpFailureIsRetried() {
   let calls = 0;
   const client = loadClient(async () => {
@@ -129,6 +153,7 @@ async function main() {
   await testCompleteStreamParsesSplitFrames();
   await testReconnectResumesFromLastDeliveredTrace();
   await testStreamLeaseTimeoutResumes();
+  await testAllStandardLineEndingsAcrossChunkBoundaries();
   await testTransientHttpFailureIsRetried();
   console.log("event-stream tests: parsing, reconnect resume, lease timeout and retry OK");
 }
