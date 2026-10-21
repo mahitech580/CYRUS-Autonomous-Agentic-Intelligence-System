@@ -358,6 +358,7 @@ class CyrusApiContractTests(unittest.TestCase):
             response = self.client.get("/api/tasks/CYRUS-RECOVERY-TIMEOUT/recovery")
         self.assertEqual(response.status_code, 200)
         result = response.get_json()
+        self.assertEqual(result["schema_version"], 1)
         self.assertEqual(result["category"], "timeout")
         self.assertTrue(result["can_retry"])
         self.assertIn("deadline", result["headline"].lower())
