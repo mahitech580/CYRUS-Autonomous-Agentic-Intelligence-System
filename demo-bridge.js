@@ -539,6 +539,11 @@
     }
 
     if (path === "/api/execute" && method === "POST") {
+      const contentType = readHeader(init, "Content-Type").split(";", 1)[0].trim().toLowerCase();
+      if (contentType !== "application/json" && !/^application\/[a-z0-9!#    if (path === "/api/execute" && method === "POST") {
+      let body;^_.+-]+\\+json$/.test(contentType)) {
+        return errorResponse("Content-Type must be application/json", 415);
+      }
       let body;
       try { body = JSON.parse(init?.body || "{}"); } catch { return errorResponse("JSON body must be an object", 400); }
       if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("JSON body must be an object", 400);
