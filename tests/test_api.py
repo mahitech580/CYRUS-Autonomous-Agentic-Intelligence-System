@@ -364,6 +364,25 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertNotIn("very-secret-value", response.get_data(as_text=True))
         self.assertEqual(result["source"], "deterministic_runtime_guidance")
 
+    def test_recovery_guidance_identifies_synthetic_demo_without_overstating_validation(self):
+        task = {
+            "task_id": "DEMO-RECOVERY-FAILED",
+            "status": "FAILED",
+            "mode": "autonomous",
+            "provider": "browser-demo",
+            "verification_status": "SYNTHETIC_DEMO_ONLY",
+            "failure": {"type": "DemoFailure", "message": "Synthetic only"},
+        }
+        with patch.object(server, "all_task_records", return_value=[task]):
+            response = self.client.get("/api/tasks/DEMO-RECOVERY-FAILED/recovery")
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["category"], "synthetic_demo")
+        self.assertTrue(result["synthetic_demo"])
+        self.assertTrue(result["can_retry"])
+        self.assertIn("did not call", result["explanation"].lower())
+        self.assertIn("not use the synthetic score", " ".join(result["steps"]).lower())
+
     def test_task_lineage_returns_root_to_leaf_summaries_from_live_state(self):
         records = [
             {
