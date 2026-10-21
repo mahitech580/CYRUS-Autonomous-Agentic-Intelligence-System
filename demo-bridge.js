@@ -766,6 +766,14 @@
       return task ? streamResponse(task, readHeader(requestInit, "Last-Event-ID")) : errorResponse("Task not found", 404);
     }
 
+    const recoveryMatch = path.match(/^\/api\/tasks\/([^/]+)\/recovery$/);
+    if (recoveryMatch && method === "GET") {
+      const id = decodeURIComponent(recoveryMatch[1]);
+      const task = find(id);
+      if (!task) return errorResponse("Task not found", 404);
+      return response(recoveryGuidance(task));
+    }
+
     const lineageMatch = path.match(/^\/api\/tasks\/([^/]+)\/lineage$/);
     if (lineageMatch && method === "GET") {
       const id = decodeURIComponent(lineageMatch[1]);
