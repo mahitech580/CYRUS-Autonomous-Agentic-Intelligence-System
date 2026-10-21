@@ -406,7 +406,7 @@ assert.ok(recoveryGuidanceApp.includes("PREPARE RECOVERY OBJECTIVE"), "Failed re
 assert.ok(recoveryGuidanceApp.includes("Recovery objective prepared in Command. Review it before executing."), "Preparing recovery must remain a separate, non-executing action");
 assert.ok(recoveryGuidanceStyles.includes(".task-recovery-prepare:focus-visible"), "Recovery preparation must have visible keyboard focus");
 const recoveryHandlerStart = recoveryGuidanceApp.indexOf("const useRecoveryPlan=");
-const recoveryHandlerEnd = recoveryGuidanceApp.indexOf("const go=next=>", recoveryHandlerStart);
+const recoveryHandlerEnd = recoveryGuidanceApp.indexOf("return <div className={'app-shell", recoveryHandlerStart);
 assert.ok(recoveryHandlerStart >= 0 && recoveryHandlerEnd > recoveryHandlerStart, "Recovery preparation handler must exist");
 const recoveryHandlerSource = recoveryGuidanceApp.slice(recoveryHandlerStart, recoveryHandlerEnd);
 assert.ok(recoveryHandlerSource.includes("setPrompt(prompt)"), "Recovery guidance should prefill Command");
