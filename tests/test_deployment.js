@@ -411,7 +411,7 @@ assert.ok(recoveryHandlerStart >= 0 && recoveryHandlerEnd > recoveryHandlerStart
 const recoveryHandlerSource = recoveryGuidanceApp.slice(recoveryHandlerStart, recoveryHandlerEnd);
 assert.ok(recoveryHandlerSource.includes("setPrompt(prompt)"), "Recovery guidance should prefill Command");
 assert.ok(recoveryHandlerSource.includes("setMode(taskRecord?.mode"), "Recovery preparation should preserve the previous mode");
-assert.ok(!recoveryHandlerSource.includes("execute()") && !recoveryHandlerSource.includes("execute ("), "Recovery preparation must not submit the new objective automatically");
+assert.ok(!/\bexecute\s*\(/.test(recoveryHandlerSource), "Recovery preparation must not submit the new objective automatically");
 
 
 
