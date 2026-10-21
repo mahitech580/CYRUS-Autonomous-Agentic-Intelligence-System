@@ -5,7 +5,7 @@
     'execution_time_ms', 'latency_ms', 'score', 'quality', 'confidence',
     'coverage', 'tool_calls', 'tests_passed', 'tests_failed', 'risk',
     'verification_status', 'summary', 'error', 'provider', 'model',
-    'parent_task_id', 'retry_number', 'retry_reason', 'max_task_retries', 'effective_max_task_retries', 'retry_lineage',
+    'parent_task_id', 'retry_number', 'retry_reason', 'max_task_retries', 'effective_max_task_retries', 'retry_lineage', 'recovery_guidance',
     'agents', 'plan', 'research', 'implementation', 'validation_plan',
     'static_analysis', 'review', 'artifacts', 'events', 'score_method'
   ];
