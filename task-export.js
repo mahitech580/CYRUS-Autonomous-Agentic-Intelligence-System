@@ -210,7 +210,7 @@
             markdownList(record.recovery_guidance.steps),
             '',
             '**Next step:** ' + markdownCell(record.recovery_guidance.retry_guidance || 'Inspect the execution trace before acting.')
-          ].join('\\n')
+                    ].join('\n')
         : '_Recovery guidance was not loaded when this report was created._',
       '',
       '## Agent stages',
