@@ -423,4 +423,17 @@ for (const style of [
 assert.ok(fs.readFileSync("tests/test_analytics_api.py", "utf8").includes("test_analytics_measures_retry_outcomes_recovery_and_depth"), "Retry analytics calculations must have an API regression test");
 console.log("Retry analytics smoke: aggregate metrics, depth breakdown, recovery UI and responsive layout OK");
 
+const resetDemoBridge = fs.readFileSync("demo-bridge.js", "utf8");
+const resetDemoApp = fs.readFileSync("app.js", "utf8");
+const resetDemoCss = fs.readFileSync("styles.css", "utf8");
+assert.ok(resetDemoBridge.includes('path === "/api/demo/reset"'), "Demo API should expose a local-only history reset route");
+assert.ok(resetDemoBridge.includes("requestKeys.clear()"), "Demo reset must also clear idempotency entries");
+assert.ok(resetDemoApp.includes("const clearDemoHistory=async()=>"), "Demo reset action must use an explicit UI handler");
+assert.ok(resetDemoApp.includes("window.confirm('Clear all local browser demo tasks? This cannot be undone.')"), "Clearing demo records must ask for confirmation");
+assert.ok(resetDemoApp.includes("No backend records were changed."), "Reset feedback must clarify its local scope");
+assert.ok(resetDemoCss.includes(".demo-mode-reset"), "Demo reset control must have visible and keyboard-focus styling");
+assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("/api/demo/reset"), "Demo history reset must have an integration regression test");
+console.log("Demo reset smoke: confirmation, local-only deletion, idempotency cleanup, metrics refresh, and accessible styling OK");
+
+
 
