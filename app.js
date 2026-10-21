@@ -415,6 +415,16 @@ function App(){
       setRuntimeState('OFFLINE');notify('CYRUS runtime is unreachable')
     }
   }
+  const clearDemoHistory=async()=>{
+    if(!window.CYRUS_CONFIG?.explicitDemoMode)return
+    if(typeof window.confirm==='function'&&!window.confirm('Clear all local browser demo tasks? This cannot be undone.'))return
+    try{
+      const result=await apiJson('/api/demo/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+      setTask(null);setSelectedTask(null);setBusy(false)
+      await loadBase()
+      notify('Cleared '+Number(result.cleared_tasks||0)+' local demo task(s). No backend records were changed.')
+    }catch(error){notify(error?.message||'Could not clear local demo history')}
+  }
   const loadTask=async id=>{
     const data=await apiJson('/api/tasks/'+id);setTask(data);return data
   }
@@ -629,7 +639,7 @@ function App(){
   const go=next=>{setPage(next);setPaletteOpen(false);window.scrollTo({top:0,behavior:'smooth'})}
 
   return <div className={'app-shell '+(page==='Home'?'home-shell':'workspace-shell')}>
-    {window.CYRUS_CONFIG?.explicitDemoMode&&<div className="demo-mode-banner" role="status" aria-label="Browser demo mode"><span className="demo-mode-dot"/><strong>LOCAL DEMO</strong><span>Synthetic tasks only · saved in this browser · no live model calls</span><small>Try “simulate failure” in Command to test retry flow.</small></div>}
+    {window.CYRUS_CONFIG?.explicitDemoMode&&<div className="demo-mode-banner" role="status" aria-label="Browser demo mode"><span className="demo-mode-dot"/><strong>LOCAL DEMO</strong><span>Synthetic tasks only · saved in this browser · no live model calls</span><small>Try “simulate failure” in Command to test retry flow.</small><button type="button" className="demo-mode-reset" onClick={clearDemoHistory}>CLEAR LOCAL HISTORY</button></div>}
     <AmbientCanvas preset={atmospherePreset} mode={atmosphereMode} intensity={atmosphereIntensity} motionEnabled={motionEnabled}/>
     <div className="motion-progress" aria-hidden="true"/>
     {page==='Home'&&<HomeView go={go} runtimeState={runtimeState} busy={busy} agents={agents} openPalette={()=>setPaletteOpen(true)} openApiSettings={()=>setApiSettingsOpen(true)} openAtmosphere={()=>setAtmosphereOpen(true)}/>}
