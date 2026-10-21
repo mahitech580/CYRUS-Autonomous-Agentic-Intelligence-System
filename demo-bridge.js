@@ -26,6 +26,9 @@
   const requestKeys = new Map();
   let taskSequence = 0;
   const clampInteger = (value, fallback, min, max) => {
+    if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) {
+      return fallback;
+    }
     const parsed = Number(value);
     return Number.isFinite(parsed) ? Math.max(min, Math.min(max, Math.trunc(parsed))) : fallback;
   };
