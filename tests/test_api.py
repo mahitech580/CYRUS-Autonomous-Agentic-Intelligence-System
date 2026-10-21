@@ -383,6 +383,22 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("did not call", result["explanation"].lower())
         self.assertIn("not use the synthetic score", " ".join(result["steps"]).lower())
 
+    def test_recovery_guidance_recommends_configuration_fix_before_retry(self):
+        task = {
+            "task_id": "CYRUS-RECOVERY-CONFIG",
+            "status": "FAILED",
+            "mode": "autonomous",
+            "provider": "openai",
+            "failure": {"type": "ProviderAuthenticationError", "message": "Credential sentinel-do-not-echo"},
+        }
+        with patch.object(server, "all_task_records", return_value=[task]):
+            response = self.client.get("/api/tasks/CYRUS-RECOVERY-CONFIG/recovery")
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["category"], "provider_configuration")
+        self.assertIn("first", result["retry_guidance"].lower())
+        self.assertNotIn("sentinel-do-not-echo", response.get_data(as_text=True))
+
     def test_task_lineage_returns_root_to_leaf_summaries_from_live_state(self):
         records = [
             {
