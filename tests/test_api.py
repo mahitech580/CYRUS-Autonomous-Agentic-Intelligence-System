@@ -429,6 +429,21 @@ class CyrusApiContractTests(unittest.TestCase):
             self.assertEqual(response.get_json()["category"], category)
             self.assertEqual(response.get_json()["can_retry"], retryable)
 
+    def test_recovery_guidance_uses_generic_safe_fallback_for_unknown_failures(self):
+        task = {
+            "task_id": "CYRUS-RECOVERY-UNKNOWN",
+            "status": "FAILED",
+            "mode": "autonomous",
+            "failure": {"type": "UnexpectedInternalThing", "message": "raw private diagnostic"},
+        }
+        with patch.object(server, "all_task_records", return_value=[task]):
+            response = self.client.get("/api/tasks/CYRUS-RECOVERY-UNKNOWN/recovery")
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["category"], "execution_failure")
+        self.assertNotIn("raw private diagnostic", response.get_data(as_text=True))
+        self.assertIn("last successful stage", " ".join(result["steps"]).lower())
+
     def test_task_lineage_returns_root_to_leaf_summaries_from_live_state(self):
         records = [
             {
