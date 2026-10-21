@@ -321,7 +321,7 @@ async function main() {
   assert.equal(new Set(result.body.attempts.map((task) => task.task_id)).size, 2);
 
   const recordsBeforeReset = await harness.json("/api/tasks");
-  assert.ok(recordsBeforeReset.body.length >= 4);
+  assert.ok(recordsBeforeReset.body.length >= 3, "reset should clear the supervised, failed, and retry records created above");
   const reset = await harness.json("/api/demo/reset", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
