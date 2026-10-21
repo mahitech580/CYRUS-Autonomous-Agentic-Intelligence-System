@@ -72,6 +72,29 @@ function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = []} = {}
 }
 
 async function main() {
+  const retentionHarness = makeHarness();
+  let oldestKeyTaskId = "";
+  for (let index = 0; index < 26; index++) {
+    const key = "retention-key-" + index;
+    const submission = await retentionHarness.json("/api/execute", {
+      method: "POST",
+      headers: {"Idempotency-Key": key},
+      body: JSON.stringify({prompt: "Retained demo history fixture " + index, mode: "autonomous"})
+    });
+    assert.equal(submission.response.status, 202);
+    if (index === 0) oldestKeyTaskId = submission.body.task_id;
+  }
+  const expiredKey = await retentionHarness.json("/api/execute", {
+    method: "POST",
+    headers: {"Idempotency-Key": "retention-key-0"},
+    body: JSON.stringify({prompt: "Retained demo history fixture 0", mode: "autonomous"})
+  });
+  assert.equal(expiredKey.response.status, 410);
+  assert.equal(expiredKey.body.expired, true);
+  assert.ok(oldestKeyTaskId);
+  const boundedTasks = await retentionHarness.json("/api/tasks");
+  assert.equal(boundedTasks.body.length, 25, "browser demo history must remain bounded");
+
   const harness = makeHarness();
   const nativeRequestHarness = makeHarness();
   const nativeRequest = new Request("https://demo.example/api/execute", {
