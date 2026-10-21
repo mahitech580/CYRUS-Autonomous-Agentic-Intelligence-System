@@ -3,6 +3,7 @@ const fs = require("fs");
 const vm = require("vm");
 
 const source = fs.readFileSync("demo-bridge.js", "utf8");
+const taskExport = require("../task-export.js");
 
 function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = []} = {}) {
   const store = new Map();
@@ -22,6 +23,7 @@ function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = []} = {}
       runtime: explicitDemoMode ? "browser-demo" : "remote-api",
       explicitDemoMode
     },
+    CYRUS_TASK_EXPORT: taskExport,
     localStorage: {
       getItem(key) { return store.has(key) ? store.get(key) : null; },
       setItem(key, value) { store.set(key, String(value)); },
@@ -126,6 +128,34 @@ async function main() {
   assert.equal(timeoutAnalytics.body.retry_outcomes.total_attempts, 1);
   assert.equal(timeoutAnalytics.body.retry_outcomes.recovered_after_failure, 1);
   assert.equal(timeoutAnalytics.body.retry_outcomes.recovery_rate, 100);
+
+  const archiveHarness = makeHarness({storedTasks: [{
+    task_id: "DEMO-ARCHIVE-SECRET",
+    objective: "Synthetic archive fixture",
+    mode: "autonomous",
+    status: "COMPLETED",
+    api_key: "sentinel-provider-secret",
+    authorization: "Bearer sentinel-authorized-secret",
+    idempotency_key: "sentinel-idempotency-secret",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    events: [{event_id: "DEMO-ARCHIVE-SECRET-E001", agent: "ORCHESTRATOR", message: "safe event"}],
+    artifacts: [],
+    agents: []
+  }]});
+  const archiveResult = await archiveHarness.json("/api/demo/export");
+  assert.equal(archiveResult.response.status, 200);
+  assert.equal(archiveResult.body.format, "CYRUS_BROWSER_DEMO_ARCHIVE");
+  assert.equal(archiveResult.body.schema_version, 1);
+  assert.equal(archiveResult.body.task_count, 1);
+  assert.equal(archiveResult.body.persistence, "browser-local-only");
+  assert.equal(archiveResult.body.tasks[0].format, "CYRUS_EXECUTION_REPORT");
+  assert.equal(archiveResult.body.tasks[0].task.task_id, "DEMO-ARCHIVE-SECRET");
+  assert.ok(!Object.hasOwn(archiveResult.body.tasks[0].task, "api_key"));
+  assert.ok(!Object.hasOwn(archiveResult.body.tasks[0].task, "authorization"));
+  assert.ok(!Object.hasOwn(archiveResult.body.tasks[0].task, "idempotency_key"));
+  assert.ok(!JSON.stringify(archiveResult.body).includes("sentinel-provider-secret"));
+  assert.ok(!JSON.stringify(archiveResult.body).includes("sentinel-idempotency-secret"));
 
   const harness = makeHarness();
   const nativeRequestHarness = makeHarness();
