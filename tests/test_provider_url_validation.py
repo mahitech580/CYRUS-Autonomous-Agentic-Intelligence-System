@@ -103,5 +103,9 @@ class ProviderUrlValidationTests(unittest.TestCase):
         self.assertFalse(_provider_url_is_allowed("https://provider.example:/v1"))
 
 
+
+    def test_malformed_ipv6_authority_is_rejected(self):
+        self.assertFalse(_provider_url_is_allowed("https://[2001:db8::1/v1"))
+
 if __name__ == "__main__":
     unittest.main()
