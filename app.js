@@ -415,6 +415,30 @@ function App(){
       setRuntimeState('OFFLINE');notify('CYRUS runtime is unreachable')
     }
   }
+  const exportDemoHistory=async()=>{
+    if(!window.CYRUS_CONFIG?.explicitDemoMode)return
+    let objectUrl=''
+    try{
+      const archive=await apiJson('/api/demo/export')
+      const BlobType=window.Blob
+      const urlApi=window.URL
+      if(!BlobType||!urlApi?.createObjectURL||!urlApi?.revokeObjectURL)throw new Error('This browser does not support local archive downloads.')
+      const blob=new BlobType([JSON.stringify(archive,null,2)],{type:'application/json;charset=utf-8'})
+      objectUrl=urlApi.createObjectURL(blob)
+      const link=document.createElement('a')
+      link.href=objectUrl
+      link.download='cyrus-browser-demo-'+new Date().toISOString().slice(0,10)+'.json'
+      link.style.display='none'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(()=>urlApi.revokeObjectURL(objectUrl),1000)
+      notify('Exported '+Number(archive.task_count||0)+' local demo task(s). Inspect secret warnings before sharing.')
+    }catch(error){
+      if(objectUrl)window.URL?.revokeObjectURL?.(objectUrl)
+      notify(error?.message||'Could not export local demo history')
+    }
+  }
   const clearDemoHistory=async()=>{
     if(!window.CYRUS_CONFIG?.explicitDemoMode)return
     if(typeof window.confirm==='function'&&!window.confirm('Clear all local browser demo tasks? This cannot be undone.'))return
@@ -639,7 +663,7 @@ function App(){
   const go=next=>{setPage(next);setPaletteOpen(false);window.scrollTo({top:0,behavior:'smooth'})}
 
   return <div className={'app-shell '+(page==='Home'?'home-shell':'workspace-shell')}>
-    {window.CYRUS_CONFIG?.explicitDemoMode&&<div className="demo-mode-banner" role="status" aria-label="Browser demo mode"><span className="demo-mode-dot"/><strong>LOCAL DEMO</strong><span>Synthetic tasks only · saved in this browser · no live model calls</span><small>Try “simulate failure” or “simulate timeout” in Command to test retry recovery.</small><button type="button" className="demo-mode-reset" onClick={clearDemoHistory}>CLEAR LOCAL HISTORY</button></div>}
+    {window.CYRUS_CONFIG?.explicitDemoMode&&<div className="demo-mode-banner" role="status" aria-label="Browser demo mode"><span className="demo-mode-dot"/><strong>LOCAL DEMO</strong><span>Synthetic tasks only · saved in this browser · no live model calls</span><small>Try “simulate failure” or “simulate timeout” in Command to test retry recovery.</small><button type="button" className="demo-mode-export" onClick={exportDemoHistory}>EXPORT LOCAL HISTORY</button><button type="button" className="demo-mode-reset" onClick={clearDemoHistory}>CLEAR LOCAL HISTORY</button></div>}
     <AmbientCanvas preset={atmospherePreset} mode={atmosphereMode} intensity={atmosphereIntensity} motionEnabled={motionEnabled}/>
     <div className="motion-progress" aria-hidden="true"/>
     {page==='Home'&&<HomeView go={go} runtimeState={runtimeState} busy={busy} agents={agents} openPalette={()=>setPaletteOpen(true)} openApiSettings={()=>setApiSettingsOpen(true)} openAtmosphere={()=>setAtmosphereOpen(true)}/>}
