@@ -445,6 +445,22 @@ assert.ok(resetDemoApp.includes("EXPORT LOCAL HISTORY"), "Local archive must be 
 assert.ok(resetDemoCss.includes(".demo-mode-export"), "Local archive control must be styled and keyboard visible");
 assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("/api/demo/export"), "Local session archive must have a bridge regression test");
 console.log("Demo archive smoke: local endpoint, report allowlist, download action, disclosure and styling OK");
+const browserDemoGuide = fs.readFileSync("docs/BROWSER_DEMO.md", "utf8");
+for (const behavior of [
+  "?demo=1",
+  "simulate failure",
+  "simulate timeout",
+  "EXPORT LOCAL HISTORY",
+  "CYRUS_BROWSER_DEMO_ARCHIVE",
+  "25 task records",
+  "256 keys",
+  "CLEAR LOCAL HISTORY"
+]) {
+  assert.ok(browserDemoGuide.includes(behavior), "Missing browser demo guide coverage: " + behavior);
+}
+assert.ok(readme.includes("docs/BROWSER_DEMO.md"), "README must link the dedicated browser demo guide");
+console.log("Browser demo docs smoke: opt-in, failure/timeout simulation, archive, caps, and reset documented OK");
+
 
 
 
