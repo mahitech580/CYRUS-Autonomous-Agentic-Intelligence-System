@@ -549,6 +549,29 @@
       }, 200);
     }
 
+    if (path === "/api/demo/export" && method === "GET") {
+      const exporter = window.CYRUS_TASK_EXPORT;
+      if (!exporter || typeof exporter.buildTaskReport !== "function") {
+        return errorResponse("Sanitized task export module is unavailable", 503);
+      }
+      const reports = [];
+      try {
+        for (const task of tasks) reports.push(exporter.buildTaskReport(task));
+      } catch {
+        return errorResponse("Could not build the sanitized browser-demo archive", 500);
+      }
+      return response({
+        format: "CYRUS_BROWSER_DEMO_ARCHIVE",
+        schema_version: 1,
+        exported_at: now(),
+        runtime: "browser-demo",
+        persistence: "browser-local-only",
+        task_count: reports.length,
+        tasks: reports,
+        notice: "Synthetic browser-demo records only. Credential-like fields are omitted; free-text secret detection is heuristic. Inspect before sharing."
+      });
+    }
+
     if (path === "/api/health" && method === "GET") return response({
       status: "ok", system: "CYRUS CORE 1.0", mode: "DEMO", runtime: "browser-demo",
       api_access_key_required: false, api_access_key_configured: false,
