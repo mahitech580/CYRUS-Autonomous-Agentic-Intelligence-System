@@ -1662,6 +1662,7 @@ def task_recovery_guidance(task):
 
     compact = task_summary(task)
     return {
+        "schema_version": 1,
         "task_id": task_id,
         "status": status,
         "category": category,
