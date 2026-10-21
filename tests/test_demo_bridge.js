@@ -202,6 +202,27 @@ async function main() {
   assert.ok(Array.isArray(analytics.body.daily));
   assert.equal(analytics.body.history_store.durability, "browser_local_only");
 
+  for (const query of ["?limit=not-a-number", "?offset=1.5"]) {
+    const invalidList = await harness.json("/api/tasks" + query);
+    assert.equal(invalidList.response.status, 400, "invalid list pagination must match the backend contract");
+    assert.match(invalidList.body.error, /limit and offset must be integers/);
+  }
+  for (const query of ["?status=NEVER-A-STATUS", "?mode=python"]) {
+    const invalidFilter = await harness.json("/api/tasks" + query);
+    assert.equal(invalidFilter.response.status, 400, "unsupported list filters must be rejected");
+  }
+  for (const query of ["?days=week", "?days=1.5", "?days="]) {
+    const invalidWindow = await harness.json("/api/analytics" + query);
+    assert.equal(invalidWindow.response.status, 400, "invalid analytics windows must be rejected");
+    assert.match(invalidWindow.body.error, /days must be an integer/);
+  }
+  const widestWindow = await harness.json("/api/analytics?days=900");
+  assert.equal(widestWindow.response.status, 200);
+  assert.equal(widestWindow.body.window_days, 90);
+  const minimumWindow = await harness.json("/api/analytics?days=0");
+  assert.equal(minimumWindow.response.status, 200);
+  assert.equal(minimumWindow.body.window_days, 1);
+
   const stream = await harness.request("/api/tasks/" + encodeURIComponent(retry.task_id) + "/stream");
   assert.equal(stream.status, 200);
   assert.match(await stream.text(), /event: trace/);
