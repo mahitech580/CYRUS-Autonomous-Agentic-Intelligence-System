@@ -1569,6 +1569,124 @@ def task_stream(task_id):
     return response
 
 
+def task_recovery_guidance(task):
+    """Return deterministic, non-secret recovery advice for a saved execution."""
+    task_id = str(task.get("task_id") or "")
+    status = str(task.get("status") or "UNKNOWN").upper()
+    provider = str(task.get("provider") or "").lower()
+    verification = str(task.get("verification_status") or "").upper()
+    failure = task.get("failure")
+    failure_type = str(failure.get("type") or "") if isinstance(failure, dict) else ""
+    kind = failure_type.lower()
+    synthetic_demo = provider == "browser-demo" or verification == "SYNTHETIC_DEMO_ONLY"
+
+    if synthetic_demo:
+        category = "synthetic_demo"
+        headline = "This is a browser-only simulation."
+        explanation = "The local demo records a simulated outcome; it did not call a model provider or execute user code."
+        steps = [
+            "Use this record to exercise the retry, lineage, and reporting interface only.",
+            "Switch back to the remote runtime for real provider-backed execution.",
+            "Do not use the synthetic score, artifacts, or outcome as evidence of application correctness.",
+        ]
+        retry_guidance = "Retrying a synthetic failed or timed-out record creates another simulated record."
+    elif status == "TIMED_OUT" or "timeout" in kind or "timedout" in kind:
+        category = "timeout"
+        headline = "The execution deadline was reached."
+        explanation = "The runtime stopped this attempt at its configured deadline; the record does not establish that proposed tests ran."
+        steps = [
+            "Reduce the objective to one independently verifiable deliverable.",
+            "Check provider responsiveness and task/provider timeout configuration.",
+            "Inspect the trace to identify the last completed stage before retrying.",
+        ]
+        retry_guidance = "Start an explicit retry only when repeating the requested work is safe."
+    elif any(token in kind for token in ("auth", "credential", "api_key", "configuration")):
+        category = "provider_configuration"
+        headline = "Provider configuration needs attention."
+        explanation = "The failure type suggests an authentication or configuration problem; secret values are intentionally not shown here."
+        steps = [
+            "Check the selected provider and model in runtime configuration.",
+            "Verify that the required credential is set on the backend, not in browser source code.",
+            "Review sanitized provider diagnostics before retrying.",
+        ]
+        retry_guidance = "Fix the configuration first; a retry alone will not correct missing credentials."
+    elif any(token in kind for token in ("provider", "connection", "network", "rate", "http")):
+        category = "provider_or_network"
+        headline = "The provider or network request failed."
+        explanation = "CYRUS records provider failures rather than silently substituting a successful result."
+        steps = [
+            "Check provider availability, rate limits, and outbound network configuration.",
+            "Inspect the sanitized error type and the last trace event.",
+            "Retry after the provider issue is resolved; avoid repeated calls during an outage.",
+        ]
+        retry_guidance = "A retry is explicit and may incur another provider request."
+    elif status == "CANCELLED":
+        category = "cancelled"
+        headline = "The execution was cancelled."
+        explanation = "Cancellation is a terminal state, not proof that the objective completed."
+        steps = [
+            "Review the last trace event to locate the stop point.",
+            "Narrow the objective or make the next milestone smaller.",
+            "Confirm that repeating any external side effect is safe before retrying.",
+        ]
+        retry_guidance = "A new attempt is available when the configured retry budget allows it."
+    elif status == "FAILED":
+        category = "execution_failure"
+        headline = "The execution failed."
+        explanation = "The available record does not contain enough validated evidence to infer a more specific root cause."
+        steps = [
+            "Open the execution trace and identify the last successful stage.",
+            "Review the sanitized failure type and static-analysis report.",
+            "Address the first actionable failure before starting another attempt.",
+        ]
+        retry_guidance = "Retrying creates a fresh record and does not reuse the prior attempt's artifacts as validated output."
+    elif status in {"COMPLETED"}:
+        category = "completed"
+        headline = "No recovery action is required for this attempt."
+        explanation = "The task reached its recorded terminal state; completion does not mean proposed application tests were executed."
+        steps = [
+            "Inspect the verification status and static-analysis report.",
+            "Run the suggested application tests in a suitable sandbox before treating the result as verified.",
+        ]
+        retry_guidance = "Completed tasks are not retryable; create a new objective for additional work."
+    else:
+        category = "in_progress"
+        headline = "The execution is not in a retryable terminal state."
+        explanation = "The task is queued, running, or waiting for approval; creating a parallel retry is not recommended."
+        steps = [
+            "Refresh the task status and follow the live trace.",
+            "For supervised runs, approve only after reviewing the release summary.",
+            "Use cooperative cancellation when the active objective should stop.",
+        ]
+        retry_guidance = "Retry is available only after FAILED, CANCELLED, or TIMED_OUT and within the effective retry cap."
+
+    compact = task_summary(task)
+    return {
+        "task_id": task_id,
+        "status": status,
+        "category": category,
+        "headline": headline,
+        "explanation": explanation,
+        "steps": steps,
+        "retry_guidance": retry_guidance,
+        "can_retry": bool(compact.get("can_retry")),
+        "retry_number": compact.get("retry_number", 0),
+        "max_task_retries": compact.get("max_task_retries", MAX_TASK_RETRIES),
+        "effective_max_task_retries": compact.get("effective_max_task_retries", MAX_TASK_RETRIES),
+        "synthetic_demo": synthetic_demo,
+        "source": "deterministic_runtime_guidance",
+    }
+
+
+@app.get("/api/tasks/<task_id>/recovery")
+def task_recovery(task_id):
+    """Return safe next-step suggestions without reflecting raw failure text."""
+    task = next((item for item in all_task_records() if item.get("task_id") == task_id), None)
+    if task is None:
+        return jsonify({"error": "Task not found"}), 404
+    return jsonify(task_recovery_guidance(task))
+
+
 @app.get("/api/tasks/<task_id>/lineage")
 def task_lineage(task_id):
     """Return a bounded, summary-only view of the retry chain containing this task."""
