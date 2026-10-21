@@ -115,6 +115,7 @@ async function main() {
   assert.match(timeoutDetail.body.summary, /synthetic demo timeout/i);
   const timeoutRecovery = await timeoutHarness.json("/api/tasks/" + encodeURIComponent(timedOutId) + "/recovery");
   assert.equal(timeoutRecovery.response.status, 200);
+  assert.equal(timeoutRecovery.body.schema_version, 1);
   assert.equal(timeoutRecovery.body.category, "synthetic_demo");
   assert.equal(timeoutRecovery.body.synthetic_demo, true);
   assert.equal(timeoutRecovery.body.can_retry, true);
