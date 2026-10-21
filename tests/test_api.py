@@ -415,6 +415,20 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("rate limits", " ".join(result["steps"]).lower())
         self.assertIn("may incur", result["retry_guidance"].lower())
 
+    def test_recovery_guidance_distinguishes_cancelled_completed_and_active_states(self):
+        fixtures = [
+            ({"task_id": "RECOVERY-CANCELLED", "status": "CANCELLED", "max_task_retries": 2}, "cancelled", True),
+            ({"task_id": "RECOVERY-COMPLETED", "status": "COMPLETED", "max_task_retries": 2}, "completed", False),
+            ({"task_id": "RECOVERY-RUNNING", "status": "RUNNING", "max_task_retries": 2}, "in_progress", False),
+            ({"task_id": "RECOVERY-APPROVAL", "status": "AWAITING_APPROVAL", "max_task_retries": 2}, "in_progress", False),
+        ]
+        for task, category, retryable in fixtures:
+            with self.subTest(task=task["task_id"]), patch.object(server, "all_task_records", return_value=[task]):
+                response = self.client.get("/api/tasks/" + task["task_id"] + "/recovery")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get_json()["category"], category)
+            self.assertEqual(response.get_json()["can_retry"], retryable)
+
     def test_task_lineage_returns_root_to_leaf_summaries_from_live_state(self):
         records = [
             {
