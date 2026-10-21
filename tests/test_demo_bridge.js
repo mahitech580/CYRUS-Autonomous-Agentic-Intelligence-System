@@ -113,6 +113,13 @@ async function main() {
   assert.equal(timeoutDetail.body.artifacts.length, 0);
   assert.equal(timeoutDetail.body.verification_status, "SYNTHETIC_DEMO_ONLY");
   assert.match(timeoutDetail.body.summary, /synthetic demo timeout/i);
+  const timeoutRecovery = await timeoutHarness.json("/api/tasks/" + encodeURIComponent(timedOutId) + "/recovery");
+  assert.equal(timeoutRecovery.response.status, 200);
+  assert.equal(timeoutRecovery.body.category, "synthetic_demo");
+  assert.equal(timeoutRecovery.body.synthetic_demo, true);
+  assert.equal(timeoutRecovery.body.can_retry, true);
+  assert.equal(timeoutRecovery.body.source, "deterministic_runtime_guidance");
+
   const timeoutRetry = await timeoutHarness.json("/api/tasks/" + encodeURIComponent(timedOutId) + "/retry", {
     method: "POST",
     headers: {"Idempotency-Key": "demo-timeout-retry-001"}
