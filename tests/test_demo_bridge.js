@@ -242,9 +242,32 @@ async function main() {
   assert.equal(minimumWindow.response.status, 200);
   assert.equal(minimumWindow.body.window_days, 1);
 
-  const stream = await harness.request("/api/tasks/" + encodeURIComponent(retry.task_id) + "/stream");
+  const streamUrl = "/api/tasks/" + encodeURIComponent(retry.task_id) + "/stream";
+  const stream = await harness.request(streamUrl);
   assert.equal(stream.status, 200);
-  assert.match(await stream.text(), /event: trace/);
+  const fullStreamBody = await stream.text();
+  assert.match(fullStreamBody, /event: trace/);
+  assert.match(fullStreamBody, new RegExp("id: " + retry.task_id + "-E001"));
+  assert.match(fullStreamBody, new RegExp("id: " + retry.task_id + "-E008"));
+
+  const resumedStream = await harness.request(streamUrl, {
+    headers: {"Last-Event-ID": retry.task_id + "-E004"}
+  });
+  const resumedBody = await resumedStream.text();
+  assert.doesNotMatch(resumedBody, new RegExp("id: " + retry.task_id + "-E004"));
+  assert.doesNotMatch(resumedBody, new RegExp("id: " + retry.task_id + "-E003"));
+  assert.match(resumedBody, new RegExp("id: " + retry.task_id + "-E005"));
+  assert.match(resumedBody, new RegExp("id: " + retry.task_id + "-E008"));
+
+  const foreignCursor = await harness.request(streamUrl, {
+    headers: {"Last-Event-ID": "DEMO-FOREIGN-TASK-E999"}
+  });
+  assert.match(await foreignCursor.text(), new RegExp("id: " + retry.task_id + "-E001"));
+
+  const oversizedCursor = await harness.request(streamUrl, {
+    headers: {"Last-Event-ID": retry.task_id + "-E" + "9".repeat(5000)}
+  });
+  assert.match(await oversizedCursor.text(), new RegExp("id: " + retry.task_id + "-E001"));
 
   result = await harness.json("/api/execute", {method: "POST", body: "{bad json"});
   assert.equal(result.response.status, 400);
