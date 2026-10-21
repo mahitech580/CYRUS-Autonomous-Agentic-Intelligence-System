@@ -437,6 +437,15 @@ assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("Please 
 assert.ok(resetDemoCss.includes(".demo-mode-reset"), "Demo reset control must have visible and keyboard-focus styling");
 assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("/api/demo/reset"), "Demo history reset must have an integration regression test");
 console.log("Demo reset smoke: confirmation, local-only deletion, idempotency cleanup, metrics refresh, and accessible styling OK");
+assert.ok(resetDemoBridge.includes('path === "/api/demo/export"'), "Demo API should expose a local session archive endpoint");
+assert.ok(resetDemoBridge.includes("CYRUS_BROWSER_DEMO_ARCHIVE"), "Local archive must carry a versioned format identifier");
+assert.ok(resetDemoBridge.includes("exporter.buildTaskReport(task)"), "Local archive must use the allowlisted task report exporter");
+assert.ok(resetDemoApp.includes("const exportDemoHistory=async()=>"), "Local archive needs an explicit user-triggered download handler");
+assert.ok(resetDemoApp.includes("EXPORT LOCAL HISTORY"), "Local archive must be available from the demo banner");
+assert.ok(resetDemoCss.includes(".demo-mode-export"), "Local archive control must be styled and keyboard visible");
+assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("/api/demo/export"), "Local session archive must have a bridge regression test");
+console.log("Demo archive smoke: local endpoint, report allowlist, download action, disclosure and styling OK");
+
 
 
 
