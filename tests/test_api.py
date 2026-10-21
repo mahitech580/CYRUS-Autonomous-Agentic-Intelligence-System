@@ -414,6 +414,32 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertNotIn("implementation", payload["attempts"][0])
         self.assertNotIn("CYRUS-UNRELATED", str(payload))
 
+    def test_task_lineage_preserves_root_for_a_chain_deeper_than_display_cap(self):
+        with server.runtime["lock"]:
+            for index in range(60):
+                task_id = "CYRUS-LINEAR-" + str(index).zfill(3)
+                server.runtime["tasks"][task_id] = {
+                    "task_id": task_id,
+                    "objective": "A long retry chain",
+                    "mode": "autonomous",
+                    "status": "FAILED" if index < 59 else "TIMED_OUT",
+                    "created_at": "2026-10-20T10:" + str(index % 60).zfill(2) + ":00Z",
+                    "retry_number": index,
+                    "max_task_retries": 10,
+                    "parent_task_id": "CYRUS-LINEAR-" + str(index - 1).zfill(3) if index else None,
+                }
+        with patch.object(server, "load_history", return_value=[]):
+            response = self.client.get("/api/tasks/CYRUS-LINEAR-059/lineage")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["root_task_id"], "CYRUS-LINEAR-000")
+        self.assertEqual(payload["attempt_count"], 50)
+        self.assertTrue(payload["truncated"])
+        self.assertEqual(payload["attempts"][0]["task_id"], "CYRUS-LINEAR-000")
+        self.assertEqual(payload["attempts"][-1]["task_id"], "CYRUS-LINEAR-059")
+        self.assertEqual(len({item["task_id"] for item in payload["attempts"]}), 50)
+
     def test_task_lineage_works_for_legacy_historical_records_and_missing_tasks(self):
         historical = [
             {
