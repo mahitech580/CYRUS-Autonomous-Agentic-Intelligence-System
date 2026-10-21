@@ -36,7 +36,16 @@ test('preserves retry lineage across JSON, Markdown and CSV exports', () => {
     retry_lineage: [
       { task_id: 'CYRUS-RETRY-001', status: 'TIMED_OUT', retry_number: 0 },
       { task_id: 'CYRUS-RETRY-002', status: 'RUNNING', parent_task_id: 'CYRUS-RETRY-001', retry_number: 2, retry_reason: 'TIMED_OUT:TaskTimedOut' }
-    ]
+    ],
+    recovery_guidance: {
+      category: 'timeout',
+      status: 'TIMED_OUT',
+      headline: 'The execution deadline was reached.',
+      explanation: 'The runtime stopped at its configured deadline.',
+      steps: ['Reduce the objective.', 'Inspect the last completed stage.'],
+      retry_guidance: 'Retry explicitly only when safe.',
+      synthetic_demo: false
+    }
   };
   const json = buildTaskReport(task);
   assert.equal(json.task.parent_task_id, 'CYRUS-RETRY-001');
@@ -46,6 +55,8 @@ test('preserves retry lineage across JSON, Markdown and CSV exports', () => {
   assert.equal(json.task.effective_max_task_retries, 2);
   assert.equal(json.task.retry_lineage.length, 2);
   assert.equal(json.task.retry_lineage[1].parent_task_id, 'CYRUS-RETRY-001');
+  assert.equal(json.task.recovery_guidance.category, 'timeout');
+  assert.equal(json.task.recovery_guidance.steps.length, 2);
 
   const markdown = buildTaskMarkdownReport(task);
   assert.match(markdown, /Retry of:\*\* CYRUS-RETRY-001/);
@@ -55,6 +66,9 @@ test('preserves retry lineage across JSON, Markdown and CSV exports', () => {
   assert.match(markdown, /## Retry lineage/);
   assert.match(markdown, /CYRUS-RETRY-001.*TIMED_OUT/);
   assert.match(markdown, /CYRUS-RETRY-002.*RUNNING/);
+  assert.match(markdown, /## Recovery guidance/);
+  assert.match(markdown, /The execution deadline was reached/);
+  assert.match(markdown, /Inspect the last completed stage/);
 
   const csv = buildTaskCsvReport(task);
   assert.ok(csv.includes('Retry source task,CYRUS-RETRY-001\r\n'));
@@ -65,6 +79,8 @@ test('preserves retry lineage across JSON, Markdown and CSV exports', () => {
   assert.ok(csv.includes('Retry lineage,'));
   assert.ok(csv.includes('CYRUS-RETRY-001'));
   assert.ok(csv.includes('CYRUS-RETRY-002'));
+  assert.ok(csv.includes('Recovery guidance,'));
+  assert.ok(csv.includes('The execution deadline was reached'));
 });
 
 test('omits credential-like fields at the root and inside nested trace data', () => {
