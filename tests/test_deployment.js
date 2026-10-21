@@ -431,6 +431,9 @@ assert.ok(resetDemoBridge.includes("requestKeys.clear()"), "Demo reset must also
 assert.ok(resetDemoApp.includes("const clearDemoHistory=async()=>"), "Demo reset action must use an explicit UI handler");
 assert.ok(resetDemoApp.includes("window.confirm('Clear all local browser demo tasks? This cannot be undone.')"), "Clearing demo records must ask for confirmation");
 assert.ok(resetDemoApp.includes("No backend records were changed."), "Reset feedback must clarify its local scope");
+assert.ok(resetDemoApp.includes("simulate timeout"), "Browser demo instructions should expose synthetic timeout recovery");
+assert.ok(resetDemoBridge.includes("forcedTimeout"), "The local demo should expose a deterministic timeout path");
+assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("cover synthetic timeout recovery end to end"), "Synthetic timeout recovery must have a contract regression test");
 assert.ok(resetDemoCss.includes(".demo-mode-reset"), "Demo reset control must have visible and keyboard-focus styling");
 assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("/api/demo/reset"), "Demo history reset must have an integration regression test");
 console.log("Demo reset smoke: confirmation, local-only deletion, idempotency cleanup, metrics refresh, and accessible styling OK");
