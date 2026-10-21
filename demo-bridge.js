@@ -511,7 +511,7 @@
     if (path === "/api/metrics" && method === "GET") return response(metrics());
     if (path === "/api/analytics" && method === "GET") {
       const rawDays = parsed.searchParams.get("days");
-      if (rawDays !== null && !/^[+-]?\\d+$/.test(rawDays.trim())) {
+      if (rawDays !== null && !/^[+-]?[0-9]+$/.test(rawDays.trim())) {
         return errorResponse("days must be an integer between 1 and 90", 400);
       }
       return response(analytics(parsed));
@@ -519,7 +519,7 @@
     if (path === "/api/memory" && method === "GET") return response(tasks.map(taskSummary));
     if (path === "/api/tasks" && method === "GET") {
       const params = parsed.searchParams;
-      const isInteger = (value) => value === null || /^[+-]?\\d+$/.test(value.trim());
+      const isInteger = (value) => value === null || /^[+-]?[0-9]+$/.test(value.trim());
       if (!isInteger(params.get("limit")) || !isInteger(params.get("offset"))) {
         return errorResponse("limit and offset must be integers", 400);
       }
