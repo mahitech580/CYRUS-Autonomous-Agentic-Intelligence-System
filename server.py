@@ -1587,7 +1587,7 @@ def task_lineage(task_id):
     current = task_id
     ancestor_path = []
     visited_ancestors = set()
-    while current in by_id and current not in visited_ancestors and len(ancestor_path) < 50:
+    while current in by_id and current not in visited_ancestors and len(ancestor_path) < len(by_id):
         visited_ancestors.add(current)
         ancestor_path.append(current)
         parent_id = by_id[current].get("parent_task_id")
