@@ -196,6 +196,23 @@
           ).join('\n')
         : '_Lineage was not loaded when this report was created._',
       '',
+      '## Recovery guidance',
+      '',
+      record.recovery_guidance && typeof record.recovery_guidance === 'object'
+        ? [
+            '**Category:** ' + markdownCell(record.recovery_guidance.category || 'general'),
+            '**Status:** ' + markdownCell(record.recovery_guidance.status || record.status || 'UNKNOWN'),
+            '',
+            String(record.recovery_guidance.headline || 'No recovery headline was recorded.').replace(/^/gm, '> '),
+            '',
+            String(record.recovery_guidance.explanation || 'No additional explanation was recorded.').replace(/^/gm, '> '),
+            '',
+            markdownList(record.recovery_guidance.steps),
+            '',
+            '**Next step:** ' + markdownCell(record.recovery_guidance.retry_guidance || 'Inspect the execution trace before acting.')
+          ].join('\\n')
+        : '_Recovery guidance was not loaded when this report was created._',
+      '',
       '## Agent stages',
       '',
       Array.isArray(record.agents) && record.agents.length
