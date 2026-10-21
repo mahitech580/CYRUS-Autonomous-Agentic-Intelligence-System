@@ -290,6 +290,112 @@
       attempts: orderedIds.map(find).filter(Boolean).map(taskSummary)
     };
   };
+  const recoveryGuidance = (rawTask) => {
+    const task = normalizeTask(rawTask);
+    if (!task) return null;
+    const status = String(task.status || "UNKNOWN").toUpperCase();
+    const failureType = String(task.failure?.type || "").toLowerCase();
+    const syntheticDemo = task.provider === "browser-demo" ||
+      String(task.verification_status || "").toUpperCase() === "SYNTHETIC_DEMO_ONLY";
+    let category, headline, explanation, steps, retryGuidance;
+    if (syntheticDemo) {
+      category = "synthetic_demo";
+      headline = "This is a browser-only simulation.";
+      explanation = "The local demo records a simulated outcome; it did not call a model provider or execute user code.";
+      steps = [
+        "Use this record to exercise the retry, lineage, and reporting interface only.",
+        "Switch back to the remote runtime for real provider-backed execution.",
+        "Do not use the synthetic score, artifacts, or outcome as evidence of application correctness."
+      ];
+      retryGuidance = "Retrying a synthetic failed or timed-out record creates another simulated record.";
+    } else if (status === "TIMED_OUT" || failureType.includes("timeout") || failureType.includes("timedout")) {
+      category = "timeout";
+      headline = "The execution deadline was reached.";
+      explanation = "The runtime stopped this attempt at its configured deadline; proposed application tests are not thereby verified.";
+      steps = [
+        "Reduce the objective to one independently verifiable deliverable.",
+        "Check provider responsiveness and timeout configuration.",
+        "Inspect the trace to identify the last completed stage before retrying."
+      ];
+      retryGuidance = "Retry explicitly only when repeating the requested work is safe.";
+    } else if (["auth", "credential", "api_key", "configuration"].some((part) => failureType.includes(part))) {
+      category = "provider_configuration";
+      headline = "Provider configuration needs attention.";
+      explanation = "The failure type suggests an authentication or configuration problem; secret values are intentionally not shown here.";
+      steps = [
+        "Check the selected provider and model in runtime configuration.",
+        "Verify the required credential on the backend, not in browser source code.",
+        "Review sanitized provider diagnostics before retrying."
+      ];
+      retryGuidance = "Fix the configuration first; a retry alone will not correct missing credentials.";
+    } else if (["provider", "connection", "network", "rate", "http"].some((part) => failureType.includes(part))) {
+      category = "provider_or_network";
+      headline = "The provider or network request failed.";
+      explanation = "CYRUS records provider failures rather than silently substituting a successful result.";
+      steps = [
+        "Check provider availability, rate limits, and outbound network configuration.",
+        "Inspect the sanitized error type and the last trace event.",
+        "Retry after the provider issue is resolved; avoid repeated calls during an outage."
+      ];
+      retryGuidance = "A retry is explicit and may incur another provider request.";
+    } else if (status === "CANCELLED") {
+      category = "cancelled";
+      headline = "The execution was cancelled.";
+      explanation = "Cancellation is a terminal state, not proof that the objective completed.";
+      steps = [
+        "Review the last trace event to locate the stop point.",
+        "Narrow the objective or make the next milestone smaller.",
+        "Confirm repeating any external side effect is safe before retrying."
+      ];
+      retryGuidance = "A new attempt is available when the configured retry budget allows it.";
+    } else if (status === "FAILED") {
+      category = "execution_failure";
+      headline = "The execution failed.";
+      explanation = "The available record does not contain enough validated evidence to infer a more specific root cause.";
+      steps = [
+        "Open the execution trace and identify the last successful stage.",
+        "Review the sanitized failure type and static-analysis report.",
+        "Address the first actionable failure before starting another attempt."
+      ];
+      retryGuidance = "Retrying creates a fresh record and does not reuse prior artifacts as validated output.";
+    } else if (status === "COMPLETED") {
+      category = "completed";
+      headline = "No recovery action is required for this attempt.";
+      explanation = "The task reached its recorded terminal state; completion does not mean proposed application tests were executed.";
+      steps = [
+        "Inspect the verification status and static-analysis report.",
+        "Run suggested application tests in a suitable sandbox before treating the result as verified."
+      ];
+      retryGuidance = "Completed tasks are not retryable; create a new objective for additional work.";
+    } else {
+      category = "in_progress";
+      headline = "The execution is not in a retryable terminal state.";
+      explanation = "The task is queued, running, or waiting for approval; creating a parallel retry is not recommended.";
+      steps = [
+        "Refresh task status and follow the live trace.",
+        "For supervised runs, approve only after reviewing the release summary.",
+        "Use cooperative cancellation when the active objective should stop."
+      ];
+      retryGuidance = "Retry is available only after FAILED, CANCELLED, or TIMED_OUT and within the effective retry cap.";
+    }
+    const summary = taskSummary(task);
+    return {
+      task_id: task.task_id,
+      status,
+      category,
+      headline,
+      explanation,
+      steps,
+      retry_guidance: retryGuidance,
+      can_retry: Boolean(summary.can_retry),
+      retry_number: summary.retry_number,
+      max_task_retries: summary.max_task_retries,
+      effective_max_task_retries: summary.effective_max_task_retries,
+      synthetic_demo: syntheticDemo,
+      source: "deterministic_runtime_guidance"
+    };
+  };
+
   const metrics = () => ({
     system: "CYRUS CORE 1.0",
     uptime_seconds: 0,
