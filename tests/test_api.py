@@ -345,6 +345,25 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(exhausted.get_json()["max_task_retries"], 3)
         self.assertEqual(exhausted.get_json()["effective_max_task_retries"], 1)
 
+    def test_recovery_guidance_classifies_timeout_and_does_not_echo_raw_errors(self):
+        task = {
+            "task_id": "CYRUS-RECOVERY-TIMEOUT",
+            "status": "TIMED_OUT",
+            "mode": "autonomous",
+            "failure": {"type": "TaskTimedOut", "message": "Bearer very-secret-value"},
+            "verification_status": "PLAN_GENERATED_NOT_EXECUTED",
+            "max_task_retries": 3,
+        }
+        with patch.object(server, "all_task_records", return_value=[task]):
+            response = self.client.get("/api/tasks/CYRUS-RECOVERY-TIMEOUT/recovery")
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["category"], "timeout")
+        self.assertTrue(result["can_retry"])
+        self.assertIn("deadline", result["headline"].lower())
+        self.assertNotIn("very-secret-value", response.get_data(as_text=True))
+        self.assertEqual(result["source"], "deterministic_runtime_guidance")
+
     def test_task_lineage_returns_root_to_leaf_summaries_from_live_state(self):
         records = [
             {
