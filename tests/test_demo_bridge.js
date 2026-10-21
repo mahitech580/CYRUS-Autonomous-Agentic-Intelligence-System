@@ -87,6 +87,11 @@ async function main() {
   result = await harness.json("/api/metrics");
   assert.equal(result.body.persisted_tasks, 0);
 
+  const missingMediaType = await harness.request("/api/execute", {
+    method: "POST",
+    body: JSON.stringify({prompt: "must be rejected without a media type", mode: "autonomous"})
+  });
+  assert.equal(missingMediaType.status, 415);
   const unsupportedMediaType = await harness.request("/api/execute", {
     method: "POST",
     headers: {"Content-Type": "text/plain"},
