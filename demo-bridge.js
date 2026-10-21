@@ -496,7 +496,9 @@
     });
   };
   const handleDemoRequest = async (input, init) => {
-    const rawUrl = String(input);
+    const rawUrl = typeof input === "string" || input instanceof URL
+      ? String(input)
+      : String(input?.url || input);
     let parsed;
     try {
       parsed = new URL(rawUrl, window.location?.origin || "http://cyrus.local");
@@ -504,7 +506,19 @@
       return errorResponse("Invalid demo request URL", 400);
     }
     const path = parsed.pathname.replace(/\/+$/, "") || "/";
-    const method = String(init?.method || "GET").toUpperCase();
+    const method = String(init?.method || input?.method || "GET").toUpperCase();
+    const requestInit = {
+      ...(init || {}),
+      method,
+      headers: init?.headers || input?.headers
+    };
+    const readRequestBody = async () => {
+      if (init && Object.prototype.hasOwnProperty.call(init, "body")) return init.body;
+      if (input && typeof input.clone === "function") {
+        try { return await input.clone().text(); } catch { return ""; }
+      }
+      return "";
+    };
 
     if (path === "/api/demo/reset" && method === "POST") {
       const cleared = tasks.length;
@@ -561,21 +575,21 @@
     }
 
     if (path === "/api/execute" && method === "POST") {
-      const contentType = readHeader(init, "Content-Type").split(";", 1)[0].trim().toLowerCase();
+      const contentType = readHeader(requestInit, "Content-Type").split(";", 1)[0].trim().toLowerCase();
       const isJsonMediaType = contentType === "application/json" ||
         (contentType.startsWith("application/") && contentType.endsWith("+json"));
       if (!isJsonMediaType) {
         return errorResponse("Content-Type must be application/json", 415);
       }
       let body;
-      try { body = JSON.parse(init?.body || "{}"); } catch { return errorResponse("JSON body must be an object", 400); }
+      try { body = JSON.parse(String((await readRequestBody()) || "{}")); } catch { return errorResponse("JSON body must be an object", 400); }
       if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("JSON body must be an object", 400);
       if (typeof body.prompt !== "string" || !body.prompt.trim()) return errorResponse("Prompt is required", 400);
       if (body.prompt.length > 4000) return errorResponse("Prompt exceeds the 4000-character limit", 413);
       if (!["autonomous", "supervised"].includes(body.mode || "autonomous")) return errorResponse("Mode must be autonomous or supervised", 400);
       const prompt = body.prompt.trim();
       const mode = safeMode(body.mode || "autonomous");
-      const key = readHeader(init, "Idempotency-Key");
+      const key = readHeader(requestInit, "Idempotency-Key");
       if (key && (key.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(key))) return errorResponse("Idempotency-Key must be 1-128 safe characters", 400);
       const fingerprint = JSON.stringify({ prompt, mode });
       if (key) {
@@ -602,7 +616,7 @@
     if (streamMatch && method === "GET") {
       const id = decodeURIComponent(streamMatch[1]);
       const task = find(id);
-      return task ? streamResponse(task, readHeader(init, "Last-Event-ID")) : errorResponse("Task not found", 404);
+      return task ? streamResponse(task, readHeader(requestInit, "Last-Event-ID")) : errorResponse("Task not found", 404);
     }
 
     const lineageMatch = path.match(/^\/api\/tasks\/([^/]+)\/lineage$/);
