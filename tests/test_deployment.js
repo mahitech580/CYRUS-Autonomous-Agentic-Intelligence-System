@@ -458,7 +458,7 @@ for (const behavior of [
 ]) {
   assert.ok(browserDemoGuide.includes(behavior), "Missing browser demo guide coverage: " + behavior);
 }
-assert.ok(readme.includes("docs/BROWSER_DEMO.md"), "README must link the dedicated browser demo guide");
+assert.ok(fs.readFileSync("README.md", "utf8").includes("docs/BROWSER_DEMO.md"), "README must link the dedicated browser demo guide");
 console.log("Browser demo docs smoke: opt-in, failure/timeout simulation, archive, caps, and reset documented OK");
 
 
