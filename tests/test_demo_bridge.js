@@ -214,6 +214,10 @@ async function main() {
   const analytics = await harness.json("/api/analytics?days=7");
   assert.equal(analytics.response.status, 200);
   assert.equal(analytics.body.source, "browser_local_demo_storage");
+  const defaultAnalytics = await harness.json("/api/analytics");
+  assert.equal(defaultAnalytics.response.status, 200);
+  assert.equal(defaultAnalytics.body.window_days, 7, "omitted analytics window should default to seven days");
+  assert.equal(defaultAnalytics.body.daily.length, 7);
   assert.equal(analytics.body.retry_outcomes.total_attempts, 1);
   assert.equal(analytics.body.retry_outcomes.completed, 1);
   assert.equal(analytics.body.retry_outcomes.recovered_after_failure, 1);
