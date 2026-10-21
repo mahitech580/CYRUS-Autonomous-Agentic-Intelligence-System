@@ -229,8 +229,8 @@ async function main() {
       return new Response("remote not found", {status: 404});
     }
   });
-  const remote = await remoteHarness.json("/api/health");
-  assert.equal(remote.response.status, 404);
+  const remote = await remoteHarness.request("/api/health");
+  assert.equal(remote.status, 404);
   assert.equal(failClosedCalls.length, 1, "normal remote mode must never substitute local demo data");
 
   const capped = makeHarness({storedTasks: [{
