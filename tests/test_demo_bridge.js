@@ -142,6 +142,23 @@ async function main() {
   assert.equal(missingRecovery.response.status, 404);
   assert.equal(missingRecovery.body.error, "Task not found");
 
+  const configurationGuidanceHarness = makeHarness({storedTasks: [{
+    task_id: "DEMO-GUIDANCE-AUTH",
+    objective: "Inspect backend configuration",
+    mode: "autonomous",
+    status: "FAILED",
+    provider: "openai",
+    retry_number: 0,
+    max_task_retries: 3,
+    failure: {type: "ProviderAuthenticationError", message: "configured credential must not be echoed"},
+    created_at: new Date().toISOString(),
+    events: []
+  }]});
+  const authGuidance = await configurationGuidanceHarness.json("/api/tasks/DEMO-GUIDANCE-AUTH/recovery");
+  assert.equal(authGuidance.body.category, "provider_configuration");
+  assert.match(authGuidance.body.retry_guidance, /Fix the configuration first/);
+  assert.ok(!JSON.stringify(authGuidance.body).includes("configured credential"));
+
   const timeoutRetry = await timeoutHarness.json("/api/tasks/" + encodeURIComponent(timedOutId) + "/retry", {
     method: "POST",
     headers: {"Idempotency-Key": "demo-timeout-retry-001"}
