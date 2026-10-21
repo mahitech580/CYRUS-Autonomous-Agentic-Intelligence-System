@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const fs = require("fs");
+const vm = require("node:vm");
 
 const index = fs.readFileSync("index.html", "utf8");
 for (const asset of ["./styles.css", "./runtime-config.js", "./demo-bridge.js", "./event-stream.js", "./task-export.js", "./app.js"]) {
@@ -13,6 +14,31 @@ assert.ok(index.includes("react.production.min.js"), "The deployed UI must use t
 assert.ok(index.includes("react-dom.production.min.js"), "The deployed UI must use the production ReactDOM bundle");
 assert.ok(index.includes('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'), "The 3D character runtime must load Three.js before the app");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("healthMetrics"), "Bootstrap must consume runtime metrics");
+
+const runtimeConfigSource = fs.readFileSync("runtime-config.js", "utf8");
+function buildRuntimeConfig(search, apiOverride, accessKey) {
+  const window = {
+    location: {search},
+    localStorage: {getItem(key) { return key === "cyrus-api-base-url" ? apiOverride : null; }},
+    sessionStorage: {getItem(key) { return key === "cyrus-api-access-key" ? accessKey : null; }}
+  };
+  vm.runInNewContext(runtimeConfigSource, {window, URLSearchParams, String, Object});
+  return window.CYRUS_CONFIG;
+}
+const localDemoConfig = buildRuntimeConfig("?demo=1", "https://unexpected.example", "not-for-demo");
+assert.equal(localDemoConfig.runtime, "browser-demo");
+assert.equal(localDemoConfig.explicitDemoMode, true);
+assert.equal(localDemoConfig.apiBaseUrl, "", "Explicit demo must not call the configured remote backend");
+assert.equal(localDemoConfig.apiAccessKey, "", "Explicit demo must not send the operator's live API key");
+const liveConfig = buildRuntimeConfig("", "https://custom-api.example", "live-key-not-committed");
+assert.equal(liveConfig.runtime, "remote-api");
+assert.equal(liveConfig.explicitDemoMode, false);
+assert.equal(liveConfig.apiBaseUrl, "https://custom-api.example");
+assert.equal(liveConfig.apiAccessKey, "live-key-not-committed");
+assert.ok(fs.readFileSync("app.js", "utf8").includes('window.CYRUS_CONFIG?.explicitDemoMode'), "UI must visibly distinguish the explicit local demo");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("health.mode==='DEMO'"), "Browser demo health must not be presented as live backend uptime");
+assert.ok(fs.readFileSync("styles.css", "utf8").includes(".demo-mode-banner"), "The local demo disclosure must be responsive and styled");
+
 assert.ok(fs.readFileSync("app.js", "utf8").includes("window.CyrusEventStream.streamTaskEvents"), "App must use the resilient event-stream client");
 const app = fs.readFileSync("app.js", "utf8");
 for (const feature of [
