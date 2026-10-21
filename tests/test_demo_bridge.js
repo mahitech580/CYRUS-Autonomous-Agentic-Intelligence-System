@@ -58,8 +58,14 @@ function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = []} = {}
     store,
     originalFetchCalls: () => originalFetchCalls,
     async request(path, init) { return window.fetch(path, init); },
-    async json(path, init) {
-      const response = await window.fetch(path, init);
+    async json(path, init = {}) {
+      const options = {...init};
+      const headers = {...(options.headers || {})};
+      if (options.body !== undefined && !Object.keys(headers).some((key) => key.toLowerCase() === "content-type")) {
+        headers["Content-Type"] = "application/json";
+      }
+      options.headers = headers;
+      const response = await window.fetch(path, options);
       return {response, body: await response.json()};
     }
   };
@@ -80,6 +86,14 @@ async function main() {
   assert.ok(result.body.some((tool) => tool.route === "test.run"));
   result = await harness.json("/api/metrics");
   assert.equal(result.body.persisted_tasks, 0);
+
+  const unsupportedMediaType = await harness.request("/api/execute", {
+    method: "POST",
+    headers: {"Content-Type": "text/plain"},
+    body: JSON.stringify({prompt: "must be rejected", mode: "autonomous"})
+  });
+  assert.equal(unsupportedMediaType.status, 415);
+  assert.equal((await unsupportedMediaType.json()).error, "Content-Type must be application/json");
 
   result = await harness.json("/api/execute", {
     method: "POST",
