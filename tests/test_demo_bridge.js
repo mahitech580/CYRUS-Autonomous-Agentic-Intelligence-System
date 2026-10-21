@@ -138,6 +138,10 @@ async function main() {
   assert.equal(guidanceResponse.body.category, "provider_or_network");
   assert.ok(!JSON.stringify(guidanceResponse.body).includes(guidanceSecret));
 
+  const missingRecovery = await guidanceHarness.json("/api/tasks/DEMO-GUIDANCE-MISSING/recovery");
+  assert.equal(missingRecovery.response.status, 404);
+  assert.equal(missingRecovery.body.error, "Task not found");
+
   const timeoutRetry = await timeoutHarness.json("/api/tasks/" + encodeURIComponent(timedOutId) + "/retry", {
     method: "POST",
     headers: {"Idempotency-Key": "demo-timeout-retry-001"}
