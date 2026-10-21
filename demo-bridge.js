@@ -1,13 +1,690 @@
-(()=>{const original=window.fetch.bind(window);const agents=[{id:1,name:'ORCHESTRATOR',role:'coordination',type:'control',responsibility:'Owns execution state.'},{id:2,name:'PLANNER',role:'decomposition',type:'reasoning',responsibility:'Breaks objectives into executable work.'},{id:3,name:'RESEARCHER',role:'evidence',type:'research',responsibility:'Synthesizes engineering constraints.'},{id:4,name:'CODER',role:'implementation',type:'builder',responsibility:'Produces implementation artifacts.'},{id:5,name:'TESTER',role:'validation',type:'quality',responsibility:'Runs deterministic validation.'},{id:6,name:'REVIEWER',role:'assurance',type:'review',responsibility:'Assesses quality and release risk.'},{id:7,name:'RELEASE',role:'delivery',type:'delivery',responsibility:'Finalizes the release package.'}];const tools=[{name:'Repository Scanner',category:'analysis',description:'Maps repository surfaces.',route:'repo.scan'},{name:'File Analyzer',category:'analysis',description:'Inspects source structure.',route:'file.inspect'},{name:'Code Analyzer',category:'quality',description:'Evaluates implementation shape.',route:'code.analyze'},{name:'Dependency Auditor',category:'security',description:'Checks dependency posture.',route:'deps.audit'},{name:'Test Runner',category:'validation',description:'Runs deterministic checks.',route:'test.run'},{name:'Runtime Probe',category:'runtime',description:'Probes service readiness.',route:'runtime.probe'},{name:'Research Gateway',category:'research',description:'Provides research abstraction.',route:'research.query'},{name:'Artifact Generator',category:'delivery',description:'Produces release artifacts.',route:'artifact.generate'}];const storageKey='cyrus-demo-tasks-v1';const requestKeys=new Map();const loadTasks=()=>{try{const raw=window.localStorage.getItem(storageKey);const parsed=raw?JSON.parse(raw):[];return Array.isArray(parsed)?parsed:[]}catch{return[]}};const tasks=loadTasks();const persist=()=>{try{window.localStorage.setItem(storageKey,JSON.stringify(tasks.slice(0,25)))}catch{}};const now=()=>new Date().toISOString();const demoTask=(id,prompt,mode)=>({task_id:id,created_at:now(),updated_at:now(),objective:prompt,mode,status:mode==='supervised'?'AWAITING_APPROVAL':'COMPLETED',current_agent:mode==='supervised'?'REVIEWER':'RELEASE',approval_required:mode==='supervised',agents:agents.map((a,i)=>({...a,status:mode==='supervised'&&i===6?'QUEUED':'COMPLETED'})),events:agents.map((a,i)=>({event_id:id+'-E'+String(i+1).padStart(3,'0'),timestamp:now(),time:new Date().toLocaleTimeString(),agent:a.name,phase:a.role.toUpperCase(),message:mode==='supervised'&&i===6?'Waiting for operator approval':'Demo stage completed successfully',duration:180+i*45})),artifacts:mode==='supervised'?[]:[{name:'service.py',language:'Python',size:'8.4 KB',type:'implementation'},{name:'test_service.py',language:'Python',size:'6.1 KB',type:'test suite'},{name:'cyrus.manifest.json',language:'JSON',size:'2.3 KB',type:'release manifest'}],tool_calls:mode==='supervised'?6:7,tests_passed:18,tests_failed:0,coverage:92,quality:94,confidence:mode==='supervised'?91:96,score:mode==='supervised'?92.3:94,latency_ms:142,execution_time_ms:mode==='supervised'?0:1280,risk:mode==='supervised'?'MEDIUM':'LOW',summary:mode==='supervised'?'CYRUS paused before release and is awaiting operator approval.':'CYRUS completed the deterministic seven-stage browser demo.'});const response=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});const metrics=()=>({system:'CYRUS CORE 1.0',uptime_seconds:0,capacity:4,active_tasks:tasks.filter(t=>t.status==='RUNNING').length,awaiting_approval:tasks.filter(t=>t.status==='AWAITING_APPROVAL').length,completed_tasks:tasks.filter(t=>t.status==='COMPLETED').length,failed_tasks:tasks.filter(t=>t.status==='FAILED').length,cancelled_tasks:tasks.filter(t=>t.status==='CANCELLED').length,persisted_tasks:tasks.length,average_execution_ms:1280});const find=id=>tasks.find(t=>t.task_id===id);window.fetch=async(input,init)=>{try{return await original(input,init)}catch(error){const url=String(input);if(window.CYRUS_CONFIG?.apiBaseUrl)throw error;if(!url.includes('/api/'))throw error;if(url.endsWith('/agents'))return response(agents);if(url.endsWith('/tools'))return response(tools);if(url.endsWith('/tasks'))return response(tasks.map(t=>({...t,events:undefined,artifacts:undefined})));if(url.endsWith('/memory'))return response(tasks.map(t=>({...t,events:undefined,artifacts:undefined})));if(url.endsWith('/metrics'))return response(metrics());if(url.endsWith('/health'))return response({status:'ok',system:'CYRUS CORE 1.0',mode:'DEMO',runtime:'browser-fallback'});if(url.endsWith('/execute')){let body={};try{body=JSON.parse(init?.body||'{}')}catch{}const key=init?.headers?.['Idempotency-Key']||init?.headers?.['idempotency-key'];if(key&&requestKeys.has(key)){const existing=find(requestKeys.get(key));if(existing)return response({task_id:existing.task_id,status:existing.status,summary:existing.summary,mode:existing.mode,agents:existing.agents,deduplicated:true})};const t=demoTask('DEMO-'+Date.now().toString(36).toUpperCase(),body.prompt||'Demo objective',body.mode||'autonomous');tasks.unshift(t);if(key)requestKeys.set(key,t.task_id);persist();return response({task_id:t.task_id,status:t.status,summary:t.summary,mode:t.mode,agents:t.agents},202)}if(url.includes('/stream')){
-  const id=url.match(/\/api\/tasks\/([^/]+)\/stream$/)?.[1]
-  const t=id&&find(id)
-  if(!t)return response({error:'Task not found'},404)
-  const encoder=new TextEncoder()
-  const state={task_id:t.task_id,status:t.status,current_agent:t.current_agent,updated_at:t.updated_at,approval_required:!!t.approval_required,score:t.score||0,confidence:t.confidence||0,quality:t.quality||0,coverage:t.coverage||0,risk:t.risk||'LOW',tool_calls:t.tool_calls||0}
-  const lines=['event: state','data: '+JSON.stringify(state),'']
-  ;(t.events||[]).forEach(e=>{lines.push('id: '+e.event_id,'event: trace','data: '+JSON.stringify(e),'')})
-  lines.push('event: close','data: '+JSON.stringify({task_id:t.task_id,status:t.status}),'')
-  const body=new ReadableStream({start(controller){controller.enqueue(encoder.encode(lines.join('\n')+'\n'));controller.close()}})
-  return new Response(body,{status:200,headers:{'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-store','X-Accel-Buffering':'no'}})
-}
-const match=url.match(/\/api\/tasks\/([^/]+)(?:\/(approve|cancel))?$/);if(match){const t=find(match[1]);if(!t)return response({error:'Task not found'},404);if(match[2]==='approve'){if(t.status!=='AWAITING_APPROVAL')return response({error:'Task is not awaiting approval',status:t.status},409);t.status='COMPLETED';t.current_agent='RELEASE';t.approval_required=false;t.updated_at=now();t.artifacts=[{name:'service.py',language:'Python',size:'8.4 KB',type:'implementation'},{name:'test_service.py',language:'Python',size:'6.1 KB',type:'test suite'},{name:'cyrus.manifest.json',language:'JSON',size:'2.3 KB',type:'release manifest'}];t.events.push({event_id:t.task_id+'-E008',timestamp:now(),time:new Date().toLocaleTimeString(),agent:'ORCHESTRATOR',phase:'APPROVED',message:'Operator approval received; release stage resumed.',duration:0});persist();return response({task_id:t.task_id,status:'APPROVAL_GRANTED',summary:'CYRUS will resume the release stage.'},202)}if(match[2]==='cancel'){if(!['RUNNING','AWAITING_APPROVAL'].includes(t.status))return response({error:'Only running or approval-pending tasks can be cancelled',status:t.status},409);t.status='CANCELLED';t.current_agent=t.current_agent||'ORCHESTRATOR';t.approval_required=false;t.updated_at=now();t.summary='CYRUS cancelled the browser demo execution.';t.events.push({event_id:t.task_id+'-E009',timestamp:now(),time:new Date().toLocaleTimeString(),agent:t.current_agent,phase:'CANCELLED',message:'Execution stopped by operator request.',duration:0});persist();return response({task_id:t.task_id,status:'CANCELLATION_REQUESTED',summary:'CYRUS will stop at the next safe checkpoint.'},202)}return response(t)}return response({error:'Demo endpoint not implemented'},404)}}})();
+(() => {
+  "use strict";
+
+  const originalFetch = window.fetch.bind(window);
+  const agents = [
+    { id: 1, name: "ORCHESTRATOR", role: "coordination", type: "control", responsibility: "Owns execution state." },
+    { id: 2, name: "PLANNER", role: "decomposition", type: "reasoning", responsibility: "Breaks objectives into executable work." },
+    { id: 3, name: "RESEARCHER", role: "evidence", type: "research", responsibility: "Synthesizes engineering constraints." },
+    { id: 4, name: "CODER", role: "implementation", type: "builder", responsibility: "Produces implementation artifacts." },
+    { id: 5, name: "TESTER", role: "validation", type: "quality", responsibility: "Runs deterministic checks." },
+    { id: 6, name: "REVIEWER", role: "assurance", type: "review", responsibility: "Assesses quality and release risk." },
+    { id: 7, name: "RELEASE", role: "delivery", type: "delivery", responsibility: "Finalizes the release package." }
+  ];
+  const tools = [
+    { name: "Repository Scanner", category: "analysis", description: "Maps repository surfaces.", route: "repo.scan" },
+    { name: "File Analyzer", category: "analysis", description: "Inspects source structure.", route: "file.inspect" },
+    { name: "Code Analyzer", category: "quality", description: "Evaluates implementation shape.", route: "code.analyze" },
+    { name: "Dependency Auditor", category: "security", description: "Checks dependency posture.", route: "deps.audit" },
+    { name: "Test Runner", category: "validation", description: "Runs deterministic checks.", route: "test.run" },
+    { name: "Runtime Probe", category: "runtime", description: "Probes service readiness.", route: "runtime.probe" },
+    { name: "Research Gateway", category: "research", description: "Provides research abstraction.", route: "research.query" },
+    { name: "Artifact Generator", category: "delivery", description: "Produces release artifacts.", route: "artifact.generate" }
+  ];
+
+  const storageKey = "cyrus-demo-tasks-v1";
+  const requestKeys = new Map();
+  let taskSequence = 0;
+  const clampInteger = (value, fallback, min, max) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(min, Math.min(max, Math.trunc(parsed))) : fallback;
+  };
+  const now = () => new Date().toISOString();
+  const makeTaskId = () => "DEMO-" + Date.now().toString(36).toUpperCase() + "-" + (++taskSequence).toString(36).toUpperCase();
+  const response = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers }
+  });
+  const errorResponse = (error, status, fields = {}) => response({ error, ...fields }, status);
+  const safeMode = (mode) => mode === "supervised" ? "supervised" : "autonomous";
+  const normalizeTask = (raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw) || typeof raw.task_id !== "string") return null;
+    const recordedLimit = clampInteger(raw.max_task_retries, 3, 0, 10);
+    const retryNumber = clampInteger(raw.retry_number, 0, 0, 1000000);
+    return {
+      ...raw,
+      mode: safeMode(raw.mode),
+      parent_task_id: typeof raw.parent_task_id === "string" ? raw.parent_task_id : null,
+      retry_number: retryNumber,
+      retry_reason: typeof raw.retry_reason === "string" ? raw.retry_reason : null,
+      max_task_retries: recordedLimit,
+      effective_max_task_retries: Math.min(recordedLimit, 3),
+      events: Array.isArray(raw.events) ? raw.events : [],
+      artifacts: Array.isArray(raw.artifacts) ? raw.artifacts : [],
+      agents: Array.isArray(raw.agents) ? raw.agents : []
+    };
+  };
+  const loadTasks = () => {
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.map(normalizeTask).filter(Boolean).slice(0, 25) : [];
+    } catch {
+      // Storage can be disabled by browser privacy settings.
+      return [];
+    }
+  };
+  const tasks = loadTasks();
+  const persist = () => {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(tasks.slice(0, 25)));
+    } catch {
+      // This tab still works if persistent browser storage is unavailable.
+    }
+  };
+  const find = (id) => tasks.find((task) => task.task_id === id);
+  const effectiveRetryLimit = (task) => Math.min(
+    clampInteger(task?.max_task_retries, 3, 0, 10),
+    clampInteger(task?.effective_max_task_retries, 3, 0, 10),
+    3
+  );
+  const appendEvent = (task, agent, phase, message) => {
+    if (!Array.isArray(task.events)) task.events = [];
+    const sequence = task.events.reduce((max, item) => {
+      const match = String(item?.event_id || "").match(/-E([0-9]{1,8})$/);
+      return Math.max(max, match ? Number(match[1]) : 0);
+    }, 0) + 1;
+    task.events.push({
+      event_id: task.task_id + "-E" + String(sequence).padStart(3, "0"),
+      timestamp: now(),
+      time: new Date().toLocaleTimeString(),
+      agent,
+      phase,
+      message,
+      duration: 0
+    });
+    task.updated_at = now();
+  };
+  const demoTask = (id, prompt, mode, options = {}) => {
+    const runMode = safeMode(mode);
+    const isRetry = Boolean(options.parentTaskId);
+    const forcedFailure = !isRetry && /\b(?:demo[- ]fail|simulate (?:a )?failure|force demo failure)\b/i.test(prompt);
+    const approval = runMode === "supervised";
+    const status = approval ? "AWAITING_APPROVAL" : forcedFailure ? "FAILED" : "COMPLETED";
+    const startSequence = isRetry ? 1 : 0;
+    const stages = agents.map((agent, index) => ({
+      event_id: id + "-E" + String(index + 1 + startSequence).padStart(3, "0"),
+      timestamp: now(),
+      time: new Date().toLocaleTimeString(),
+      agent: agent.name,
+      phase: agent.role.toUpperCase(),
+      message: approval && index === 6
+        ? "Demo release stage is waiting for operator approval."
+        : forcedFailure && index === 4
+          ? "Synthetic demo failure: the validation stage was configured to fail."
+          : "Deterministic browser-demo stage completed.",
+      duration: 180 + index * 45
+    }));
+    const task = {
+      task_id: id,
+      created_at: now(),
+      updated_at: now(),
+      objective: prompt,
+      mode: runMode,
+      status,
+      current_agent: approval ? "REVIEWER" : forcedFailure ? "TESTER" : "RELEASE",
+      approval_required: approval,
+      agents: agents.map((agent, index) => ({
+        ...agent,
+        status: approval && index === 6 ? "QUEUED" : forcedFailure && index === 4 ? "FAILED" : "COMPLETED"
+      })),
+      events: stages,
+      artifacts: approval || forcedFailure ? [] : [
+        { name: "service.py", language: "Python", size: "8.4 KB", type: "implementation" },
+        { name: "test_service.py", language: "Python", size: "6.1 KB", type: "test suite" },
+        { name: "cyrus.manifest.json", language: "JSON", size: "2.3 KB", type: "release manifest" }
+      ],
+      tool_calls: approval ? 6 : 7,
+      tests_passed: forcedFailure ? 0 : 18,
+      tests_failed: forcedFailure ? 1 : 0,
+      coverage: forcedFailure ? 0 : 92,
+      quality: forcedFailure ? 35 : 94,
+      confidence: approval ? 91 : forcedFailure ? 32 : 96,
+      score: approval ? 92.3 : forcedFailure ? 31 : 94,
+      latency_ms: 142,
+      execution_time_ms: approval ? 0 : 1280,
+      risk: approval ? "MEDIUM" : forcedFailure ? "HIGH" : "LOW",
+      summary: approval
+        ? "Browser demo paused before release and is awaiting operator approval."
+        : forcedFailure
+          ? "Synthetic demo failure requested by the operator; no provider or user code was executed."
+          : "CYRUS completed the deterministic seven-stage browser demo.",
+      provider: "browser-demo",
+      verification_status: "SYNTHETIC_DEMO_ONLY",
+      score_method: "DEMO_FIXTURE_NOT_A_REAL_RUN",
+      retry_number: clampInteger(options.retryNumber, 0, 0, 1000000),
+      parent_task_id: options.parentTaskId || null,
+      retry_reason: options.retryReason || null,
+      max_task_retries: clampInteger(options.maxTaskRetries, 3, 0, 10),
+      effective_max_task_retries: Math.min(clampInteger(options.maxTaskRetries, 3, 0, 10), 3),
+      idempotency_key: options.idempotencyKey || null,
+      failure: forcedFailure ? { type: "DemoFailure", message: "Synthetic browser-demo failure." } : null
+    };
+    if (isRetry) {
+      task.events.unshift({
+        event_id: id + "-E001",
+        timestamp: now(),
+        time: new Date().toLocaleTimeString(),
+        agent: "ORCHESTRATOR",
+        phase: "RETRY_CREATED",
+        message: "Browser demo retry created from " + options.parentTaskId + "; previous outcome: " + (options.retryReason || "terminal failure") + ".",
+        duration: 0
+      });
+    }
+    return task;
+  };
+  const taskSummary = (raw) => {
+    const task = normalizeTask(raw);
+    const status = String(task.status || "UNKNOWN").toUpperCase();
+    const limit = effectiveRetryLimit(task);
+    return {
+      task_id: task.task_id,
+      created_at: task.created_at,
+      updated_at: task.updated_at,
+      objective: task.objective || "",
+      mode: task.mode,
+      status,
+      current_agent: task.current_agent || "ORCHESTRATOR",
+      score: task.score || 0,
+      execution_time_ms: task.execution_time_ms || 0,
+      confidence: task.confidence || 0,
+      quality: task.quality || 0,
+      coverage: task.coverage || 0,
+      risk: task.risk || "LOW",
+      summary: task.summary || "",
+      tool_calls: task.tool_calls || 0,
+      tests_passed: task.tests_passed || 0,
+      tests_failed: task.tests_failed || 0,
+      artifact_count: task.artifacts.length,
+      event_count: task.events.length,
+      provider: task.provider || "browser-demo",
+      verification_status: task.verification_status || "SYNTHETIC_DEMO_ONLY",
+      score_method: task.score_method || "DEMO_FIXTURE_NOT_A_REAL_RUN",
+      parent_task_id: task.parent_task_id,
+      retry_number: task.retry_number,
+      retry_reason: task.retry_reason,
+      max_task_retries: task.max_task_retries,
+      effective_max_task_retries: limit,
+      can_retry: ["FAILED", "CANCELLED", "TIMED_OUT"].includes(status) && task.retry_number < limit
+    };
+  };
+  const listTasks = (url) => {
+    const params = url.searchParams;
+    let records = tasks.map(taskSummary);
+    const status = String(params.get("status") || "").trim().toUpperCase();
+    const mode = String(params.get("mode") || "").trim().toLowerCase();
+    const query = String(params.get("q") || "").trim().toLowerCase().slice(0, 200);
+    if (status) records = records.filter((task) => task.status === status);
+    if (mode) records = records.filter((task) => task.mode === mode);
+    if (query) records = records.filter((task) =>
+      [task.task_id, task.objective, task.summary, task.current_agent, task.mode]
+        .some((value) => String(value || "").toLowerCase().includes(query))
+    );
+    const limit = clampInteger(params.get("limit"), 50, 1, 100);
+    const offset = clampInteger(params.get("offset"), 0, 0, 10000);
+    return records.slice(offset, offset + limit);
+  };
+  const lineage = (taskId) => {
+    const target = find(taskId);
+    if (!target) return null;
+    let currentId = taskId;
+    const ancestors = [];
+    const visitedAncestors = new Set();
+    while (currentId && !visitedAncestors.has(currentId) && ancestors.length < 50) {
+      visitedAncestors.add(currentId);
+      ancestors.push(currentId);
+      const current = find(currentId);
+      const parent = current?.parent_task_id;
+      if (typeof parent !== "string" || !find(parent) || visitedAncestors.has(parent)) break;
+      currentId = parent;
+    }
+    const rootId = ancestors[ancestors.length - 1] || taskId;
+    const children = new Map();
+    for (const task of tasks) {
+      if (!task.parent_task_id || !find(task.parent_task_id)) continue;
+      if (!children.has(task.parent_task_id)) children.set(task.parent_task_id, []);
+      children.get(task.parent_task_id).push(task.task_id);
+    }
+    for (const childIds of children.values()) {
+      childIds.sort((left, right) =>
+        (find(left)?.retry_number || 0) - (find(right)?.retry_number || 0) ||
+        String(find(left)?.created_at || "").localeCompare(String(find(right)?.created_at || "")) ||
+        left.localeCompare(right)
+      );
+    }
+    const queue = [rootId];
+    const visited = new Set();
+    const orderedIds = [];
+    while (queue.length && orderedIds.length < 50) {
+      const current = queue.shift();
+      if (visited.has(current) || !find(current)) continue;
+      visited.add(current);
+      orderedIds.push(current);
+      queue.push(...(children.get(current) || []).filter((id) => !visited.has(id)));
+    }
+    const truncated = queue.length > 0;
+    if (!orderedIds.includes(taskId)) {
+      if (orderedIds.length >= 50) orderedIds[orderedIds.length - 1] = taskId;
+      else orderedIds.push(taskId);
+    }
+    return {
+      current_task_id: taskId,
+      root_task_id: rootId,
+      attempt_count: orderedIds.length,
+      truncated,
+      attempts: orderedIds.map(find).filter(Boolean).map(taskSummary)
+    };
+  };
+  const metrics = () => ({
+    system: "CYRUS CORE 1.0",
+    uptime_seconds: 0,
+    capacity: 4,
+    active_tasks: tasks.filter((task) => task.status === "RUNNING").length,
+    awaiting_approval: tasks.filter((task) => task.status === "AWAITING_APPROVAL").length,
+    completed_tasks: tasks.filter((task) => task.status === "COMPLETED").length,
+    failed_tasks: tasks.filter((task) => task.status === "FAILED").length,
+    cancelled_tasks: tasks.filter((task) => task.status === "CANCELLED").length,
+    persisted_tasks: tasks.length,
+    average_execution_ms: tasks.length
+      ? Math.round(tasks.reduce((sum, task) => sum + (Number(task.execution_time_ms) || 0), 0) / tasks.length)
+      : 0
+  });
+  const analytics = (url) => {
+    const days = clampInteger(url.searchParams.get("days"), 7, 1, 90);
+    const today = new Date();
+    const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - days + 1));
+    const terminalStatuses = new Set(["COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"]);
+    const daily = [];
+    for (let offset = 0; offset < days; offset++) {
+      const date = new Date(start.getTime() + offset * 86400000);
+      daily.push({
+        date: date.toISOString().slice(0, 10),
+        label: date.toLocaleDateString("en", { day: "2-digit", month: "short", timeZone: "UTC" }),
+        total: 0, completed: 0, failed: 0, cancelled: 0, timed_out: 0
+      });
+    }
+    const byDate = new Map(daily.map((item) => [item.date, item]));
+    const statusCounts = {
+      RUNNING: 0, QUEUED: 0, AWAITING_APPROVAL: 0,
+      COMPLETED: 0, FAILED: 0, CANCELLED: 0, TIMED_OUT: 0
+    };
+    const providerCounts = new Map();
+    const failureCounts = new Map();
+    const latency = [];
+    let retryTotal = 0;
+    let retryCompleted = 0;
+    let retryFailed = 0;
+    let retryCancelled = 0;
+    let retryTimedOut = 0;
+    let retryActive = 0;
+    let recovered = 0;
+    let resolvedAfterFailure = 0;
+    let eligibleAfterFailure = 0;
+    let maxDepth = 0;
+    const depthCounts = new Map();
+    const byId = new Map(tasks.map((task) => [task.task_id, task]));
+    const roots = new Set();
+    for (const task of tasks) {
+      const status = String(task.status || "UNKNOWN").toUpperCase();
+      if (Object.prototype.hasOwnProperty.call(statusCounts, status)) statusCounts[status]++;
+      const provider = String(task.provider || "browser-demo");
+      providerCounts.set(provider, (providerCounts.get(provider) || 0) + 1);
+      const day = byDate.get(String(task.created_at || "").slice(0, 10));
+      if (day) {
+        day.total++;
+        if (status === "COMPLETED") day.completed++;
+        if (status === "FAILED") day.failed++;
+        if (status === "CANCELLED") day.cancelled++;
+        if (status === "TIMED_OUT") day.timed_out++;
+      }
+      if (terminalStatuses.has(status) && Number(task.execution_time_ms) > 0) latency.push(Number(task.execution_time_ms));
+      const failureType = task.failure?.type;
+      if (failureType) failureCounts.set(failureType, (failureCounts.get(failureType) || 0) + 1);
+      const depth = clampInteger(task.retry_number, 0, 0, 1000000);
+      if (!depth) continue;
+      retryTotal++;
+      maxDepth = Math.max(maxDepth, depth);
+      const depthBucket = depthCounts.get(depth) || { retry_number: depth, total: 0, completed: 0, failed: 0, cancelled: 0, timed_out: 0, active: 0, terminal: 0 };
+      depthBucket.total++;
+      if (status === "COMPLETED") { retryCompleted++; depthBucket.completed++; }
+      if (status === "FAILED") { retryFailed++; depthBucket.failed++; }
+      if (status === "CANCELLED") { retryCancelled++; depthBucket.cancelled++; }
+      if (status === "TIMED_OUT") { retryTimedOut++; depthBucket.timed_out++; }
+      if (["RUNNING", "QUEUED", "AWAITING_APPROVAL"].includes(status)) { retryActive++; depthBucket.active++; }
+      if (terminalStatuses.has(status)) depthBucket.terminal++;
+      depthCounts.set(depth, depthBucket);
+      let rootId = task.task_id;
+      let cursor = task.task_id;
+      const visited = new Set();
+      for (let step = 0; step < 50; step++) {
+        if (!cursor || visited.has(cursor)) break;
+        visited.add(cursor);
+        const parentId = byId.get(cursor)?.parent_task_id;
+        if (typeof parentId !== "string" || !byId.has(parentId)) { rootId = cursor; break; }
+        cursor = parentId;
+      }
+      if (rootId) roots.add(rootId);
+      const parent = byId.get(task.parent_task_id);
+      if (["FAILED", "CANCELLED", "TIMED_OUT"].includes(String(parent?.status || "").toUpperCase())) {
+        eligibleAfterFailure++;
+        if (terminalStatuses.has(status)) {
+          resolvedAfterFailure++;
+          if (status === "COMPLETED") recovered++;
+        }
+      }
+    }
+    const terminalTotal = Object.keys(statusCounts).filter((key) => terminalStatuses.has(key)).reduce((sum, key) => sum + statusCounts[key], 0);
+    const retryTerminal = retryCompleted + retryFailed + retryCancelled + retryTimedOut;
+    latency.sort((left, right) => left - right);
+    const median = latency.length
+      ? latency.length % 2
+        ? latency[Math.floor(latency.length / 2)]
+        : Math.round((latency[latency.length / 2 - 1] + latency[latency.length / 2]) / 2)
+      : 0;
+    const p95 = latency.length ? latency[Math.max(0, Math.ceil(latency.length * 0.95) - 1)] : 0;
+    const totalLatency = latency.reduce((sum, value) => sum + value, 0);
+    return {
+      generated_at: now(),
+      window_days: days,
+      source: "browser_local_demo_storage",
+      totals: {
+        all: tasks.length,
+        completed: statusCounts.COMPLETED,
+        failed: statusCounts.FAILED,
+        cancelled: statusCounts.CANCELLED,
+        timed_out: statusCounts.TIMED_OUT,
+        running: statusCounts.RUNNING,
+        queued: statusCounts.QUEUED,
+        awaiting_approval: statusCounts.AWAITING_APPROVAL,
+        terminal: terminalTotal,
+        success_rate: terminalTotal ? Math.round(statusCounts.COMPLETED / terminalTotal * 1000) / 10 : 0
+      },
+      daily,
+      retry_outcomes: {
+        total_attempts: retryTotal,
+        lineages_with_retries: roots.size,
+        completed: retryCompleted,
+        failed: retryFailed,
+        cancelled: retryCancelled,
+        timed_out: retryTimedOut,
+        active: retryActive,
+        terminal: retryTerminal,
+        completion_rate: retryTerminal ? Math.round(retryCompleted / retryTerminal * 1000) / 10 : 0,
+        eligible_after_failure: eligibleAfterFailure,
+        resolved_after_failure: resolvedAfterFailure,
+        recovered_after_failure: recovered,
+        recovery_rate: resolvedAfterFailure ? Math.round(recovered / resolvedAfterFailure * 1000) / 10 : 0,
+        max_depth: maxDepth,
+        by_depth: [...depthCounts.values()].sort((left, right) => left.retry_number - right.retry_number)
+      },
+      providers: [...providerCounts.entries()].map(([name, count]) => ({ name, count })).sort((left, right) => right.count - left.count),
+      latency: {
+        samples: latency.length,
+        average_ms: latency.length ? Math.round(totalLatency / latency.length * 10) / 10 : 0,
+        median_ms: median,
+        p95_ms: p95,
+        maximum_ms: latency.length ? latency[latency.length - 1] : 0
+      },
+      failure_types: [...failureCounts.entries()].map(([type, count]) => ({ type, count })).sort((left, right) => right.count - left.count).slice(0, 6),
+      recent_tasks: tasks.slice(0, 8).map(taskSummary),
+      history_store: {
+        backend: "browser localStorage",
+        durability: "browser_local_only",
+        note: "Demo records remain in this browser profile and are not shared with or stored on the CYRUS API."
+      }
+    };
+  };
+  const readHeader = (init, name) => {
+    const headers = init?.headers;
+    if (headers && typeof headers.get === "function") return String(headers.get(name) || "");
+    if (headers && typeof headers === "object") {
+      const key = Object.keys(headers).find((candidate) => candidate.toLowerCase() === name.toLowerCase());
+      return key ? String(headers[key] || "") : "";
+    }
+    return "";
+  };
+  const findByIdempotency = (key) => tasks.find((task) => task.idempotency_key === key);
+  const registerKey = (key, task, fingerprint) => {
+    if (key) requestKeys.set(key, { task_id: task.task_id, fingerprint });
+  };
+  const duplicateResponse = (task, retryOf = null) => response({
+    task_id: task.task_id,
+    status: task.status,
+    summary: task.summary,
+    mode: task.mode,
+    agents: task.agents,
+    retry_of: retryOf || task.parent_task_id || undefined,
+    retry_number: task.retry_number,
+    max_task_retries: task.max_task_retries,
+    effective_max_task_retries: effectiveRetryLimit(task),
+    deduplicated: true
+  }, 200);
+  const streamResponse = (task) => {
+    const encoder = new TextEncoder();
+    const state = {
+      task_id: task.task_id, status: task.status, current_agent: task.current_agent,
+      updated_at: task.updated_at, approval_required: Boolean(task.approval_required),
+      score: task.score || 0, confidence: task.confidence || 0, quality: task.quality || 0,
+      coverage: task.coverage || 0, risk: task.risk || "LOW", tool_calls: task.tool_calls || 0,
+      verification_status: task.verification_status || "SYNTHETIC_DEMO_ONLY",
+      static_checks_passed: 0, static_checks_failed: 0
+    };
+    const lines = ["event: state", "data: " + JSON.stringify(state), ""];
+    (task.events || []).forEach((event) => lines.push(
+      "id: " + event.event_id, "event: trace", "data: " + JSON.stringify(event), ""
+    ));
+    lines.push("event: close", "data: " + JSON.stringify({ task_id: task.task_id, status: task.status }), "");
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(lines.join("\n") + "\n"));
+        controller.close();
+      }
+    });
+    return new Response(body, {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-store", "X-Accel-Buffering": "no" }
+    });
+  };
+  const handleDemoRequest = async (input, init) => {
+    const rawUrl = String(input);
+    let parsed;
+    try {
+      parsed = new URL(rawUrl, window.location?.origin || "http://cyrus.local");
+    } catch {
+      return errorResponse("Invalid demo request URL", 400);
+    }
+    const path = parsed.pathname.replace(/\/+$/, "") || "/";
+    const method = String(init?.method || "GET").toUpperCase();
+
+    if (path === "/api/health" && method === "GET") return response({
+      status: "ok", system: "CYRUS CORE 1.0", mode: "DEMO", runtime: "browser-demo",
+      api_access_key_required: false, api_access_key_configured: false,
+      persistence: "browser-local-only"
+    });
+    if (path === "/api/security" && method === "GET") return response({
+      api_access_key_required: false, api_access_key_configured: false,
+      cors_allowlist_configured: false, cors_origins: [], runtime: "browser-demo",
+      note: "This simulator is local to the current browser profile and does not provide API authentication."
+    });
+    if (path === "/api/agents" && method === "GET") return response(agents);
+    if (path === "/api/tools" && method === "GET") return response(tools);
+    if (path === "/api/metrics" && method === "GET") return response(metrics());
+    if (path === "/api/analytics" && method === "GET") return response(analytics(parsed));
+    if (path === "/api/memory" && method === "GET") return response(tasks.map(taskSummary));
+    if (path === "/api/tasks" && method === "GET") return response(listTasks(parsed));
+
+    if (path === "/api/execute" && method === "POST") {
+      let body;
+      try { body = JSON.parse(init?.body || "{}"); } catch { return errorResponse("JSON body must be an object", 400); }
+      if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("JSON body must be an object", 400);
+      if (typeof body.prompt !== "string" || !body.prompt.trim()) return errorResponse("Prompt is required", 400);
+      if (body.prompt.length > 4000) return errorResponse("Prompt exceeds the 4000-character limit", 413);
+      if (!["autonomous", "supervised"].includes(body.mode || "autonomous")) return errorResponse("Mode must be autonomous or supervised", 400);
+      const prompt = body.prompt.trim();
+      const mode = safeMode(body.mode || "autonomous");
+      const key = readHeader(init, "Idempotency-Key");
+      if (key && (key.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(key))) return errorResponse("Idempotency-Key must be 1-128 safe characters", 400);
+      const fingerprint = JSON.stringify({ prompt, mode });
+      if (key) {
+        const current = requestKeys.get(key);
+        const previous = current ? find(current.task_id) : findByIdempotency(key);
+        if (previous) {
+          const storedFingerprint = current?.fingerprint || JSON.stringify({ prompt: previous.objective, mode: previous.mode });
+          if (storedFingerprint !== fingerprint) return errorResponse("Idempotency-Key was already used for a different request", 409);
+          return duplicateResponse(previous);
+        }
+      }
+      const task = demoTask(makeTaskId(), prompt, mode, { idempotencyKey: key });
+      tasks.unshift(task);
+      tasks.splice(25);
+      registerKey(key, task, fingerprint);
+      persist();
+      return response({
+        task_id: task.task_id, status: task.status, summary: task.summary,
+        mode: task.mode, agents: task.agents, demo_only: true
+      }, 202);
+    }
+
+    const streamMatch = path.match(/^\/api\/tasks\/([^/]+)\/stream$/);
+    if (streamMatch && method === "GET") {
+      const id = decodeURIComponent(streamMatch[1]);
+      const task = find(id);
+      return task ? streamResponse(task) : errorResponse("Task not found", 404);
+    }
+
+    const lineageMatch = path.match(/^\/api\/tasks\/([^/]+)\/lineage$/);
+    if (lineageMatch && method === "GET") {
+      const id = decodeURIComponent(lineageMatch[1]);
+      const result = lineage(id);
+      return result ? response(result) : errorResponse("Task not found", 404);
+    }
+
+    const taskMatch = path.match(/^\/api\/tasks\/([^/]+)(?:\/(approve|cancel|retry))?$/);
+    if (taskMatch) {
+      const id = decodeURIComponent(taskMatch[1]);
+      const action = taskMatch[2] || "";
+      const task = find(id);
+      if (!task) return errorResponse("Task not found", 404);
+      if (!action && method === "GET") return response(task);
+      if (action === "approve" && method === "POST") {
+        if (task.status !== "AWAITING_APPROVAL") return errorResponse("Task is not awaiting approval", 409, { status: task.status });
+        task.status = "COMPLETED";
+        task.current_agent = "RELEASE";
+        task.approval_required = false;
+        task.artifacts = [
+          { name: "service.py", language: "Python", size: "8.4 KB", type: "implementation" },
+          { name: "test_service.py", language: "Python", size: "6.1 KB", type: "test suite" },
+          { name: "cyrus.manifest.json", language: "JSON", size: "2.3 KB", type: "release manifest" }
+        ];
+        task.tests_passed = 18;
+        task.tests_failed = 0;
+        task.coverage = 92;
+        task.failure = null;
+        task.summary = "Operator approved the deterministic browser-demo release.";
+        appendEvent(task, "ORCHESTRATOR", "APPROVED", "Operator approval received; browser-demo release state advanced.");
+        persist();
+        return response({ task_id: id, status: "APPROVAL_GRANTED", summary: "Demo approval recorded in this browser only." }, 202);
+      }
+      if (action === "cancel" && method === "POST") {
+        if (!["RUNNING", "AWAITING_APPROVAL"].includes(task.status)) {
+          return errorResponse("Only running or approval-pending tasks can be cancelled", 409, { status: task.status });
+        }
+        task.status = "CANCELLED";
+        task.current_agent = task.current_agent || "ORCHESTRATOR";
+        task.approval_required = false;
+        task.summary = "CYRUS cancelled this browser-demo execution.";
+        task.failure = { type: "DemoCancelled", message: "Operator cancelled the browser-demo record." };
+        appendEvent(task, task.current_agent, "CANCELLED", "Execution marked cancelled by the demo operator.");
+        persist();
+        return response({ task_id: id, status: "CANCELLATION_REQUESTED", summary: "Demo cancellation recorded locally." }, 202);
+      }
+      if (action === "retry" && method === "POST") {
+        if (!["FAILED", "CANCELLED", "TIMED_OUT"].includes(String(task.status || "").toUpperCase())) {
+          return errorResponse("Only failed, cancelled, or timed-out tasks can be retried", 409, { status: task.status || "UNKNOWN" });
+        }
+        const retryNumber = clampInteger(task.retry_number, 0, 0, 1000000);
+        const cap = effectiveRetryLimit(task);
+        if (retryNumber >= cap) return errorResponse("The configured retry limit has been reached for this execution lineage", 409, {
+          retry_number: retryNumber, max_task_retries: task.max_task_retries,
+          effective_max_task_retries: cap
+        });
+        const nextRetry = retryNumber + 1;
+        const key = readHeader(init, "Idempotency-Key");
+        if (key && (key.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(key))) return errorResponse("Idempotency-Key must be 1-128 safe characters", 400);
+        const fingerprint = JSON.stringify({ prompt: task.objective, mode: task.mode, retry_of: task.task_id, retry_number: nextRetry });
+        if (key) {
+          const current = requestKeys.get(key);
+          const previous = current ? find(current.task_id) : findByIdempotency(key);
+          if (previous) {
+            const stored = current?.fingerprint || JSON.stringify({
+              prompt: previous.objective, mode: previous.mode,
+              retry_of: previous.parent_task_id, retry_number: previous.retry_number
+            });
+            if (stored !== fingerprint) return errorResponse("Idempotency-Key was already used for a different request", 409);
+            return duplicateResponse(previous, id);
+          }
+        }
+        const existing = tasks.find((candidate) =>
+          candidate.parent_task_id === id && clampInteger(candidate.retry_number, 0, 0, 1000000) === nextRetry
+        );
+        if (existing) {
+          registerKey(key, existing, fingerprint);
+          return duplicateResponse(existing, id);
+        }
+        const failureType = task.failure && typeof task.failure.type === "string" ? task.failure.type.slice(0, 80) : "";
+        const retryReason = String(task.status).toUpperCase() + (failureType ? ":" + failureType : "");
+        const retried = demoTask(makeTaskId(), task.objective, task.mode, {
+          parentTaskId: id,
+          retryNumber: nextRetry,
+          retryReason,
+          maxTaskRetries: task.max_task_retries,
+          idempotencyKey: key
+        });
+        tasks.unshift(retried);
+        tasks.splice(25);
+        registerKey(key, retried, fingerprint);
+        persist();
+        return response({
+          task_id: retried.task_id,
+          status: retried.status,
+          mode: retried.mode,
+          retry_of: id,
+          retry_number: retried.retry_number,
+          max_task_retries: retried.max_task_retries,
+          effective_max_task_retries: effectiveRetryLimit(retried),
+          deduplicated: false,
+          demo_only: true
+        }, 202);
+      }
+      return errorResponse("Method or task action is not supported by the browser demo", 405);
+    }
+
+    return errorResponse("Demo endpoint not implemented", 404);
+  };
+
+  window.CYRUS_DEMO = Object.freeze({
+    enabled: Boolean(window.CYRUS_CONFIG?.explicitDemoMode) ||
+      window.CYRUS_CONFIG?.runtime === "browser-demo",
+    version: "2",
+    storageKey
+  });
+  window.fetch = async (input, init) => {
+    const rawUrl = typeof input === "string" || input instanceof URL
+      ? String(input)
+      : String(input?.url || input);
+    let isApi = false;
+    try { isApi = new URL(rawUrl, window.location?.origin || "http://cyrus.local").pathname.startsWith("/api/"); }
+    catch { isApi = rawUrl.includes("/api/"); }
+    if (!isApi) return originalFetch(input, init);
+
+    // Explicit demo mode is deterministic: never send its synthetic objective
+    // to a remote backend and never depend on receiving a network exception.
+    if (window.CYRUS_DEMO.enabled) return handleDemoRequest(input, init);
+    try {
+      return await originalFetch(input, init);
+    } catch (error) {
+      if (window.CYRUS_CONFIG?.apiBaseUrl) throw error;
+      return handleDemoRequest(input, init);
+    }
+  };
+})();
