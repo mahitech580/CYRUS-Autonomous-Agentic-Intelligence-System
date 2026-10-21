@@ -103,8 +103,11 @@
     const runMode = safeMode(mode);
     const isRetry = Boolean(options.parentTaskId);
     const forcedFailure = !isRetry && /\b(?:demo[- ]fail|simulate (?:a )?failure|force demo failure)\b/i.test(prompt);
+    const forcedTimeout = !isRetry && /\b(?:demo[- ]timeout|simulate (?:a )?timeout|force demo timeout)\b/i.test(prompt);
     const approval = runMode === "supervised";
-    const status = approval ? "AWAITING_APPROVAL" : forcedFailure ? "FAILED" : "COMPLETED";
+    const status = approval
+      ? "AWAITING_APPROVAL"
+      : forcedTimeout ? "TIMED_OUT" : forcedFailure ? "FAILED" : "COMPLETED";
     const startSequence = isRetry ? 1 : 0;
     const stages = agents.map((agent, index) => ({
       event_id: id + "-E" + String(index + 1 + startSequence).padStart(3, "0"),
@@ -116,7 +119,9 @@
         ? "Demo release stage is waiting for operator approval."
         : forcedFailure && index === 4
           ? "Synthetic demo failure: the validation stage was configured to fail."
-          : "Deterministic browser-demo stage completed.",
+          : forcedTimeout && index === 4
+            ? "Synthetic demo timeout: execution stopped at the validation deadline."
+            : "Deterministic browser-demo stage completed.",
       duration: 180 + index * 45
     }));
     const task = {
@@ -130,29 +135,31 @@
       approval_required: approval,
       agents: agents.map((agent, index) => ({
         ...agent,
-        status: approval && index === 6 ? "QUEUED" : forcedFailure && index === 4 ? "FAILED" : "COMPLETED"
+        status: approval && index === 6 ? "QUEUED" : forcedFailure && index === 4 ? "FAILED" : forcedTimeout && index === 4 ? "TIMED_OUT" : "COMPLETED"
       })),
       events: stages,
-      artifacts: approval || forcedFailure ? [] : [
+      artifacts: approval || forcedFailure || forcedTimeout ? [] : [
         { name: "service.py", language: "Python", size: "8.4 KB", type: "implementation" },
         { name: "test_service.py", language: "Python", size: "6.1 KB", type: "test suite" },
         { name: "cyrus.manifest.json", language: "JSON", size: "2.3 KB", type: "release manifest" }
       ],
       tool_calls: approval ? 6 : 7,
-      tests_passed: forcedFailure ? 0 : 18,
+      tests_passed: forcedFailure || forcedTimeout ? 0 : 18,
       tests_failed: forcedFailure ? 1 : 0,
-      coverage: forcedFailure ? 0 : 92,
-      quality: forcedFailure ? 35 : 94,
-      confidence: approval ? 91 : forcedFailure ? 32 : 96,
-      score: approval ? 92.3 : forcedFailure ? 31 : 94,
+      coverage: forcedFailure || forcedTimeout ? 0 : 92,
+      quality: forcedFailure || forcedTimeout ? 35 : 94,
+      confidence: approval ? 91 : forcedFailure || forcedTimeout ? 32 : 96,
+      score: approval ? 92.3 : forcedFailure || forcedTimeout ? 31 : 94,
       latency_ms: 142,
       execution_time_ms: approval ? 0 : 1280,
-      risk: approval ? "MEDIUM" : forcedFailure ? "HIGH" : "LOW",
+      risk: approval ? "MEDIUM" : forcedFailure || forcedTimeout ? "HIGH" : "LOW",
       summary: approval
         ? "Browser demo paused before release and is awaiting operator approval."
         : forcedFailure
           ? "Synthetic demo failure requested by the operator; no provider or user code was executed."
-          : "CYRUS completed the deterministic seven-stage browser demo.",
+          : forcedTimeout
+            ? "Synthetic demo timeout requested by the operator; no provider call or user code was executed."
+            : "CYRUS completed the deterministic seven-stage browser demo.",
       provider: "browser-demo",
       verification_status: "SYNTHETIC_DEMO_ONLY",
       score_method: "DEMO_FIXTURE_NOT_A_REAL_RUN",
@@ -162,7 +169,11 @@
       max_task_retries: clampInteger(options.maxTaskRetries, 3, 0, 10),
       effective_max_task_retries: Math.min(clampInteger(options.maxTaskRetries, 3, 0, 10), 3),
       idempotency_key: options.idempotencyKey || null,
-      failure: forcedFailure ? { type: "DemoFailure", message: "Synthetic browser-demo failure." } : null
+      failure: forcedFailure
+        ? { type: "DemoFailure", message: "Synthetic browser-demo failure." }
+        : forcedTimeout
+          ? { type: "TaskTimedOut", message: "Synthetic browser-demo timeout." }
+          : null
     };
     if (isRetry) {
       task.events.unshift({
