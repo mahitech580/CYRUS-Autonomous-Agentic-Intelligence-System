@@ -226,7 +226,7 @@ async function main() {
     explicitDemoMode: false,
     fetchImpl: async (input) => {
       failClosedCalls.push(String(input));
-      return new Response("remote not found", {status: 404});
+      return new Response(JSON.stringify({error: "remote not found"}), {status: 404, headers: {"Content-Type": "application/json"}});
     }
   });
   const remote = await remoteHarness.request("/api/health");
