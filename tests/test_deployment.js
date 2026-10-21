@@ -389,6 +389,20 @@ for (const reportFeature of [
 assert.ok(fs.readFileSync("tests/test_api.py", "utf8").includes("test_task_lineage_returns_root_to_leaf_summaries"), "Lineage ordering must have an API regression test");
 assert.ok(fs.readFileSync("tests/test_task_export.js", "utf8").includes("preserves retry lineage across JSON"), "Lineage export must have report regression coverage");
 console.log("Retry lineage smoke: bounded API, timeline UI, responsive styling and JSON/Markdown/CSV contracts OK");
+const recoveryGuidanceServer = fs.readFileSync("server.py", "utf8");
+const recoveryGuidanceApp = fs.readFileSync("app.js", "utf8");
+const recoveryGuidanceStyles = fs.readFileSync("styles.css", "utf8");
+assert.ok(recoveryGuidanceServer.includes('@app.get("/api/tasks/<task_id>/recovery")'), "Recovery guidance endpoint must be available");
+assert.ok(recoveryGuidanceServer.includes('"source": "deterministic_runtime_guidance"'), "Recovery advice must identify its deterministic source");
+assert.ok(recoveryGuidanceApp.includes("+'/recovery'"), "Execution inspector must request task recovery guidance");
+assert.ok(recoveryGuidanceApp.includes("RECOVERY GUIDANCE"), "Execution inspector must expose the recovery guidance panel");
+assert.ok(recoveryGuidanceApp.includes("Recovery guidance is unavailable on this backend"), "Recovery panel errors must not block the execution record");
+for (const style of [".task-recovery-panel", ".task-recovery-body", ".task-recovery-synthetic", ".task-recovery-unavailable"]) {
+  assert.ok(recoveryGuidanceStyles.includes(style), "Missing recovery guidance presentation: " + style);
+}
+assert.ok(fs.readFileSync("tests/test_api.py", "utf8").includes("test_recovery_guidance_classifies_timeout_and_does_not_echo_raw_errors"), "Recovery guidance must have a privacy regression test");
+console.log("Recovery guidance smoke: API source, inspector panel, safe fallback, and privacy test wired OK");
+
 
 const retryAnalyticsServer = fs.readFileSync("server.py", "utf8");
 const retryAnalyticsApp = fs.readFileSync("app.js", "utf8");
