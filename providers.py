@@ -329,18 +329,28 @@ def _provider_url_is_allowed(base_url: str) -> bool:
     """
     if not isinstance(base_url, str) or not base_url.strip():
         return False
+    candidate = base_url.strip()
     try:
-        parsed = urlsplit(base_url.strip())
+        parsed = urlsplit(candidate)
         hostname = parsed.hostname
         # Accessing .port validates malformed port values from urlsplit.
         _ = parsed.port
     except ValueError:
         return False
 
+    # urlsplit stores a bare trailing '?' or '#' as an empty string, so
+    # checking parsed.query/fragment alone misses these malformed delimiters.
+    path_and_query = candidate.split("#", 1)[0]
+    has_empty_or_nonempty_query_delimiter = "?" in path_and_query
+    has_fragment_delimiter = "#" in candidate
+
     if (
         not hostname
+        or parsed.netloc.endswith(":")
         or parsed.username is not None
         or parsed.password is not None
+        or has_empty_or_nonempty_query_delimiter
+        or has_fragment_delimiter
         or parsed.query
         or parsed.fragment
     ):
