@@ -24,6 +24,7 @@
 
   const storageKey = "cyrus-demo-tasks-v1";
   const requestKeys = new Map();
+  const MAX_IDEMPOTENCY_KEYS = 256;
   let taskSequence = 0;
   const clampInteger = (value, fallback, min, max) => {
     if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) {
@@ -448,7 +449,12 @@
   };
   const findByIdempotency = (key) => tasks.find((task) => task.idempotency_key === key);
   const registerKey = (key, task, fingerprint) => {
-    if (key) requestKeys.set(key, { task_id: task.task_id, fingerprint });
+    if (!key) return;
+    requestKeys.delete(key);
+    requestKeys.set(key, { task_id: task.task_id, fingerprint });
+    while (requestKeys.size > MAX_IDEMPOTENCY_KEYS) {
+      requestKeys.delete(requestKeys.keys().next().value);
+    }
   };
   const duplicateResponse = (task, retryOf = null) => response({
     task_id: task.task_id,
@@ -595,6 +601,7 @@
       if (key) {
         const current = requestKeys.get(key);
         const previous = current ? find(current.task_id) : findByIdempotency(key);
+        if (current && !previous) return errorResponse("Idempotency-Key refers to a task outside retained browser-demo history", 410, {expired: true});
         if (previous) {
           const storedFingerprint = current?.fingerprint || JSON.stringify({ prompt: previous.objective, mode: previous.mode });
           if (storedFingerprint !== fingerprint) return errorResponse("Idempotency-Key was already used for a different request", 409);
@@ -682,6 +689,7 @@
         if (key) {
           const current = requestKeys.get(key);
           const previous = current ? find(current.task_id) : findByIdempotency(key);
+          if (current && !previous) return errorResponse("Idempotency-Key refers to a task outside retained browser-demo history", 410, {expired: true});
           if (previous) {
             const stored = current?.fingerprint || JSON.stringify({
               prompt: previous.objective, mode: previous.mode,
