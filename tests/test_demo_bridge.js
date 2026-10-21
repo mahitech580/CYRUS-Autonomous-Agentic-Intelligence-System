@@ -73,6 +73,24 @@ function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = []} = {}
 
 async function main() {
   const harness = makeHarness();
+  const nativeRequestHarness = makeHarness();
+  const nativeRequest = new Request("https://demo.example/api/execute", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Idempotency-Key": "native-request-001"
+    },
+    body: JSON.stringify({prompt: "Run using the browser Request API", mode: "autonomous"})
+  });
+  const nativeResponse = await nativeRequestHarness.request(nativeRequest);
+  assert.equal(nativeResponse.status, 202, "the demo adapter must understand native Request inputs");
+  const nativeTask = await nativeResponse.json();
+  assert.equal(nativeTask.demo_only, true);
+  const nativeListRequest = new Request("https://demo.example/api/tasks?limit=10");
+  const nativeListResponse = await nativeRequestHarness.request(nativeListRequest);
+  assert.equal(nativeListResponse.status, 200);
+  assert.equal((await nativeListResponse.json())[0].task_id, nativeTask.task_id);
+
   let result = await harness.json("/api/health");
   assert.equal(result.response.status, 200);
   assert.equal(result.body.runtime, "browser-demo");
