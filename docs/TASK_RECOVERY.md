@@ -73,6 +73,14 @@ Retry metadata is saved with the normal execution history snapshot and appears i
 
 Artifacts, review scores, and static-analysis results from the parent are **not copied into the new attempt**. The retry starts with a clean runtime record, and its verification results are populated only by its own execution. The previous failure is preserved in the previous record, not re-labelled as the new attempt's result.
 
+## Browser-only demo behavior
+
+When the page is opened with `?demo=1`, `demo-bridge.js` intercepts supported `/api/*` routes locally before calling `fetch`. This is intentional demo mode, not an API fallback. The page visibly labels it as synthetic and records tasks in `localStorage` for the current browser profile only.
+
+The demo supports a deterministic failure prompt containing `simulate failure`, so operators can inspect the task modal, retry button, lineage timeline, and analytics without contacting a model provider. The initial task is marked as a synthetic failure; the explicit retry generates a separate synthetic completed attempt. Demo task results use `provider: browser-demo` and `verification_status: SYNTHETIC_DEMO_ONLY`. They must not be confused with backend task history or evidence that code was executed.
+
+Opening the page without `?demo=1` preserves the configured backend path. If a remote API is configured but unreachable, the bridge does not disguise that failure as a successful local execution. To exercise the real runtime locally, start Flask and open the page without the demo query parameter.
+
 ## Operational notes
 
 - Retrying is always explicit. CYRUS does not automatically retry provider failures or replay potentially billable model calls in the background.
