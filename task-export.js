@@ -328,6 +328,7 @@
       ['Retry reason', 'retry_reason'], ['Retry limit', 'max_task_retries'],
       ['Effective retry limit', 'effective_max_task_retries'],
       ['Retry lineage', 'retry_lineage'],
+      ['Recovery guidance', 'recovery_guidance'],
       ['Summary', 'summary'], ['Error', 'error']
     ];
     const rows = [['Field', 'Value']];
