@@ -59,3 +59,8 @@ class ProviderConfigurationMatrixTests(unittest.TestCase):
     def test_timeout_below_minimum_is_clamped_to_five_seconds(self):
         provider = provider_with_env(CYRUS_LLM_TIMEOUT_SECONDS="1")
         self.assertEqual(provider.timeout_seconds, 5.0)
+
+
+    def test_timeout_above_maximum_is_clamped_to_sixty_seconds(self):
+        provider = provider_with_env(CYRUS_LLM_TIMEOUT_SECONDS="120")
+        self.assertEqual(provider.timeout_seconds, 60.0)
