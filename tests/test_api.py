@@ -445,6 +445,25 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertNotIn("raw private diagnostic", response.get_data(as_text=True))
         self.assertIn("last successful stage", " ".join(result["steps"]).lower())
 
+    def test_recovery_guidance_respects_a_stricter_active_retry_cap(self):
+        task = {
+            "task_id": "CYRUS-RECOVERY-CAP",
+            "status": "TIMED_OUT",
+            "mode": "autonomous",
+            "max_task_retries": 3,
+            "retry_number": 0,
+        }
+        with patch.object(server, "all_task_records", return_value=[task]), patch.object(
+            server, "MAX_TASK_RETRIES", 0
+        ):
+            response = self.client.get("/api/tasks/CYRUS-RECOVERY-CAP/recovery")
+
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["max_task_retries"], 3)
+        self.assertEqual(result["effective_max_task_retries"], 0)
+        self.assertFalse(result["can_retry"])
+
     def test_recovery_guidance_returns_404_for_unknown_task(self):
         with patch.object(server, "all_task_records", return_value=[]):
             response = self.client.get("/api/tasks/CYRUS-RECOVERY-MISSING/recovery")
