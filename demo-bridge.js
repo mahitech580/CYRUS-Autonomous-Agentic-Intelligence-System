@@ -380,6 +380,7 @@
     }
     const summary = taskSummary(task);
     return {
+      schema_version: 1,
       task_id: task.task_id,
       status,
       category,
