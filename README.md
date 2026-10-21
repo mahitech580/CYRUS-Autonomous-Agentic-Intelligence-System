@@ -81,6 +81,8 @@ The repository retains a deterministic browser simulator for disconnected demos.
 
 Without `?demo=1`, the UI connects to the configured remote API. A configured remote backend outage is not silently replaced with synthetic success; the UI reports the connection issue and lets the operator correct API settings.
 
+For the local simulator’s routes, synthetic scenarios, archive format, retention caps, and reset behavior, see [Browser Demo Guide](docs/BROWSER_DEMO.md).
+
 ### Browser deployment
 
 **GitHub Pages:** https://mahitech580.github.io/CYRUS-Autonomous-Agentic-Intelligence-System/
