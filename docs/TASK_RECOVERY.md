@@ -53,6 +53,19 @@ The lineage response contains `current_task_id`, `root_task_id`, `attempt_count`
 
 The execution inspector renders this response as an attempt timeline. Selecting an attempt opens that task record; retrying still requires the selected record to have a terminal, retryable status and remaining effective budget. When the lineage endpoint is unavailable, the inspector keeps the current execution usable and shows a retry-history warning instead of discarding the record.
 
+## Deterministic recovery guidance
+
+```http
+GET /api/tasks/{task_id}/recovery
+X-CYRUS-Access-Key: <only when API access protection is enabled>
+```
+
+This endpoint returns `task_id`, `status`, `category`, `headline`, `explanation`, a `steps` array, `retry_guidance`, retry eligibility/cap metadata, `synthetic_demo`, and the source label `deterministic_runtime_guidance`. It chooses advice from the persisted status and safe failure type, using categories for synthetic demo runs, timeouts, provider/configuration failures, network/provider failures, cancellations, generic failures, completed tasks, and active tasks.
+
+Guidance deliberately does not return the raw failure message or infer root cause from arbitrary error text. Unknown failure types receive generic trace-inspection steps. Recommendations are deterministic suggestions, not an automated diagnosis; retrying is still a separate explicit API action subject to terminal status, idempotency, capacity, rate limits, and the effective lineage cap.
+
+The execution inspector loads guidance separately from the task detail and lineage calls. If the API version does not expose this route or a transient request fails, the task record remains usable and the modal reports that guidance is unavailable rather than blocking export, trace inspection, or retry.
+
 ## Retry analytics
 
 The Analytics API `GET /api/analytics?days=7` returns a `retry_outcomes` object using actual task records, not seeded demo values. The workspace displays retry totals, outcomes by depth, active retry attempts, and recovery after an unsuccessful parent.
