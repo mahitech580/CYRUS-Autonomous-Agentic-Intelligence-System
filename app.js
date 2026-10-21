@@ -409,7 +409,7 @@ function App(){
   const loadBase=async()=>{
     try{
       const [health,a,t,h,healthMetrics]=await Promise.all([apiJson('/api/health'),apiJson('/api/agents'),apiJson('/api/tools'),apiJson('/api/tasks'),apiJson('/api/metrics')])
-      setRuntimeState(health.runtime==='browser-fallback'?'DEMO':'ONLINE')
+      setRuntimeState(health.mode==='DEMO'||health.runtime==='browser-demo'||health.runtime==='browser-fallback'?'DEMO':'ONLINE')
       setAgents(a);setTools(t);setTasks(h);setRuntimeMetrics(healthMetrics)
     }catch{
       setRuntimeState('OFFLINE');notify('CYRUS runtime is unreachable')
@@ -629,6 +629,7 @@ function App(){
   const go=next=>{setPage(next);setPaletteOpen(false);window.scrollTo({top:0,behavior:'smooth'})}
 
   return <div className={'app-shell '+(page==='Home'?'home-shell':'workspace-shell')}>
+    {window.CYRUS_CONFIG?.explicitDemoMode&&<div className="demo-mode-banner" role="status" aria-label="Browser demo mode"><span className="demo-mode-dot"/><strong>LOCAL DEMO</strong><span>Synthetic tasks only · saved in this browser · no live model calls</span><small>Try “simulate failure” in Command to test retry flow.</small></div>}
     <AmbientCanvas preset={atmospherePreset} mode={atmosphereMode} intensity={atmosphereIntensity} motionEnabled={motionEnabled}/>
     <div className="motion-progress" aria-hidden="true"/>
     {page==='Home'&&<HomeView go={go} runtimeState={runtimeState} busy={busy} agents={agents} openPalette={()=>setPaletteOpen(true)} openApiSettings={()=>setApiSettingsOpen(true)} openAtmosphere={()=>setAtmosphereOpen(true)}/>}
