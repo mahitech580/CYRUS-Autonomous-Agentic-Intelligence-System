@@ -95,6 +95,38 @@ async function main() {
   const boundedTasks = await retentionHarness.json("/api/tasks");
   assert.equal(boundedTasks.body.length, 25, "browser demo history must remain bounded");
 
+  const timeoutHarness = makeHarness();
+  const timeoutStart = await timeoutHarness.json("/api/execute", {
+    method: "POST",
+    body: JSON.stringify({prompt: "Please simulate timeout in demo", mode: "autonomous"})
+  });
+  assert.equal(timeoutStart.response.status, 202);
+  assert.equal(timeoutStart.body.status, "TIMED_OUT");
+  const timedOutId = timeoutStart.body.task_id;
+  const timeoutDetail = await timeoutHarness.json("/api/tasks/" + encodeURIComponent(timedOutId));
+  assert.equal(timeoutDetail.body.failure.type, "TaskTimedOut");
+  assert.equal(timeoutDetail.body.tests_passed, 0);
+  assert.equal(timeoutDetail.body.tests_failed, 0);
+  assert.equal(timeoutDetail.body.coverage, 0);
+  assert.equal(timeoutDetail.body.artifacts.length, 0);
+  assert.equal(timeoutDetail.body.verification_status, "SYNTHETIC_DEMO_ONLY");
+  assert.match(timeoutDetail.body.summary, /synthetic demo timeout/i);
+  const timeoutRetry = await timeoutHarness.json("/api/tasks/" + encodeURIComponent(timedOutId) + "/retry", {
+    method: "POST",
+    headers: {"Idempotency-Key": "demo-timeout-retry-001"}
+  });
+  assert.equal(timeoutRetry.response.status, 202);
+  assert.equal(timeoutRetry.body.status, "COMPLETED");
+  assert.equal(timeoutRetry.body.retry_of, timedOutId);
+  assert.equal(timeoutRetry.body.retry_number, 1);
+  const timeoutLineage = await timeoutHarness.json("/api/tasks/" + encodeURIComponent(timeoutRetry.body.task_id) + "/lineage");
+  assert.equal(timeoutLineage.body.attempt_count, 2);
+  assert.equal(timeoutLineage.body.attempts[0].status, "TIMED_OUT");
+  const timeoutAnalytics = await timeoutHarness.json("/api/analytics?days=7");
+  assert.equal(timeoutAnalytics.body.retry_outcomes.total_attempts, 1);
+  assert.equal(timeoutAnalytics.body.retry_outcomes.recovered_after_failure, 1);
+  assert.equal(timeoutAnalytics.body.retry_outcomes.recovery_rate, 100);
+
   const harness = makeHarness();
   const nativeRequestHarness = makeHarness();
   const nativeRequest = new Request("https://demo.example/api/execute", {
