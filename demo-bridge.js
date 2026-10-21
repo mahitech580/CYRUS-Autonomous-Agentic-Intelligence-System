@@ -509,9 +509,34 @@
     if (path === "/api/agents" && method === "GET") return response(agents);
     if (path === "/api/tools" && method === "GET") return response(tools);
     if (path === "/api/metrics" && method === "GET") return response(metrics());
-    if (path === "/api/analytics" && method === "GET") return response(analytics(parsed));
+    if (path === "/api/analytics" && method === "GET") {
+      const rawDays = parsed.searchParams.get("days");
+      if (rawDays !== null && !/^[+-]?\\d+$/.test(rawDays.trim())) {
+        return errorResponse("days must be an integer between 1 and 90", 400);
+      }
+      return response(analytics(parsed));
+    }
     if (path === "/api/memory" && method === "GET") return response(tasks.map(taskSummary));
-    if (path === "/api/tasks" && method === "GET") return response(listTasks(parsed));
+    if (path === "/api/tasks" && method === "GET") {
+      const params = parsed.searchParams;
+      const isInteger = (value) => value === null || /^[+-]?\\d+$/.test(value.trim());
+      if (!isInteger(params.get("limit")) || !isInteger(params.get("offset"))) {
+        return errorResponse("limit and offset must be integers", 400);
+      }
+      const status = String(params.get("status") || "").trim().toUpperCase();
+      const allowedStatuses = new Set([
+        "QUEUED", "RUNNING", "AWAITING_APPROVAL", "COMPLETED",
+        "FAILED", "CANCELLED", "TIMED_OUT"
+      ]);
+      if (status && !allowedStatuses.has(status)) {
+        return errorResponse("Unsupported task status filter", 400);
+      }
+      const mode = String(params.get("mode") || "").trim().toLowerCase();
+      if (mode && !["autonomous", "supervised"].includes(mode)) {
+        return errorResponse("Unsupported task mode filter", 400);
+      }
+      return response(listTasks(parsed));
+    }
 
     if (path === "/api/execute" && method === "POST") {
       let body;
