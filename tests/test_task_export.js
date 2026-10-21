@@ -83,6 +83,27 @@ test('preserves retry lineage across JSON, Markdown and CSV exports', () => {
   assert.ok(csv.includes('The execution deadline was reached'));
 });
 
+test('redacts sensitive keys inside attached recovery guidance', () => {
+  const report = buildTaskReport({
+    task_id: 'CYRUS-RECOVERY-SAFE',
+    status: 'FAILED',
+    recovery_guidance: {
+      category: 'provider_configuration',
+      headline: 'Configuration issue',
+      steps: ['Check backend configuration.'],
+      api_key: 'guidance-secret-sentinel',
+      authorization: 'Bearer guidance-secret-sentinel',
+      nested: {credential: 'guidance-secret-sentinel', safe_label: 'configuration'}
+    }
+  });
+  const serialized = JSON.stringify(report);
+  assert.equal(report.task.recovery_guidance.category, 'provider_configuration');
+  assert.ok(!serialized.includes('guidance-secret-sentinel'));
+  assert.ok(!Object.hasOwn(report.task.recovery_guidance, 'api_key'));
+  assert.ok(!Object.hasOwn(report.task.recovery_guidance.nested, 'credential'));
+  assert.equal(report.task.recovery_guidance.nested.safe_label, 'configuration');
+});
+
 test('omits credential-like fields at the root and inside nested trace data', () => {
   const report = buildTaskReport({
     task_id: 'CYRUS-SECURE',
