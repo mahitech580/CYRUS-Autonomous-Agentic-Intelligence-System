@@ -496,6 +496,18 @@
     const path = parsed.pathname.replace(/\/+$/, "") || "/";
     const method = String(init?.method || "GET").toUpperCase();
 
+    if (path === "/api/demo/reset" && method === "POST") {
+      const cleared = tasks.length;
+      tasks.splice(0, tasks.length);
+      requestKeys.clear();
+      persist();
+      return response({
+        cleared_tasks: cleared,
+        runtime: "browser-demo",
+        persistence: "browser-local-only"
+      }, 200);
+    }
+
     if (path === "/api/health" && method === "GET") return response({
       status: "ok", system: "CYRUS CORE 1.0", mode: "DEMO", runtime: "browser-demo",
       api_access_key_required: false, api_access_key_configured: false,
