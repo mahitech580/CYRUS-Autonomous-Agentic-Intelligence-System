@@ -95,5 +95,9 @@ class ProviderUrlValidationTests(unittest.TestCase):
         self.assertFalse(_provider_url_is_allowed("https://provider.example/v1?"))
 
 
+    def test_url_with_empty_fragment_delimiter_is_rejected(self):
+        self.assertFalse(_provider_url_is_allowed("https://provider.example/v1#"))
+
+
 if __name__ == "__main__":
     unittest.main()
