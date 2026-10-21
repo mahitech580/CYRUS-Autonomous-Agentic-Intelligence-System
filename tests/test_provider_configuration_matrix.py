@@ -74,3 +74,8 @@ class ProviderConfigurationMatrixTests(unittest.TestCase):
     def test_negative_infinity_timeout_is_clamped_to_five_seconds(self):
         provider = provider_with_env(CYRUS_LLM_TIMEOUT_SECONDS="-inf")
         self.assertEqual(provider.timeout_seconds, 5.0)
+
+
+    def test_nan_timeout_is_clamped_to_minimum(self):
+        provider = provider_with_env(CYRUS_LLM_TIMEOUT_SECONDS="nan")
+        self.assertEqual(provider.timeout_seconds, 5.0)
