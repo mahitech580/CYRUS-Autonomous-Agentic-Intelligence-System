@@ -1778,7 +1778,7 @@ function TaskModal({task,close,notify,onRetry,retryBusy,openTask}){
       .finally(()=>{if(active)setRecoveryLoading(false)})
     return()=>{active=false}
   },[task.task_id])
-  const reportTask=()=>({...task,retry_lineage:Array.isArray(lineage?.attempts)?lineage.attempts:[]})
+  const reportTask=()=>({...task,retry_lineage:Array.isArray(lineage?.attempts)?lineage.attempts:[],recovery_guidance:recoveryGuidance&&typeof recoveryGuidance==='object'?recoveryGuidance:null})
   const taskStatus=String(task.status||'').toUpperCase()
   const retryLimit=Number(task.effective_max_task_retries??task.max_task_retries??3)
   const canRetry=['FAILED','CANCELLED','TIMED_OUT'].includes(taskStatus)&&Number.isFinite(retryLimit)&&Number(task.retry_number||0)<retryLimit
