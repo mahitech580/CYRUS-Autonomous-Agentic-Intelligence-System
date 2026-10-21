@@ -77,17 +77,19 @@ At the TESTER stage, CYRUS executes non-destructive static checks over the gener
 
 Without a model key, CYRUS uses deterministic demo heuristics. With a key, it sends separate live Chat Completions requests for planning, engineering considerations, an implementation draft, a validation plan, and review. The model adapter does not browse the web, modify repository files, execute arbitrary generated code, or run tests. The UI/API therefore report proposed checks as `PLAN_GENERATED_NOT_EXECUTED`, leave test-pass and coverage values at zero, and label review scores as model estimates rather than verified test results. Provider errors fail the task visibly rather than quietly fabricating a successful model response.
 
-The repository retains a deterministic browser bridge for explicit disconnected demos. It does not mask a configured remote backend outage with fake successful executions; the live UI reports connectivity errors and allows the operator to correct API settings.
+The repository retains a deterministic browser simulator for disconnected demos. Open the GitHub Pages URL with `?demo=1` to opt in. In this mode the bridge intercepts API calls before they can leave the browser, labels every run as synthetic, and stores records only in that browser's local storage. Use the Command prompt phrase `simulate failure` to create a controlled failed run and exercise the explicit retry, lineage, and recovery-analytics flows. This is a UI/workflow demo: it does not call a model provider, execute generated code, verify app correctness, or store data on the backend.
+
+Without `?demo=1`, the UI connects to the configured remote API. A configured remote backend outage is not silently replaced with synthetic success; the UI reports the connection issue and lets the operator correct API settings.
 
 ### Browser deployment
 
 **GitHub Pages:** https://mahitech580.github.io/CYRUS-Autonomous-Agentic-Intelligence-System/
 
-GitHub Pages hosts the static UI only. Real execution, task history, metrics and the event stream need a reachable backend. When the live API is unavailable, backend-dependent features show an error instead of claiming that a run succeeded.
+GitHub Pages hosts the static UI only. For a clearly labeled offline tour, open [the browser demo](https://mahitech580.github.io/CYRUS-Autonomous-Agentic-Intelligence-System/?demo=1); tasks and metrics are synthetic and remain in that browser profile. For real execution, task history, metrics, and the event stream, use the configured reachable backend and remove `?demo=1`.
 
 ### Runtime verification
 
-For the full backend runtime, start Flask locally with `python server.py` and open `http://127.0.0.1:8000/`. The browser bridge only activates when API requests fail, so local backend execution remains the primary runtime.
+For the full backend runtime, start Flask locally with `python server.py` and open `http://127.0.0.1:8000/` **without** `?demo=1`. That keeps API traffic on the local server. Adding `?demo=1` intentionally switches the page to a local synthetic simulator and bypasses the backend, even when the backend is reachable.
 
 ## Hosted realtime backend
 
