@@ -399,6 +399,22 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("first", result["retry_guidance"].lower())
         self.assertNotIn("sentinel-do-not-echo", response.get_data(as_text=True))
 
+    def test_recovery_guidance_handles_provider_network_failures(self):
+        task = {
+            "task_id": "CYRUS-RECOVERY-NETWORK",
+            "status": "FAILED",
+            "mode": "autonomous",
+            "provider": "openai",
+            "failure": {"type": "ProviderConnectionError", "message": "connection data"},
+        }
+        with patch.object(server, "all_task_records", return_value=[task]):
+            response = self.client.get("/api/tasks/CYRUS-RECOVERY-NETWORK/recovery")
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["category"], "provider_or_network")
+        self.assertIn("rate limits", " ".join(result["steps"]).lower())
+        self.assertIn("may incur", result["retry_guidance"].lower())
+
     def test_task_lineage_returns_root_to_leaf_summaries_from_live_state(self):
         records = [
             {
