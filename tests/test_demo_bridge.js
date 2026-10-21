@@ -297,6 +297,30 @@ async function main() {
   assert.equal(result.body.attempt_count, 2);
   assert.equal(new Set(result.body.attempts.map((task) => task.task_id)).size, 2);
 
+  const recordsBeforeReset = await harness.json("/api/tasks");
+  assert.ok(recordsBeforeReset.body.length >= 4);
+  const reset = await harness.json("/api/demo/reset", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: "{}"
+  });
+  assert.equal(reset.response.status, 200);
+  assert.equal(reset.body.cleared_tasks, recordsBeforeReset.body.length);
+  assert.equal(reset.body.persistence, "browser-local-only");
+  const emptyAfterReset = await harness.json("/api/tasks");
+  assert.equal(emptyAfterReset.body.length, 0);
+  const resetMetrics = await harness.json("/api/metrics");
+  assert.equal(resetMetrics.body.persisted_tasks, 0);
+  const resetAnalytics = await harness.json("/api/analytics?days=7");
+  assert.equal(resetAnalytics.body.retry_outcomes.total_attempts, 0);
+  const reusedKey = await harness.json("/api/execute", {
+    method: "POST",
+    headers: {"Idempotency-Key": "demo-execute-001"},
+    body: JSON.stringify({prompt: "A new run after clearing demo history", mode: "autonomous"})
+  });
+  assert.equal(reusedKey.response.status, 202, "clearing demo history also clears its in-memory idempotency cache");
+  assert.notEqual(reusedKey.body.task_id, original.task_id);
+
   console.log("Demo bridge contract: explicit no-network mode, API validation, idempotency, retry lineage, analytics, SSE, and cycle guards OK");
 }
 
