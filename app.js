@@ -676,7 +676,7 @@ function App(){
       ...(steps.length?steps.map((step,index)=>(index+1)+'. '+step):['1. Inspect the last successful stage and identify the first actionable failure.']),
       '',
       'Requirements: address the concrete failure before expanding scope; do not claim generated code or proposed tests were executed unless they actually were; identify validation that still needs to run.'
-    ].join('\\n').slice(0,3900)
+    ].join('\n').slice(0,3900)
     setPrompt(prompt)
     setMode(taskRecord?.mode==='supervised'?'supervised':'autonomous')
     setSelectedTask(null)
