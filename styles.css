@@ -3131,3 +3131,10 @@ body:after{
 .task-recovery-synthetic{display:inline-block;margin-top:5px;color:#d5c4ff;font:8px var(--mono);letter-spacing:.07em}
 .task-recovery-loading,.task-recovery-unavailable{margin:10px 0 14px;padding:9px 11px;border-left:2px solid rgba(147,179,190,.25);color:var(--muted);font:9px/1.55 var(--mono)}
 .task-recovery-unavailable{color:#d1bfa6;border-left-color:rgba(255,190,115,.38)}
+
+
+.task-recovery-prepare{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:38px;margin:5px 0 14px;padding:9px 12px;border:1px solid rgba(115,208,185,.35);border-radius:9px;background:rgba(77,188,155,.08);color:#9de9c7;font:8px var(--mono);letter-spacing:.08em;cursor:pointer;transition:background .16s ease,border-color .16s ease}
+.task-recovery-prepare:hover{background:rgba(77,188,155,.15);border-color:rgba(115,208,185,.6)}
+.task-recovery-prepare:focus-visible{outline:2px solid #9de9c7;outline-offset:3px}
+@media(max-width:620px){.task-recovery-prepare{width:100%;white-space:normal}}
+@media(prefers-reduced-motion:reduce){.task-recovery-prepare{transition:none}}
