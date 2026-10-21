@@ -115,5 +115,9 @@ class ProviderUrlValidationTests(unittest.TestCase):
     def test_non_loopback_ipv6_http_endpoint_is_rejected(self):
         self.assertFalse(_provider_url_is_allowed("http://[2001:db8::1]/v1"))
 
+
+    def test_https_endpoint_with_explicit_valid_port_is_allowed(self):
+        self.assertTrue(_provider_url_is_allowed("https://provider.example:443/v1"))
+
 if __name__ == "__main__":
     unittest.main()
