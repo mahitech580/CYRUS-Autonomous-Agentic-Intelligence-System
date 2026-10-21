@@ -120,6 +120,24 @@ async function main() {
   assert.equal(timeoutRecovery.body.can_retry, true);
   assert.equal(timeoutRecovery.body.source, "deterministic_runtime_guidance");
 
+  const guidanceSecret = "recovery-private-sentinel";
+  const guidanceHarness = makeHarness({storedTasks: [{
+    task_id: "DEMO-GUIDANCE-PROVIDER",
+    objective: "Inspect safe guidance",
+    mode: "autonomous",
+    status: "FAILED",
+    provider: "openai",
+    retry_number: 0,
+    max_task_retries: 3,
+    failure: {type: "ProviderConnectionError", message: guidanceSecret},
+    created_at: new Date().toISOString(),
+    events: []
+  }]});
+  const guidanceResponse = await guidanceHarness.json("/api/tasks/DEMO-GUIDANCE-PROVIDER/recovery");
+  assert.equal(guidanceResponse.response.status, 200);
+  assert.equal(guidanceResponse.body.category, "provider_or_network");
+  assert.ok(!JSON.stringify(guidanceResponse.body).includes(guidanceSecret));
+
   const timeoutRetry = await timeoutHarness.json("/api/tasks/" + encodeURIComponent(timedOutId) + "/retry", {
     method: "POST",
     headers: {"Idempotency-Key": "demo-timeout-retry-001"}
