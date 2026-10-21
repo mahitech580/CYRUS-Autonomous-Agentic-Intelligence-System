@@ -459,8 +459,12 @@
     effective_max_task_retries: effectiveRetryLimit(task),
     deduplicated: true
   }, 200);
-  const streamResponse = (task) => {
+  const streamResponse = (task, lastEventId = "") => {
     const encoder = new TextEncoder();
+    const cursorPrefix = task.task_id + "-E";
+    const rawCursor = String(lastEventId || "").trim();
+    const cursorSuffix = rawCursor.startsWith(cursorPrefix) ? rawCursor.slice(cursorPrefix.length) : "";
+    const lastSequence = /^[0-9]{1,12}$/.test(cursorSuffix) ? Number(cursorSuffix) : 0;
     const state = {
       task_id: task.task_id, status: task.status, current_agent: task.current_agent,
       updated_at: task.updated_at, approval_required: Boolean(task.approval_required),
@@ -470,9 +474,12 @@
       static_checks_passed: 0, static_checks_failed: 0
     };
     const lines = ["event: state", "data: " + JSON.stringify(state), ""];
-    (task.events || []).forEach((event) => lines.push(
-      "id: " + event.event_id, "event: trace", "data: " + JSON.stringify(event), ""
-    ));
+    (task.events || []).forEach((event) => {
+      const match = String(event?.event_id || "").match(/-E([0-9]{1,12})$/);
+      const sequence = match ? Number(match[1]) : 0;
+      if (sequence <= lastSequence) return;
+      lines.push("id: " + event.event_id, "event: trace", "data: " + JSON.stringify(event), "");
+    });
     lines.push("event: close", "data: " + JSON.stringify({ task_id: task.task_id, status: task.status }), "");
     const body = new ReadableStream({
       start(controller) {
@@ -592,7 +599,7 @@
     if (streamMatch && method === "GET") {
       const id = decodeURIComponent(streamMatch[1]);
       const task = find(id);
-      return task ? streamResponse(task) : errorResponse("Task not found", 404);
+      return task ? streamResponse(task, readHeader(init, "Last-Event-ID")) : errorResponse("Task not found", 404);
     }
 
     const lineageMatch = path.match(/^\/api\/tasks\/([^/]+)\/lineage$/);
