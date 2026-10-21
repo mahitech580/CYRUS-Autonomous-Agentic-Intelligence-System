@@ -3093,3 +3093,12 @@ body:after{
   .analytics-retry-depth-visual{margin-top:2px}
 }
 @media(prefers-reduced-motion:reduce){.analytics-retry-track>i{transition:none}}
+
+
+/* Explicit browser-only mode must always be distinguishable from live execution. */
+.demo-mode-banner{position:relative;z-index:90;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px 14px;padding:10px 18px;border-bottom:1px solid rgba(255,194,113,.28);background:linear-gradient(90deg,rgba(58,37,16,.96),rgba(29,27,19,.96),rgba(58,37,16,.96));color:#ffe0b1;font:9px/1.5 var(--mono);letter-spacing:.035em;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.demo-mode-banner>strong{font-size:9px;letter-spacing:.15em;color:#ffca80}
+.demo-mode-banner>span:not(.demo-mode-dot){color:#ffe8ca}
+.demo-mode-banner>small{color:#c6aa84;font:8px/1.45 var(--mono)}
+.demo-mode-dot{width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#ffc76e;box-shadow:0 0 0 4px rgba(255,199,110,.12)}
+@media(max-width:650px){.demo-mode-banner{gap:7px 10px;padding:9px 12px;font-size:8px}.demo-mode-banner>small{flex-basis:100%}}
