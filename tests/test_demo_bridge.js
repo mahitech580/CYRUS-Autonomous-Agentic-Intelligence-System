@@ -168,6 +168,23 @@ async function main() {
     assert.ok(!JSON.stringify(guidance.body).includes("do not echo this diagnostic"));
   }
 
+  const nonRateRetryAfterHarness = makeHarness({storedTasks: [{
+    task_id: "DEMO-NON-RATE-RETRY-AFTER",
+    objective: "Validate Retry-After category isolation",
+    mode: "autonomous",
+    status: "FAILED",
+    provider: "openai",
+    failure: {type: "ProviderConnectionError", retry_after_seconds: 15, message: "connection refused"},
+    created_at: new Date().toISOString(),
+    events: []
+  }]});
+  const nonRateGuidance = await nonRateRetryAfterHarness.json(
+    "/api/tasks/DEMO-NON-RATE-RETRY-AFTER/recovery"
+  );
+  assert.equal(nonRateGuidance.body.category, "provider_or_network");
+  assert.equal(nonRateGuidance.body.retry_after_seconds, null);
+  assert.ok(!nonRateGuidance.body.steps.some((step) => step.includes("wait 15 seconds")));
+
   const guidanceSecret = "recovery-private-sentinel";
   const guidanceHarness = makeHarness({storedTasks: [{
     task_id: "DEMO-GUIDANCE-PROVIDER",
