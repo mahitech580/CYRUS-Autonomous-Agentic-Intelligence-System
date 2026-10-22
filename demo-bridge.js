@@ -305,7 +305,7 @@
     const tokens = failureTypeTokens(task.failure?.type);
     const syntheticDemo = task.provider === "browser-demo" ||
       String(task.verification_status || "").toUpperCase() === "SYNTHETIC_DEMO_ONLY";
-    let category, headline, explanation, steps, retryGuidance;
+    let category, actionCode, headline, explanation, steps, retryGuidance;
     if (syntheticDemo) {
       category = "synthetic_demo";
       actionCode = "review_demo_limits";
