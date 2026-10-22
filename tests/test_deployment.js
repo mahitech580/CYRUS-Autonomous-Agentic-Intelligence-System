@@ -398,6 +398,19 @@ assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("Generat
 assert.ok(fs.readFileSync("server.py", "utf8").includes('category = "rate_limited"'), "Rate-limit failures must have a specific recovery path");
 assert.ok(fs.readFileSync("server.py", "utf8").includes('"recommended_action": action_code'), "Recovery API must expose stable operator action codes");
 assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes("recommended_action: actionCode"), "Browser demo must mirror recovery action codes");
+for (const errorType of [
+  "ProviderAuthenticationError",
+  "ProviderRateLimitError",
+  "ProviderConnectionError",
+  "ProviderTimeoutError",
+  "ProviderUnavailableError",
+  "ProviderResponseError"
+]) {
+  assert.ok(fs.readFileSync("providers.py", "utf8").includes("class " + errorType + "("), "Missing typed provider failure: " + errorType);
+}
+assert.ok(fs.readFileSync("providers.py", "utf8").includes("error_type = ProviderRateLimitError"), "HTTP 429 must preserve a recovery-classifiable error type");
+assert.ok(fs.readFileSync("server.py", "utf8").includes('action_code = "inspect_response_format"'), "Malformed provider responses need dedicated safe guidance");
+assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes('actionCode = "inspect_response_format"'), "Browser demo must mirror provider response guidance");
 assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes('category = "rate_limited"'), "Browser demo must mirror rate-limit recovery guidance");
 assert.ok(fs.readFileSync("styles.css", "utf8").includes(".task-recovery-category.rate-limited"), "Rate-limit recovery guidance needs a distinct status treatment");
 console.log("Retry lineage smoke: bounded API, timeline UI, responsive styling and JSON/Markdown/CSV contracts OK");
