@@ -3117,8 +3117,9 @@ body:after{
 .task-recovery-panel>summary:focus-visible{outline:2px solid #9de9c7;outline-offset:-3px}
 .task-recovery-kicker{font:9px var(--mono);letter-spacing:.12em;color:#9de9c7}
 .task-recovery-category{font:8px var(--mono);letter-spacing:.07em;color:var(--muted);padding:4px 7px;border:1px solid rgba(147,179,190,.18);border-radius:6px}
-.task-recovery-category.timeout,.task-recovery-category.provider-configuration,.task-recovery-category.provider-or-network,.task-recovery-category.provider-request,.task-recovery-category.provider-response,.task-recovery-category.execution-failure{color:#ffd2a4;border-color:rgba(255,190,115,.25)}
+.task-recovery-category.timeout,.task-recovery-category.provider-configuration,.task-recovery-category.provider-or-network,.task-recovery-category.provider-request,.task-recovery-category.provider-response,.task-recovery-category.provider-billing,.task-recovery-category.execution-failure{color:#ffd2a4;border-color:rgba(255,190,115,.25)}
 .task-recovery-category.rate-limited{color:#ffbf77;border-color:rgba(255,170,80,.42);background:rgba(255,170,80,.06)}
+.task-recovery-category.provider-billing{color:#ffd2a4;border-color:rgba(255,190,115,.4);background:rgba(255,190,115,.06)}
 .task-recovery-category.synthetic-demo{color:#d5c4ff;border-color:rgba(185,154,255,.3)}
 .task-recovery-toggle{margin-left:auto;font:8px var(--mono);letter-spacing:.08em;color:var(--muted)}
 .task-recovery-panel[open] .task-recovery-toggle{color:#9de9c7}
