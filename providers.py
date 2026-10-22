@@ -60,6 +60,10 @@ class ProviderRateLimitError(ProviderError):
         )
 
 
+class ProviderBillingError(ProviderError):
+    """Provider requires billing, account credit, or quota-plan remediation."""
+
+
 class ProviderConnectionError(ProviderError):
     """The backend could not establish or maintain provider connectivity."""
 
@@ -223,6 +227,8 @@ class OpenAICompatibleProvider:
             message = f"LLM provider returned HTTP {exc.code}: {safe_detail[:350]}"
             if exc.code in {401, 403}:
                 error_type = ProviderAuthenticationError
+            elif exc.code == 402:
+                error_type = ProviderBillingError
             elif exc.code == 429:
                 retry_header = ""
                 try:
