@@ -440,7 +440,7 @@
       retry_number: summary.retry_number,
       max_task_retries: summary.max_task_retries,
       effective_max_task_retries: summary.effective_max_task_retries,
-      retry_after_seconds: retryAfterSeconds,
+      retry_after_seconds: category === "rate_limited" ? retryAfterSeconds : null,
       synthetic_demo: syntheticDemo,
       source: "deterministic_runtime_guidance"
     };
