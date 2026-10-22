@@ -253,6 +253,7 @@ assert.ok(fs.existsSync("tests/test_analytics_api.py"), "Analytics API contract 
 console.log("Dynamic analytics smoke: real-data dashboard, API search, DB-backed history and responsive layout OK");
 
 assert.ok(fs.readFileSync("server.py", "utf8").includes('"runtime-config.js", "event-stream.js"'), "Local Flask must serve the two runtime JS assets referenced by index.html");
+assert.ok(fs.readFileSync("app.js", "utf8").includes(".replace(/_/g,'-')"), "Recovery categories must normalize underscores to the hyphenated CSS taxonomy");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("Use HTTPS for remote backends."), "API settings must disallow plaintext remote backend URLs");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("apiJson('/api/tasks?'+params.toString())"), "History search must query the backend instead of filtering only the initially loaded page");
 
