@@ -73,6 +73,7 @@ The response also carries a stable `recommended_action` enum for clients that ne
 | `correct_provider_configuration` | Fix backend provider/model configuration before another request |
 | `wait_for_provider_reset` | Respect the rate-limit reset window before resubmitting |
 | `check_provider_connectivity` | Diagnose provider/network reachability |
+| `inspect_response_format` | Verify endpoint/model compatibility and inspect sanitized response-format diagnostics |
 | `review_stop_point` | Inspect why the attempt was cancelled |
 | `inspect_last_successful_stage` | Start diagnosis from the last trustworthy stage |
 | `verify_in_sandbox` | Verify generated output in an appropriate sandbox |
