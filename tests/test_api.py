@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import server
-from providers import DeterministicProvider
+from providers import DeterministicProvider, ProviderRateLimitError
 from storage import HistoryStore
 
 
@@ -415,6 +415,40 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(result["category"], "provider_or_network")
         self.assertIn("rate limits", " ".join(result["steps"]).lower())
         self.assertIn("may incur", result["retry_guidance"].lower())
+
+    def test_provider_retry_after_survives_task_failure_into_recovery_guidance(self):
+        task = {
+            "task_id": "CYRUS-429-RETRY-AFTER",
+            "created_at": server.now_iso(),
+            "updated_at": server.now_iso(),
+            "objective": "Test safe provider retry guidance",
+            "mode": "autonomous",
+            "status": "RUNNING",
+            "current_agent": "PLANNER",
+            "agents": [{"name": "PLANNER", "status": "RUNNING"}],
+            "events": [],
+            "retry_number": 0,
+            "max_task_retries": 3,
+        }
+        rate_limit_error = ProviderRateLimitError(
+            "LLM provider returned HTTP 429: [redacted]",
+            retry_after_seconds=15,
+        )
+        with patch.object(server, "_run_task", side_effect=rate_limit_error), patch.object(
+            server, "persist_task"
+        ):
+            server.execute_task(task)
+
+        self.assertEqual(task["status"], "FAILED")
+        self.assertEqual(task["failure"]["type"], "ProviderRateLimitError")
+        self.assertEqual(task["failure"]["retry_after_seconds"], 15)
+        self.assertNotIn("secret", task["failure"]["message"].lower())
+        guidance = server.task_recovery_guidance(task)
+        self.assertEqual(guidance["category"], "rate_limited")
+        self.assertEqual(guidance["recommended_action"], "wait_for_provider_reset")
+        self.assertEqual(guidance["retry_after_seconds"], 15)
+        self.assertIn("wait 15 seconds", " ".join(guidance["steps"]))
+        self.assertIn("at least 15 seconds", guidance["retry_guidance"])
 
     def test_recovery_guidance_tokenizes_exception_names_without_false_matches(self):
         fixtures = [
