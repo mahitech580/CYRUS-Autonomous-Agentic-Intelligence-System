@@ -308,6 +308,7 @@
     let category, headline, explanation, steps, retryGuidance;
     if (syntheticDemo) {
       category = "synthetic_demo";
+      actionCode = "review_demo_limits";
       headline = "This is a browser-only simulation.";
       explanation = "The local demo records a simulated outcome; it did not call a model provider or execute user code.";
       steps = [
@@ -318,6 +319,7 @@
       retryGuidance = "Retrying a synthetic failed or timed-out record creates another simulated record.";
     } else if (status === "TIMED_OUT" || failureTypeHas(tokens, ["timeout", "timedout", "deadline"])) {
       category = "timeout";
+      actionCode = "reduce_scope_and_inspect_trace";
       headline = "The execution deadline was reached.";
       explanation = "The runtime stopped this attempt at its configured deadline; proposed application tests are not thereby verified.";
       steps = [
@@ -328,6 +330,7 @@
       retryGuidance = "Retry explicitly only when repeating the requested work is safe.";
     } else if (failureTypeHas(tokens, ["auth", "credential", "config"]) || tokens.includes("apikey") || (tokens.includes("api") && tokens.includes("key"))) {
       category = "provider_configuration";
+      actionCode = "correct_provider_configuration";
       headline = "Provider configuration needs attention.";
       explanation = "The failure type suggests an authentication or configuration problem; secret values are intentionally not shown here.";
       steps = [
@@ -338,6 +341,7 @@
       retryGuidance = "Fix the configuration first; a retry alone will not correct missing credentials.";
     } else if (failureTypeHas(tokens, ["rate", "quota", "throttl"]) || tokens.some((token) => token.includes("429"))) {
       category = "rate_limited";
+      actionCode = "wait_for_provider_reset";
       headline = "The provider request limit was reached.";
       explanation = "The failure type suggests a quota or rate limit; recovery guidance does not expose credential or response-body content.";
       steps = [
@@ -348,6 +352,7 @@
       retryGuidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt.";
     } else if (failureTypeHas(tokens, ["provider", "connection", "connect", "network", "http", "socket", "dns", "transport"])) {
       category = "provider_or_network";
+      actionCode = "check_provider_connectivity";
       headline = "The provider or network request failed.";
       explanation = "CYRUS records provider failures rather than silently substituting a successful result.";
       steps = [
@@ -358,6 +363,7 @@
       retryGuidance = "A retry is explicit and may incur another provider request.";
     } else if (status === "CANCELLED") {
       category = "cancelled";
+      actionCode = "review_stop_point";
       headline = "The execution was cancelled.";
       explanation = "Cancellation is a terminal state, not proof that the objective completed.";
       steps = [
@@ -368,6 +374,7 @@
       retryGuidance = "A new attempt is available when the configured retry budget allows it.";
     } else if (status === "FAILED") {
       category = "execution_failure";
+      actionCode = "inspect_last_successful_stage";
       headline = "The execution failed.";
       explanation = "The available record does not contain enough validated evidence to infer a more specific root cause.";
       steps = [
@@ -378,6 +385,7 @@
       retryGuidance = "Retrying creates a fresh record and does not reuse prior artifacts as validated output.";
     } else if (status === "COMPLETED") {
       category = "completed";
+      actionCode = "verify_in_sandbox";
       headline = "No recovery action is required for this attempt.";
       explanation = "The task reached its recorded terminal state; completion does not mean proposed application tests were executed.";
       steps = [
@@ -387,6 +395,7 @@
       retryGuidance = "Completed tasks are not retryable; create a new objective for additional work.";
     } else {
       category = "in_progress";
+      actionCode = "monitor_or_cancel";
       headline = "The execution is not in a retryable terminal state.";
       explanation = "The task is queued, running, or waiting for approval; creating a parallel retry is not recommended.";
       steps = [
@@ -402,6 +411,7 @@
       task_id: task.task_id,
       status,
       category,
+      recommended_action: actionCode,
       headline,
       explanation,
       steps,
