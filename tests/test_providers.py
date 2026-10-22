@@ -115,6 +115,27 @@ class ProviderConfigurationTests(unittest.TestCase):
         self.assertIn("timed out", str(raised.exception).lower())
         self.assertNotIn("unit-test-secret", str(raised.exception))
 
+    def test_http_402_is_typed_as_provider_billing_failure(self):
+        provider = providers.OpenAICompatibleProvider(
+            api_key="unit-test-secret",
+            base_url="https://provider.example/v1",
+            model="unit-model",
+        )
+        error = HTTPError(
+            "https://provider.example/v1/chat/completions",
+            402,
+            "payment required",
+            {},
+            io.BytesIO(b'{"message":"account balance unavailable","api_key":"private-test-secret"}'),
+        )
+        with patch("providers.urlopen", side_effect=error):
+            with self.assertRaises(providers.ProviderBillingError) as raised:
+                provider.plan("Build a safe API")
+        self.assertIsInstance(raised.exception, providers.ProviderError)
+        self.assertIn("HTTP 402", str(raised.exception))
+        self.assertNotIn("private-test-secret", str(raised.exception))
+        self.assertIn("[redacted]", str(raised.exception).lower())
+
     def test_common_4xx_request_rejections_have_a_distinct_type(self):
         provider = providers.OpenAICompatibleProvider(
             api_key="unit-test-secret",
