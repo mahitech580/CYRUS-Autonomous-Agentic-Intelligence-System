@@ -450,6 +450,22 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("wait 15 seconds", " ".join(guidance["steps"]))
         self.assertIn("at least 15 seconds", guidance["retry_guidance"])
 
+    def test_retry_after_metadata_is_ignored_for_non_rate_limit_errors(self):
+        task = {
+            "task_id": "CYRUS-NON-RATE-AFTER",
+            "status": "FAILED",
+            "provider": "openai-compatible",
+            "failure": {
+                "type": "ProviderConnectionError",
+                "message": "connection refused",
+                "retry_after_seconds": 15,
+            },
+        }
+        guidance = server.task_recovery_guidance(task)
+        self.assertEqual(guidance["category"], "provider_or_network")
+        self.assertIsNone(guidance["retry_after_seconds"])
+        self.assertNotIn("wait 15 seconds", " ".join(guidance["steps"]))
+
     def test_recovery_guidance_only_discloses_bounded_integer_retry_after(self):
         cases = [
             (15, 15),
