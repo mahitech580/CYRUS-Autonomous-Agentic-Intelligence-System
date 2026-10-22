@@ -201,6 +201,7 @@
       record.recovery_guidance && typeof record.recovery_guidance === 'object'
         ? [
             '**Category:** ' + markdownCell(record.recovery_guidance.category || 'general'),
+            '**Recommended action:** ' + markdownCell(record.recovery_guidance.recommended_action || 'not_provided'),
             '**Status:** ' + markdownCell(record.recovery_guidance.status || record.status || 'UNKNOWN'),
             '',
             String(record.recovery_guidance.headline || 'No recovery headline was recorded.').replace(/^/gm, '> '),
