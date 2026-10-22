@@ -1,7 +1,9 @@
+import io
 import json
 import os
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 
 import providers
 
