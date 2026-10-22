@@ -424,6 +424,10 @@ class CyrusApiContractTests(unittest.TestCase):
             ("ProviderConnectionError", "provider_or_network", "check_provider_connectivity"),
             ("DeadlineExceededError", "timeout", "reduce_scope_and_inspect_trace"),
             ("APIKeyMissingError", "provider_configuration", "correct_provider_configuration"),
+            ("UnauthorizedError", "provider_configuration", "correct_provider_configuration"),
+            ("TooManyRequestsError", "rate_limited", "wait_for_provider_reset"),
+            ("ServiceUnavailableError", "provider_or_network", "check_provider_connectivity"),
+            ("TimedOutError", "timeout", "reduce_scope_and_inspect_trace"),
         ]
         for failure_type, expected_category, expected_action in fixtures:
             task = {
