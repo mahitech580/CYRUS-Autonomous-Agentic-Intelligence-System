@@ -418,14 +418,14 @@ class CyrusApiContractTests(unittest.TestCase):
 
     def test_recovery_guidance_tokenizes_exception_names_without_false_matches(self):
         fixtures = [
-            ("GeneratedArtifactError", "execution_failure"),
-            ("RateLimitExceededError", "rate_limited"),
-            ("HTTP429Error", "rate_limited"),
-            ("ProviderConnectionError", "provider_or_network"),
-            ("DeadlineExceededError", "timeout"),
-            ("APIKeyMissingError", "provider_configuration"),
+            ("GeneratedArtifactError", "execution_failure", "inspect_last_successful_stage"),
+            ("RateLimitExceededError", "rate_limited", "wait_for_provider_reset"),
+            ("HTTP429Error", "rate_limited", "wait_for_provider_reset"),
+            ("ProviderConnectionError", "provider_or_network", "check_provider_connectivity"),
+            ("DeadlineExceededError", "timeout", "reduce_scope_and_inspect_trace"),
+            ("APIKeyMissingError", "provider_configuration", "correct_provider_configuration"),
         ]
-        for failure_type, expected_category in fixtures:
+        for failure_type, expected_category, expected_action in fixtures:
             task = {
                 "task_id": "CYRUS-TOKEN-" + failure_type,
                 "status": "FAILED",
@@ -445,6 +445,7 @@ class CyrusApiContractTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             result = response.get_json()
             self.assertEqual(result["category"], expected_category)
+            self.assertEqual(result["recommended_action"], expected_action)
             self.assertNotIn("sensitive test payload", response.get_data(as_text=True))
             if expected_category == "rate_limited":
                 self.assertIn("reset window", result["retry_guidance"])
