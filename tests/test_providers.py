@@ -88,6 +88,28 @@ class ProviderConfigurationTests(unittest.TestCase):
         self.assertEqual(json.loads(request.data)["model"], "unit-model")
         self.assertNotIn("unit-test-secret", repr(result))
 
+    def test_http_401_and_403_preserve_authentication_error_type(self):
+        provider = providers.OpenAICompatibleProvider(
+            api_key="unit-test-secret",
+            base_url="https://provider.example/v1",
+            model="unit-model",
+        )
+        for status in (401, 403):
+            with self.subTest(status=status):
+                error = HTTPError(
+                    "https://provider.example/v1/chat/completions",
+                    status,
+                    "provider rejected credentials",
+                    {},
+                    io.BytesIO(b'{"message":"Bearer provider-secret-token-123456789"}'),
+                )
+                with patch("providers.urlopen", side_effect=error):
+                    with self.assertRaises(providers.ProviderAuthenticationError) as raised:
+                        provider.plan("Build a safe API")
+                self.assertIsInstance(raised.exception, providers.ProviderError)
+                self.assertNotIn("provider-secret-token-123456789", str(raised.exception))
+                self.assertIn("[redacted]", str(raised.exception).lower())
+
     def test_live_provider_parses_markdown_fenced_json(self):
         result = providers.OpenAICompatibleProvider._json(
             "   ```json\n{\"checks\":[\"happy path\",\"bad input\"]}\n```   "
