@@ -1604,7 +1604,7 @@ def task_recovery_guidance(task):
             "Do not use the synthetic score, artifacts, or outcome as evidence of application correctness.",
         ]
         retry_guidance = "Retrying a synthetic failed or timed-out record creates another simulated record."
-    elif status == "TIMED_OUT" or _failure_type_has(tokens, ("timeout", "timedout", "deadline")):
+    elif status == "TIMED_OUT" or _failure_type_has(tokens, ("timeout", "timedout", "timed", "deadline")):
         category = "timeout"
         action_code = "reduce_scope_and_inspect_trace"
         headline = "The execution deadline was reached."
@@ -1615,7 +1615,7 @@ def task_recovery_guidance(task):
             "Inspect the trace to identify the last completed stage before retrying.",
         ]
         retry_guidance = "Start an explicit retry only when repeating the requested work is safe."
-    elif _failure_type_has(tokens, ("auth", "credential", "config")) or "apikey" in tokens or ("api" in tokens and "key" in tokens):
+    elif _failure_type_has(tokens, ("auth", "unauth", "credential", "config", "forbidden", "permission")) or "apikey" in tokens or ("api" in tokens and "key" in tokens):
         category = "provider_configuration"
         action_code = "correct_provider_configuration"
         headline = "Provider configuration needs attention."
@@ -1626,7 +1626,7 @@ def task_recovery_guidance(task):
             "Review sanitized provider diagnostics before retrying.",
         ]
         retry_guidance = "Fix the configuration first; a retry alone will not correct missing credentials."
-    elif _failure_type_has(tokens, ("rate", "quota", "throttl")) or any("429" in token for token in tokens):
+    elif _failure_type_has(tokens, ("rate", "ratelimit", "quota", "throttl")) or any("429" in token for token in tokens) or {"too", "many", "requests"}.issubset(tokens):
         category = "rate_limited"
         action_code = "wait_for_provider_reset"
         headline = "The provider request limit was reached."
@@ -1637,7 +1637,7 @@ def task_recovery_guidance(task):
             "Reduce concurrency or request size if the limit is sustained.",
         ]
         retry_guidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt."
-    elif _failure_type_has(tokens, ("provider", "connection", "connect", "network", "http", "socket", "dns", "transport")):
+    elif _failure_type_has(tokens, ("provider", "connection", "connect", "network", "http", "socket", "dns", "transport", "unreachable")) or {"service", "unavailable"}.issubset(tokens):
         category = "provider_or_network"
         action_code = "check_provider_connectivity"
         headline = "The provider or network request failed."
