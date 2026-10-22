@@ -255,6 +255,7 @@ console.log("Dynamic analytics smoke: real-data dashboard, API search, DB-backed
 assert.ok(fs.readFileSync("server.py", "utf8").includes('"runtime-config.js", "event-stream.js"'), "Local Flask must serve the two runtime JS assets referenced by index.html");
 assert.ok(fs.readFileSync("app.js", "utf8").includes(".replace(/_/g,'-')"), "Recovery categories must normalize underscores to the hyphenated CSS taxonomy");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("task-recovery-budget"), "Recovery guidance must disclose retry usage and eligibility");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("task-recovery-action"), "Recovery panel must render the stable recommended-action code");
 assert.ok(fs.readFileSync("styles.css", "utf8").includes(".task-recovery-budget.eligible"), "Eligible retry budget must have a distinct visual state");
 assert.ok(fs.readFileSync("styles.css", "utf8").includes(".task-recovery-budget.exhausted"), "Exhausted or unavailable retry budget must have a distinct visual state");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("Use HTTPS for remote backends."), "API settings must disallow plaintext remote backend URLs");
@@ -395,6 +396,8 @@ assert.ok(fs.readFileSync("tests/test_task_export.js", "utf8").includes("preserv
 assert.ok(fs.readFileSync("tests/test_api.py", "utf8").includes("test_recovery_guidance_tokenizes_exception_names_without_false_matches"), "Backend recovery diagnosis must match exception tokens");
 assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("GeneratedArtifactError"), "Browser demo recovery categories must use the same token boundaries");
 assert.ok(fs.readFileSync("server.py", "utf8").includes('category = "rate_limited"'), "Rate-limit failures must have a specific recovery path");
+assert.ok(fs.readFileSync("server.py", "utf8").includes('"recommended_action": action_code'), "Recovery API must expose stable operator action codes");
+assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes("recommended_action: actionCode"), "Browser demo must mirror recovery action codes");
 assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes('category = "rate_limited"'), "Browser demo must mirror rate-limit recovery guidance");
 assert.ok(fs.readFileSync("styles.css", "utf8").includes(".task-recovery-category.rate-limited"), "Rate-limit recovery guidance needs a distinct status treatment");
 console.log("Retry lineage smoke: bounded API, timeline UI, responsive styling and JSON/Markdown/CSV contracts OK");
