@@ -1657,6 +1657,17 @@ def task_recovery_guidance(task):
             retry_guidance = f"Wait at least {retry_after_seconds} seconds before another explicit provider-backed attempt."
         else:
             retry_guidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt."
+    elif _failure_type_has(tokens, ("provider",)) and _failure_type_has(tokens, ("billing", "payment")):
+        category = "provider_billing"
+        action_code = "check_provider_billing"
+        headline = "The provider requires billing or account-limit attention."
+        explanation = "The provider rejected the request with a billing-related response. The guidance deliberately omits raw response bodies and credential values."
+        steps = [
+            "Check the provider account's billing status, available credits, and usage limits.",
+            "Confirm the selected project or organization is the one with the intended billing configuration.",
+            "Resolve the account or quota issue before submitting another provider-backed request."
+        ]
+        retry_guidance = "Resolve billing or account limits first; retrying alone will not restore provider access."
     elif _failure_type_has(tokens, ("provider",)) and _failure_type_has(tokens, ("request",)):
         category = "provider_request"
         action_code = "review_request_contract"
