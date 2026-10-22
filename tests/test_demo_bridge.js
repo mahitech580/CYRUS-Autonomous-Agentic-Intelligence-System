@@ -168,6 +168,24 @@ async function main() {
     assert.ok(!JSON.stringify(guidance.body).includes("do not echo this diagnostic"));
   }
 
+  const billingRetryAfterHarness = makeHarness({storedTasks: [{
+    task_id: "DEMO-BILLING-402-RETRY-AFTER",
+    objective: "Check billing remediation has no retry delay",
+    mode: "autonomous",
+    status: "FAILED",
+    provider: "openai",
+    failure: {type: "ProviderBillingError", retry_after_seconds: 900, message: "billing details must be omitted"},
+    created_at: new Date().toISOString(),
+    events: []
+  }]});
+  const billingGuidance = await billingRetryAfterHarness.json(
+    "/api/tasks/DEMO-BILLING-402-RETRY-AFTER/recovery"
+  );
+  assert.equal(billingGuidance.body.category, "provider_billing");
+  assert.equal(billingGuidance.body.recommended_action, "check_provider_billing");
+  assert.equal(billingGuidance.body.retry_after_seconds, null);
+  assert.ok(!JSON.stringify(billingGuidance.body).includes("billing details must be omitted"));
+
   const nonRateRetryAfterHarness = makeHarness({storedTasks: [{
     task_id: "DEMO-NON-RATE-RETRY-AFTER",
     objective: "Validate Retry-After category isolation",
