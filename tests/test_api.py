@@ -450,6 +450,32 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("wait 15 seconds", " ".join(guidance["steps"]))
         self.assertIn("at least 15 seconds", guidance["retry_guidance"])
 
+    def test_recovery_guidance_only_discloses_bounded_integer_retry_after(self):
+        cases = [
+            (15, 15),
+            (0, 0),
+            (-1, None),
+            (86401, None),
+            ("15", None),
+            (True, None),
+        ]
+        for raw_value, expected in cases:
+            task = {
+                "task_id": "CYRUS-RETRY-AFTER-" + str(raw_value),
+                "status": "FAILED",
+                "provider": "openai-compatible",
+                "failure": {
+                    "type": "ProviderRateLimitError",
+                    "message": "redacted provider response",
+                    "retry_after_seconds": raw_value,
+                },
+            }
+            with self.subTest(retry_after=raw_value):
+                guidance = server.task_recovery_guidance(task)
+            self.assertEqual(guidance["category"], "rate_limited")
+            self.assertEqual(guidance["retry_after_seconds"], expected)
+            self.assertNotIn("redacted provider response", str(guidance))
+
     def test_recovery_guidance_tokenizes_exception_names_without_false_matches(self):
         fixtures = [
             ("GeneratedArtifactError", "execution_failure", "inspect_last_successful_stage"),
