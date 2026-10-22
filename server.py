@@ -1632,7 +1632,7 @@ def task_recovery_guidance(task):
             "Wait for the provider's reset window instead of repeatedly resubmitting the same request.",
             "Reduce concurrency or request size if the limit is sustained.",
         ]
-        retry_guidance = "Wait for the limit window to reset before starting another provider-backed attempt."
+        retry_guidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt."
     elif _failure_type_has(tokens, ("provider", "connection", "connect", "network", "http", "socket", "dns", "transport")):
         category = "provider_or_network"
         headline = "The provider or network request failed."
