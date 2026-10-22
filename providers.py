@@ -22,6 +22,30 @@ class ProviderError(RuntimeError):
     """A safe, user-facing error raised when the configured model is unavailable."""
 
 
+class ProviderAuthenticationError(ProviderError):
+    """Provider rejected authentication or authorization."""
+
+
+class ProviderRateLimitError(ProviderError):
+    """Provider rejected a request because of quota or rate limiting."""
+
+
+class ProviderConnectionError(ProviderError):
+    """The backend could not establish or maintain provider connectivity."""
+
+
+class ProviderTimeoutError(ProviderError):
+    """The provider request timed out."""
+
+
+class ProviderUnavailableError(ProviderError):
+    """The provider returned a server-side availability failure."""
+
+
+class ProviderResponseError(ProviderError):
+    """The provider response was malformed or exceeded supported bounds."""
+
+
 class ExecutionProvider(Protocol):
     name: str
     mode: str
@@ -150,7 +174,7 @@ class OpenAICompatibleProvider:
             with urlopen(request, timeout=self.timeout_seconds) as response:
                 raw_response = response.read(MAX_PROVIDER_RESPONSE_BYTES + 1)
                 if len(raw_response) > MAX_PROVIDER_RESPONSE_BYTES:
-                    raise ProviderError(
+                    raise ProviderResponseError(
                         f"LLM provider response exceeded the {MAX_PROVIDER_RESPONSE_BYTES}-byte limit."
                     )
                 payload = json.loads(raw_response.decode("utf-8"))
@@ -162,29 +186,40 @@ class OpenAICompatibleProvider:
             # Treat provider error bodies as untrusted: redact credentials before
             # surfacing details from JSON, headers, query strings, or plain text.
             safe_detail = _redact_provider_error_detail(detail)
-            raise ProviderError(f"LLM provider returned HTTP {exc.code}: {safe_detail[:350]}") from None
+            message = f"LLM provider returned HTTP {exc.code}: {safe_detail[:350]}"
+            if exc.code in {401, 403}:
+                error_type = ProviderAuthenticationError
+            elif exc.code == 429:
+                error_type = ProviderRateLimitError
+            elif exc.code in {408, 504}:
+                error_type = ProviderTimeoutError
+            elif 500 <= exc.code <= 599:
+                error_type = ProviderUnavailableError
+            else:
+                error_type = ProviderError
+            raise error_type(message) from None
         except URLError as exc:
             reason = _redact_provider_error_detail(str(getattr(exc, "reason", "network error"))) or "network error"
-            raise ProviderError(f"Could not reach the configured LLM provider: {reason}") from None
+            raise ProviderConnectionError(f"Could not reach the configured LLM provider: {reason}") from None
         except TimeoutError:
-            raise ProviderError("The configured LLM provider timed out.") from None
+            raise ProviderTimeoutError("The configured LLM provider timed out.") from None
         except (json.JSONDecodeError, UnicodeDecodeError):
-            raise ProviderError("The configured LLM provider returned invalid JSON.") from None
+            raise ProviderResponseError("The configured LLM provider returned invalid JSON.") from None
         except OSError as exc:
             reason = _redact_provider_error_detail(str(exc)) or "network error"
-            raise ProviderError(f"LLM network request failed: {reason}") from None
+            raise ProviderConnectionError(f"LLM network request failed: {reason}") from None
 
         try:
             choices = payload["choices"]
             content = choices[0]["message"]["content"]
         except (KeyError, IndexError, TypeError):
-            raise ProviderError("The configured LLM provider returned no assistant message.") from None
+            raise ProviderResponseError("The configured LLM provider returned no assistant message.") from None
         if isinstance(content, list):
             content = "".join(
                 item.get("text", "") for item in content if isinstance(item, dict)
             )
         if not isinstance(content, str) or not content.strip():
-            raise ProviderError("The configured LLM provider returned an empty answer.")
+            raise ProviderResponseError("The configured LLM provider returned an empty answer.")
         return content.strip()[:18000]
 
     @staticmethod
