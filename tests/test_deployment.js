@@ -388,6 +388,11 @@ for (const reportFeature of [
 }
 assert.ok(fs.readFileSync("tests/test_api.py", "utf8").includes("test_task_lineage_returns_root_to_leaf_summaries"), "Lineage ordering must have an API regression test");
 assert.ok(fs.readFileSync("tests/test_task_export.js", "utf8").includes("preserves retry lineage across JSON"), "Lineage export must have report regression coverage");
+assert.ok(fs.readFileSync("tests/test_api.py", "utf8").includes("test_recovery_guidance_tokenizes_exception_names_without_false_matches"), "Backend recovery diagnosis must match exception tokens");
+assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("GeneratedArtifactError"), "Browser demo recovery categories must use the same token boundaries");
+assert.ok(fs.readFileSync("server.py", "utf8").includes('category = "rate_limited"'), "Rate-limit failures must have a specific recovery path");
+assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes('category = "rate_limited"'), "Browser demo must mirror rate-limit recovery guidance");
+assert.ok(fs.readFileSync("styles.css", "utf8").includes(".task-recovery-category.rate-limited"), "Rate-limit recovery guidance needs a distinct status treatment");
 console.log("Retry lineage smoke: bounded API, timeline UI, responsive styling and JSON/Markdown/CSV contracts OK");
 const recoveryGuidanceServer = fs.readFileSync("server.py", "utf8");
 const recoveryGuidanceApp = fs.readFileSync("app.js", "utf8");
