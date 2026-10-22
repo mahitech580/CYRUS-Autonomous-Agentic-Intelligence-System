@@ -1569,6 +1569,19 @@ def task_stream(task_id):
     return response
 
 
+def _failure_type_tokens(value):
+    """Split snake_case, kebab-case, and CamelCase exception names safely."""
+    text = str(value or "")
+    text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", text)
+    text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text)
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def _failure_type_has(tokens, prefixes):
+    """Match exception-name tokens rather than accidental substrings such as 'rate' in 'generated'."""
+    return any(token.startswith(prefix) for token in tokens for prefix in prefixes)
+
+
 def task_recovery_guidance(task):
     """Return deterministic, non-secret recovery advice for a saved execution."""
     task_id = str(task.get("task_id") or "")
@@ -1577,7 +1590,7 @@ def task_recovery_guidance(task):
     verification = str(task.get("verification_status") or "").upper()
     failure = task.get("failure")
     failure_type = str(failure.get("type") or "") if isinstance(failure, dict) else ""
-    kind = failure_type.lower()
+    tokens = _failure_type_tokens(failure_type)
     synthetic_demo = provider == "browser-demo" or verification == "SYNTHETIC_DEMO_ONLY"
 
     if synthetic_demo:
@@ -1590,7 +1603,7 @@ def task_recovery_guidance(task):
             "Do not use the synthetic score, artifacts, or outcome as evidence of application correctness.",
         ]
         retry_guidance = "Retrying a synthetic failed or timed-out record creates another simulated record."
-    elif status == "TIMED_OUT" or "timeout" in kind or "timedout" in kind:
+    elif status == "TIMED_OUT" or _failure_type_has(tokens, ("timeout", "timedout", "deadline")):
         category = "timeout"
         headline = "The execution deadline was reached."
         explanation = "The runtime stopped this attempt at its configured deadline; the record does not establish that proposed tests ran."
@@ -1600,7 +1613,7 @@ def task_recovery_guidance(task):
             "Inspect the trace to identify the last completed stage before retrying.",
         ]
         retry_guidance = "Start an explicit retry only when repeating the requested work is safe."
-    elif any(token in kind for token in ("auth", "credential", "api_key", "configuration")):
+    elif _failure_type_has(tokens, ("auth", "credential", "config")) or "apikey" in tokens or ("api" in tokens and "key" in tokens):
         category = "provider_configuration"
         headline = "Provider configuration needs attention."
         explanation = "The failure type suggests an authentication or configuration problem; secret values are intentionally not shown here."
@@ -1610,12 +1623,22 @@ def task_recovery_guidance(task):
             "Review sanitized provider diagnostics before retrying.",
         ]
         retry_guidance = "Fix the configuration first; a retry alone will not correct missing credentials."
-    elif any(token in kind for token in ("provider", "connection", "network", "rate", "http")):
+    elif _failure_type_has(tokens, ("rate", "quota", "throttl")) or any("429" in token for token in tokens):
+        category = "rate_limited"
+        headline = "The provider request limit was reached."
+        explanation = "The failure type suggests a quota or rate limit; recovery guidance does not expose credential or response-body content."
+        steps = [
+            "Check the provider's quota and rate-limit response headers in sanitized diagnostics.",
+            "Wait for the provider's reset window instead of repeatedly resubmitting the same request.",
+            "Reduce concurrency or request size if the limit is sustained.",
+        ]
+        retry_guidance = "Wait for the limit window to reset before starting another provider-backed attempt."
+    elif _failure_type_has(tokens, ("provider", "connection", "connect", "network", "http", "socket", "dns", "transport")):
         category = "provider_or_network"
         headline = "The provider or network request failed."
         explanation = "CYRUS records provider failures rather than silently substituting a successful result."
         steps = [
-            "Check provider availability, rate limits, and outbound network configuration.",
+            "Check provider availability and outbound network configuration.",
             "Inspect the sanitized error type and the last trace event.",
             "Retry after the provider issue is resolved; avoid repeated calls during an outage.",
         ]
