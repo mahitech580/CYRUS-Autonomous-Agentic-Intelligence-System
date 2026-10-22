@@ -359,6 +359,17 @@
       } else {
         retryGuidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt.";
       }
+    } else if (failureTypeHas(tokens, ["provider"]) && failureTypeHas(tokens, ["request"])) {
+      category = "provider_request";
+      actionCode = "review_request_contract";
+      headline = "The provider rejected the request.";
+      explanation = "The configured endpoint, model identifier, or request payload may not match the provider's supported contract; raw response content is not shown here.";
+      steps = [
+        "Verify the endpoint path and selected model against the provider's supported API contract.",
+        "Check request-size and required-parameter limits without exposing credentials.",
+        "Inspect sanitized diagnostics, correct the request or configuration, and only then retry."
+      ];
+      retryGuidance = "Correct the rejected request or model configuration before starting another provider-backed attempt.";
     } else if (failureTypeHas(tokens, ["response", "malformed", "decode"])) {
       category = "provider_response";
       actionCode = "inspect_response_format";
