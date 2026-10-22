@@ -155,6 +155,7 @@ class ProviderConfigurationTests(unittest.TestCase):
             with self.assertRaises(providers.ProviderRateLimitError) as raised:
                 provider.plan("Build a safe API")
         message = str(raised.exception)
+        self.assertEqual(raised.exception.retry_after_seconds, 15)
         self.assertIn("HTTP 429", message)
         self.assertNotIn("private-provider-secret-12345", message)
         self.assertIn("[redacted]", message.lower())
