@@ -221,6 +221,27 @@ class ProviderConfigurationTests(unittest.TestCase):
                         provider.plan("Build a safe API")
                 self.assertEqual(raised.exception.retry_after_seconds, expected)
 
+    def test_http_429_parses_retry_after_http_date_from_real_response_headers(self):
+        provider = providers.OpenAICompatibleProvider(
+            api_key="unit-test-secret",
+            base_url="https://provider.example/v1",
+            model="unit-model",
+        )
+        future = datetime.now(timezone.utc) + timedelta(seconds=120)
+        error = HTTPError(
+            "https://provider.example/v1/chat/completions",
+            429,
+            "too many requests",
+            {"Retry-After": format_datetime(future, usegmt=True)},
+            io.BytesIO(b'{"error":"quota exceeded"}'),
+        )
+        with patch("providers.urlopen", side_effect=error):
+            with self.assertRaises(providers.ProviderRateLimitError) as raised:
+                provider.plan("Build a safe API")
+        self.assertIsNotNone(raised.exception.retry_after_seconds)
+        self.assertGreaterEqual(raised.exception.retry_after_seconds, 110)
+        self.assertLessEqual(raised.exception.retry_after_seconds, 120)
+
     def test_http_429_preserves_rate_limit_category_and_safe_retry_after(self):
         provider = providers.OpenAICompatibleProvider(
             api_key="unit-test-secret",
