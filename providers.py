@@ -72,6 +72,10 @@ class ProviderUnavailableError(ProviderError):
     """The provider returned a server-side availability failure."""
 
 
+class ProviderRequestError(ProviderError):
+    """The provider rejected the request contract, endpoint, or model selector."""
+
+
 class ProviderResponseError(ProviderError):
     """The provider response was malformed or exceeded supported bounds."""
 
@@ -229,6 +233,8 @@ class OpenAICompatibleProvider:
                 raise ProviderRateLimitError(message, retry_after_seconds=retry_after_seconds) from None
             elif exc.code in {408, 504}:
                 error_type = ProviderTimeoutError
+            elif exc.code in {400, 404, 405, 413, 415, 422}:
+                error_type = ProviderRequestError
             elif 500 <= exc.code <= 599:
                 error_type = ProviderUnavailableError
             else:
