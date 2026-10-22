@@ -181,6 +181,23 @@ class ProviderConfigurationTests(unittest.TestCase):
                 self.assertNotIn("provider-secret-token-123456789", str(raised.exception))
                 self.assertIn("[redacted]", str(raised.exception).lower())
 
+    def test_invalid_provider_json_uses_typed_response_failure(self):
+        class InvalidJsonResponse:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, limit=-1): return b"{invalid json"
+
+        provider = providers.OpenAICompatibleProvider(
+            api_key="unit-test-secret",
+            base_url="https://provider.example/v1",
+            model="unit-model",
+        )
+        with patch("providers.urlopen", return_value=InvalidJsonResponse()):
+            with self.assertRaises(providers.ProviderResponseError) as raised:
+                provider.plan("Build a safe API")
+        self.assertIn("invalid JSON", str(raised.exception))
+        self.assertNotIn("unit-test-secret", str(raised.exception))
+
     def test_live_provider_parses_markdown_fenced_json(self):
         result = providers.OpenAICompatibleProvider._json(
             "   ```json\n{\"checks\":[\"happy path\",\"bad input\"]}\n```   "
