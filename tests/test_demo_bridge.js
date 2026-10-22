@@ -142,6 +142,32 @@ async function main() {
     assert.equal(stateGuidance.body.recommended_action, expectedAction);
   }
 
+  for (const [rawRetryAfter, expectedRetryAfter] of [
+    [15, 15],
+    [0, 0],
+    [-1, null],
+    [86401, null],
+    ["15", null],
+    [true, null]
+  ]) {
+    const taskId = "DEMO-RETRY-AFTER-" + String(rawRetryAfter);
+    const retryAfterHarness = makeHarness({storedTasks: [{
+      task_id: taskId,
+      objective: "Validate safe Retry-After guidance",
+      mode: "autonomous",
+      status: "FAILED",
+      provider: "openai-compatible",
+      failure: {type: "RateLimitExceededError", retry_after_seconds: rawRetryAfter, message: "do not echo this diagnostic"},
+      created_at: new Date().toISOString(),
+      events: []
+    }]});
+    const guidance = await retryAfterHarness.json("/api/tasks/" + encodeURIComponent(taskId) + "/recovery");
+    assert.equal(guidance.response.status, 200);
+    assert.equal(guidance.body.category, "rate_limited");
+    assert.equal(guidance.body.retry_after_seconds, expectedRetryAfter);
+    assert.ok(!JSON.stringify(guidance.body).includes("do not echo this diagnostic"));
+  }
+
   const guidanceSecret = "recovery-private-sentinel";
   const guidanceHarness = makeHarness({storedTasks: [{
     task_id: "DEMO-GUIDANCE-PROVIDER",
