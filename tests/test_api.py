@@ -456,16 +456,17 @@ class CyrusApiContractTests(unittest.TestCase):
 
     def test_recovery_guidance_distinguishes_cancelled_completed_and_active_states(self):
         fixtures = [
-            ({"task_id": "RECOVERY-CANCELLED", "status": "CANCELLED", "max_task_retries": 2}, "cancelled", True),
-            ({"task_id": "RECOVERY-COMPLETED", "status": "COMPLETED", "max_task_retries": 2}, "completed", False),
-            ({"task_id": "RECOVERY-RUNNING", "status": "RUNNING", "max_task_retries": 2}, "in_progress", False),
-            ({"task_id": "RECOVERY-APPROVAL", "status": "AWAITING_APPROVAL", "max_task_retries": 2}, "in_progress", False),
+            ({"task_id": "RECOVERY-CANCELLED", "status": "CANCELLED", "max_task_retries": 2}, "cancelled", True, "review_stop_point"),
+            ({"task_id": "RECOVERY-COMPLETED", "status": "COMPLETED", "max_task_retries": 2}, "completed", False, "verify_in_sandbox"),
+            ({"task_id": "RECOVERY-RUNNING", "status": "RUNNING", "max_task_retries": 2}, "in_progress", False, "monitor_or_cancel"),
+            ({"task_id": "RECOVERY-APPROVAL", "status": "AWAITING_APPROVAL", "max_task_retries": 2}, "in_progress", False, "monitor_or_cancel"),
         ]
-        for task, category, retryable in fixtures:
+        for task, category, retryable, action_code in fixtures:
             with self.subTest(task=task["task_id"]), patch.object(server, "all_task_records", return_value=[task]):
                 response = self.client.get("/api/tasks/" + task["task_id"] + "/recovery")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get_json()["category"], category)
+            self.assertEqual(response.get_json()["recommended_action"], action_code)
             self.assertEqual(response.get_json()["can_retry"], retryable)
 
     def test_recovery_guidance_uses_generic_safe_fallback_for_unknown_failures(self):
