@@ -83,6 +83,7 @@ test('preserves retry lineage across JSON, Markdown and CSV exports', () => {
   assert.ok(csv.includes('CYRUS-RETRY-001'));
   assert.ok(csv.includes('CYRUS-RETRY-002'));
   assert.ok(csv.includes('Recovery guidance,'));
+  assert.ok(csv.includes('reduce_scope_and_inspect_trace'));
   assert.ok(csv.includes('The execution deadline was reached'));
 });
 
