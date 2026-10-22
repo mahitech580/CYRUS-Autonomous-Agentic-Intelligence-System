@@ -62,7 +62,7 @@ X-CYRUS-Access-Key: <only when API access protection is enabled>
 
 This endpoint returns `task_id`, `status`, `category`, `headline`, `explanation`, a `steps` array, `retry_guidance`, retry eligibility/cap metadata, `synthetic_demo`, and the source label `deterministic_runtime_guidance`. It chooses advice from the persisted status and safe failure type, using categories for synthetic demo runs, timeouts, provider/configuration failures, network/provider failures, cancellations, generic failures, completed tasks, and active tasks.
 
-Guidance deliberately does not return the raw failure message or infer root cause from arbitrary error text. The response includes `schema_version: 1` so clients can identify the advice contract explicitly; clients should tolerate additional fields in later compatible versions. Failure categories are selected from tokenized exception names—not broad substring matching—so names such as `GeneratedArtifactError` are not mislabeled as rate-limit failures. `RateLimitExceededError`, quota/throttle names, and HTTP 429-style names receive the dedicated `rate_limited` category with reset-window and concurrency advice. Unknown failure types receive generic trace-inspection steps. Recommendations are deterministic suggestions, not an automated diagnosis; retrying is still a separate explicit API action subject to terminal status, idempotency, capacity, rate limits, and the effective lineage cap.
+Guidance deliberately does not return the raw failure message or infer root cause from arbitrary error text. The response includes `schema_version: 1` so clients can identify the advice contract explicitly; clients should tolerate additional fields in later compatible versions. Failure categories are selected from tokenized exception names—not broad substring matching—so names such as `GeneratedArtifactError` are not mislabeled as rate-limit failures. `RateLimitExceededError`, quota/throttle names, and HTTP 429-style names receive the dedicated `rate_limited` category with reset-window and concurrency advice. HTTP 402 is mapped to `provider_billing`; common 400/404/405/413/415/422 request rejections are mapped to `provider_request`. Unknown failure types receive generic trace-inspection steps. Recommendations are deterministic suggestions, not an automated diagnosis; retrying is still a separate explicit API action subject to terminal status, idempotency, capacity, rate limits, and the effective lineage cap.
 
 The response also carries a stable `recommended_action` enum for clients that need to route or summarize guidance without parsing prose:
 
@@ -71,6 +71,8 @@ The response also carries a stable `recommended_action` enum for clients that ne
 | `review_demo_limits` | Treat a synthetic record as interface-only evidence |
 | `reduce_scope_and_inspect_trace` | Narrow the objective and inspect the last completed stage |
 | `correct_provider_configuration` | Fix backend provider/model configuration before another request |
+| `check_provider_billing` | Resolve provider billing, available credits, or usage-plan limits |
+| `review_request_contract` | Check the endpoint, model identifier, request size, and required parameters |
 | `wait_for_provider_reset` | Respect the rate-limit reset window before resubmitting |
 | `check_provider_connectivity` | Diagnose provider/network reachability |
 | `inspect_response_format` | Verify endpoint/model compatibility and inspect sanitized response-format diagnostics |
