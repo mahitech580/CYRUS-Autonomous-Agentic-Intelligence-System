@@ -1637,6 +1637,17 @@ def task_recovery_guidance(task):
             "Reduce concurrency or request size if the limit is sustained.",
         ]
         retry_guidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt."
+    elif _failure_type_has(tokens, ("response", "malformed", "decode")):
+        category = "provider_response"
+        action_code = "inspect_response_format"
+        headline = "The provider response could not be used."
+        explanation = "The provider reply was malformed, incomplete, or outside supported bounds; raw response content is not exposed in recovery guidance."
+        steps = [
+            "Verify the configured endpoint and model are compatible with the expected chat-completions response format.",
+            "Inspect the sanitized provider diagnostic and response-size limits.",
+            "Avoid repeated requests until the response shape or endpoint configuration is corrected.",
+        ]
+        retry_guidance = "Correct the response-format or endpoint issue before retrying; the guidance intentionally omits raw response content."
     elif _failure_type_has(tokens, ("provider", "connection", "connect", "network", "http", "socket", "dns", "transport", "unreachable")) or {"service", "unavailable"}.issubset(tokens):
         category = "provider_or_network"
         action_code = "check_provider_connectivity"
