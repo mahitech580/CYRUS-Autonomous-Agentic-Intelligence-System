@@ -345,13 +345,13 @@
         "Wait for the provider's reset window instead of repeatedly resubmitting the same request.",
         "Reduce concurrency or request size if the limit is sustained."
       ];
-      retryGuidance = "Wait for the limit window to reset before starting another provider-backed attempt.";
+      retryGuidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt.";
     } else if (failureTypeHas(tokens, ["provider", "connection", "connect", "network", "http", "socket", "dns", "transport"])) {
       category = "provider_or_network";
       headline = "The provider or network request failed.";
       explanation = "CYRUS records provider failures rather than silently substituting a successful result.";
       steps = [
-        "Check provider availability and outbound network configuration.",
+        "Check provider availability, rate limits, and outbound network configuration.",
         "Inspect the sanitized error type and the last trace event.",
         "Retry after the provider issue is resolved; avoid repeated calls during an outage."
       ];
