@@ -359,6 +359,17 @@
       } else {
         retryGuidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt.";
       }
+    } else if (failureTypeHas(tokens, ["provider"]) && failureTypeHas(tokens, ["billing", "payment"])) {
+      category = "provider_billing";
+      actionCode = "check_provider_billing";
+      headline = "The provider requires billing or account-limit attention.";
+      explanation = "The provider rejected the request with a billing-related response. The guidance deliberately omits raw response bodies and credential values.";
+      steps = [
+        "Check the provider account's billing status, available credits, and usage limits.",
+        "Confirm the selected project or organization is the one with the intended billing configuration.",
+        "Resolve the account or quota issue before submitting another provider-backed request."
+      ];
+      retryGuidance = "Resolve billing or account limits first; retrying alone will not restore provider access.";
     } else if (failureTypeHas(tokens, ["provider"]) && failureTypeHas(tokens, ["request"])) {
       category = "provider_request";
       actionCode = "review_request_contract";
