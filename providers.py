@@ -11,11 +11,33 @@ from urllib.request import Request, urlopen
 from urllib.parse import urlsplit
 from ipaddress import ip_address
 import json
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+import math
 import os
 import re
 
 
 MAX_PROVIDER_RESPONSE_BYTES = 2_000_000
+
+
+def _parse_retry_after_seconds(value: object) -> int | None:
+    """Parse delta-seconds or an HTTP-date, clamped to a safe 24-hour window."""
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    if re.fullmatch(r"[0-9]{1,10}", raw):
+        return min(int(raw), 86400)
+    try:
+        reset_at = parsedate_to_datetime(raw)
+        if reset_at.tzinfo is None:
+            reset_at = reset_at.replace(tzinfo=timezone.utc)
+        remaining = (reset_at - datetime.now(timezone.utc)).total_seconds()
+        if not math.isfinite(remaining):
+            return None
+        return max(0, min(math.ceil(remaining), 86400))
+    except (TypeError, ValueError, OverflowError, IndexError):
+        return None
 
 
 class ProviderError(RuntimeError):
@@ -203,11 +225,7 @@ class OpenAICompatibleProvider:
                     retry_header = str((exc.headers or {}).get("Retry-After", "")).strip()
                 except Exception:
                     retry_header = ""
-                retry_after_seconds = (
-                    min(int(retry_header), 86400)
-                    if re.fullmatch(r"[0-9]{1,10}", retry_header)
-                    else None
-                )
+                retry_after_seconds = _parse_retry_after_seconds(retry_header)
                 raise ProviderRateLimitError(message, retry_after_seconds=retry_after_seconds) from None
             elif exc.code in {408, 504}:
                 error_type = ProviderTimeoutError
