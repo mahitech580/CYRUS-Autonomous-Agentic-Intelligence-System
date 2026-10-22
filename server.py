@@ -1598,6 +1598,14 @@ def task_recovery_guidance(task):
     verification = str(task.get("verification_status") or "").upper()
     failure = task.get("failure")
     failure_type = str(failure.get("type") or "") if isinstance(failure, dict) else ""
+    raw_retry_after = failure.get("retry_after_seconds") if isinstance(failure, dict) else None
+    retry_after_seconds = (
+        raw_retry_after
+        if isinstance(raw_retry_after, int)
+        and not isinstance(raw_retry_after, bool)
+        and 0 <= raw_retry_after <= 86400
+        else None
+    )
     tokens = _failure_type_tokens(failure_type)
     synthetic_demo = provider == "browser-demo" or verification == "SYNTHETIC_DEMO_ONLY"
 
@@ -1644,7 +1652,11 @@ def task_recovery_guidance(task):
             "Wait for the provider's reset window instead of repeatedly resubmitting the same request.",
             "Reduce concurrency or request size if the limit is sustained.",
         ]
-        retry_guidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt."
+        if retry_after_seconds is not None:
+            steps.insert(1, f"Honor the provider's Retry-After hint and wait {retry_after_seconds} seconds before resubmitting.")
+            retry_guidance = f"Wait at least {retry_after_seconds} seconds before another explicit provider-backed attempt."
+        else:
+            retry_guidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt."
     elif _failure_type_has(tokens, ("response", "malformed", "decode")):
         category = "provider_response"
         action_code = "inspect_response_format"
@@ -1726,6 +1738,7 @@ def task_recovery_guidance(task):
         "retry_number": compact.get("retry_number", 0),
         "max_task_retries": compact.get("max_task_retries", MAX_TASK_RETRIES),
         "effective_max_task_retries": compact.get("effective_max_task_retries", MAX_TASK_RETRIES),
+        "retry_after_seconds": retry_after_seconds,
         "synthetic_demo": synthetic_demo,
         "source": "deterministic_runtime_guidance",
     }
