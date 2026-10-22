@@ -254,6 +254,9 @@ console.log("Dynamic analytics smoke: real-data dashboard, API search, DB-backed
 
 assert.ok(fs.readFileSync("server.py", "utf8").includes('"runtime-config.js", "event-stream.js"'), "Local Flask must serve the two runtime JS assets referenced by index.html");
 assert.ok(fs.readFileSync("app.js", "utf8").includes(".replace(/_/g,'-')"), "Recovery categories must normalize underscores to the hyphenated CSS taxonomy");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("task-recovery-budget"), "Recovery guidance must disclose retry usage and eligibility");
+assert.ok(fs.readFileSync("styles.css", "utf8").includes(".task-recovery-budget.eligible"), "Eligible retry budget must have a distinct visual state");
+assert.ok(fs.readFileSync("styles.css", "utf8").includes(".task-recovery-budget.exhausted"), "Exhausted or unavailable retry budget must have a distinct visual state");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("Use HTTPS for remote backends."), "API settings must disallow plaintext remote backend URLs");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("apiJson('/api/tasks?'+params.toString())"), "History search must query the backend instead of filtering only the initially loaded page");
 
