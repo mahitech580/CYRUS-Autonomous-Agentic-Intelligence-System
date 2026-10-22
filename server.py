@@ -1638,7 +1638,7 @@ def task_recovery_guidance(task):
         headline = "The provider or network request failed."
         explanation = "CYRUS records provider failures rather than silently substituting a successful result."
         steps = [
-            "Check provider availability and outbound network configuration.",
+            "Check provider availability, rate limits, and outbound network configuration.",
             "Inspect the sanitized error type and the last trace event.",
             "Retry after the provider issue is resolved; avoid repeated calls during an outage.",
         ]
