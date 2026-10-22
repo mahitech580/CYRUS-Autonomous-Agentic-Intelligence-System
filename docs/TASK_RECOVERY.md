@@ -64,6 +64,22 @@ This endpoint returns `task_id`, `status`, `category`, `headline`, `explanation`
 
 Guidance deliberately does not return the raw failure message or infer root cause from arbitrary error text. The response includes `schema_version: 1` so clients can identify the advice contract explicitly; clients should tolerate additional fields in later compatible versions. Failure categories are selected from tokenized exception names—not broad substring matching—so names such as `GeneratedArtifactError` are not mislabeled as rate-limit failures. `RateLimitExceededError`, quota/throttle names, and HTTP 429-style names receive the dedicated `rate_limited` category with reset-window and concurrency advice. Unknown failure types receive generic trace-inspection steps. Recommendations are deterministic suggestions, not an automated diagnosis; retrying is still a separate explicit API action subject to terminal status, idempotency, capacity, rate limits, and the effective lineage cap.
 
+The response also carries a stable `recommended_action` enum for clients that need to route or summarize guidance without parsing prose:
+
+| Action code | Intended operator action |
+| --- | --- |
+| `review_demo_limits` | Treat a synthetic record as interface-only evidence |
+| `reduce_scope_and_inspect_trace` | Narrow the objective and inspect the last completed stage |
+| `correct_provider_configuration` | Fix backend provider/model configuration before another request |
+| `wait_for_provider_reset` | Respect the rate-limit reset window before resubmitting |
+| `check_provider_connectivity` | Diagnose provider/network reachability |
+| `review_stop_point` | Inspect why the attempt was cancelled |
+| `inspect_last_successful_stage` | Start diagnosis from the last trustworthy stage |
+| `verify_in_sandbox` | Verify generated output in an appropriate sandbox |
+| `monitor_or_cancel` | Continue monitoring active work or cancel cooperatively |
+
+The enum is advisory. It does not authorize automated retries, change task status, or execute any suggested action. Clients should display a generic safe fallback for an unknown future code.
+
 The execution inspector loads guidance separately from the task detail and lineage calls. If the API version does not expose this route or a transient request fails, the task record remains usable and the modal reports that guidance is unavailable rather than blocking export, trace inspection, or retry.
 
 ## Retry analytics
