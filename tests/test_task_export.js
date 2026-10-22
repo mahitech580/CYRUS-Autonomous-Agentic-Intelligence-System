@@ -39,6 +39,7 @@ test('preserves retry lineage across JSON, Markdown and CSV exports', () => {
     ],
     recovery_guidance: {
       category: 'timeout',
+      recommended_action: 'reduce_scope_and_inspect_trace',
       status: 'TIMED_OUT',
       headline: 'The execution deadline was reached.',
       explanation: 'The runtime stopped at its configured deadline.',
@@ -56,6 +57,7 @@ test('preserves retry lineage across JSON, Markdown and CSV exports', () => {
   assert.equal(json.task.retry_lineage.length, 2);
   assert.equal(json.task.retry_lineage[1].parent_task_id, 'CYRUS-RETRY-001');
   assert.equal(json.task.recovery_guidance.category, 'timeout');
+  assert.equal(json.task.recovery_guidance.recommended_action, 'reduce_scope_and_inspect_trace');
   assert.equal(json.task.recovery_guidance.steps.length, 2);
 
   const markdown = buildTaskMarkdownReport(task);
@@ -67,6 +69,7 @@ test('preserves retry lineage across JSON, Markdown and CSV exports', () => {
   assert.match(markdown, /CYRUS-RETRY-001.*TIMED_OUT/);
   assert.match(markdown, /CYRUS-RETRY-002.*RUNNING/);
   assert.match(markdown, /## Recovery guidance/);
+  assert.match(markdown, /Recommended action:\*\* reduce_scope_and_inspect_trace/);
   assert.match(markdown, /The execution deadline was reached/);
   assert.match(markdown, /Inspect the last completed stage/);
 
