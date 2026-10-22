@@ -414,6 +414,8 @@ assert.ok(fs.readFileSync("providers.py", "utf8").includes("raise ProviderRateLi
 assert.ok(fs.readFileSync("server.py", "utf8").includes('action_code = "review_request_contract"'), "Rejected requests need dedicated safe guidance");
 assert.ok(fs.readFileSync("server.py", "utf8").includes('action_code = "check_provider_billing"'), "Billing responses need dedicated recovery guidance");
 assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes('actionCode = "check_provider_billing"'), "Browser demo must mirror billing remediation");
+assert.ok(fs.readFileSync("tests/test_task_export.js", "utf8").includes("exports provider billing action without exposing raw provider diagnostics"), "Billing recovery exports need JSON/Markdown/CSV sanitization coverage");
+assert.ok(fs.readFileSync("task-export.js", "utf8").includes("'recovery_guidance'"), "Safe recovery metadata must be included in the task-report allowlist");
 assert.ok(fs.readFileSync("server.py", "utf8").includes('action_code = "inspect_response_format"'), "Malformed provider responses need dedicated safe guidance");
 assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes('actionCode = "inspect_response_format"'), "Browser demo must mirror provider response guidance");
 assert.ok(fs.readFileSync("providers.py", "utf8").includes("retry_after_seconds=retry_after_seconds"), "Provider Retry-After must be bounded before leaving the adapter");
