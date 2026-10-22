@@ -88,6 +88,31 @@ class ProviderConfigurationTests(unittest.TestCase):
         self.assertEqual(json.loads(request.data)["model"], "unit-model")
         self.assertNotIn("unit-test-secret", repr(result))
 
+    def test_http_5xx_is_typed_as_provider_unavailable(self):
+        provider = providers.OpenAICompatibleProvider(
+            api_key="unit-test-secret",
+            base_url="https://provider.example/v1",
+            model="unit-model",
+        )
+        for status in (500, 502, 503, 504):
+            with self.subTest(status=status):
+                error = HTTPError(
+                    "https://provider.example/v1/chat/completions",
+                    status,
+                    "provider unavailable",
+                    {},
+                    io.BytesIO(b'upstream overloaded'),
+                )
+                expected = (
+                    providers.ProviderTimeoutError
+                    if status == 504
+                    else providers.ProviderUnavailableError
+                )
+                with patch("providers.urlopen", side_effect=error):
+                    with self.assertRaises(expected) as raised:
+                        provider.plan("Build a safe API")
+                self.assertIn("HTTP " + str(status), str(raised.exception))
+
     def test_http_429_preserves_rate_limit_category_and_safe_retry_after(self):
         provider = providers.OpenAICompatibleProvider(
             api_key="unit-test-secret",
