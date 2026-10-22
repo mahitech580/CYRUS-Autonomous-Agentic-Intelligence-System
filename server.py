@@ -498,7 +498,15 @@ def execute_task(task):
         with runtime["lock"]:
             task["status"] = "FAILED"
             task["current_agent"] = task.get("current_agent", "ORCHESTRATOR")
-            task["failure"] = {"type": type(exc).__name__, "message": str(exc)[:500]}
+            failure_payload = {"type": type(exc).__name__, "message": str(exc)[:500]}
+            retry_after_seconds = getattr(exc, "retry_after_seconds", None)
+            if (
+                isinstance(retry_after_seconds, int)
+                and not isinstance(retry_after_seconds, bool)
+                and 0 <= retry_after_seconds <= 86400
+            ):
+                failure_payload["retry_after_seconds"] = retry_after_seconds
+            task["failure"] = failure_payload
             task["summary"] = "CYRUS stopped the execution after a provider or internal runtime failure."
             task["updated_at"] = now_iso()
             for item in task.get("agents", []):
