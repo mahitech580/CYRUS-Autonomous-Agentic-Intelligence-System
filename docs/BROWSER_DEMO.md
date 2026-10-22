@@ -23,6 +23,20 @@ Open the record and use **RETRY EXECUTION**. A retry uses a new task ID and trac
 
 These triggers create fixtures immediately; they do **not** wait for a real task timeout, call an LLM, run user code, or verify an application. The UI marks records with `provider: browser-demo` and `verification_status: SYNTHETIC_DEMO_ONLY`.
 
+## Recovery categories in the demo
+
+The simulator mirrors the recovery-response contract for common provider failure types so the UI can be exercised without network calls:
+
+| Synthetic failure type | Guidance category | Recommended action |
+| --- | --- | --- |
+| `ProviderBillingError` | `provider_billing` | `check_provider_billing` |
+| `ProviderRequestError` | `provider_request` | `review_request_contract` |
+| `ProviderRateLimitError` | `rate_limited` | `wait_for_provider_reset` |
+| `ProviderResponseError` | `provider_response` | `inspect_response_format` |
+| `ProviderConnectionError` | `provider_or_network` | `check_provider_connectivity` |
+
+These are UI fixtures only. Even when a synthetic record includes a `retry_after_seconds` field, the demo does not contact a provider, sleep, or schedule another request. The recovery panel only displays a bounded wait hint for `rate_limited` records. Billing or connection failures cannot acquire a rate-limit delay merely because malformed legacy data contains that field.
+
 ## Export a local session
 
 Choose **EXPORT LOCAL HISTORY** in the demo banner. The simulator returns a versioned `CYRUS_BROWSER_DEMO_ARCHIVE` JSON document containing the records retained by the current browser profile. Each task passes through the existing task-report allowlist and redaction logic; provider credentials and idempotency keys are not included as task fields.
