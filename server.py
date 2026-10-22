@@ -1657,6 +1657,17 @@ def task_recovery_guidance(task):
             retry_guidance = f"Wait at least {retry_after_seconds} seconds before another explicit provider-backed attempt."
         else:
             retry_guidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt."
+    elif _failure_type_has(tokens, ("provider",)) and _failure_type_has(tokens, ("request",)):
+        category = "provider_request"
+        action_code = "review_request_contract"
+        headline = "The provider rejected the request."
+        explanation = "The configured endpoint, model identifier, or request payload may not match the provider's supported contract; raw response content is not shown here."
+        steps = [
+            "Verify the endpoint path and selected model against the provider's supported API contract.",
+            "Check request-size and required-parameter limits without exposing credentials.",
+            "Inspect sanitized diagnostics, correct the request or configuration, and only then retry."
+        ]
+        retry_guidance = "Correct the rejected request or model configuration before starting another provider-backed attempt."
     elif _failure_type_has(tokens, ("response", "malformed", "decode")):
         category = "provider_response"
         action_code = "inspect_response_format"
