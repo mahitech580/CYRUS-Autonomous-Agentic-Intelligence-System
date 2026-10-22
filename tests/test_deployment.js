@@ -414,6 +414,7 @@ assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes('actionCode = "insp
 assert.ok(fs.readFileSync("providers.py", "utf8").includes("retry_after_seconds=retry_after_seconds"), "Provider Retry-After must be bounded before leaving the adapter");
 assert.ok(fs.readFileSync("server.py", "utf8").includes('"retry_after_seconds": retry_after_seconds'), "Recovery API must expose validated Retry-After metadata");
 assert.ok(fs.readFileSync("app.js", "utf8").includes("task-recovery-retry-after"), "Execution inspector must present Retry-After without automatic submission");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("recoveryGuidance.retry_after_seconds<=86400"), "UI must enforce the same 24-hour Retry-After display bound");
 assert.ok(fs.readFileSync("styles.css", "utf8").includes(".task-recovery-retry-after"), "Retry-After warning needs a distinct visual state");
 assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes('category = "rate_limited"'), "Browser demo must mirror rate-limit recovery guidance");
 assert.ok(fs.readFileSync("styles.css", "utf8").includes(".task-recovery-category.rate-limited"), "Rate-limit recovery guidance needs a distinct status treatment");
