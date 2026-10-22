@@ -21,6 +21,21 @@ CYRUS can call an OpenAI Chat Completions-compatible endpoint when `CYRUS_LLM_AP
 - Scrubbing is heuristic, not a universal secret detector. Avoid sending secrets in prompt content and inspect provider diagnostics before sharing logs.
 - Provider credentials are held in the server process and are not returned by the public provider-capabilities endpoint.
 
+## HTTP status classification
+
+| Provider response | Typed exception | Recovery action |
+| --- | --- | --- |
+| 400, 404, 405, 413, 415, 422 | `ProviderRequestError` | Review endpoint, model, and request contract |
+| 401, 403 | `ProviderAuthenticationError` | Correct provider credentials or permission |
+| 402 | `ProviderBillingError` | Check account billing, credits, or usage plan |
+| 408, 504, socket timeout | `ProviderTimeoutError` | Reduce scope and inspect the last trace stage |
+| 429 | `ProviderRateLimitError` | Respect the bounded `Retry-After` hint when provided |
+| 500–599 except the timeout cases above | `ProviderUnavailableError` | Check provider availability and retry only after recovery |
+| DNS, TLS, URL, and other transport errors | `ProviderConnectionError` | Check endpoint reachability and TLS configuration |
+| Invalid, empty, or oversized response | `ProviderResponseError` | Verify the response schema and size limit |
+
+Typed exceptions are still subclasses of `ProviderError`, so existing error handling remains compatible. HTTP response bodies are treated as untrusted and scrubbed before they are used in a task failure message. Recovery guidance is generated from the safe exception type and does not include the response body. HTTP statuses are advisory classifications; provider-specific implementations can use a different contract, so inspect sanitized diagnostics before changing account settings.
+
 ## Local verification
 
 Run these commands from the repository root:
