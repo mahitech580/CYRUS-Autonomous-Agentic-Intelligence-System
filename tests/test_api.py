@@ -500,6 +500,7 @@ class CyrusApiContractTests(unittest.TestCase):
             ("ProviderConnectionError", "provider_or_network", "check_provider_connectivity"),
             ("DeadlineExceededError", "timeout", "reduce_scope_and_inspect_trace"),
             ("APIKeyMissingError", "provider_configuration", "correct_provider_configuration"),
+            ("ProviderBillingError", "provider_billing", "check_provider_billing"),
             ("ProviderRequestError", "provider_request", "review_request_contract"),
             ("ProviderResponseError", "provider_response", "inspect_response_format"),
             ("UnauthorizedError", "provider_configuration", "correct_provider_configuration"),
