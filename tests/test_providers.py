@@ -138,6 +138,32 @@ class ProviderConfigurationTests(unittest.TestCase):
                         provider.plan("Build a safe API")
                 self.assertIn("HTTP " + str(status), str(raised.exception))
 
+    def test_retry_after_header_is_numeric_and_bounded(self):
+        provider = providers.OpenAICompatibleProvider(
+            api_key="unit-test-secret",
+            base_url="https://provider.example/v1",
+            model="unit-model",
+        )
+        for header, expected in [
+            ("9999999999", 86400),
+            ("tomorrow", None),
+            ("-10", None),
+            ("1.5", None),
+            ("", None),
+        ]:
+            with self.subTest(retry_after=header):
+                error = HTTPError(
+                    "https://provider.example/v1/chat/completions",
+                    429,
+                    "too many requests",
+                    {"Retry-After": header},
+                    io.BytesIO(b'{"error":"rate limited"}'),
+                )
+                with patch("providers.urlopen", side_effect=error):
+                    with self.assertRaises(providers.ProviderRateLimitError) as raised:
+                        provider.plan("Build a safe API")
+                self.assertEqual(raised.exception.retry_after_seconds, expected)
+
     def test_http_429_preserves_rate_limit_category_and_safe_retry_after(self):
         provider = providers.OpenAICompatibleProvider(
             api_key="unit-test-secret",
