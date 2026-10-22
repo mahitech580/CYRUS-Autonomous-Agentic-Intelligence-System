@@ -3,6 +3,8 @@ import json
 import os
 import unittest
 from unittest.mock import patch
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 from urllib.error import HTTPError, URLError
 
 import providers
@@ -137,6 +139,18 @@ class ProviderConfigurationTests(unittest.TestCase):
                     with self.assertRaises(expected) as raised:
                         provider.plan("Build a safe API")
                 self.assertIn("HTTP " + str(status), str(raised.exception))
+
+    def test_retry_after_parser_supports_http_dates_and_expired_values(self):
+        future = datetime.now(timezone.utc) + timedelta(seconds=300)
+        seconds = providers._parse_retry_after_seconds(format_datetime(future, usegmt=True))
+        self.assertIsNotNone(seconds)
+        self.assertGreaterEqual(seconds, 290)
+        self.assertLessEqual(seconds, 300)
+
+        past = datetime.now(timezone.utc) - timedelta(seconds=10)
+        self.assertEqual(providers._parse_retry_after_seconds(format_datetime(past, usegmt=True)), 0)
+        self.assertIsNone(providers._parse_retry_after_seconds("not-an-http-date"))
+        self.assertEqual(providers._parse_retry_after_seconds("9999999999"), 86400)
 
     def test_retry_after_header_is_numeric_and_bounded(self):
         provider = providers.OpenAICompatibleProvider(
