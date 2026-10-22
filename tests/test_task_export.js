@@ -87,6 +87,40 @@ test('preserves retry lineage across JSON, Markdown and CSV exports', () => {
   assert.ok(csv.includes('The execution deadline was reached'));
 });
 
+test('exports provider billing action without exposing raw provider diagnostics', () => {
+  const task = {
+    task_id: 'CYRUS-BILLING-402-EXPORT',
+    objective: 'Recover from a billing-related provider failure',
+    status: 'FAILED',
+    failure: { type: 'ProviderBillingError', message: 'private billing response sentinel' },
+    recovery_guidance: {
+      schema_version: 1,
+      category: 'provider_billing',
+      recommended_action: 'check_provider_billing',
+      status: 'FAILED',
+      headline: 'The provider requires billing or account-limit attention.',
+      explanation: 'The provider rejected the request with a billing-related response.',
+      steps: ['Check account credits and usage limits.'],
+      retry_guidance: 'Resolve billing or account limits first.',
+      retry_after_seconds: null
+    }
+  };
+  const report = buildTaskReport(task);
+  assert.equal(report.task.recovery_guidance.category, 'provider_billing');
+  assert.equal(report.task.recovery_guidance.recommended_action, 'check_provider_billing');
+  assert.ok(!JSON.stringify(report).includes('private billing response sentinel'));
+
+  const markdown = buildTaskMarkdownReport(task);
+  assert.match(markdown, /Recommended action:\*\* check_provider_billing/);
+  assert.match(markdown, /The provider requires billing or account-limit attention/);
+  assert.ok(!markdown.includes('private billing response sentinel'));
+
+  const csv = buildTaskCsvReport(task);
+  assert.ok(csv.includes('check_provider_billing'));
+  assert.ok(csv.includes('The provider requires billing or account-limit attention'));
+  assert.ok(!csv.includes('private billing response sentinel'));
+});
+
 test('redacts sensitive keys inside attached recovery guidance', () => {
   const report = buildTaskReport({
     task_id: 'CYRUS-RECOVERY-SAFE',
