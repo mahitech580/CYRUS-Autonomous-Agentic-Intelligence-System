@@ -88,6 +88,27 @@ class ProviderConfigurationTests(unittest.TestCase):
         self.assertEqual(json.loads(request.data)["model"], "unit-model")
         self.assertNotIn("unit-test-secret", repr(result))
 
+    def test_http_429_preserves_rate_limit_category_and_safe_retry_after(self):
+        provider = providers.OpenAICompatibleProvider(
+            api_key="unit-test-secret",
+            base_url="https://provider.example/v1",
+            model="unit-model",
+        )
+        error = HTTPError(
+            "https://provider.example/v1/chat/completions",
+            429,
+            "too many requests",
+            {"Retry-After": "15"},
+            io.BytesIO(b'{"error":"quota exceeded","authorization":"Bearer private-provider-secret-12345"}'),
+        )
+        with patch("providers.urlopen", side_effect=error):
+            with self.assertRaises(providers.ProviderRateLimitError) as raised:
+                provider.plan("Build a safe API")
+        message = str(raised.exception)
+        self.assertIn("HTTP 429", message)
+        self.assertNotIn("private-provider-secret-12345", message)
+        self.assertIn("[redacted]", message.lower())
+
     def test_http_401_and_403_preserve_authentication_error_type(self):
         provider = providers.OpenAICompatibleProvider(
             api_key="unit-test-secret",
