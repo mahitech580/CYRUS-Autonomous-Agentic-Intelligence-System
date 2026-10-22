@@ -29,6 +29,14 @@ class ProviderAuthenticationError(ProviderError):
 class ProviderRateLimitError(ProviderError):
     """Provider rejected a request because of quota or rate limiting."""
 
+    def __init__(self, message: str, retry_after_seconds: int | None = None):
+        super().__init__(message)
+        self.retry_after_seconds = (
+            max(0, min(int(retry_after_seconds), 86400))
+            if isinstance(retry_after_seconds, int) and not isinstance(retry_after_seconds, bool)
+            else None
+        )
+
 
 class ProviderConnectionError(ProviderError):
     """The backend could not establish or maintain provider connectivity."""
@@ -190,7 +198,17 @@ class OpenAICompatibleProvider:
             if exc.code in {401, 403}:
                 error_type = ProviderAuthenticationError
             elif exc.code == 429:
-                error_type = ProviderRateLimitError
+                retry_header = ""
+                try:
+                    retry_header = str((exc.headers or {}).get("Retry-After", "")).strip()
+                except Exception:
+                    retry_header = ""
+                retry_after_seconds = (
+                    min(int(retry_header), 86400)
+                    if re.fullmatch(r"[0-9]{1,10}", retry_header)
+                    else None
+                )
+                raise ProviderRateLimitError(message, retry_after_seconds=retry_after_seconds) from None
             elif exc.code in {408, 504}:
                 error_type = ProviderTimeoutError
             elif 500 <= exc.code <= 599:
