@@ -160,6 +160,35 @@ async function main() {
   assert.match(authGuidance.body.retry_guidance, /Fix the configuration first/);
   assert.ok(!JSON.stringify(authGuidance.body).includes("configured credential"));
 
+  for (const [failureType, expectedCategory] of [
+    ["GeneratedArtifactError", "execution_failure"],
+    ["RateLimitExceededError", "rate_limited"],
+    ["HTTP429Error", "rate_limited"],
+    ["ProviderConnectionError", "provider_or_network"],
+    ["DeadlineExceededError", "timeout"],
+    ["APIKeyMissingError", "provider_configuration"]
+  ]) {
+    const caseHarness = makeHarness({storedTasks: [{
+      task_id: "DEMO-TOKEN-" + failureType,
+      objective: "Verify recovery exception classification",
+      mode: "autonomous",
+      status: "FAILED",
+      provider: "openai",
+      failure: {type: failureType, message: "private-classification-sentinel"},
+      created_at: new Date().toISOString(),
+      events: []
+    }]});
+    const classified = await caseHarness.json(
+      "/api/tasks/" + encodeURIComponent("DEMO-TOKEN-" + failureType) + "/recovery"
+    );
+    assert.equal(classified.response.status, 200, failureType);
+    assert.equal(classified.body.category, expectedCategory, failureType);
+    assert.ok(!JSON.stringify(classified.body).includes("private-classification-sentinel"));
+    if (expectedCategory === "rate_limited") {
+      assert.match(classified.body.retry_guidance, /reset window/);
+    }
+  }
+
   const timeoutRetry = await timeoutHarness.json("/api/tasks/" + encodeURIComponent(timedOutId) + "/retry", {
     method: "POST",
     headers: {"Idempotency-Key": "demo-timeout-retry-001"}
