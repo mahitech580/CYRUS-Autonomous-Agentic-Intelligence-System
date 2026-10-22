@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import server
-from providers import DeterministicProvider, ProviderRateLimitError
+from providers import DeterministicProvider, ProviderRateLimitError, ProviderBillingError
 from storage import HistoryStore
 
 
@@ -415,6 +415,37 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(result["category"], "provider_or_network")
         self.assertIn("rate limits", " ".join(result["steps"]).lower())
         self.assertIn("may incur", result["retry_guidance"].lower())
+
+    def test_provider_billing_failure_reaches_guidance_without_raw_body(self):
+        task = {
+            "task_id": "CYRUS-BILLING-402",
+            "created_at": server.now_iso(),
+            "updated_at": server.now_iso(),
+            "objective": "Test provider billing guidance",
+            "mode": "autonomous",
+            "status": "RUNNING",
+            "current_agent": "PLANNER",
+            "agents": [{"name": "PLANNER", "status": "RUNNING"}],
+            "events": [],
+            "retry_number": 0,
+            "max_task_retries": 3,
+        }
+        billing_error = ProviderBillingError(
+            "LLM provider returned HTTP 402: [redacted]",
+        )
+        with patch.object(server, "_run_task", side_effect=billing_error), patch.object(
+            server, "persist_task"
+        ):
+            server.execute_task(task)
+
+        self.assertEqual(task["status"], "FAILED")
+        self.assertEqual(task["failure"]["type"], "ProviderBillingError")
+        self.assertNotIn("billing-private-sentinel", task["failure"]["message"])
+        guidance = server.task_recovery_guidance(task)
+        self.assertEqual(guidance["category"], "provider_billing")
+        self.assertEqual(guidance["recommended_action"], "check_provider_billing")
+        self.assertIsNone(guidance["retry_after_seconds"])
+        self.assertIn("available credits", " ".join(guidance["steps"]))
 
     def test_provider_retry_after_survives_task_failure_into_recovery_guidance(self):
         task = {
