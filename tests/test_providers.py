@@ -88,6 +88,19 @@ class ProviderConfigurationTests(unittest.TestCase):
         self.assertEqual(json.loads(request.data)["model"], "unit-model")
         self.assertNotIn("unit-test-secret", repr(result))
 
+    def test_url_error_is_typed_as_connection_failure(self):
+        provider = providers.OpenAICompatibleProvider(
+            api_key="unit-test-secret",
+            base_url="https://provider.example/v1",
+            model="unit-model",
+        )
+        with patch("providers.urlopen", side_effect=URLError("Bearer network-private-secret-12345")):
+            with self.assertRaises(providers.ProviderConnectionError) as raised:
+                provider.plan("Build a safe API")
+        self.assertIn("Could not reach", str(raised.exception))
+        self.assertNotIn("network-private-secret-12345", str(raised.exception))
+        self.assertIn("[redacted]", str(raised.exception).lower())
+
     def test_provider_timeout_is_typed_for_recovery_guidance(self):
         provider = providers.OpenAICompatibleProvider(
             api_key="unit-test-secret",
