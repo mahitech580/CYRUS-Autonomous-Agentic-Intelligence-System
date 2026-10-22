@@ -120,6 +120,27 @@ async function main() {
   assert.equal(timeoutRecovery.body.synthetic_demo, true);
   assert.equal(timeoutRecovery.body.can_retry, true);
   assert.equal(timeoutRecovery.body.source, "deterministic_runtime_guidance");
+  assert.equal(timeoutRecovery.body.recommended_action, "review_demo_limits");
+
+  for (const [taskId, status, expectedCategory, expectedAction] of [
+    ["DEMO-ACTION-CANCELLED", "CANCELLED", "cancelled", "review_stop_point"],
+    ["DEMO-ACTION-COMPLETED", "COMPLETED", "completed", "verify_in_sandbox"],
+    ["DEMO-ACTION-RUNNING", "RUNNING", "in_progress", "monitor_or_cancel"],
+    ["DEMO-ACTION-APPROVAL", "AWAITING_APPROVAL", "in_progress", "monitor_or_cancel"]
+  ]) {
+    const stateHarness = makeHarness({storedTasks: [{
+      task_id: taskId,
+      objective: "Verify recovery state actions",
+      mode: "autonomous",
+      status,
+      created_at: new Date().toISOString(),
+      events: []
+    }]});
+    const stateGuidance = await stateHarness.json("/api/tasks/" + encodeURIComponent(taskId) + "/recovery");
+    assert.equal(stateGuidance.response.status, 200);
+    assert.equal(stateGuidance.body.category, expectedCategory);
+    assert.equal(stateGuidance.body.recommended_action, expectedAction);
+  }
 
   const guidanceSecret = "recovery-private-sentinel";
   const guidanceHarness = makeHarness({storedTasks: [{
