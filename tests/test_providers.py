@@ -115,6 +115,28 @@ class ProviderConfigurationTests(unittest.TestCase):
         self.assertIn("timed out", str(raised.exception).lower())
         self.assertNotIn("unit-test-secret", str(raised.exception))
 
+    def test_common_4xx_request_rejections_have_a_distinct_type(self):
+        provider = providers.OpenAICompatibleProvider(
+            api_key="unit-test-secret",
+            base_url="https://provider.example/v1",
+            model="unit-model",
+        )
+        for status in (400, 404, 405, 413, 415, 422):
+            with self.subTest(status=status):
+                error = HTTPError(
+                    "https://provider.example/v1/chat/completions",
+                    status,
+                    "request rejected",
+                    {},
+                    io.BytesIO(b'{"message":"request contract invalid"}'),
+                )
+                with patch("providers.urlopen", side_effect=error):
+                    with self.assertRaises(providers.ProviderRequestError) as raised:
+                        provider.plan("Build a safe API")
+                self.assertIsInstance(raised.exception, providers.ProviderError)
+                self.assertIn("HTTP " + str(status), str(raised.exception))
+                self.assertNotIn("unit-test-secret", str(raised.exception))
+
     def test_http_5xx_is_typed_as_provider_unavailable(self):
         provider = providers.OpenAICompatibleProvider(
             api_key="unit-test-secret",
