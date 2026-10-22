@@ -3151,3 +3151,11 @@ body:after{
 .task-recovery-budget.exhausted{border-color:rgba(255,190,115,.22);background:rgba(255,190,115,.025)}
 .task-recovery-budget.exhausted>strong{color:#ffd2a4}
 @media(max-width:520px){.task-recovery-budget{grid-template-columns:1fr;gap:6px}.task-recovery-budget>strong{text-align:left}.task-recovery-budget>small{grid-column:auto}}
+
+
+/* Machine-readable recovery action surfaced to operators. */
+.task-recovery-action{display:flex;flex-direction:column;gap:6px;margin:10px 0 12px;padding:11px 12px;border-left:2px solid rgba(98,221,170,.5);background:rgba(98,221,170,.045);min-width:0}
+.task-recovery-action>span{font:8px var(--mono);letter-spacing:.12em;color:var(--muted)}
+.task-recovery-action>strong{font:10px/1.5 var(--mono);letter-spacing:.035em;color:#9de9c7;overflow-wrap:anywhere}
+.task-recovery-category.rate-limited+.task-recovery-toggle{color:#ffbf77}
+@media(max-width:520px){.task-recovery-action{padding:9px 10px}.task-recovery-action>strong{font-size:9px}}
