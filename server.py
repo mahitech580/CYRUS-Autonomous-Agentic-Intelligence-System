@@ -1595,6 +1595,7 @@ def task_recovery_guidance(task):
 
     if synthetic_demo:
         category = "synthetic_demo"
+        action_code = "review_demo_limits"
         headline = "This is a browser-only simulation."
         explanation = "The local demo records a simulated outcome; it did not call a model provider or execute user code."
         steps = [
@@ -1605,6 +1606,7 @@ def task_recovery_guidance(task):
         retry_guidance = "Retrying a synthetic failed or timed-out record creates another simulated record."
     elif status == "TIMED_OUT" or _failure_type_has(tokens, ("timeout", "timedout", "deadline")):
         category = "timeout"
+        action_code = "reduce_scope_and_inspect_trace"
         headline = "The execution deadline was reached."
         explanation = "The runtime stopped this attempt at its configured deadline; the record does not establish that proposed tests ran."
         steps = [
@@ -1615,6 +1617,7 @@ def task_recovery_guidance(task):
         retry_guidance = "Start an explicit retry only when repeating the requested work is safe."
     elif _failure_type_has(tokens, ("auth", "credential", "config")) or "apikey" in tokens or ("api" in tokens and "key" in tokens):
         category = "provider_configuration"
+        action_code = "correct_provider_configuration"
         headline = "Provider configuration needs attention."
         explanation = "The failure type suggests an authentication or configuration problem; secret values are intentionally not shown here."
         steps = [
@@ -1625,6 +1628,7 @@ def task_recovery_guidance(task):
         retry_guidance = "Fix the configuration first; a retry alone will not correct missing credentials."
     elif _failure_type_has(tokens, ("rate", "quota", "throttl")) or any("429" in token for token in tokens):
         category = "rate_limited"
+        action_code = "wait_for_provider_reset"
         headline = "The provider request limit was reached."
         explanation = "The failure type suggests a quota or rate limit; recovery guidance does not expose credential or response-body content."
         steps = [
@@ -1635,6 +1639,7 @@ def task_recovery_guidance(task):
         retry_guidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt."
     elif _failure_type_has(tokens, ("provider", "connection", "connect", "network", "http", "socket", "dns", "transport")):
         category = "provider_or_network"
+        action_code = "check_provider_connectivity"
         headline = "The provider or network request failed."
         explanation = "CYRUS records provider failures rather than silently substituting a successful result."
         steps = [
@@ -1645,6 +1650,7 @@ def task_recovery_guidance(task):
         retry_guidance = "A retry is explicit and may incur another provider request."
     elif status == "CANCELLED":
         category = "cancelled"
+        action_code = "review_stop_point"
         headline = "The execution was cancelled."
         explanation = "Cancellation is a terminal state, not proof that the objective completed."
         steps = [
@@ -1655,6 +1661,7 @@ def task_recovery_guidance(task):
         retry_guidance = "A new attempt is available when the configured retry budget allows it."
     elif status == "FAILED":
         category = "execution_failure"
+        action_code = "inspect_last_successful_stage"
         headline = "The execution failed."
         explanation = "The available record does not contain enough validated evidence to infer a more specific root cause."
         steps = [
@@ -1665,6 +1672,7 @@ def task_recovery_guidance(task):
         retry_guidance = "Retrying creates a fresh record and does not reuse the prior attempt's artifacts as validated output."
     elif status in {"COMPLETED"}:
         category = "completed"
+        action_code = "verify_in_sandbox"
         headline = "No recovery action is required for this attempt."
         explanation = "The task reached its recorded terminal state; completion does not mean proposed application tests were executed."
         steps = [
@@ -1674,6 +1682,7 @@ def task_recovery_guidance(task):
         retry_guidance = "Completed tasks are not retryable; create a new objective for additional work."
     else:
         category = "in_progress"
+        action_code = "monitor_or_cancel"
         headline = "The execution is not in a retryable terminal state."
         explanation = "The task is queued, running, or waiting for approval; creating a parallel retry is not recommended."
         steps = [
@@ -1689,6 +1698,7 @@ def task_recovery_guidance(task):
         "task_id": task_id,
         "status": status,
         "category": category,
+        "recommended_action": action_code,
         "headline": headline,
         "explanation": explanation,
         "steps": steps,
