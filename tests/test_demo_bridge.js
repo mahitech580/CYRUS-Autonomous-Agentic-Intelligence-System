@@ -183,6 +183,7 @@ async function main() {
 
   for (const [failureType, expectedCategory, expectedAction] of [
     ["GeneratedArtifactError", "execution_failure", "inspect_last_successful_stage"],
+    ["ProviderResponseError", "provider_response", "inspect_response_format"],
     ["RateLimitExceededError", "rate_limited", "wait_for_provider_reset"],
     ["HTTP429Error", "rate_limited", "wait_for_provider_reset"],
     ["ProviderConnectionError", "provider_or_network", "check_provider_connectivity"],
