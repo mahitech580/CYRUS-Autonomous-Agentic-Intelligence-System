@@ -411,6 +411,10 @@ for (const errorType of [
 assert.ok(fs.readFileSync("providers.py", "utf8").includes("error_type = ProviderRateLimitError"), "HTTP 429 must preserve a recovery-classifiable error type");
 assert.ok(fs.readFileSync("server.py", "utf8").includes('action_code = "inspect_response_format"'), "Malformed provider responses need dedicated safe guidance");
 assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes('actionCode = "inspect_response_format"'), "Browser demo must mirror provider response guidance");
+assert.ok(fs.readFileSync("providers.py", "utf8").includes("retry_after_seconds=retry_after_seconds"), "Provider Retry-After must be bounded before leaving the adapter");
+assert.ok(fs.readFileSync("server.py", "utf8").includes('"retry_after_seconds": retry_after_seconds'), "Recovery API must expose validated Retry-After metadata");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("task-recovery-retry-after"), "Execution inspector must present Retry-After without automatic submission");
+assert.ok(fs.readFileSync("styles.css", "utf8").includes(".task-recovery-retry-after"), "Retry-After warning needs a distinct visual state");
 assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes('category = "rate_limited"'), "Browser demo must mirror rate-limit recovery guidance");
 assert.ok(fs.readFileSync("styles.css", "utf8").includes(".task-recovery-category.rate-limited"), "Rate-limit recovery guidance needs a distinct status treatment");
 console.log("Retry lineage smoke: bounded API, timeline UI, responsive styling and JSON/Markdown/CSV contracts OK");
