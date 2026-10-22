@@ -317,7 +317,7 @@
         "Do not use the synthetic score, artifacts, or outcome as evidence of application correctness."
       ];
       retryGuidance = "Retrying a synthetic failed or timed-out record creates another simulated record.";
-    } else if (status === "TIMED_OUT" || failureTypeHas(tokens, ["timeout", "timedout", "deadline"])) {
+    } else if (status === "TIMED_OUT" || failureTypeHas(tokens, ["timeout", "timedout", "timed", "deadline"])) {
       category = "timeout";
       actionCode = "reduce_scope_and_inspect_trace";
       headline = "The execution deadline was reached.";
@@ -328,7 +328,7 @@
         "Inspect the trace to identify the last completed stage before retrying."
       ];
       retryGuidance = "Retry explicitly only when repeating the requested work is safe.";
-    } else if (failureTypeHas(tokens, ["auth", "credential", "config"]) || tokens.includes("apikey") || (tokens.includes("api") && tokens.includes("key"))) {
+    } else if (failureTypeHas(tokens, ["auth", "unauth", "credential", "config", "forbidden", "permission"]) || tokens.includes("apikey") || (tokens.includes("api") && tokens.includes("key"))) {
       category = "provider_configuration";
       actionCode = "correct_provider_configuration";
       headline = "Provider configuration needs attention.";
@@ -339,7 +339,7 @@
         "Review sanitized provider diagnostics before retrying."
       ];
       retryGuidance = "Fix the configuration first; a retry alone will not correct missing credentials.";
-    } else if (failureTypeHas(tokens, ["rate", "quota", "throttl"]) || tokens.some((token) => token.includes("429"))) {
+    } else if (failureTypeHas(tokens, ["rate", "ratelimit", "quota", "throttl"]) || tokens.some((token) => token.includes("429")) || ["too", "many", "requests"].every((token) => tokens.includes(token))) {
       category = "rate_limited";
       actionCode = "wait_for_provider_reset";
       headline = "The provider request limit was reached.";
@@ -350,7 +350,7 @@
         "Reduce concurrency or request size if the limit is sustained."
       ];
       retryGuidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt.";
-    } else if (failureTypeHas(tokens, ["provider", "connection", "connect", "network", "http", "socket", "dns", "transport"])) {
+    } else if (failureTypeHas(tokens, ["provider", "connection", "connect", "network", "http", "socket", "dns", "transport", "unreachable"]) || ["service", "unavailable"].every((token) => tokens.includes(token))) {
       category = "provider_or_network";
       actionCode = "check_provider_connectivity";
       headline = "The provider or network request failed.";
