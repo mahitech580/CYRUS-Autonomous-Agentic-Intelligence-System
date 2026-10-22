@@ -160,13 +160,13 @@ async function main() {
   assert.match(authGuidance.body.retry_guidance, /Fix the configuration first/);
   assert.ok(!JSON.stringify(authGuidance.body).includes("configured credential"));
 
-  for (const [failureType, expectedCategory] of [
-    ["GeneratedArtifactError", "execution_failure"],
-    ["RateLimitExceededError", "rate_limited"],
-    ["HTTP429Error", "rate_limited"],
-    ["ProviderConnectionError", "provider_or_network"],
-    ["DeadlineExceededError", "timeout"],
-    ["APIKeyMissingError", "provider_configuration"]
+  for (const [failureType, expectedCategory, expectedAction] of [
+    ["GeneratedArtifactError", "execution_failure", "inspect_last_successful_stage"],
+    ["RateLimitExceededError", "rate_limited", "wait_for_provider_reset"],
+    ["HTTP429Error", "rate_limited", "wait_for_provider_reset"],
+    ["ProviderConnectionError", "provider_or_network", "check_provider_connectivity"],
+    ["DeadlineExceededError", "timeout", "reduce_scope_and_inspect_trace"],
+    ["APIKeyMissingError", "provider_configuration", "correct_provider_configuration"]
   ]) {
     const caseHarness = makeHarness({storedTasks: [{
       task_id: "DEMO-TOKEN-" + failureType,
@@ -183,6 +183,7 @@ async function main() {
     );
     assert.equal(classified.response.status, 200, failureType);
     assert.equal(classified.body.category, expectedCategory, failureType);
+    assert.equal(classified.body.recommended_action, expectedAction, failureType);
     assert.ok(!JSON.stringify(classified.body).includes("private-classification-sentinel"));
     if (expectedCategory === "rate_limited") {
       assert.match(classified.body.retry_guidance, /reset window/);
