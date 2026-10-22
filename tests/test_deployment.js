@@ -408,7 +408,7 @@ for (const errorType of [
 ]) {
   assert.ok(fs.readFileSync("providers.py", "utf8").includes("class " + errorType + "("), "Missing typed provider failure: " + errorType);
 }
-assert.ok(fs.readFileSync("providers.py", "utf8").includes("error_type = ProviderRateLimitError"), "HTTP 429 must preserve a recovery-classifiable error type");
+assert.ok(fs.readFileSync("providers.py", "utf8").includes("raise ProviderRateLimitError(message, retry_after_seconds=retry_after_seconds)"), "HTTP 429 must preserve a recovery-classifiable error type and bounded wait hint");
 assert.ok(fs.readFileSync("server.py", "utf8").includes('action_code = "inspect_response_format"'), "Malformed provider responses need dedicated safe guidance");
 assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes('actionCode = "inspect_response_format"'), "Browser demo must mirror provider response guidance");
 assert.ok(fs.readFileSync("providers.py", "utf8").includes("retry_after_seconds=retry_after_seconds"), "Provider Retry-After must be bounded before leaving the adapter");
