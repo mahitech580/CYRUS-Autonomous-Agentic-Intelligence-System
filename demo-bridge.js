@@ -350,6 +350,17 @@
         "Reduce concurrency or request size if the limit is sustained."
       ];
       retryGuidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt.";
+    } else if (failureTypeHas(tokens, ["response", "malformed", "decode"])) {
+      category = "provider_response";
+      actionCode = "inspect_response_format";
+      headline = "The provider response could not be used.";
+      explanation = "The provider reply was malformed, incomplete, or outside supported bounds; raw response content is not exposed in recovery guidance.";
+      steps = [
+        "Verify the configured endpoint and model are compatible with the expected chat-completions response format.",
+        "Inspect the sanitized provider diagnostic and response-size limits.",
+        "Avoid repeated requests until the response shape or endpoint configuration is corrected."
+      ];
+      retryGuidance = "Correct the response-format or endpoint issue before retrying; the guidance intentionally omits raw response content.";
     } else if (failureTypeHas(tokens, ["provider", "connection", "connect", "network", "http", "socket", "dns", "transport", "unreachable"]) || ["service", "unavailable"].every((token) => tokens.includes(token))) {
       category = "provider_or_network";
       actionCode = "check_provider_connectivity";
