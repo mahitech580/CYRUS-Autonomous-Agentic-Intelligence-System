@@ -303,6 +303,10 @@
     if (!task) return null;
     const status = String(task.status || "UNKNOWN").toUpperCase();
     const tokens = failureTypeTokens(task.failure?.type);
+    const rawRetryAfter = task.failure?.retry_after_seconds;
+    const retryAfterSeconds = Number.isInteger(rawRetryAfter) && rawRetryAfter >= 0 && rawRetryAfter <= 86400
+      ? rawRetryAfter
+      : null;
     const syntheticDemo = task.provider === "browser-demo" ||
       String(task.verification_status || "").toUpperCase() === "SYNTHETIC_DEMO_ONLY";
     let category, actionCode, headline, explanation, steps, retryGuidance;
@@ -349,7 +353,12 @@
         "Wait for the provider's reset window instead of repeatedly resubmitting the same request.",
         "Reduce concurrency or request size if the limit is sustained."
       ];
-      retryGuidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt.";
+      if (retryAfterSeconds !== null) {
+        steps.splice(1, 0, "Honor the provider's Retry-After hint and wait " + retryAfterSeconds + " seconds before resubmitting.");
+        retryGuidance = "Wait at least " + retryAfterSeconds + " seconds before another explicit provider-backed attempt.";
+      } else {
+        retryGuidance = "Wait for the provider's reset window to pass before starting another provider-backed attempt.";
+      }
     } else if (failureTypeHas(tokens, ["response", "malformed", "decode"])) {
       category = "provider_response";
       actionCode = "inspect_response_format";
@@ -431,6 +440,7 @@
       retry_number: summary.retry_number,
       max_task_retries: summary.max_task_retries,
       effective_max_task_retries: summary.effective_max_task_retries,
+      retry_after_seconds: retryAfterSeconds,
       synthetic_demo: syntheticDemo,
       source: "deterministic_runtime_guidance"
     };
