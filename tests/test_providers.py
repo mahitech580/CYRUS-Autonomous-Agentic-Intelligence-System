@@ -88,6 +88,18 @@ class ProviderConfigurationTests(unittest.TestCase):
         self.assertEqual(json.loads(request.data)["model"], "unit-model")
         self.assertNotIn("unit-test-secret", repr(result))
 
+    def test_provider_timeout_is_typed_for_recovery_guidance(self):
+        provider = providers.OpenAICompatibleProvider(
+            api_key="unit-test-secret",
+            base_url="https://provider.example/v1",
+            model="unit-model",
+        )
+        with patch("providers.urlopen", side_effect=TimeoutError()):
+            with self.assertRaises(providers.ProviderTimeoutError) as raised:
+                provider.plan("Build a safe API")
+        self.assertIn("timed out", str(raised.exception).lower())
+        self.assertNotIn("unit-test-secret", str(raised.exception))
+
     def test_http_5xx_is_typed_as_provider_unavailable(self):
         provider = providers.OpenAICompatibleProvider(
             api_key="unit-test-secret",
