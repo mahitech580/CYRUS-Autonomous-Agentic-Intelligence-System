@@ -290,11 +290,19 @@
       attempts: orderedIds.map(find).filter(Boolean).map(taskSummary)
     };
   };
+  const failureTypeTokens = (value) => String(value || "")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .match(/[a-z0-9]+/g) || [];
+  const failureTypeHas = (tokens, prefixes) =>
+    tokens.some((token) => prefixes.some((prefix) => token.startsWith(prefix)));
+
   const recoveryGuidance = (rawTask) => {
     const task = normalizeTask(rawTask);
     if (!task) return null;
     const status = String(task.status || "UNKNOWN").toUpperCase();
-    const failureType = String(task.failure?.type || "").toLowerCase();
+    const tokens = failureTypeTokens(task.failure?.type);
     const syntheticDemo = task.provider === "browser-demo" ||
       String(task.verification_status || "").toUpperCase() === "SYNTHETIC_DEMO_ONLY";
     let category, headline, explanation, steps, retryGuidance;
@@ -308,7 +316,7 @@
         "Do not use the synthetic score, artifacts, or outcome as evidence of application correctness."
       ];
       retryGuidance = "Retrying a synthetic failed or timed-out record creates another simulated record.";
-    } else if (status === "TIMED_OUT" || failureType.includes("timeout") || failureType.includes("timedout")) {
+    } else if (status === "TIMED_OUT" || failureTypeHas(tokens, ["timeout", "timedout", "deadline"])) {
       category = "timeout";
       headline = "The execution deadline was reached.";
       explanation = "The runtime stopped this attempt at its configured deadline; proposed application tests are not thereby verified.";
@@ -318,7 +326,7 @@
         "Inspect the trace to identify the last completed stage before retrying."
       ];
       retryGuidance = "Retry explicitly only when repeating the requested work is safe.";
-    } else if (["auth", "credential", "api_key", "configuration"].some((part) => failureType.includes(part))) {
+    } else if (failureTypeHas(tokens, ["auth", "credential", "config"]) || tokens.includes("apikey") || (tokens.includes("api") && tokens.includes("key"))) {
       category = "provider_configuration";
       headline = "Provider configuration needs attention.";
       explanation = "The failure type suggests an authentication or configuration problem; secret values are intentionally not shown here.";
@@ -328,12 +336,22 @@
         "Review sanitized provider diagnostics before retrying."
       ];
       retryGuidance = "Fix the configuration first; a retry alone will not correct missing credentials.";
-    } else if (["provider", "connection", "network", "rate", "http"].some((part) => failureType.includes(part))) {
+    } else if (failureTypeHas(tokens, ["rate", "quota", "throttl"]) || tokens.some((token) => token.includes("429"))) {
+      category = "rate_limited";
+      headline = "The provider request limit was reached.";
+      explanation = "The failure type suggests a quota or rate limit; recovery guidance does not expose credential or response-body content.";
+      steps = [
+        "Check the provider's quota and rate-limit response headers in sanitized diagnostics.",
+        "Wait for the provider's reset window instead of repeatedly resubmitting the same request.",
+        "Reduce concurrency or request size if the limit is sustained."
+      ];
+      retryGuidance = "Wait for the limit window to reset before starting another provider-backed attempt.";
+    } else if (failureTypeHas(tokens, ["provider", "connection", "connect", "network", "http", "socket", "dns", "transport"])) {
       category = "provider_or_network";
       headline = "The provider or network request failed.";
       explanation = "CYRUS records provider failures rather than silently substituting a successful result.";
       steps = [
-        "Check provider availability, rate limits, and outbound network configuration.",
+        "Check provider availability and outbound network configuration.",
         "Inspect the sanitized error type and the last trace event.",
         "Retry after the provider issue is resolved; avoid repeated calls during an outage."
       ];
