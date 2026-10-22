@@ -410,6 +410,8 @@ for (const errorType of [
 ]) {
   assert.ok(fs.readFileSync("providers.py", "utf8").includes("class " + errorType + "("), "Missing typed provider failure: " + errorType);
 }
+assert.ok(fs.readFileSync("providers.py", "utf8").includes("elif exc.code == 402:"), "HTTP 402 must select the billing-specific exception type");
+assert.ok(fs.readFileSync("providers.py", "utf8").includes("error_type = ProviderBillingError"), "Billing response must remain typed before reaching runtime recovery guidance");
 assert.ok(fs.readFileSync("providers.py", "utf8").includes("raise ProviderRateLimitError(message, retry_after_seconds=retry_after_seconds)"), "HTTP 429 must preserve a recovery-classifiable error type and bounded wait hint");
 assert.ok(fs.readFileSync("server.py", "utf8").includes('action_code = "review_request_contract"'), "Rejected requests need dedicated safe guidance");
 assert.ok(fs.readFileSync("server.py", "utf8").includes('action_code = "check_provider_billing"'), "Billing responses need dedicated recovery guidance");
