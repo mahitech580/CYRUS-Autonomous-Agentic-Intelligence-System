@@ -1738,7 +1738,7 @@ def task_recovery_guidance(task):
         "retry_number": compact.get("retry_number", 0),
         "max_task_retries": compact.get("max_task_retries", MAX_TASK_RETRIES),
         "effective_max_task_retries": compact.get("effective_max_task_retries", MAX_TASK_RETRIES),
-        "retry_after_seconds": retry_after_seconds,
+        "retry_after_seconds": retry_after_seconds if category == "rate_limited" else None,
         "synthetic_demo": synthetic_demo,
         "source": "deterministic_runtime_guidance",
     }
