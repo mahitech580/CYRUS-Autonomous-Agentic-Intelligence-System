@@ -416,6 +416,39 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertIn("rate limits", " ".join(result["steps"]).lower())
         self.assertIn("may incur", result["retry_guidance"].lower())
 
+    def test_recovery_guidance_tokenizes_exception_names_without_false_matches(self):
+        fixtures = [
+            ("GeneratedArtifactError", "execution_failure"),
+            ("RateLimitExceededError", "rate_limited"),
+            ("HTTP429Error", "rate_limited"),
+            ("ProviderConnectionError", "provider_or_network"),
+            ("DeadlineExceededError", "timeout"),
+            ("APIKeyMissingError", "provider_configuration"),
+        ]
+        for failure_type, expected_category in fixtures:
+            task = {
+                "task_id": "CYRUS-TOKEN-" + failure_type,
+                "status": "FAILED",
+                "mode": "autonomous",
+                "provider": "test-provider",
+                "failure": {
+                    "type": failure_type,
+                    "message": "sensitive test payload must not appear",
+                },
+            }
+            with self.subTest(failure_type=failure_type), patch.object(
+                server, "all_task_records", return_value=[task]
+            ):
+                response = self.client.get(
+                    "/api/tasks/" + task["task_id"] + "/recovery"
+                )
+            self.assertEqual(response.status_code, 200)
+            result = response.get_json()
+            self.assertEqual(result["category"], expected_category)
+            self.assertNotIn("sensitive test payload", response.get_data(as_text=True))
+            if expected_category == "rate_limited":
+                self.assertIn("reset window", result["retry_guidance"])
+
     def test_recovery_guidance_distinguishes_cancelled_completed_and_active_states(self):
         fixtures = [
             ({"task_id": "RECOVERY-CANCELLED", "status": "CANCELLED", "max_task_retries": 2}, "cancelled", True),
