@@ -984,6 +984,7 @@ class CyrusApiContractTests(unittest.TestCase):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
                 self.assertGreater(len(response.data), 0)
+                self.assertIn("max-age=300", response.headers.get("Cache-Control", ""))
         private_python = self.client.get("/server.py")
         self.assertEqual(private_python.status_code, 404)
 
