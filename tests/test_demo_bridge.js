@@ -523,6 +523,8 @@ async function main() {
   const storageHealth = await storageUnavailable.json("/api/health");
   assert.equal(storageHealth.body.storage_available, false);
   assert.match(storageHealth.body.storage_warning, /may not persist/);
+  const storageMetrics = await storageUnavailable.json("/api/metrics");
+  assert.equal(storageMetrics.body.storage_available, false);
 
   let result = await harness.json("/api/health");
   assert.equal(result.response.status, 200);
