@@ -5,7 +5,7 @@ const vm = require("vm");
 const source = fs.readFileSync("demo-bridge.js", "utf8");
 const taskExport = require("../task-export.js");
 
-function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = []} = {}) {
+function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = [], storageReadThrows = false} = {}) {
   const store = new Map();
   if (storedTasks.length) store.set("cyrus-demo-tasks-v1", JSON.stringify(storedTasks));
   let originalFetchCalls = 0;
@@ -25,7 +25,10 @@ function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = []} = {}
     },
     CYRUS_TASK_EXPORT: taskExport,
     localStorage: {
-      getItem(key) { return store.has(key) ? store.get(key) : null; },
+      getItem(key) {
+        if (storageReadThrows) throw new Error("simulated storage access denial");
+        return store.has(key) ? store.get(key) : null;
+      },
       setItem(key, value) { store.set(key, String(value)); },
       removeItem(key) { store.delete(key); }
     },
@@ -495,6 +498,11 @@ async function main() {
   const nativeListResponse = await nativeRequestHarness.request(nativeListRequest);
   assert.equal(nativeListResponse.status, 200);
   assert.equal((await nativeListResponse.json())[0].task_id, nativeTask.task_id);
+
+  const storageUnavailable = makeHarness({storageReadThrows: true});
+  const storageHealth = await storageUnavailable.json("/api/health");
+  assert.equal(storageHealth.body.storage_available, false);
+  assert.match(storageHealth.body.storage_warning, /may not persist/);
 
   let result = await harness.json("/api/health");
   assert.equal(result.response.status, 200);
