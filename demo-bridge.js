@@ -791,7 +791,7 @@
       } catch {
         return errorResponse("Could not read the browser-demo archive", 400);
       }
-      const bodyText = typeof rawBody === "string" ? rawBody : "";
+      const bodyText = (typeof rawBody === "string" ? rawBody : "").replace(/^\uFEFF/, "");
       if (bodyText.length > 1024 * 1024) {
         return errorResponse("Browser-demo archive exceeds the 1 MiB limit", 413);
       }
