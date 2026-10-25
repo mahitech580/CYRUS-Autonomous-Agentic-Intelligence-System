@@ -523,6 +523,7 @@ assert.ok(resetDemoApp.includes("EXPORT LOCAL HISTORY"), "Local archive must be 
 assert.ok(resetDemoApp.includes("const importDemoHistory=async event=>"), "Local archive restore must have a file import handler");
 assert.ok(resetDemoApp.includes("IMPORT ARCHIVE"), "Local archive restore must be available from the demo banner");
 assert.ok(resetDemoApp.includes("const previewText="), "Archive import must preview outcomes before confirmation");
+assert.ok(resetDemoApp.includes("archive.task_count!==archive.tasks.length"), "Archive preview must reject inconsistent task counts before confirmation");
 assert.ok(resetDemoApp.includes("TIMED OUT"), "Archive preview must summarize timeout outcomes");
 assert.ok(resetDemoApp.includes("MAX DEPTH"), "Archive preview must show the maximum retry depth");
 assert.ok(resetDemoApp.includes("from \"'+file.name+'\" into this browser?"), "Archive import confirmation must identify the selected file");
