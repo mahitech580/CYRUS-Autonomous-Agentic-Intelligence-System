@@ -7,6 +7,7 @@ const taskExport = require("../task-export.js");
 
 function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = [], storageReadThrows = false} = {}) {
   const store = new Map();
+  const listeners = new Map();
   if (storedTasks.length) store.set("cyrus-demo-tasks-v1", JSON.stringify(storedTasks));
   let originalFetchCalls = 0;
   const originalFetch = fetchImpl || (async () => {
@@ -31,6 +32,10 @@ function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = [], stor
       },
       setItem(key, value) { store.set(key, String(value)); },
       removeItem(key) { store.delete(key); }
+    },
+    addEventListener(type, listener) {
+      if (!listeners.has(type)) listeners.set(type, []);
+      listeners.get(type).push(listener);
     },
     fetch: async (...args) => originalFetch(...args)
   };
@@ -62,6 +67,9 @@ function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = [], stor
     window,
     store,
     originalFetchCalls: () => originalFetchCalls,
+    dispatchStorage(event) {
+      for (const listener of listeners.get("storage") || []) listener(event);
+    },
     async request(path, init) { return window.fetch(path, init); },
     async json(path, init = {}) {
       const options = {...init};
@@ -77,6 +85,35 @@ function makeHarness({explicitDemoMode = true, fetchImpl, storedTasks = [], stor
 }
 
 async function main() {
+  const syncHarness = makeHarness();
+  const initialTabTask = await syncHarness.json("/api/execute", {
+    method: "POST",
+    body: JSON.stringify({prompt: "Task created in the first tab", mode: "autonomous"})
+  });
+  assert.equal(initialTabTask.response.status, 202);
+  const externalSnapshot = JSON.parse(syncHarness.store.get("cyrus-demo-tasks-v1"));
+  const externalTask = {
+    ...externalSnapshot[0],
+    task_id: "DEMO-EXTERNAL-TAB",
+    objective: "Task created in a second tab",
+    idempotency_key: "cross-tab-execute",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  syncHarness.store.set("cyrus-demo-tasks-v1", JSON.stringify([externalTask, ...externalSnapshot]));
+  syncHarness.dispatchStorage({key: "cyrus-demo-tasks-v1", newValue: syncHarness.store.get("cyrus-demo-tasks-v1")});
+  const externalRead = await syncHarness.json("/api/tasks/DEMO-EXTERNAL-TAB");
+  assert.equal(externalRead.response.status, 200, "storage events should refresh another tab's in-memory task list");
+  assert.equal(externalRead.body.objective, "Task created in a second tab");
+  const externalDuplicate = await syncHarness.json("/api/execute", {
+    method: "POST",
+    headers: {"Idempotency-Key": "cross-tab-execute"},
+    body: JSON.stringify({prompt: "Task created in a second tab", mode: "autonomous"})
+  });
+  assert.equal(externalDuplicate.response.status, 200, "external idempotency keys should be reconstructed on sync");
+  assert.equal(externalDuplicate.body.task_id, "DEMO-EXTERNAL-TAB");
+  assert.equal(externalDuplicate.body.deduplicated, true);
+
   const retentionHarness = makeHarness();
   let oldestKeyTaskId = "";
   for (let index = 0; index < 26; index++) {
