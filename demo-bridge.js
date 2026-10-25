@@ -751,6 +751,10 @@
     }
 
     if (path === "/api/demo/import" && method === "POST") {
+      const contentType = readHeader(requestInit, "Content-Type").split(";", 1)[0].trim().toLowerCase();
+      if (contentType !== "application/json" && !(contentType.startsWith("application/") && contentType.endsWith("+json"))) {
+        return errorResponse("Content-Type must be application/json", 415);
+      }
       const exporter = window.CYRUS_TASK_EXPORT;
       if (!exporter || typeof exporter.buildTaskReport !== "function") {
         return errorResponse("Sanitized task export module is unavailable", 503);
