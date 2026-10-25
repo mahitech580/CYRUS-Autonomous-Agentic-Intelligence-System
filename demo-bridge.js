@@ -95,6 +95,47 @@
       // This tab still works if persistent browser storage is unavailable.
     }
   };
+  // Keep multiple tabs on the same local history snapshot. The storage event
+  // fires only in *other* tabs, so syncing here does not create write loops.
+  const syncExternalHistory = () => {
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) throw new Error("Stored demo history must be an array");
+      const seen = new Set();
+      const next = parsed.map(normalizeTask).filter((task) => {
+        if (!task || seen.has(task.task_id)) return false;
+        seen.add(task.task_id);
+        return true;
+      }).slice(0, 25);
+      tasks.splice(0, tasks.length, ...next);
+      requestKeys.clear();
+      for (const task of tasks) {
+        const key = typeof task.idempotency_key === "string" ? task.idempotency_key : "";
+        if (!key) continue;
+        const fingerprint = task.parent_task_id
+          ? JSON.stringify({
+            prompt: task.objective, mode: task.mode,
+            retry_of: task.parent_task_id, retry_number: task.retry_number
+          })
+          : JSON.stringify({prompt: task.objective, mode: task.mode});
+        requestKeys.set(key, {task_id: task.task_id, fingerprint});
+      }
+      while (requestKeys.size > MAX_IDEMPOTENCY_KEYS) {
+        requestKeys.delete(requestKeys.keys().next().value);
+      }
+      storageAvailable = true;
+    } catch {
+      // Preserve the current in-memory snapshot if another tab wrote malformed
+      // data or this browser temporarily denies access to local storage.
+      storageAvailable = false;
+    }
+  };
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("storage", (event) => {
+      if (event?.key === storageKey || event?.key === null) syncExternalHistory();
+    });
+  }
   const find = (id) => tasks.find((task) => task.task_id === id);
   const effectiveRetryLimit = (task) => Math.min(
     clampInteger(task?.max_task_retries, 3, 0, 10),
