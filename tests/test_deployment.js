@@ -534,6 +534,15 @@ for (const behavior of [
 }
 assert.ok(fs.readFileSync("README.md", "utf8").includes("docs/BROWSER_DEMO.md"), "README must link the dedicated browser demo guide");
 console.log("Browser demo docs smoke: opt-in, failure/timeout simulation, archive, caps, and reset documented OK");
+const archiveSchema = JSON.parse(fs.readFileSync("schemas/browser-demo-archive-v1.schema.json", "utf8"));
+assert.equal(archiveSchema.properties.format.const, "CYRUS_BROWSER_DEMO_ARCHIVE");
+assert.equal(archiveSchema.properties.schema_version.const, 1);
+assert.equal(archiveSchema.properties.tasks.maxItems, 25);
+assert.equal(archiveSchema.$defs.executionReport.properties.format.const, "CYRUS_EXECUTION_REPORT");
+assert.ok(archiveSchema.$defs.executionReport.properties.task.required.includes("task_id"));
+assert.ok(fs.readFileSync("docs/BROWSER_DEMO.md", "utf8").includes("schemas/browser-demo-archive-v1.schema.json"));
+console.log("Archive schema smoke: version, task cap, report contract and documentation link OK");
+
 
 
 
