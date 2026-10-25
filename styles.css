@@ -3175,3 +3175,17 @@ body:after{
 .task-recovery-retry-after>strong{font:12px var(--mono);letter-spacing:.05em;color:#ffd2a4}
 .task-recovery-retry-after>small{font:9px/1.5 var(--mono);color:var(--muted)}
 @media(max-width:520px){.task-recovery-retry-after{padding:9px 10px}}
+
+
+/* Live backend connection test states. */
+.api-settings-test{min-height:38px;padding:0 12px;border:1px solid rgba(126,196,255,.25);border-radius:7px;background:rgba(79,157,214,.08);color:#a8d8ff;font:8px var(--mono);cursor:pointer;white-space:nowrap}
+.api-settings-test:hover:not(:disabled){background:rgba(79,157,214,.16)}
+.api-settings-test:disabled{cursor:wait;opacity:.65}
+.api-settings-test-status{display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 11px;border:1px solid rgba(126,196,255,.16);border-radius:7px;background:rgba(79,157,214,.06);font:8px/1.6 var(--mono);overflow-wrap:anywhere}
+.api-settings-test-status.success{border-color:rgba(116,238,171,.25);color:#9be9b8;background:rgba(58,159,103,.07)}
+.api-settings-test-status.error{border-color:rgba(255,139,139,.24);color:#ffaaa6;background:rgba(201,73,73,.07)}
+.api-settings-test-status.info{color:#c1d4e4}
+.api-settings-test-spinner{width:10px;height:10px;flex:0 0 10px;border:1px solid rgba(168,216,255,.3);border-top-color:#a8d8ff;border-radius:50%;animation:api-test-spin .7s linear infinite}
+@keyframes api-test-spin{to{transform:rotate(360deg)}}
+@media(max-width:760px){.api-settings-test{min-height:42px}}
+@media(prefers-reduced-motion:reduce){.api-settings-test-spinner{animation:none}}
