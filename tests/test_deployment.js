@@ -579,6 +579,10 @@ assert.ok(apiSettingsSource.includes("parsed.search||parsed.hash"), "API setting
 const runtimeConfigSourceForSecurity = fs.readFileSync("runtime-config.js", "utf8");
 assert.ok(runtimeConfigSourceForSecurity.includes("normalizeApiBaseUrl"), "Persisted API URLs must be validated on startup");
 assert.ok(runtimeConfigSourceForSecurity.includes("parsed.username || parsed.password || parsed.search || parsed.hash"), "Startup validation must reject credentials and URL suffixes");
+const settingsCssSource = fs.readFileSync("styles.css", "utf8");
+assert.ok(settingsCssSource.includes(".api-settings-test-status.success"), "Successful backend tests need a distinct visible state");
+assert.ok(settingsCssSource.includes(".api-settings-test-status.error"), "Failed backend tests need a distinct visible state");
+assert.ok(settingsCssSource.includes("@media(prefers-reduced-motion:reduce){.api-settings-test-spinner{animation:none}}"), "The connection spinner must respect reduced-motion preferences");
 console.log("API settings smoke: safe URL validation, pre-save health test, and demo isolation OK");
 
 
