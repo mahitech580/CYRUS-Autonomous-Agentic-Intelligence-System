@@ -588,7 +588,7 @@ function App(){
   },[])
   useEffect(()=>{
     const timer=window.setInterval(async()=>{
-      try{setRuntimeMetrics(await apiJson('/api/metrics'));setRuntimeState(s=>s==='DEMO'?'DEMO':'ONLINE')}
+      try{const metrics=await apiJson('/api/metrics');setRuntimeMetrics(metrics);if(window.CYRUS_CONFIG?.explicitDemoMode)setDemoStorageAvailable(metrics.storage_available!==false);setRuntimeState(s=>s==='DEMO'?'DEMO':'ONLINE')}
       catch{setRuntimeState('OFFLINE')}
     },2500)
     return()=>window.clearInterval(timer)
