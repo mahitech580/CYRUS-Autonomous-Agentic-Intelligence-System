@@ -497,6 +497,7 @@
     failed_tasks: tasks.filter((task) => task.status === "FAILED").length,
     cancelled_tasks: tasks.filter((task) => task.status === "CANCELLED").length,
     persisted_tasks: tasks.length,
+    storage_available: storageAvailable,
     average_execution_ms: tasks.length
       ? Math.round(tasks.reduce((sum, task) => sum + (Number(task.execution_time_ms) || 0), 0) / tasks.length)
       : 0
