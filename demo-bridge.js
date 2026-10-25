@@ -777,8 +777,10 @@
       }
       if (!archive || typeof archive !== "object" || Array.isArray(archive) ||
           archive.format !== "CYRUS_BROWSER_DEMO_ARCHIVE" || archive.schema_version !== 1 ||
-          !Array.isArray(archive.tasks)) {
-        return errorResponse("Unsupported browser-demo archive format or schema version", 400);
+          archive.runtime !== "browser-demo" || archive.persistence !== "browser-local-only" ||
+          !Array.isArray(archive.tasks) || !Number.isInteger(archive.task_count) ||
+          archive.task_count !== archive.tasks.length) {
+        return errorResponse("Unsupported browser-demo archive format, metadata, count, or schema version", 400);
       }
       if (archive.tasks.length > 25) {
         return errorResponse("Archive can contain at most 25 task records", 413);
