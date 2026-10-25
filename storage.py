@@ -162,6 +162,10 @@ class HistoryStore:
         conn = None
         try:
             conn = self._connect()
+            # Validate the application table as well as basic connectivity. A
+            # database server can accept connections while the expected schema
+            # is missing (for example, after an incomplete restore).
+            self._execute(conn, f"SELECT task_id FROM {TABLE} LIMIT 0").fetchall()
             row = self._execute(conn, "SELECT 1").fetchone()
             if not row or row[0] != 1:
                 raise RuntimeError("history store health query returned an unexpected result")
