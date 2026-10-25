@@ -563,8 +563,17 @@ assert.equal(archiveSchema.$defs.executionReport.properties.task.properties.obje
 assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes("report.task.objective.length > 4000"));
 assert.ok(fs.readFileSync("docs/BROWSER_DEMO.md", "utf8").includes("schemas/browser-demo-archive-v1.schema.json"));
 console.log("Archive schema smoke: version, task cap, report contract and documentation link OK");
-assert.ok(fs.readFileSync("app.js", "utf8").includes("['localhost','127.0.0.1','::1','[::1]']"), "IPv6 loopback HTTP must be allowed for local API development");
-console.log("API settings smoke: IPv6 loopback is accepted for local HTTP development");
+const apiSettingsSource = fs.readFileSync("app.js", "utf8");
+assert.ok(apiSettingsSource.includes("['localhost','127.0.0.1','::1','[::1]']"), "IPv6 loopback HTTP must be allowed for local API development");
+assert.ok(apiSettingsSource.includes("Test connection"), "API settings must expose a pre-save connection test");
+assert.ok(apiSettingsSource.includes("fetch(candidate+'/api/health'"), "Connection test must probe the selected backend health endpoint");
+assert.ok(apiSettingsSource.includes("credentials:'omit'"), "Connection test must not send cookies to the selected backend");
+assert.ok(apiSettingsSource.includes("Live connection tests are disabled in offline demo mode"), "Offline demo mode must not masquerade as a live connection test");
+assert.ok(apiSettingsSource.includes("parsed.search||parsed.hash"), "API settings must reject URL query strings and fragments");
+const runtimeConfigSourceForSecurity = fs.readFileSync("runtime-config.js", "utf8");
+assert.ok(runtimeConfigSourceForSecurity.includes("normalizeApiBaseUrl"), "Persisted API URLs must be validated on startup");
+assert.ok(runtimeConfigSourceForSecurity.includes("parsed.username || parsed.password || parsed.search || parsed.hash"), "Startup validation must reject credentials and URL suffixes");
+console.log("API settings smoke: safe URL validation, pre-save health test, and demo isolation OK");
 
 
 
