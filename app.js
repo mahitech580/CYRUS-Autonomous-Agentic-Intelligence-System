@@ -96,13 +96,21 @@ function ApiSettingsModal({close}){
     }
     const candidate=normalizeCandidate();
     if(!candidate)return;
-    setTestState({kind:'checking',message:'Checking /api/health…'});
+    setTestState({kind:'checking',message:'Checking liveness and dependency readiness…'});
     try{
-      const response=await fetch(candidate+'/api/health',{method:'GET',headers:{Accept:'application/json'},cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(15000)});
-      const body=await response.json();
+      const options={method:'GET',headers:{Accept:'application/json'},cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(15000)};
+      const healthResponse=await fetch(candidate+'/api/health',options);
+      const health=await healthResponse.json();
       if(sequence!==testSequence.current)return;
-      if(!response.ok||body?.status!=='ok')throw new Error('Backend health check returned '+response.status+'.');
-      setTestState({kind:'success',message:'Connected · '+String(body.provider_status||body.provider||body.mode||'API healthy')});
+      if(!healthResponse.ok||health?.status!=='ok')throw new Error('Backend health check returned '+healthResponse.status+'.');
+      const readyResponse=await fetch(candidate+'/api/ready',options);
+      const ready=await readyResponse.json();
+      if(sequence!==testSequence.current)return;
+      if(!readyResponse.ok||ready?.ready!==true){
+        setTestState({kind:'error',message:'API is reachable but not ready ('+String(ready?.reason||ready?.error||readyResponse.status)+'). Check history storage, worker capacity, and provider configuration.'});
+        return;
+      }
+      setTestState({kind:'success',message:'Ready · '+String(ready.provider||health.provider_status||health.provider||health.mode||'API healthy')});
     }catch{
       if(sequence!==testSequence.current)return;
       setTestState({kind:'error',message:'Could not verify the backend. Check the URL, CORS allowlist, service health, and whether Render is waking up.'});
