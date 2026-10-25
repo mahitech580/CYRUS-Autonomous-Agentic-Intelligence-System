@@ -712,6 +712,13 @@ async function main() {
   const remote = await remoteHarness.request("/api/health");
   assert.equal(remote.status, 404);
   assert.equal(failClosedCalls.length, 1, "normal remote mode must never substitute local demo data");
+  const remoteImport = await remoteHarness.json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({format: "CYRUS_BROWSER_DEMO_ARCHIVE", schema_version: 1, runtime: "browser-demo", persistence: "browser-local-only", task_count: 0, tasks: []})
+  });
+  assert.equal(remoteImport.response.status, 404);
+  assert.equal(failClosedCalls.length, 2, "archive import must not intercept requests outside explicit demo mode");
 
   const capped = makeHarness({storedTasks: [{
     task_id: "DEMO-RETRY-CAPPED",
