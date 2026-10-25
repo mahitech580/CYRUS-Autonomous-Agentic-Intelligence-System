@@ -22,7 +22,7 @@ function buildRuntimeConfig(search, apiOverride, accessKey) {
     localStorage: {getItem(key) { return key === "cyrus-api-base-url" ? apiOverride : null; }},
     sessionStorage: {getItem(key) { return key === "cyrus-api-access-key" ? accessKey : null; }}
   };
-  vm.runInNewContext(runtimeConfigSource, {window, URLSearchParams, String, Object});
+  vm.runInNewContext(runtimeConfigSource, {window, URLSearchParams, URL, String, Object});
   return window.CYRUS_CONFIG;
 }
 const localDemoConfig = buildRuntimeConfig("?demo=1", "https://unexpected.example", "not-for-demo");
