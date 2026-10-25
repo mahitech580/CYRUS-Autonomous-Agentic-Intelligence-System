@@ -100,7 +100,7 @@ def apply_response_hardening(response):
     response.headers["X-DNS-Prefetch-Control"] = "off"
     if request.path.startswith("/api/") and not request.path.endswith("/stream"):
         response.headers["Cache-Control"] = "no-store"
-    elif request.path in {"/styles.css", "/app.js", "/demo-bridge.js", "/runtime-config.js", "/event-stream.js"}:
+    elif request.path in {"/styles.css", "/app.js", "/demo-bridge.js", "/runtime-config.js", "/event-stream.js", "/task-export.js"}:
         response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=86400"
     return response
 
