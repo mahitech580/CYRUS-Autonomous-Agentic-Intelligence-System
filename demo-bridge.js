@@ -804,6 +804,7 @@
           const sanitized = exporter.buildTaskReport(report.task).task;
           const task = normalizeTask(sanitized);
           if (!task) return errorResponse("Archive contains an invalid task record", 400);
+          task.status = String(task.status || "").toUpperCase();
           // Restored records remain historical browser fixtures, never backend executions.
           task.demo_only = true;
           task.provider = "browser-demo";
