@@ -37,7 +37,7 @@ GET /api/tasks/{task_id}/lineage
 X-CYRUS-Access-Key: <only when API access protection is enabled>
 ```
 
-The endpoint returns `current_task_id`, `root_task_id`, `attempt_count`, `truncated`, and an `attempts` array ordered from the root toward descendants. The graph walk tolerates missing legacy parents, duplicate historical branches, and cyclic or malformed parent pointers without looping forever. It caps the connected result at 50 summaries and marks `truncated: true` when more records remain.
+The endpoint returns `current_task_id`, `root_task_id`, `attempt_count`, `truncated`, and an `attempts` array ordered from the root toward descendants. The graph walk tolerates missing legacy parents, duplicate historical branches, and cyclic or malformed parent pointers without looping forever. If legacy data contains a cycle, the lexicographically smallest task ID in that cycle is used as a stable display root, regardless of which cycle member is opened. It caps the connected result at 50 summaries and marks `truncated: true` when more records remain.
 
 The result deliberately uses the compact task summary schema. It does **not** include implementation drafts, raw trace payloads, artifacts, or provider credentials. The execution inspector renders this response as an attempt timeline. Selecting an attempt opens that task record; retrying still requires the selected record to have a terminal, retryable status and remaining budget.
 
