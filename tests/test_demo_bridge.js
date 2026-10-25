@@ -323,6 +323,67 @@ async function main() {
   assert.ok(!JSON.stringify(archiveResult.body).includes("sentinel-provider-secret"));
   assert.ok(!JSON.stringify(archiveResult.body).includes("sentinel-idempotency-secret"));
 
+  const restoreHarness = makeHarness();
+  const restoredArchive = await restoreHarness.json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(archiveResult.body)
+  });
+  assert.equal(restoredArchive.response.status, 200);
+  assert.equal(restoredArchive.body.imported_tasks, 1);
+  assert.equal(restoredArchive.body.task_count, 1);
+  const restoredTask = await restoreHarness.json("/api/tasks/DEMO-ARCHIVE-SECRET");
+  assert.equal(restoredTask.response.status, 200);
+  assert.equal(restoredTask.body.demo_only, true);
+  assert.ok(!Object.hasOwn(restoredTask.body, "api_key"));
+  assert.ok(!Object.hasOwn(restoredTask.body, "authorization"));
+  assert.ok(!JSON.stringify(restoredTask.body).includes("sentinel-provider-secret"));
+
+  const duplicateArchive = await restoreHarness.json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(archiveResult.body)
+  });
+  assert.equal(duplicateArchive.response.status, 409, "archive imports must reject task-ID collisions atomically");
+  assert.equal((await restoreHarness.json("/api/tasks")).body.length, 1);
+
+  for (const invalidArchive of [
+    {format: "OTHER", schema_version: 1, tasks: []},
+    {format: "CYRUS_BROWSER_DEMO_ARCHIVE", schema_version: 2, tasks: []},
+    {format: "CYRUS_BROWSER_DEMO_ARCHIVE", schema_version: 1, tasks: [{}]},
+    {format: "CYRUS_BROWSER_DEMO_ARCHIVE", schema_version: 1, tasks: Array.from({length: 26}, () => ({}))}
+  ]) {
+    const invalidImport = await makeHarness().json("/api/demo/import", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(invalidArchive)
+    });
+    assert.ok([400, 413].includes(invalidImport.response.status), "invalid or oversized archives must be rejected");
+  }
+
+  const fullHistory = makeHarness({storedTasks: Array.from({length: 25}, (_, index) => ({
+    task_id: "DEMO-EXISTING-" + index,
+    objective: "Existing local record",
+    mode: "autonomous",
+    status: "COMPLETED",
+    events: []
+  }))});
+  const retentionConflict = await fullHistory.json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(archiveResult.body)
+  });
+  assert.equal(retentionConflict.response.status, 409);
+  assert.equal(retentionConflict.body.max_records, 25);
+  assert.equal((await fullHistory.json("/api/tasks")).body.length, 25);
+
+  const oversizedArchive = await makeHarness().json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({format: "CYRUS_BROWSER_DEMO_ARCHIVE", schema_version: 1, tasks: [], padding: "x".repeat(1024 * 1024)})
+  });
+  assert.equal(oversizedArchive.response.status, 413);
+
   const harness = makeHarness();
   const nativeRequestHarness = makeHarness();
   const nativeRequest = new Request("https://demo.example/api/execute", {
