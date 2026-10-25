@@ -361,6 +361,22 @@ async function main() {
     assert.ok([400, 413].includes(invalidImport.response.status), "invalid or oversized archives must be rejected");
   }
 
+  for (const invalidTask of [
+    {...archiveResult.body.tasks[0].task, task_id: "<script>alert(1)</script>"},
+    {...archiveResult.body.tasks[0].task, status: "IMPORTED_AS_ADMIN"}
+  ]) {
+    const invalidTaskImport = await makeHarness().json("/api/demo/import", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        ...archiveResult.body,
+        tasks: [{...archiveResult.body.tasks[0], task: invalidTask}]
+      })
+    });
+    assert.equal(invalidTaskImport.response.status, 400);
+    assert.equal((await makeHarness().json("/api/tasks")).body.length, 0);
+  }
+
   const wrongContentType = await makeHarness().json("/api/demo/import", {
     method: "POST",
     headers: {"Content-Type": "text/plain"},
