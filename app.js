@@ -465,7 +465,7 @@ function App(){
         return counts
       },{retries:0})
       const previewText='COMPLETED '+(preview.COMPLETED||0)+' · FAILED '+(preview.FAILED||0)+' · RETRIES '+preview.retries
-      if(typeof window.confirm==='function'&&!window.confirm('Import '+archive.tasks.length+' historical task report(s) from "'+file.name+'" into this browser?\\n'+previewText+'\\nThis will not resume executions or change backend history.'))return
+      if(typeof window.confirm==='function'&&!window.confirm('Import '+archive.tasks.length+' historical task report(s) from "'+file.name+'" into this browser?\n'+previewText+'\nThis will not resume executions or change backend history.'))return
       const result=await apiJson('/api/demo/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(archive)})
       await loadBase()
       notify('Imported '+Number(result.imported_tasks||0)+' sanitized historical task(s). No execution was resumed.')
