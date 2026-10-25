@@ -48,7 +48,7 @@ The archive includes an export timestamp, schema version, count, sanitized per-t
 - The simulator retains at most 25 task records in the current browser's local storage.
 - The in-memory idempotency cache is bounded to 256 keys. A key that still points to an evicted record returns HTTP 410 rather than silently creating a duplicate.
 - The lineage view returns at most 50 connected attempt summaries.
-- **CLEAR LOCAL HISTORY** asks for confirmation, then clears only demo tasks and the simulator's idempotency map. It does not send a delete request to Flask and cannot remove backend history.
+- **CLEAR LOCAL HISTORY** asks for confirmation, persists an empty local history before clearing in-memory records and the simulator's idempotency map, and reports a storage error without deleting in-memory data if that write fails. It does not send a delete request to Flask and cannot remove backend history.
 
 If browser storage is blocked, the demo can still operate in the current page session, but local persistence may not be available. The demo health response exposes `storage_available` and `storage_warning`; the banner surfaces a visible warning when persistence is unavailable. Archive restore fails atomically if the storage write is blocked or over quota. Private-browsing and browser cleanup rules also affect how long records survive.
 
