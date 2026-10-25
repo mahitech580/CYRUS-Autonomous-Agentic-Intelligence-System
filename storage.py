@@ -153,6 +153,32 @@ class HistoryStore:
         finally:
             conn.close()
 
+    def check(self) -> dict[str, Any]:
+        """Verify that the configured history backend accepts a trivial query.
+
+        Report only the exception class on failure; driver messages can contain
+        hostnames or connection details and must not be returned by health APIs.
+        """
+        conn = None
+        try:
+            conn = self._connect()
+            row = self._execute(conn, "SELECT 1").fetchone()
+            if not row or row[0] != 1:
+                raise RuntimeError("history store health query returned an unexpected result")
+            return {"reachable": True, "backend": self.backend, "error_type": None}
+        except Exception as exc:
+            return {
+                "reachable": False,
+                "backend": self.backend,
+                "error_type": type(exc).__name__,
+            }
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
     def info(self) -> dict[str, Any]:
         hosted_ephemeral = bool(os.getenv("RENDER")) and self.backend == "sqlite"
         if self.backend == "postgresql":
