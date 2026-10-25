@@ -39,7 +39,7 @@ class HistoryStoreTests(unittest.TestCase):
                 self.assertEqual(store.info()["backend"], "sqlite")
 
     def test_connectivity_check_reports_success_without_leaking_details(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with TemporaryDirectory() as directory:
             store = HistoryStore(Path(directory) / "history.sqlite3")
             result = store.check()
         self.assertEqual(result, {
@@ -49,7 +49,7 @@ class HistoryStoreTests(unittest.TestCase):
         })
 
     def test_connectivity_check_reports_only_exception_type_on_failure(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with TemporaryDirectory() as directory:
             store = HistoryStore(Path(directory) / "history.sqlite3")
             with patch.object(store, "_connect", side_effect=RuntimeError("postgres://user:secret@db.internal")):
                 result = store.check()
