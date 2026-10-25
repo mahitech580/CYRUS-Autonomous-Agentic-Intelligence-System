@@ -389,6 +389,14 @@ async function main() {
   assert.equal(restoredLineage.body.attempts[1].retry_number, 1);
   assert.equal(restoredLineage.body.attempts[1].retry_reason, "FAILED:DemoFailure");
 
+  const bomRestore = makeHarness();
+  const bomImport = await bomRestore.json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: String.fromCharCode(0xFEFF) + JSON.stringify(archiveResult.body)
+  });
+  assert.equal(bomImport.response.status, 200, "Windows-style UTF-8 BOMs should not block archive restore");
+
   const lowercaseStatusArchive = JSON.parse(JSON.stringify(archiveResult.body));
   lowercaseStatusArchive.tasks[0].task.status = "completed";
   const lowercaseStatusRestore = makeHarness();
