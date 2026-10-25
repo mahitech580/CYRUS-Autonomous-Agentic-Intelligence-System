@@ -105,7 +105,7 @@ GitHub Pages serves static files only; it cannot host the Flask API, background 
 
 At startup, the frontend validates the persisted API base URL as well as the Settings form: remote backends must use HTTPS, HTTP is limited to loopback development addresses, and embedded credentials, query strings, fragments, and other URL schemes are rejected. This protects the access key from being sent to an accidentally or manually configured insecure endpoint.
 
-The frontend calls the configured API for health, agents, tools, execution submission, task details, metrics, and the resumable event stream. When a live API URL is configured, the browser-demo bridge will not silently fabricate successful results after a network failure; the status remains offline until the actual backend responds.
+The frontend calls the configured API for health, agents, tools, execution submission, task details, metrics, and the resumable event stream. The API ↗ settings dialog includes **Test connection**, which probes the selected `/api/health` endpoint before saving and reports common URL/CORS/service failures; it sends no cookies or access key during the probe. Live probes are disabled while `?demo=1` is active. When a live API URL is configured, the browser-demo bridge will not silently fabricate successful results after a network failure; the status remains offline until the actual backend responds.
 
 ### Render Free plan notes
 
