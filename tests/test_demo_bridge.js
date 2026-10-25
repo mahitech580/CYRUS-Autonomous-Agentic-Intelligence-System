@@ -400,6 +400,18 @@ async function main() {
   assert.equal(lowercaseStatusImport.response.status, 200);
   assert.equal((await lowercaseStatusRestore.json("/api/tasks/DEMO-ARCHIVE-SECRET")).body.status, "COMPLETED");
 
+  const duplicateWithinArchive = JSON.parse(JSON.stringify(archiveResult.body));
+  duplicateWithinArchive.task_count = 2;
+  duplicateWithinArchive.tasks.push(JSON.parse(JSON.stringify(duplicateWithinArchive.tasks[0])));
+  const duplicateBatchRestore = makeHarness();
+  const duplicateBatch = await duplicateBatchRestore.json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(duplicateWithinArchive)
+  });
+  assert.equal(duplicateBatch.response.status, 409);
+  assert.equal((await duplicateBatchRestore.json("/api/tasks")).body.length, 0, "duplicate IDs inside an archive must reject the entire batch");
+
   const duplicateArchive = await restoreHarness.json("/api/demo/import", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
