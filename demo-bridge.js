@@ -722,9 +722,15 @@
 
     if (path === "/api/demo/reset" && method === "POST") {
       const cleared = tasks.length;
+      try {
+        window.localStorage.setItem(storageKey, "[]");
+      } catch {
+        storageAvailable = false;
+        return errorResponse("Browser storage is unavailable or full; local history was not cleared", 507);
+      }
+      storageAvailable = true;
       tasks.splice(0, tasks.length);
       requestKeys.clear();
-      persist();
       return response({
         cleared_tasks: cleared,
         runtime: "browser-demo",
