@@ -439,6 +439,31 @@ function App(){
       notify(error?.message||'Could not export local demo history')
     }
   }
+  const chooseDemoArchive=()=>{
+    if(!window.CYRUS_CONFIG?.explicitDemoMode)return
+    document.getElementById('demo-archive-import')?.click()
+  }
+  const importDemoHistory=async event=>{
+    if(!window.CYRUS_CONFIG?.explicitDemoMode)return
+    const input=event?.target
+    const file=input?.files?.[0]
+    if(!file)return
+    input.value=''
+    if(file.size>1024*1024){notify('Archive exceeds the 1 MiB import limit.');return}
+    try{
+      const archive=JSON.parse(await file.text())
+      if(!archive||archive.format!=='CYRUS_BROWSER_DEMO_ARCHIVE'||archive.schema_version!==1||!Array.isArray(archive.tasks)){
+        throw new Error('Choose a version 1 CYRUS browser-demo JSON archive.')
+      }
+      if(archive.tasks.length>25)throw new Error('Archive contains more than 25 task records.')
+      if(typeof window.confirm==='function'&&!window.confirm('Import '+archive.tasks.length+' historical task report(s) into this browser? This will not resume executions.'))return
+      const result=await apiJson('/api/demo/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(archive)})
+      await loadBase()
+      notify('Imported '+Number(result.imported_tasks||0)+' sanitized historical task(s). No execution was resumed.')
+    }catch(error){
+      notify(error?.message||'Could not import the browser-demo archive.')
+    }
+  }
   const clearDemoHistory=async()=>{
     if(!window.CYRUS_CONFIG?.explicitDemoMode)return
     if(typeof window.confirm==='function'&&!window.confirm('Clear all local browser demo tasks? This cannot be undone.'))return
