@@ -514,6 +514,7 @@ assert.ok(resetDemoBridge.includes('path === "/api/demo/export"'), "Demo API sho
 assert.ok(resetDemoBridge.includes('path === "/api/demo/import"'), "Demo API should expose bounded local archive restore");
 assert.ok(resetDemoBridge.includes("1024 * 1024"), "Archive restore must cap payload size");
 assert.ok(resetDemoBridge.includes("importedIds.has(task.task_id) || find(task.task_id)"), "Archive restore must reject duplicate task IDs atomically");
+assert.ok(resetDemoBridge.includes("exporter.buildTaskReport(report.task).task"), "Archive restore must re-apply report allowlisting and redaction");
 assert.ok(resetDemoBridge.includes("tasks.length + imported.length > 25"), "Archive restore must enforce local retention limits");
 assert.ok(resetDemoBridge.includes("CYRUS_BROWSER_DEMO_ARCHIVE"), "Local archive must carry a versioned format identifier");
 assert.ok(resetDemoBridge.includes("exporter.buildTaskReport(task)"), "Local archive must use the allowlisted task report exporter");
