@@ -45,6 +45,7 @@ const CYRUS_IMAGES={"command":"https://images.unsplash.com/photo-1558494949-ef01
 
 function ApiSettingsModal({close}){
   const dialogRef=useRef(null);
+  const testSequence=useRef(0);
   useEffect(()=>{
     const dialog=dialogRef.current;
     if(!dialog)return;
@@ -63,6 +64,7 @@ function ApiSettingsModal({close}){
     document.addEventListener('keydown',onKeyDown);
     return ()=>{
       document.removeEventListener('keydown',onKeyDown);
+      testSequence.current++;
       previous?.focus?.();
     };
   },[close]);
@@ -85,6 +87,7 @@ function ApiSettingsModal({close}){
     return parsed.origin+parsed.pathname.replace(/\/+$/,'');
   };
   const testConnection=async()=>{
+    const sequence=++testSequence.current;
     setError('');
     setTestState({kind:'',message:''});
     if(window.CYRUS_CONFIG?.explicitDemoMode){
@@ -97,9 +100,11 @@ function ApiSettingsModal({close}){
     try{
       const response=await fetch(candidate+'/api/health',{method:'GET',headers:{Accept:'application/json'},cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(15000)});
       const body=await response.json();
+      if(sequence!==testSequence.current)return;
       if(!response.ok||body?.status!=='ok')throw new Error('Backend health check returned '+response.status+'.');
       setTestState({kind:'success',message:'Connected · '+String(body.provider_status||body.provider||body.mode||'API healthy')});
     }catch{
+      if(sequence!==testSequence.current)return;
       setTestState({kind:'error',message:'Could not verify the backend. Check the URL, CORS allowlist, service health, and whether Render is waking up.'});
     }
   };
@@ -125,7 +130,7 @@ function ApiSettingsModal({close}){
       <p>The GitHub Pages frontend needs a running Flask API URL. Save your deployed Render address so execution, metrics, history and live event streams reach the server instead of browser-demo data.</p>
       <form onSubmit={save}>
         <label htmlFor="cyrus-api-url">Backend base URL</label>
-        <input id="cyrus-api-url" type="url" autoComplete="url" spellCheck="false" value={value} onChange={event=>{setValue(event.target.value);setError('');setTestState({kind:'',message:''})}} placeholder="https://your-service.onrender.com" required/>
+        <input id="cyrus-api-url" type="url" autoComplete="url" spellCheck="false" value={value} onChange={event=>{setValue(event.target.value);setError('');testSequence.current++;setTestState({kind:'',message:''})}} placeholder="https://your-service.onrender.com" required/>
         <label htmlFor="cyrus-api-key">API access key (only if configured on Render)</label>
         <input id="cyrus-api-key" type="password" autoComplete="current-password" spellCheck="false" value={accessKey} onChange={event=>{setAccessKey(event.target.value);setError('')}} placeholder="Leave blank when access-key protection is disabled"/>
         <p className="api-settings-key-note">The key is kept in this browser tab's session storage and sent only with API requests. Do not paste your model-provider key here.</p>
