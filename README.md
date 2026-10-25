@@ -103,6 +103,8 @@ GitHub Pages serves static files only; it cannot host the Flask API, background 
 3. Once Render reports the service as Live, verify https://cyrus-agentic-api-mahitech580.onrender.com/api/health returns JSON with status "ok".
 4. Open the GitHub Pages UI. Its API URL defaults to that Render hostname. Use API ↗ in the Home header or workspace toolbar to enter the actual service URL if Render assigned a different hostname.
 
+At startup, the frontend validates the persisted API base URL as well as the Settings form: remote backends must use HTTPS, HTTP is limited to loopback development addresses, and embedded credentials, query strings, fragments, and other URL schemes are rejected. This protects the access key from being sent to an accidentally or manually configured insecure endpoint.
+
 The frontend calls the configured API for health, agents, tools, execution submission, task details, metrics, and the resumable event stream. When a live API URL is configured, the browser-demo bridge will not silently fabricate successful results after a network failure; the status remains offline until the actual backend responds.
 
 ### Render Free plan notes
