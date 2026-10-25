@@ -38,6 +38,27 @@ class HistoryStoreTests(unittest.TestCase):
                 self.assertEqual(result[0]["summary"], "finished")
                 self.assertEqual(store.info()["backend"], "sqlite")
 
+    def test_connectivity_check_reports_success_without_leaking_details(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = HistoryStore(Path(directory) / "history.sqlite3")
+            result = store.check()
+        self.assertEqual(result, {
+            "reachable": True,
+            "backend": "sqlite",
+            "error_type": None,
+        })
+
+    def test_connectivity_check_reports_only_exception_type_on_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = HistoryStore(Path(directory) / "history.sqlite3")
+            with patch.object(store, "_connect", side_effect=RuntimeError("postgres://user:secret@db.internal")):
+                result = store.check()
+        self.assertEqual(result["reachable"], False)
+        self.assertEqual(result["backend"], "sqlite")
+        self.assertEqual(result["error_type"], "RuntimeError")
+        self.assertNotIn("secret", str(result))
+        self.assertNotIn("db.internal", str(result))
+
     def test_unsupported_database_url_fails_loudly(self):
         with patch.dict(os.environ, {
             "CYRUS_DATABASE_URL": "mysql://user:secret@example.test/cyrus",
