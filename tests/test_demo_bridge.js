@@ -490,6 +490,16 @@ async function main() {
   });
   assert.equal(oversizedArchive.response.status, 413);
 
+  const malformedStorageHarness = makeHarness({storedTasks: [
+    {task_id: "DEMO-LOAD-VALID", objective: "valid stored record", mode: "autonomous", status: "COMPLETED", events: []},
+    {task_id: "DEMO-LOAD-VALID", objective: "duplicate ID", mode: "autonomous", status: "FAILED", events: []},
+    {task_id: "<script>alert(1)</script>", objective: "invalid ID", mode: "autonomous", status: "COMPLETED", events: []},
+    {task_id: "DEMO-LOAD-NO-STATUS", objective: "invalid state", mode: "autonomous", events: []}
+  ]});
+  const sanitizedStoredTasks = await malformedStorageHarness.json("/api/tasks");
+  assert.equal(sanitizedStoredTasks.body.length, 1);
+  assert.equal(sanitizedStoredTasks.body[0].task_id, "DEMO-LOAD-VALID");
+
   const harness = makeHarness();
   const nativeRequestHarness = makeHarness();
   const nativeRequest = new Request("https://demo.example/api/execute", {
