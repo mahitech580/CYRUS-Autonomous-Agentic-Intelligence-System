@@ -1013,6 +1013,26 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertFalse(response.get_json()["ready"])
 
+    def test_readiness_probe_returns_503_when_history_store_is_unavailable(self):
+        unavailable = {
+            "reachable": False,
+            "backend": "postgresql",
+            "error_type": "OperationalError",
+        }
+        with patch.object(server.HISTORY_STORE, "check", return_value=unavailable):
+            readiness = self.client.get("/api/ready")
+            health = self.client.get("/api/health")
+
+        self.assertEqual(readiness.status_code, 503)
+        self.assertFalse(readiness.get_json()["ready"])
+        self.assertEqual(readiness.get_json()["reason"], "history_store_unavailable")
+        self.assertEqual(readiness.get_json()["history_store_health"], unavailable)
+        # Liveness stays HTTP 200 so orchestrators can distinguish a live process
+        # from a process that is currently unable to serve durable history.
+        self.assertEqual(health.status_code, 200)
+        self.assertFalse(health.get_json()["ready"])
+        self.assertEqual(health.get_json()["history_store_health"], unavailable)
+
     def test_request_id_and_security_headers_are_present(self):
         response = self.client.get("/api/health", headers={"X-Request-ID": "daily-run-12"})
         self.assertEqual(response.headers["X-Request-ID"], "daily-run-12")
