@@ -830,12 +830,9 @@ def health():
         )
     utilization = round(active / MAX_CONCURRENT_TASKS, 3)
     live_model_locked = PROVIDER.mode == "LIVE" and not API_ACCESS_KEY
-    history_store_health = HISTORY_STORE.check()
-    ready = (
-        active < MAX_CONCURRENT_TASKS
-        and not live_model_locked
-        and history_store_health["reachable"]
-    )
+    # Keep liveness independent of database reachability; /api/ready performs
+    # the bounded dependency check so an outage does not restart a live process.
+    ready = active < MAX_CONCURRENT_TASKS and not live_model_locked
     return jsonify({
         "status": "ok",
         "system": "CYRUS CORE 1.0",
@@ -854,8 +851,7 @@ def health():
         "active_tasks": active,
         "capacity_utilization": utilization,
         "ready": ready,
-        "history_store": HISTORY_STORE.info(),
-        "history_store_health": history_store_health
+        "history_store": HISTORY_STORE.info()
     })
 
 @app.get("/api/provider")
