@@ -49,16 +49,44 @@ function ApiSettingsModal({close}){
   const [value,setValue]=useState(currentUrl);
   const [accessKey,setAccessKey]=useState(String(window.CYRUS_CONFIG?.apiAccessKey||''));
   const [error,setError]=useState('');
+  const [testState,setTestState]=useState({kind:'',message:''});
+  const normalizeCandidate=()=>{
+    const candidate=value.trim().replace(/\/+$/,'');
+    if(!candidate){setError('Enter your live backend URL.');return null;}
+    let parsed;
+    try{parsed=new URL(candidate)}catch{setError('Enter a full URL, such as https://your-service.onrender.com');return null;}
+    const localHttp=parsed.protocol==='http:'&&['localhost','127.0.0.1','::1','[::1]'].includes(parsed.hostname);
+    if((parsed.protocol!=='https:'&&!localHttp)||parsed.username||parsed.password||parsed.search||parsed.hash){
+      setError('Use HTTPS for remote backends. HTTP is allowed only for localhost development; remove credentials, query strings, and fragments.');
+      return null;
+    }
+    return parsed.origin+parsed.pathname.replace(/\/+$/,'');
+  };
+  const testConnection=async()=>{
+    setError('');
+    setTestState({kind:'',message:''});
+    if(window.CYRUS_CONFIG?.explicitDemoMode){
+      setTestState({kind:'info',message:'Live connection tests are disabled in offline demo mode. Remove ?demo=1 first.'});
+      return;
+    }
+    const candidate=normalizeCandidate();
+    if(!candidate)return;
+    setTestState({kind:'checking',message:'Checking /api/health…'});
+    try{
+      const response=await fetch(candidate+'/api/health',{method:'GET',headers:{Accept:'application/json'},cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(15000)});
+      const body=await response.json();
+      if(!response.ok||body?.status!=='ok')throw new Error('Backend health check returned '+response.status+'.');
+      setTestState({kind:'success',message:'Connected · '+String(body.provider_status||body.provider||body.mode||'API healthy')});
+    }catch{
+      setTestState({kind:'error',message:'Could not verify the backend. Check the URL, CORS allowlist, service health, and whether Render is waking up.'});
+    }
+  };
   const save=event=>{
     event.preventDefault();
-    const candidate=value.trim().replace(/\/+$/,'');
-    if(!candidate){setError('Enter your live backend URL.');return;}
-    let parsed;
-    try{parsed=new URL(candidate)}catch{setError('Enter a full URL, such as https://your-service.onrender.com');return;}
-    const localHttp=parsed.protocol==='http:'&&['localhost','127.0.0.1','::1','[::1]'].includes(parsed.hostname);
-    if((parsed.protocol!=='https:'&&!localHttp)||parsed.username||parsed.password){setError('Use HTTPS for remote backends. HTTP is allowed only for localhost development, and URLs must not contain credentials.');return;}
+    const candidate=normalizeCandidate();
+    if(!candidate)return;
     try{
-      localStorage.setItem('cyrus-api-base-url',parsed.origin+parsed.pathname.replace(/\/+$/,''));
+      localStorage.setItem('cyrus-api-base-url',candidate);
       const candidateKey=accessKey.trim();
       if(candidateKey)sessionStorage.setItem('cyrus-api-access-key',candidateKey);
       else sessionStorage.removeItem('cyrus-api-access-key');
@@ -75,13 +103,14 @@ function ApiSettingsModal({close}){
       <p>The GitHub Pages frontend needs a running Flask API URL. Save your deployed Render address so execution, metrics, history and live event streams reach the server instead of browser-demo data.</p>
       <form onSubmit={save}>
         <label htmlFor="cyrus-api-url">Backend base URL</label>
-        <input id="cyrus-api-url" type="url" autoComplete="url" spellCheck="false" value={value} onChange={event=>{setValue(event.target.value);setError('')}} placeholder="https://your-service.onrender.com" required/>
+        <input id="cyrus-api-url" type="url" autoComplete="url" spellCheck="false" value={value} onChange={event=>{setValue(event.target.value);setError('');setTestState({kind:'',message:''})}} placeholder="https://your-service.onrender.com" required/>
         <label htmlFor="cyrus-api-key">API access key (only if configured on Render)</label>
         <input id="cyrus-api-key" type="password" autoComplete="current-password" spellCheck="false" value={accessKey} onChange={event=>{setAccessKey(event.target.value);setError('')}} placeholder="Leave blank when access-key protection is disabled"/>
         <p className="api-settings-key-note">The key is kept in this browser tab's session storage and sent only with API requests. Do not paste your model-provider key here.</p>
         {error&&<div className="api-settings-error" role="alert">{error}</div>}
         <div className="api-settings-example"><span>EXPECTED ENDPOINT</span><code>{value.trim().replace(/\/+$/,'')||'https://your-service.onrender.com'}/api/health</code></div>
-        <div className="api-settings-actions"><button type="button" className="api-settings-reset" onClick={reset}>Reset default URL</button><button className="api-settings-save" type="submit">Save & reconnect ↗</button></div>
+        {testState.message&&<div className={'api-settings-test-status '+testState.kind} role="status" aria-live="polite">{testState.kind==='checking'&&<span className="api-settings-test-spinner" aria-hidden="true"/>}{testState.message}</div>}
+        <div className="api-settings-actions"><button type="button" className="api-settings-reset" onClick={reset}>Reset default URL</button><button type="button" className="api-settings-test" onClick={testConnection} disabled={testState.kind==='checking'}>Test connection</button><button className="api-settings-save" type="submit">Save & reconnect ↗</button></div>
       </form>
       <div className="api-settings-note"><i/> Render Free may sleep after inactivity; the first request can take about a minute to wake the server.</div>
       <a className="api-settings-deploy-link" href="https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fmahitech580%2FCYRUS-Autonomous-Agentic-Intelligence-System" target="_blank" rel="noreferrer">Deploy the Flask backend on Render ↗</a>
