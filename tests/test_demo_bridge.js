@@ -386,6 +386,17 @@ async function main() {
   assert.equal(restoredLineage.body.attempts[1].retry_number, 1);
   assert.equal(restoredLineage.body.attempts[1].retry_reason, "FAILED:DemoFailure");
 
+  const lowercaseStatusArchive = JSON.parse(JSON.stringify(archiveResult.body));
+  lowercaseStatusArchive.tasks[0].task.status = "completed";
+  const lowercaseStatusRestore = makeHarness();
+  const lowercaseStatusImport = await lowercaseStatusRestore.json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(lowercaseStatusArchive)
+  });
+  assert.equal(lowercaseStatusImport.response.status, 200);
+  assert.equal((await lowercaseStatusRestore.json("/api/tasks/DEMO-ARCHIVE-SECRET")).body.status, "COMPLETED");
+
   const duplicateArchive = await restoreHarness.json("/api/demo/import", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
