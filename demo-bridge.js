@@ -750,6 +750,75 @@
       });
     }
 
+    if (path === "/api/demo/import" && method === "POST") {
+      const exporter = window.CYRUS_TASK_EXPORT;
+      if (!exporter || typeof exporter.buildTaskReport !== "function") {
+        return errorResponse("Sanitized task export module is unavailable", 503);
+      }
+      let rawBody;
+      try {
+        rawBody = await readRequestBody();
+      } catch {
+        return errorResponse("Could not read the browser-demo archive", 400);
+      }
+      const bodyText = typeof rawBody === "string" ? rawBody : "";
+      if (bodyText.length > 1024 * 1024) {
+        return errorResponse("Browser-demo archive exceeds the 1 MiB limit", 413);
+      }
+      let archive;
+      try {
+        archive = JSON.parse(bodyText || "{}");
+      } catch {
+        return errorResponse("Archive must be valid JSON", 400);
+      }
+      if (!archive || typeof archive !== "object" || Array.isArray(archive) ||
+          archive.format !== "CYRUS_BROWSER_DEMO_ARCHIVE" || archive.schema_version !== 1 ||
+          !Array.isArray(archive.tasks)) {
+        return errorResponse("Unsupported browser-demo archive format or schema version", 400);
+      }
+      if (archive.tasks.length > 25) {
+        return errorResponse("Archive can contain at most 25 task records", 413);
+      }
+      const imported = [];
+      const importedIds = new Set();
+      try {
+        for (const report of archive.tasks) {
+          if (!report || typeof report !== "object" || Array.isArray(report) ||
+              report.format !== "CYRUS_EXECUTION_REPORT" || report.schema_version !== 1 ||
+              !report.task || typeof report.task !== "object" || Array.isArray(report.task) ||
+              typeof report.task.task_id !== "string" || !report.task.task_id.trim()) {
+            return errorResponse("Every archive entry must be a version 1 CYRUS execution report", 400);
+          }
+          const sanitized = exporter.buildTaskReport(report.task).task;
+          const task = normalizeTask(sanitized);
+          if (!task) return errorResponse("Archive contains an invalid task record", 400);
+          if (importedIds.has(task.task_id) || find(task.task_id)) {
+            return errorResponse("Archive contains a duplicate task ID: " + task.task_id, 409);
+          }
+          importedIds.add(task.task_id);
+          imported.push(task);
+        }
+      } catch {
+        return errorResponse("Archive contains an invalid or unsanitizable task record", 400);
+      }
+      if (tasks.length + imported.length > 25) {
+        return errorResponse("Import would exceed the 25-record browser retention limit; clear local history or import a smaller archive", 409, {
+          current_count: tasks.length,
+          import_count: imported.length,
+          max_records: 25
+        });
+      }
+      tasks.unshift(...imported);
+      persist();
+      return response({
+        imported_tasks: imported.length,
+        task_count: tasks.length,
+        runtime: "browser-demo",
+        persistence: "browser-local-only",
+        notice: "Imported reports were sanitized and remain local to this browser. They are historical records, not resumed executions."
+      }, 200);
+    }
+
     if (path === "/api/health" && method === "GET") return response({
       status: "ok", system: "CYRUS CORE 1.0", mode: "DEMO", runtime: "browser-demo",
       api_access_key_required: false, api_access_key_configured: false,
