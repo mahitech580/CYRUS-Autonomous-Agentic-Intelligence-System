@@ -370,6 +370,7 @@ function App(){
   const [selectedTask,setSelectedTask]=useState(null)
   const [runtimeState,setRuntimeState]=useState('CONNECTING')
   const [runtimeMetrics,setRuntimeMetrics]=useState(null)
+  const [demoStorageAvailable,setDemoStorageAvailable]=useState(true)
   const [paletteOpen,setPaletteOpen]=useState(false)
   const [motionEnabled,setMotionEnabled]=useState(()=>{try{return localStorage.getItem('cyrus-motion')!=='off'}catch{return true}})
   const [apiSettingsOpen,setApiSettingsOpen]=useState(false)
@@ -410,6 +411,7 @@ function App(){
     try{
       const [health,a,t,h,healthMetrics]=await Promise.all([apiJson('/api/health'),apiJson('/api/agents'),apiJson('/api/tools'),apiJson('/api/tasks'),apiJson('/api/metrics')])
       setRuntimeState(health.mode==='DEMO'||health.runtime==='browser-demo'||health.runtime==='browser-fallback'?'DEMO':'ONLINE')
+      if(health.runtime==='browser-demo')setDemoStorageAvailable(health.storage_available!==false)
       setAgents(a);setTools(t);setTasks(h);setRuntimeMetrics(healthMetrics)
     }catch{
       setRuntimeState('OFFLINE');notify('CYRUS runtime is unreachable')
@@ -710,7 +712,7 @@ function App(){
   }
 
   return <div className={'app-shell '+(page==='Home'?'home-shell':'workspace-shell')}>
-    {window.CYRUS_CONFIG?.explicitDemoMode&&<div className="demo-mode-banner" role="status" aria-label="Browser demo mode"><span className="demo-mode-dot"/><strong>LOCAL DEMO</strong><span>Synthetic tasks only · saved in this browser · no live model calls</span><small>Try “simulate failure” or “simulate timeout” in Command to test retry recovery.</small><button type="button" className="demo-mode-export" onClick={exportDemoHistory}>EXPORT LOCAL HISTORY</button><button type="button" className="demo-mode-import" onClick={chooseDemoArchive}>IMPORT ARCHIVE</button><input id="demo-archive-import" className="demo-archive-file-input" type="file" accept=".json,application/json" aria-label="Choose a CYRUS browser-demo archive" onChange={importDemoHistory}/><button type="button" className="demo-mode-reset" onClick={clearDemoHistory}>CLEAR LOCAL HISTORY</button></div>}
+    {window.CYRUS_CONFIG?.explicitDemoMode&&<div className="demo-mode-banner" role="status" aria-label="Browser demo mode"><span className="demo-mode-dot"/><strong>LOCAL DEMO</strong><span>Synthetic tasks only · saved in this browser · no live model calls</span><small>Try “simulate failure” or “simulate timeout” in Command to test retry recovery.</small>{!demoStorageAvailable&&<small className="demo-mode-storage-warning" role="alert">Browser storage is blocked or full; current-session changes may not persist.</small>}<button type="button" className="demo-mode-export" onClick={exportDemoHistory}>EXPORT LOCAL HISTORY</button><button type="button" className="demo-mode-import" onClick={chooseDemoArchive}>IMPORT ARCHIVE</button><input id="demo-archive-import" className="demo-archive-file-input" type="file" accept=".json,application/json" aria-label="Choose a CYRUS browser-demo archive" onChange={importDemoHistory}/><button type="button" className="demo-mode-reset" onClick={clearDemoHistory}>CLEAR LOCAL HISTORY</button></div>}
     <AmbientCanvas preset={atmospherePreset} mode={atmosphereMode} intensity={atmosphereIntensity} motionEnabled={motionEnabled}/>
     <div className="motion-progress" aria-hidden="true"/>
     {page==='Home'&&<HomeView go={go} runtimeState={runtimeState} busy={busy} agents={agents} openPalette={()=>setPaletteOpen(true)} openApiSettings={()=>setApiSettingsOpen(true)} openAtmosphere={()=>setAtmosphereOpen(true)}/>}
