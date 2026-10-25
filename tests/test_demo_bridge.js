@@ -460,6 +460,16 @@ async function main() {
   assert.equal(retentionConflict.body.max_records, 25);
   assert.equal((await fullHistory.json("/api/tasks")).body.length, 25);
 
+  const blockedStorage = makeHarness();
+  blockedStorage.window.localStorage.setItem = () => { throw new Error("simulated quota exhaustion"); };
+  const blockedImport = await blockedStorage.json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(archiveResult.body)
+  });
+  assert.equal(blockedImport.response.status, 507);
+  assert.equal((await blockedStorage.json("/api/tasks")).body.length, 0, "failed storage writes must not partially import records");
+
   const oversizedArchive = await makeHarness().json("/api/demo/import", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
