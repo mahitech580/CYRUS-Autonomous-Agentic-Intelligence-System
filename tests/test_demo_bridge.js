@@ -473,6 +473,16 @@ async function main() {
   assert.equal(blockedImport.response.status, 507);
   assert.equal((await blockedStorage.json("/api/tasks")).body.length, 0, "failed storage writes must not partially import records");
 
+  const resetStorageHarness = makeHarness();
+  await resetStorageHarness.json("/api/execute", {
+    method: "POST",
+    body: JSON.stringify({prompt: "Keep this task if reset cannot persist", mode: "autonomous"})
+  });
+  resetStorageHarness.window.localStorage.setItem = () => { throw new Error("simulated quota exhaustion"); };
+  const failedReset = await resetStorageHarness.json("/api/demo/reset", {method: "POST", body: "{}"});
+  assert.equal(failedReset.response.status, 507);
+  assert.equal((await resetStorageHarness.json("/api/tasks")).body.length, 1, "failed reset writes must not clear the in-memory history");
+
   const oversizedArchive = await makeHarness().json("/api/demo/import", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
