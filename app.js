@@ -463,6 +463,7 @@ function App(){
       await loadBase()
       notify('Imported '+Number(result.imported_tasks||0)+' sanitized historical task(s). No execution was resumed.')
     }catch(error){
+      await loadBase()
       notify(error?.message||'Could not import the browser-demo archive.')
     }
   }
@@ -474,7 +475,7 @@ function App(){
       setTask(null);setSelectedTask(null);setBusy(false)
       await loadBase()
       notify('Cleared '+Number(result.cleared_tasks||0)+' local demo task(s). No backend records were changed.')
-    }catch(error){notify(error?.message||'Could not clear local demo history')}
+    }catch(error){await loadBase();notify(error?.message||'Could not clear local demo history')}
   }
   const loadTask=async id=>{
     const data=await apiJson('/api/tasks/'+id);setTask(data);return data
