@@ -890,6 +890,11 @@ def readiness():
     history_store_health = HISTORY_STORE.check()
     storage_available = history_store_health["reachable"]
     ready = capacity_available and not live_model_locked and storage_available
+    reason = (
+        "live_model_requires_api_access_key" if live_model_locked else
+        "worker_capacity_full" if not capacity_available else
+        "history_store_unavailable" if not storage_available else None
+    )
     payload = {
         "ready": ready,
         "active_tasks": active,
@@ -899,12 +904,12 @@ def readiness():
         "api_access_key_required": bool(API_ACCESS_KEY) or PROVIDER.mode == "LIVE",
         "api_access_key_configured": bool(API_ACCESS_KEY),
         "history_store_health": history_store_health,
-        "reason": (
-            "live_model_requires_api_access_key" if live_model_locked else
-            "worker_capacity_full" if not capacity_available else
-            "history_store_unavailable" if not storage_available else None
-        ),
+        "reason": reason,
     }
+    if not ready:
+        # Keep a simple error field so generic API clients can display the
+        # reason even when they treat all non-2xx responses as exceptions.
+        payload["error"] = reason or "not_ready"
     return jsonify(payload), 200 if ready else 503
 
 @app.get("/api/agents")
