@@ -50,7 +50,7 @@ The archive includes an export timestamp, schema version, count, sanitized per-t
 - The lineage view returns at most 50 connected attempt summaries.
 - **CLEAR LOCAL HISTORY** asks for confirmation, persists an empty local history before clearing in-memory records and the simulator's idempotency map, and reports a storage error without deleting in-memory data if that write fails. It does not send a delete request to Flask and cannot remove backend history.
 
-If browser storage is blocked, the demo can still operate in the current page session, but local persistence may not be available. The demo health response exposes `storage_available` and `storage_warning`; the banner surfaces a visible warning when persistence is unavailable. Archive restore fails atomically if the storage write is blocked or over quota. Private-browsing and browser cleanup rules also affect how long records survive.
+If browser storage is blocked, the demo can still operate in the current page session, but local persistence may not be available. The demo health response exposes `storage_available` and `storage_warning`, and the live metrics response also exposes `storage_available`; the banner refreshes its visible warning from live metrics when persistence is unavailable. Archive restore fails atomically if the storage write is blocked or over quota. Private-browsing and browser cleanup rules also affect how long records survive.
 
 ## Demo API surface
 
