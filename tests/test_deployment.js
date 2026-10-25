@@ -551,6 +551,8 @@ assert.equal(archiveSchema.properties.schema_version.const, 1);
 assert.equal(archiveSchema.properties.tasks.maxItems, 25);
 assert.equal(archiveSchema.$defs.executionReport.properties.format.const, "CYRUS_EXECUTION_REPORT");
 assert.ok(archiveSchema.$defs.executionReport.properties.task.required.includes("task_id"));
+assert.equal(archiveSchema.$defs.executionReport.properties.task.properties.objective.maxLength, 4000);
+assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes("report.task.objective.length > 4000"));
 assert.ok(fs.readFileSync("docs/BROWSER_DEMO.md", "utf8").includes("schemas/browser-demo-archive-v1.schema.json"));
 console.log("Archive schema smoke: version, task cap, report contract and documentation link OK");
 
