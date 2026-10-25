@@ -785,13 +785,19 @@
       }
       const imported = [];
       const importedIds = new Set();
+      const validTaskId = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/;
+      const validStatuses = new Set([
+        "QUEUED", "RUNNING", "AWAITING_APPROVAL", "COMPLETED",
+        "FAILED", "CANCELLED", "TIMED_OUT"
+      ]);
       try {
         for (const report of archive.tasks) {
           if (!report || typeof report !== "object" || Array.isArray(report) ||
               report.format !== "CYRUS_EXECUTION_REPORT" || report.schema_version !== 1 ||
               !report.task || typeof report.task !== "object" || Array.isArray(report.task) ||
-              typeof report.task.task_id !== "string" || !report.task.task_id.trim()) {
-            return errorResponse("Every archive entry must be a version 1 CYRUS execution report", 400);
+              typeof report.task.task_id !== "string" || !validTaskId.test(report.task.task_id) ||
+              !validStatuses.has(String(report.task.status || "").toUpperCase())) {
+            return errorResponse("Every archive entry must be a version 1 CYRUS execution report with a valid task ID and status", 400);
           }
           const sanitized = exporter.buildTaskReport(report.task).task;
           const task = normalizeTask(sanitized);
