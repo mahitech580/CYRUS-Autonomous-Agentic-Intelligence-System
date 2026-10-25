@@ -42,12 +42,20 @@
   });
   const errorResponse = (error, status, fields = {}) => response({ error, ...fields }, status);
   const safeMode = (mode) => mode === "supervised" ? "supervised" : "autonomous";
+  const validTaskId = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/;
+  const validTaskStatuses = new Set([
+    "QUEUED", "RUNNING", "AWAITING_APPROVAL", "COMPLETED",
+    "FAILED", "CANCELLED", "TIMED_OUT"
+  ]);
   const normalizeTask = (raw) => {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw) || typeof raw.task_id !== "string") return null;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw) ||
+        typeof raw.task_id !== "string" || !validTaskId.test(raw.task_id) ||
+        !validTaskStatuses.has(String(raw.status || "").toUpperCase())) return null;
     const recordedLimit = clampInteger(raw.max_task_retries, 3, 0, 10);
     const retryNumber = clampInteger(raw.retry_number, 0, 0, 1000000);
     return {
       ...raw,
+      status: String(raw.status).toUpperCase(),
       mode: safeMode(raw.mode),
       parent_task_id: typeof raw.parent_task_id === "string" ? raw.parent_task_id : null,
       retry_number: retryNumber,
@@ -64,7 +72,13 @@
       const raw = window.localStorage.getItem(storageKey);
       const parsed = raw ? JSON.parse(raw) : [];
       storageAvailable = true;
-      return Array.isArray(parsed) ? parsed.map(normalizeTask).filter(Boolean).slice(0, 25) : [];
+      if (!Array.isArray(parsed)) return [];
+      const seenIds = new Set();
+      return parsed.map(normalizeTask).filter((task) => {
+        if (!task || seenIds.has(task.task_id)) return false;
+        seenIds.add(task.task_id);
+        return true;
+      }).slice(0, 25);
     } catch {
       // Storage can be disabled by browser privacy settings.
       storageAvailable = false;
