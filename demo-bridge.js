@@ -813,18 +813,13 @@
       }
       const imported = [];
       const importedIds = new Set();
-      const validTaskId = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/;
-      const validStatuses = new Set([
-        "QUEUED", "RUNNING", "AWAITING_APPROVAL", "COMPLETED",
-        "FAILED", "CANCELLED", "TIMED_OUT"
-      ]);
       try {
         for (const report of archive.tasks) {
           if (!report || typeof report !== "object" || Array.isArray(report) ||
               report.format !== "CYRUS_EXECUTION_REPORT" || report.schema_version !== 1 ||
               !report.task || typeof report.task !== "object" || Array.isArray(report.task) ||
               typeof report.task.task_id !== "string" || !validTaskId.test(report.task.task_id) ||
-              !validStatuses.has(String(report.task.status || "").toUpperCase()) ||
+              !validTaskStatuses.has(String(report.task.status || "").toUpperCase()) ||
               (report.task.objective !== undefined &&
                 (typeof report.task.objective !== "string" || report.task.objective.length > 4000))) {
             return errorResponse("Every archive entry must be a version 1 CYRUS execution report with a valid task ID, status, and bounded objective", 400);
