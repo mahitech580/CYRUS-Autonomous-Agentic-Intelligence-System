@@ -389,6 +389,21 @@ async function main() {
   assert.equal(restoredLineage.body.attempts[1].retry_number, 1);
   assert.equal(restoredLineage.body.attempts[1].retry_reason, "FAILED:DemoFailure");
 
+  const hostileArchive = JSON.parse(JSON.stringify(archiveResult.body));
+  hostileArchive.tasks[0].task.api_key = "sentinel-import-api-key";
+  hostileArchive.tasks[0].task.summary = "Synthetic report contains Bearer abcdefghijklmnopqrstuvwxyz123456";
+  const hostileRestore = makeHarness();
+  const hostileImport = await hostileRestore.json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(hostileArchive)
+  });
+  assert.equal(hostileImport.response.status, 200);
+  const hostileRestoredTask = await hostileRestore.json("/api/tasks/DEMO-ARCHIVE-SECRET");
+  assert.ok(!Object.hasOwn(hostileRestoredTask.body, "api_key"));
+  assert.ok(!JSON.stringify(hostileRestoredTask.body).includes("sentinel-import-api-key"));
+  assert.ok(!JSON.stringify(hostileRestoredTask.body).includes("abcdefghijklmnopqrstuvwxyz123456"));
+
   const bomRestore = makeHarness();
   const bomImport = await bomRestore.json("/api/demo/import", {
     method: "POST",
