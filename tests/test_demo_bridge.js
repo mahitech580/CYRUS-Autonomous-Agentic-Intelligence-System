@@ -341,6 +341,51 @@ async function main() {
   assert.ok(!Object.hasOwn(restoredTask.body, "authorization"));
   assert.ok(!JSON.stringify(restoredTask.body).includes("sentinel-provider-secret"));
 
+  const lineageArchiveHarness = makeHarness({storedTasks: [
+    {
+      task_id: "DEMO-RESTORE-ROOT",
+      objective: "Preserve retry lineage in archive",
+      mode: "autonomous",
+      status: "FAILED",
+      retry_number: 0,
+      created_at: "2026-10-25T05:00:00Z",
+      updated_at: "2026-10-25T05:00:01Z",
+      events: [],
+      artifacts: [],
+      agents: []
+    },
+    {
+      task_id: "DEMO-RESTORE-CHILD",
+      objective: "Preserve retry lineage in archive",
+      mode: "autonomous",
+      status: "COMPLETED",
+      parent_task_id: "DEMO-RESTORE-ROOT",
+      retry_number: 1,
+      retry_reason: "FAILED:DemoFailure",
+      created_at: "2026-10-25T05:01:00Z",
+      updated_at: "2026-10-25T05:01:01Z",
+      events: [],
+      artifacts: [],
+      agents: []
+    }
+  ]});
+  const lineageArchive = await lineageArchiveHarness.json("/api/demo/export");
+  const lineageRestore = makeHarness();
+  const lineageImport = await lineageRestore.json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(lineageArchive.body)
+  });
+  assert.equal(lineageImport.response.status, 200);
+  const restoredLineage = await lineageRestore.json("/api/tasks/DEMO-RESTORE-CHILD/lineage");
+  assert.equal(restoredLineage.response.status, 200);
+  assert.deepEqual(
+    restoredLineage.body.attempts.map((task) => task.task_id),
+    ["DEMO-RESTORE-ROOT", "DEMO-RESTORE-CHILD"]
+  );
+  assert.equal(restoredLineage.body.attempts[1].retry_number, 1);
+  assert.equal(restoredLineage.body.attempts[1].retry_reason, "FAILED:DemoFailure");
+
   const duplicateArchive = await restoreHarness.json("/api/demo/import", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
