@@ -3103,9 +3103,14 @@ body:after{
 .demo-mode-dot{width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#ffc76e;box-shadow:0 0 0 4px rgba(255,199,110,.12)}
 .demo-mode-reset{min-height:30px;padding:6px 9px;border:1px solid rgba(255,194,113,.35);border-radius:7px;background:rgba(255,194,113,.08);color:#ffe0b1;font:8px var(--mono);letter-spacing:.08em;cursor:pointer}
 .demo-mode-reset:hover{background:rgba(255,194,113,.16);border-color:rgba(255,194,113,.6)}
-.demo-mode-reset:focus-visible,.demo-mode-export:focus-visible{outline:2px solid #ffe0b1;outline-offset:3px}
+.demo-mode-reset:focus-visible,.demo-mode-export:focus-visible,.demo-mode-import:focus-visible{outline:2px solid #ffe0b1;outline-offset:3px}
 .demo-mode-export{min-height:30px;padding:6px 9px;border:1px solid rgba(118,220,188,.34);border-radius:7px;background:rgba(118,220,188,.07);color:#b2f4dd;font:8px var(--mono);letter-spacing:.08em;cursor:pointer}
 .demo-mode-export:hover{background:rgba(118,220,188,.14);border-color:rgba(118,220,188,.58)}
+.demo-mode-import{min-height:30px;padding:6px 9px;border:1px solid rgba(150,174,255,.36);border-radius:7px;background:rgba(112,139,255,.08);color:#cbd7ff;font:8px var(--mono);letter-spacing:.08em;cursor:pointer}
+.demo-mode-import:hover{background:rgba(112,139,255,.16);border-color:rgba(150,174,255,.62)}
+.demo-mode-import:focus-visible{outline:2px solid #cbd7ff;outline-offset:3px}
+.demo-archive-file-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;clip-path:inset(50%);border:0}
+.demo-archive-file-input:focus-visible+.demo-mode-reset{outline:2px solid #cbd7ff;outline-offset:3px}
 
 @media(max-width:650px){.demo-mode-banner{gap:7px 10px;padding:9px 12px;font-size:8px}.demo-mode-banner>small{flex-basis:100%}}
 
