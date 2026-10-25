@@ -36,9 +36,9 @@ The Execution History page exports filtered summary rows as CSV. Open any execut
 
 ## REST API
 
-- `GET /api/health` — liveness, provider/capacity telemetry, and credential-safe history-store reachability; remains HTTP 200 while the process is alive
+- `GET /api/health` — fast liveness plus provider/capacity and history-store configuration telemetry; it does not block on a database connection
 - `GET /api/provider` — active provider capabilities, without exposing credentials
-- `GET /api/ready` — deployment readiness probe (returns 503 when workers are saturated, live-provider access is locked, or the history database is unreachable)
+- `GET /api/ready` — dependency-aware readiness probe (returns 503 when workers are saturated, live-provider access is locked, or the history database is unreachable)
 - `GET /api/security` — API protection configuration without exposing the access key
 - `GET /api/agents`
 - `GET /api/tools`
