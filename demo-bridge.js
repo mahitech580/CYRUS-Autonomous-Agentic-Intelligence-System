@@ -802,6 +802,10 @@
           const sanitized = exporter.buildTaskReport(report.task).task;
           const task = normalizeTask(sanitized);
           if (!task) return errorResponse("Archive contains an invalid task record", 400);
+          // Restored records remain historical browser fixtures, never backend executions.
+          task.demo_only = true;
+          task.provider = "browser-demo";
+          task.verification_status = "SYNTHETIC_DEMO_ONLY";
           if (importedIds.has(task.task_id) || find(task.task_id)) {
             return errorResponse("Archive contains a duplicate task ID: " + task.task_id, 409);
           }
