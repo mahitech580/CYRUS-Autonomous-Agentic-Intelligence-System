@@ -461,10 +461,12 @@ function App(){
       const preview=archive.tasks.reduce((counts,report)=>{
         const status=String(report?.task?.status||'UNKNOWN').toUpperCase()
         counts[status]=(counts[status]||0)+1
-        if(Number(report?.task?.retry_number)>0)counts.retries+=1
+        const depth=Number(report?.task?.retry_number)||0
+        if(depth>0)counts.retries+=1
+        counts.maxDepth=Math.max(counts.maxDepth,depth)
         return counts
-      },{retries:0})
-      const previewText='COMPLETED '+(preview.COMPLETED||0)+' · FAILED '+(preview.FAILED||0)+' · RETRIES '+preview.retries
+      },{retries:0,maxDepth:0})
+      const previewText='COMPLETED '+(preview.COMPLETED||0)+' · FAILED '+(preview.FAILED||0)+' · TIMED OUT '+(preview.TIMED_OUT||0)+' · CANCELLED '+(preview.CANCELLED||0)+' · RETRIES '+preview.retries+' · MAX DEPTH '+preview.maxDepth
       if(typeof window.confirm==='function'&&!window.confirm('Import '+archive.tasks.length+' historical task report(s) from "'+file.name+'" into this browser?\n'+previewText+'\nThis will not resume executions or change backend history.'))return
       const result=await apiJson('/api/demo/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(archive)})
       await loadBase()
