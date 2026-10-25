@@ -492,6 +492,8 @@ const resetDemoApp = fs.readFileSync("app.js", "utf8");
 const resetDemoCss = fs.readFileSync("styles.css", "utf8");
 assert.ok(resetDemoBridge.includes('path === "/api/demo/reset"'), "Demo API should expose a local-only history reset route");
 assert.ok(resetDemoBridge.includes("storage_available: storageAvailable"), "Demo health should report local-storage availability");
+assert.ok(resetDemoBridge.includes("persisted_tasks: tasks.length,\n    storage_available: storageAvailable"), "Demo metrics should expose current storage health");
+assert.ok(resetDemoApp.includes("setDemoStorageAvailable(metrics.storage_available!==false)"), "The demo banner should refresh persistence status from live metrics");
 assert.ok(resetDemoBridge.includes("!validTaskId.test(raw.task_id)"), "Persisted task IDs must be validated before rendering");
 assert.ok(resetDemoBridge.includes("seenIds.has(task.task_id)"), "Duplicate persisted task IDs must be discarded");
 assert.ok(resetDemoApp.includes("demo-mode-storage-warning"), "Demo banner should surface storage persistence warnings");
