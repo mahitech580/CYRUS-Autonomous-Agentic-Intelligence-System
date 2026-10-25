@@ -778,6 +778,15 @@ class CyrusApiContractTests(unittest.TestCase):
             {"CYRUS-CYCLE-A", "CYRUS-CYCLE-B"},
         )
         self.assertFalse(payload["truncated"])
+        self.assertEqual(payload["root_task_id"], "CYRUS-CYCLE-A")
+
+        other_cycle_member = self.client.get("/api/tasks/CYRUS-CYCLE-B/lineage")
+        self.assertEqual(other_cycle_member.status_code, 200)
+        self.assertEqual(other_cycle_member.get_json()["root_task_id"], payload["root_task_id"])
+        self.assertEqual(
+            [item["task_id"] for item in other_cycle_member.get_json()["attempts"]],
+            [item["task_id"] for item in payload["attempts"]],
+        )
 
     def test_task_lineage_caps_large_histories_and_marks_truncation(self):
         root = {
