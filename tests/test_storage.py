@@ -59,6 +59,21 @@ class HistoryStoreTests(unittest.TestCase):
         self.assertNotIn("secret", str(result))
         self.assertNotIn("db.internal", str(result))
 
+    def test_connectivity_check_detects_missing_history_schema(self):
+        with TemporaryDirectory() as directory:
+            store = HistoryStore(Path(directory) / "history.sqlite3")
+            conn = store._connect()
+            try:
+                store._execute(conn, "DROP TABLE cyrus_execution_history")
+                conn.commit()
+            finally:
+                conn.close()
+            result = store.check()
+
+        self.assertFalse(result["reachable"])
+        self.assertEqual(result["backend"], "sqlite")
+        self.assertIn(result["error_type"], {"OperationalError", "ProgrammingError"})
+
     def test_unsupported_database_url_fails_loudly(self):
         with patch.dict(os.environ, {
             "CYRUS_DATABASE_URL": "mysql://user:secret@example.test/cyrus",
