@@ -566,6 +566,10 @@ console.log("Archive schema smoke: version, task cap, report contract and docume
 const apiSettingsSource = fs.readFileSync("app.js", "utf8");
 assert.ok(apiSettingsSource.includes("['localhost','127.0.0.1','::1','[::1]']"), "IPv6 loopback HTTP must be allowed for local API development");
 assert.ok(apiSettingsSource.includes("Test connection"), "API settings must expose a pre-save connection test");
+assert.ok(apiSettingsSource.includes("dialogRef=useRef(null)"), "API settings dialog must own a focus boundary");
+assert.ok(apiSettingsSource.includes("event.key==='Escape'"), "Escape should close the API settings dialog");
+assert.ok(apiSettingsSource.includes("dialog.querySelector('#cyrus-api-url')?.focus()"), "Opening API settings should focus the URL field");
+assert.ok(apiSettingsSource.includes("document.activeElement===last"), "Tab navigation should remain inside the modal");
 assert.ok(apiSettingsSource.includes("fetch(candidate+'/api/health'"), "Connection test must probe the selected backend health endpoint");
 assert.ok(apiSettingsSource.includes("credentials:'omit'"), "Connection test must not send cookies to the selected backend");
 assert.ok(apiSettingsSource.includes("Live connection tests are disabled in offline demo mode"), "Offline demo mode must not masquerade as a live connection test");
