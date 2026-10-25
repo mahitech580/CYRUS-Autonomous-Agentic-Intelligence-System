@@ -26,6 +26,7 @@
   const requestKeys = new Map();
   const MAX_IDEMPOTENCY_KEYS = 256;
   let taskSequence = 0;
+  let storageAvailable = true;
   const clampInteger = (value, fallback, min, max) => {
     if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) {
       return fallback;
@@ -62,9 +63,11 @@
     try {
       const raw = window.localStorage.getItem(storageKey);
       const parsed = raw ? JSON.parse(raw) : [];
+      storageAvailable = true;
       return Array.isArray(parsed) ? parsed.map(normalizeTask).filter(Boolean).slice(0, 25) : [];
     } catch {
       // Storage can be disabled by browser privacy settings.
+      storageAvailable = false;
       return [];
     }
   };
@@ -72,7 +75,9 @@
   const persist = () => {
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(tasks.slice(0, 25)));
+      storageAvailable = true;
     } catch {
+      storageAvailable = false;
       // This tab still works if persistent browser storage is unavailable.
     }
   };
@@ -829,8 +834,10 @@
       try {
         window.localStorage.setItem(storageKey, JSON.stringify(nextTasks));
       } catch {
+        storageAvailable = false;
         return errorResponse("Browser storage is unavailable or full; archive was not imported", 507);
       }
+      storageAvailable = true;
       tasks.splice(0, tasks.length, ...nextTasks);
       return response({
         imported_tasks: imported.length,
@@ -844,7 +851,9 @@
     if (path === "/api/health" && method === "GET") return response({
       status: "ok", system: "CYRUS CORE 1.0", mode: "DEMO", runtime: "browser-demo",
       api_access_key_required: false, api_access_key_configured: false,
-      persistence: "browser-local-only"
+      persistence: "browser-local-only",
+      storage_available: storageAvailable,
+      storage_warning: storageAvailable ? null : "Browser storage is unavailable; current-session changes may not persist."
     });
     if (path === "/api/security" && method === "GET") return response({
       api_access_key_required: false, api_access_key_configured: false,
