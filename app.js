@@ -453,7 +453,7 @@ function App(){
     input.value=''
     if(file.size>1024*1024){notify('Archive exceeds the 1 MiB import limit.');return}
     try{
-      const archive=JSON.parse(await file.text())
+      const archive=JSON.parse((await file.text()).replace(/^\uFEFF/,''))
       if(!archive||archive.format!=='CYRUS_BROWSER_DEMO_ARCHIVE'||archive.schema_version!==1||!Array.isArray(archive.tasks)){
         throw new Error('Choose a version 1 CYRUS browser-demo JSON archive.')
       }
