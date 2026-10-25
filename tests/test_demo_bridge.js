@@ -335,6 +335,8 @@ async function main() {
   const restoredTask = await restoreHarness.json("/api/tasks/DEMO-ARCHIVE-SECRET");
   assert.equal(restoredTask.response.status, 200);
   assert.equal(restoredTask.body.demo_only, true);
+  assert.equal(restoredTask.body.provider, "browser-demo");
+  assert.equal(restoredTask.body.verification_status, "SYNTHETIC_DEMO_ONLY");
   assert.ok(!Object.hasOwn(restoredTask.body, "api_key"));
   assert.ok(!Object.hasOwn(restoredTask.body, "authorization"));
   assert.ok(!JSON.stringify(restoredTask.body).includes("sentinel-provider-secret"));
