@@ -571,6 +571,8 @@ assert.ok(apiSettingsSource.includes("event.key==='Escape'"), "Escape should clo
 assert.ok(apiSettingsSource.includes("dialog.querySelector('#cyrus-api-url')?.focus()"), "Opening API settings should focus the URL field");
 assert.ok(apiSettingsSource.includes("document.activeElement===last"), "Tab navigation should remain inside the modal");
 assert.ok(apiSettingsSource.includes("fetch(candidate+'/api/health'"), "Connection test must probe the selected backend health endpoint");
+assert.ok(apiSettingsSource.includes("sequence!==testSequence.current"), "Late health-test responses must not overwrite newer URL state");
+assert.ok(apiSettingsSource.includes("testSequence.current++"), "Changing or closing settings must invalidate in-flight health checks");
 assert.ok(apiSettingsSource.includes("credentials:'omit'"), "Connection test must not send cookies to the selected backend");
 assert.ok(apiSettingsSource.includes("Live connection tests are disabled in offline demo mode"), "Offline demo mode must not masquerade as a live connection test");
 assert.ok(apiSettingsSource.includes("parsed.search||parsed.hash"), "API settings must reject URL query strings and fragments");
