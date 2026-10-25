@@ -1019,10 +1019,11 @@ class CyrusApiContractTests(unittest.TestCase):
             "backend": "postgresql",
             "error_type": "OperationalError",
         }
-        with patch.object(server.HISTORY_STORE, "check", return_value=unavailable):
+        with patch.object(server.HISTORY_STORE, "check", return_value=unavailable) as storage_check:
             readiness = self.client.get("/api/ready")
             health = self.client.get("/api/health")
 
+        self.assertEqual(storage_check.call_count, 1, "Only readiness should probe the database")
         self.assertEqual(readiness.status_code, 503)
         self.assertFalse(readiness.get_json()["ready"])
         self.assertEqual(readiness.get_json()["reason"], "history_store_unavailable")
