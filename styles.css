@@ -3101,6 +3101,8 @@ body:after{
 .demo-mode-banner>span:not(.demo-mode-dot){color:#ffe8ca}
 .demo-mode-banner>small{color:#c6aa84;font:8px/1.45 var(--mono)}
 .demo-mode-dot{width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#ffc76e;box-shadow:0 0 0 4px rgba(255,199,110,.12)}
+.demo-mode-storage-warning{flex-basis:100%;padding:7px 9px;border:1px solid rgba(255,151,151,.28);border-radius:6px;background:rgba(255,115,126,.07);color:#ffb4bb;font:9px/1.5 var(--mono)}
+
 .demo-mode-reset{min-height:30px;padding:6px 9px;border:1px solid rgba(255,194,113,.35);border-radius:7px;background:rgba(255,194,113,.08);color:#ffe0b1;font:8px var(--mono);letter-spacing:.08em;cursor:pointer}
 .demo-mode-reset:hover{background:rgba(255,194,113,.16);border-color:rgba(255,194,113,.6)}
 .demo-mode-reset:focus-visible,.demo-mode-export:focus-visible,.demo-mode-import:focus-visible{outline:2px solid #ffe0b1;outline-offset:3px}
