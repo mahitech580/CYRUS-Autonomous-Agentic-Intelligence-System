@@ -1206,7 +1206,7 @@ function HomeView({go,runtimeState,busy,agents,openPalette,openApiSettings,openA
 }
 
 function PlatformView({go,open,openApiSettings}){
-  const [snapshot,setSnapshot]=useState({health:null,provider:null,security:null,metrics:null,tasks:null});
+  const [snapshot,setSnapshot]=useState({health:null,readiness:null,provider:null,security:null,metrics:null,tasks:null});
   const [refreshing,setRefreshing]=useState(false);
   const [updatedAt,setUpdatedAt]=useState(null);
   const [refreshTick,setRefreshTick]=useState(0);
@@ -1218,8 +1218,8 @@ function PlatformView({go,open,openApiSettings}){
       if(inFlight)return;
       inFlight=true;
       if(active)setRefreshing(true);
-      const names=['health','provider','security','metrics','tasks'];
-      const paths=['/api/health','/api/provider','/api/security','/api/metrics','/api/tasks?limit=8'];
+      const names=['health','readiness','provider','security','metrics','tasks'];
+      const paths=['/api/health','/api/ready','/api/provider','/api/security','/api/metrics','/api/tasks?limit=8'];
       const results=await Promise.allSettled(paths.map(path=>apiJson(path)));
       if(active){
         const next={};
@@ -1240,6 +1240,9 @@ function PlatformView({go,open,openApiSettings}){
   },[refreshTick]);
 
   const health=snapshot.health?.data;
+  const readiness=snapshot.readiness?.data;
+  const readinessError=snapshot.readiness?.error;
+  const readinessLabel=readiness?.ready===true?'READY':readinessError==='history_store_unavailable'?'STORAGE OFFLINE':readinessError==='worker_capacity_full'?'CAPACITY FULL':readinessError==='live_model_requires_api_access_key'?'LIVE ACCESS LOCKED':readinessError?'UNAVAILABLE':'CHECKING';
   const provider=snapshot.provider?.data;
   const security=snapshot.security?.data;
   const metrics=snapshot.metrics?.data;
@@ -1282,6 +1285,7 @@ function PlatformView({go,open,openApiSettings}){
       <div className="platform-live-statusline"><span className={'platform-state-dot '+(apiHealthy?'healthy':snapshot.health?.error?'unreachable':'pending')}/><b>{apiHealthy?'API RESPONDING':snapshot.health?.error?'API UNREACHABLE':'CONNECTING TO API'}</b><span>Last response · {stamp}</span><a href={apiUrl('/api/health')} target="_blank" rel="noreferrer">Health endpoint ↗</a></div>
       <div className="platform-telemetry-grid">
         <article className="platform-telemetry-card"><span>PROVIDER MODE</span><strong className={providerMode==='LIVE'?'is-live':''}>{providerMode}</strong><small>{provider?.model||'Model identifier unavailable'}</small><p>{provider?.message||(snapshot.provider?.error||'Waiting for provider diagnostics.')}</p></article>
+        <article className="platform-telemetry-card"><span>DEPENDENCY READINESS</span><strong className={readiness?.ready===true?'is-live':'is-guarded'}>{readinessLabel}</strong><small>{readiness?.history_store_health?.backend||health?.history_store?.backend||'History store unknown'}</small><p>{readiness?.ready===true?'History schema reachable and worker capacity available.':readinessError?String(readinessError).replaceAll('_',' '):'Waiting for the readiness probe.'}</p></article>
         <article className="platform-telemetry-card"><span>ACTIVE TASKS</span><strong>{metrics?(metrics.active_tasks??0):(snapshot.metrics?.error?'LOCKED':'—')}</strong><small>{metrics?(String(metrics.capacity??'—')+' worker slots configured'):'Private metrics endpoint'}</small><p>{metrics?(Math.round(((metrics.active_tasks||0)/Math.max(1,metrics.capacity||1))*100)+'% of worker capacity in use.'):(snapshot.metrics?.error||'Waiting for metrics.')}</p></article>
         <article className="platform-telemetry-card"><span>RECORDED RUNS</span><strong>{metrics?(metrics.persisted_tasks??0):(snapshot.metrics?.error?'LOCKED':'—')}</strong><small>{metrics?(String(metrics.completed_tasks??0)+' completed · '+String(metrics.failed_tasks??0)+' failed'):'Aggregate runtime metric'}</small><p>{metrics?(String(metrics.awaiting_approval??0)+' awaiting approval · '+String(metrics.cancelled_tasks??0)+' cancelled'):(snapshot.metrics?.error||'Waiting for metrics.')}</p></article>
         <article className="platform-telemetry-card"><span>API ACCESS</span><strong className={locked?'is-guarded':''}>{locked===true?'KEY REQUIRED':locked===false?'OPEN API':'UNKNOWN'}</strong><small>{security?.access_key_header||'X-CYRUS-Access-Key'}</small><p>{security?.model_key_in_browser===false?'Model-provider credentials remain server-side.':(snapshot.security?.error||'Waiting for security diagnostics.')}</p></article>
