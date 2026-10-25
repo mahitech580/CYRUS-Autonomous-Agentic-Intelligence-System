@@ -454,8 +454,10 @@ function App(){
     if(file.size>1024*1024){notify('Archive exceeds the 1 MiB import limit.');return}
     try{
       const archive=JSON.parse((await file.text()).replace(/^\uFEFF/,''))
-      if(!archive||archive.format!=='CYRUS_BROWSER_DEMO_ARCHIVE'||archive.schema_version!==1||!Array.isArray(archive.tasks)){
-        throw new Error('Choose a version 1 CYRUS browser-demo JSON archive.')
+      if(!archive||archive.format!=='CYRUS_BROWSER_DEMO_ARCHIVE'||archive.schema_version!==1||
+        archive.runtime!=='browser-demo'||archive.persistence!=='browser-local-only'||
+        !Array.isArray(archive.tasks)||!Number.isInteger(archive.task_count)||archive.task_count!==archive.tasks.length){
+        throw new Error('Choose a complete version 1 CYRUS browser-demo archive with a matching task count.')
       }
       if(archive.tasks.length>25)throw new Error('Archive contains more than 25 task records.')
       const preview=archive.tasks.reduce((counts,report)=>{
