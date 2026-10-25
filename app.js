@@ -44,6 +44,28 @@ const seedObjective='Build a production-ready REST API for task management with 
 const CYRUS_IMAGES={"command":"https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1800&q=85","agents":"https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1400&q=85","memory":"https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=1400&q=85","tools":"https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1400&q=85","history":"https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1400&q=85","spotlight":"https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1400&q=85","orchestration":"https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1400&q=85","code":"https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=900&q=85","circuit":"https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=85","servers":"https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=900&q=85","automation":"https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=900&q=85","research":"https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=900&q=85","memoryCard":"https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=900&q=85"}
 
 function ApiSettingsModal({close}){
+  const dialogRef=useRef(null);
+  useEffect(()=>{
+    const dialog=dialogRef.current;
+    if(!dialog)return;
+    const previous=document.activeElement;
+    const focusable=()=>Array.from(dialog.querySelectorAll('button:not([disabled]),input:not([disabled]),a[href]'));
+    dialog.querySelector('#cyrus-api-url')?.focus();
+    const onKeyDown=event=>{
+      if(event.key==='Escape'){event.preventDefault();close();return;}
+      if(event.key!=='Tab')return;
+      const elements=focusable();
+      if(!elements.length){event.preventDefault();return;}
+      const first=elements[0],last=elements[elements.length-1];
+      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+    };
+    document.addEventListener('keydown',onKeyDown);
+    return ()=>{
+      document.removeEventListener('keydown',onKeyDown);
+      previous?.focus?.();
+    };
+  },[close]);
   const defaultUrl=String(window.CYRUS_CONFIG?.defaultApiBaseUrl||'https://cyrus-agentic-api-mahitech580.onrender.com');
   const currentUrl=String(window.CYRUS_CONFIG?.apiBaseUrl||defaultUrl);
   const [value,setValue]=useState(currentUrl);
@@ -98,7 +120,7 @@ function ApiSettingsModal({close}){
     catch{setError('Browser storage is blocked; unable to reset the URL.');}
   };
   return <div className="api-settings-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)close()}}>
-    <section className="api-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="api-settings-title">
+    <section ref={dialogRef} className="api-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="api-settings-title">
       <div className="api-settings-head"><div><span>CYRUS / CONNECTION SETTINGS</span><h2 id="api-settings-title">Connect the live backend.</h2></div><button type="button" onClick={close} aria-label="Close API settings">×</button></div>
       <p>The GitHub Pages frontend needs a running Flask API URL. Save your deployed Render address so execution, metrics, history and live event streams reach the server instead of browser-demo data.</p>
       <form onSubmit={save}>
