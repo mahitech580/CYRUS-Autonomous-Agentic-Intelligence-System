@@ -2633,7 +2633,7 @@ body:after{background:radial-gradient(circle at var(--mx) var(--my),rgba(75,255,
 .platform-state-dot.healthy{background:#60d691;box-shadow:0 0 0 4px rgba(96,214,145,.12),0 0 14px rgba(96,214,145,.4)}
 .platform-state-dot.unreachable{background:#e77569;box-shadow:0 0 0 4px rgba(231,117,105,.12)}
 .platform-state-dot.pending{background:#d4b968}
-.platform-telemetry-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.platform-telemetry-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:11px}
 .platform-telemetry-card{min-height:182px;padding:16px;border:1px solid rgba(139,165,146,.16);border-radius:14px;background:rgba(4,9,6,.48);overflow-wrap:anywhere}
 .platform-telemetry-card>span{display:block;color:#92a398;font:9px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.13em}
 .platform-telemetry-card>strong{display:block;margin:14px 0 5px;color:#eff6f0;font-size:clamp(19px,2.2vw,28px);letter-spacing:-.035em}
