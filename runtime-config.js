@@ -11,7 +11,25 @@
   } catch {
     // Browser privacy settings can disable storage; use the deployed default.
   }
-  const apiBaseUrl = explicitDemoMode ? "" : (override || DEFAULT_API_BASE_URL).replace(/\/+$/, "");
+  const normalizeApiBaseUrl = (candidate) => {
+    const value = String(candidate || "").trim();
+    if (!value) return DEFAULT_API_BASE_URL;
+    try {
+      const parsed = new URL(value);
+      const localHttp = parsed.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
+      if ((parsed.protocol !== "https:" && !localHttp) ||
+          parsed.username || parsed.password || parsed.search || parsed.hash) {
+        return DEFAULT_API_BASE_URL;
+      }
+      return parsed.origin + parsed.pathname.replace(/\\/+$/, "");
+    } catch {
+      return DEFAULT_API_BASE_URL;
+    }
+  };
+  // Validate persisted settings too: localStorage can outlive the form that
+  // originally wrote it and must never turn an API key into a plain-HTTP leak.
+  const apiBaseUrl = explicitDemoMode ? "" : normalizeApiBaseUrl(override || DEFAULT_API_BASE_URL);
   let apiAccessKey = "";
   try {
     // A tab-scoped key can be typed by the operator; never publish it in the repo.
