@@ -458,7 +458,14 @@ function App(){
         throw new Error('Choose a version 1 CYRUS browser-demo JSON archive.')
       }
       if(archive.tasks.length>25)throw new Error('Archive contains more than 25 task records.')
-      if(typeof window.confirm==='function'&&!window.confirm('Import '+archive.tasks.length+' historical task report(s) into this browser? This will not resume executions.'))return
+      const preview=archive.tasks.reduce((counts,report)=>{
+        const status=String(report?.task?.status||'UNKNOWN').toUpperCase()
+        counts[status]=(counts[status]||0)+1
+        if(Number(report?.task?.retry_number)>0)counts.retries+=1
+        return counts
+      },{retries:0})
+      const previewText='COMPLETED '+(preview.COMPLETED||0)+' · FAILED '+(preview.FAILED||0)+' · RETRIES '+preview.retries
+      if(typeof window.confirm==='function'&&!window.confirm('Import '+archive.tasks.length+' historical task report(s) from "'+file.name+'" into this browser?\\n'+previewText+'\\nThis will not resume executions or change backend history.'))return
       const result=await apiJson('/api/demo/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(archive)})
       await loadBase()
       notify('Imported '+Number(result.imported_tasks||0)+' sanitized historical task(s). No execution was resumed.')
