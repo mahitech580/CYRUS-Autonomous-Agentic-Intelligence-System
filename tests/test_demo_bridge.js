@@ -361,6 +361,13 @@ async function main() {
     assert.ok([400, 413].includes(invalidImport.response.status), "invalid or oversized archives must be rejected");
   }
 
+  const wrongContentType = await makeHarness().json("/api/demo/import", {
+    method: "POST",
+    headers: {"Content-Type": "text/plain"},
+    body: "{}"
+  });
+  assert.equal(wrongContentType.response.status, 415);
+
   const fullHistory = makeHarness({storedTasks: Array.from({length: 25}, (_, index) => ({
     task_id: "DEMO-EXISTING-" + index,
     objective: "Existing local record",
