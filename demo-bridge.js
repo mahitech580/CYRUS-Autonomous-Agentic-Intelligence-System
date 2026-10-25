@@ -825,8 +825,13 @@
           max_records: 25
         });
       }
-      tasks.unshift(...imported);
-      persist();
+      const nextTasks = [...imported, ...tasks].slice(0, 25);
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(nextTasks));
+      } catch {
+        return errorResponse("Browser storage is unavailable or full; archive was not imported", 507);
+      }
+      tasks.splice(0, tasks.length, ...nextTasks);
       return response({
         imported_tasks: imported.length,
         task_count: tasks.length,
