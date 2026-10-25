@@ -830,7 +830,12 @@ def health():
         )
     utilization = round(active / MAX_CONCURRENT_TASKS, 3)
     live_model_locked = PROVIDER.mode == "LIVE" and not API_ACCESS_KEY
-    ready = active < MAX_CONCURRENT_TASKS and not live_model_locked
+    history_store_health = HISTORY_STORE.check()
+    ready = (
+        active < MAX_CONCURRENT_TASKS
+        and not live_model_locked
+        and history_store_health["reachable"]
+    )
     return jsonify({
         "status": "ok",
         "system": "CYRUS CORE 1.0",
@@ -849,7 +854,8 @@ def health():
         "active_tasks": active,
         "capacity_utilization": utilization,
         "ready": ready,
-        "history_store": HISTORY_STORE.info()
+        "history_store": HISTORY_STORE.info(),
+        "history_store_health": history_store_health
     })
 
 @app.get("/api/provider")
@@ -885,7 +891,9 @@ def readiness():
         )
     live_model_locked = PROVIDER.mode == "LIVE" and not API_ACCESS_KEY
     capacity_available = active < MAX_CONCURRENT_TASKS
-    ready = capacity_available and not live_model_locked
+    history_store_health = HISTORY_STORE.check()
+    storage_available = history_store_health["reachable"]
+    ready = capacity_available and not live_model_locked and storage_available
     payload = {
         "ready": ready,
         "active_tasks": active,
@@ -894,9 +902,11 @@ def readiness():
         "live_model_locked": live_model_locked,
         "api_access_key_required": bool(API_ACCESS_KEY) or PROVIDER.mode == "LIVE",
         "api_access_key_configured": bool(API_ACCESS_KEY),
+        "history_store_health": history_store_health,
         "reason": (
             "live_model_requires_api_access_key" if live_model_locked else
-            "worker_capacity_full" if not capacity_available else None
+            "worker_capacity_full" if not capacity_available else
+            "history_store_unavailable" if not storage_available else None
         ),
     }
     return jsonify(payload), 200 if ready else 503
