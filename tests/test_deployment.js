@@ -502,11 +502,18 @@ assert.ok(resetDemoCss.includes(".demo-mode-reset"), "Demo reset control must ha
 assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("/api/demo/reset"), "Demo history reset must have an integration regression test");
 console.log("Demo reset smoke: confirmation, local-only deletion, idempotency cleanup, metrics refresh, and accessible styling OK");
 assert.ok(resetDemoBridge.includes('path === "/api/demo/export"'), "Demo API should expose a local session archive endpoint");
+assert.ok(resetDemoBridge.includes('path === "/api/demo/import"'), "Demo API should expose bounded local archive restore");
+assert.ok(resetDemoBridge.includes("1024 * 1024"), "Archive restore must cap payload size");
+assert.ok(resetDemoBridge.includes("importedIds.has(task.task_id) || find(task.task_id)"), "Archive restore must reject duplicate task IDs atomically");
+assert.ok(resetDemoBridge.includes("tasks.length + imported.length > 25"), "Archive restore must enforce local retention limits");
 assert.ok(resetDemoBridge.includes("CYRUS_BROWSER_DEMO_ARCHIVE"), "Local archive must carry a versioned format identifier");
 assert.ok(resetDemoBridge.includes("exporter.buildTaskReport(task)"), "Local archive must use the allowlisted task report exporter");
 assert.ok(resetDemoApp.includes("const exportDemoHistory=async()=>"), "Local archive needs an explicit user-triggered download handler");
 assert.ok(resetDemoApp.includes("EXPORT LOCAL HISTORY"), "Local archive must be available from the demo banner");
+assert.ok(resetDemoApp.includes("const importDemoHistory=async event=>"), "Local archive restore must have a file import handler");
+assert.ok(resetDemoApp.includes("IMPORT ARCHIVE"), "Local archive restore must be available from the demo banner");
 assert.ok(resetDemoCss.includes(".demo-mode-export"), "Local archive control must be styled and keyboard visible");
+assert.ok(resetDemoCss.includes(".demo-mode-import:focus-visible"), "Archive import must have a visible keyboard focus style");
 assert.ok(fs.readFileSync("tests/test_demo_bridge.js", "utf8").includes("/api/demo/export"), "Local session archive must have a bridge regression test");
 console.log("Demo archive smoke: local endpoint, report allowlist, download action, disclosure and styling OK");
 const browserDemoGuide = fs.readFileSync("docs/BROWSER_DEMO.md", "utf8");
@@ -518,7 +525,10 @@ for (const behavior of [
   "CYRUS_BROWSER_DEMO_ARCHIVE",
   "25 task records",
   "256 keys",
-  "CLEAR LOCAL HISTORY"
+  "CLEAR LOCAL HISTORY",
+  "IMPORT ARCHIVE",
+  "/api/demo/import",
+  "atomic"
 ]) {
   assert.ok(browserDemoGuide.includes(behavior), "Missing browser demo guide coverage: " + behavior);
 }
