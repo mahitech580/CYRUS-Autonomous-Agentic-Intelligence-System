@@ -38,6 +38,7 @@
             "status": {
               "enum": ["QUEUED", "RUNNING", "AWAITING_APPROVAL", "COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"]
             },
+            "objective": { "type": "string", "maxLength": 4000 },
             "mode": { "enum": ["autonomous", "supervised"] },
             "parent_task_id": { "type": ["string", "null"] },
             "retry_number": { "type": "integer", "minimum": 0 },
