@@ -495,6 +495,8 @@ assert.ok(resetDemoBridge.includes("storage_available: storageAvailable"), "Demo
 assert.ok(resetDemoApp.includes("demo-mode-storage-warning"), "Demo banner should surface storage persistence warnings");
 assert.ok(resetDemoCss.includes(".demo-mode-storage-warning"), "Storage warning must have a visible style");
 assert.ok(resetDemoBridge.includes("requestKeys.clear()"), "Demo reset must also clear idempotency entries");
+assert.ok(resetDemoBridge.includes('window.localStorage.setItem(storageKey, "[]")'), "Demo reset must persist the empty history before clearing memory");
+assert.ok(resetDemoBridge.includes("local history was not cleared"), "Failed reset persistence must be reported without data loss");
 assert.ok(resetDemoApp.includes("const clearDemoHistory=async()=>"), "Demo reset action must use an explicit UI handler");
 assert.ok(resetDemoApp.includes("window.confirm('Clear all local browser demo tasks? This cannot be undone.')"), "Clearing demo records must ask for confirmation");
 assert.ok(resetDemoApp.includes("No backend records were changed."), "Reset feedback must clarify its local scope");
