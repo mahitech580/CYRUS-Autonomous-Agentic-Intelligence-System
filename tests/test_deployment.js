@@ -563,6 +563,8 @@ assert.equal(archiveSchema.$defs.executionReport.properties.task.properties.obje
 assert.ok(fs.readFileSync("demo-bridge.js", "utf8").includes("report.task.objective.length > 4000"));
 assert.ok(fs.readFileSync("docs/BROWSER_DEMO.md", "utf8").includes("schemas/browser-demo-archive-v1.schema.json"));
 console.log("Archive schema smoke: version, task cap, report contract and documentation link OK");
+assert.ok(fs.readFileSync("app.js", "utf8").includes("['localhost','127.0.0.1','::1','[::1]']"), "IPv6 loopback HTTP must be allowed for local API development");
+console.log("API settings smoke: IPv6 loopback is accepted for local HTTP development");
 
 
 
