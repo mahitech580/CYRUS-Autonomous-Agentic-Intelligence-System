@@ -824,8 +824,10 @@
               report.format !== "CYRUS_EXECUTION_REPORT" || report.schema_version !== 1 ||
               !report.task || typeof report.task !== "object" || Array.isArray(report.task) ||
               typeof report.task.task_id !== "string" || !validTaskId.test(report.task.task_id) ||
-              !validStatuses.has(String(report.task.status || "").toUpperCase())) {
-            return errorResponse("Every archive entry must be a version 1 CYRUS execution report with a valid task ID and status", 400);
+              !validStatuses.has(String(report.task.status || "").toUpperCase()) ||
+              (report.task.objective !== undefined &&
+                (typeof report.task.objective !== "string" || report.task.objective.length > 4000))) {
+            return errorResponse("Every archive entry must be a version 1 CYRUS execution report with a valid task ID, status, and bounded objective", 400);
           }
           const sanitized = exporter.buildTaskReport(report.task).task;
           const task = normalizeTask(sanitized);
