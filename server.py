@@ -1792,15 +1792,24 @@ def task_lineage(task_id):
     # Older history may have pruned a parent, and malformed records can contain cycles.
     current = task_id
     ancestor_path = []
-    visited_ancestors = set()
-    while current in by_id and current not in visited_ancestors and len(ancestor_path) < len(by_id):
-        visited_ancestors.add(current)
+    visited_ancestors = {}
+    root_id = task_id
+    while current in by_id:
+        if current in visited_ancestors:
+            # A malformed cycle has no natural root. Pick a stable representative
+            # so querying any member of the same cycle yields the same lineage ID.
+            cycle = ancestor_path[visited_ancestors[current]:]
+            root_id = min(cycle) if cycle else current
+            break
+        visited_ancestors[current] = len(ancestor_path)
         ancestor_path.append(current)
         parent_id = by_id[current].get("parent_task_id")
-        if not isinstance(parent_id, str) or parent_id not in by_id or parent_id in visited_ancestors:
+        if not isinstance(parent_id, str) or parent_id not in by_id:
+            root_id = current
             break
         current = parent_id
-    root_id = ancestor_path[-1] if ancestor_path else task_id
+    else:
+        root_id = ancestor_path[-1] if ancestor_path else task_id
 
     children = {}
     for item in by_id.values():
