@@ -397,6 +397,8 @@ async function main() {
   for (const invalidArchive of [
     {format: "OTHER", schema_version: 1, tasks: []},
     {format: "CYRUS_BROWSER_DEMO_ARCHIVE", schema_version: 2, tasks: []},
+    {...archiveResult.body, task_count: 99},
+    {...archiveResult.body, runtime: "remote-api"},
     {format: "CYRUS_BROWSER_DEMO_ARCHIVE", schema_version: 1, tasks: [{}]},
     {format: "CYRUS_BROWSER_DEMO_ARCHIVE", schema_version: 1, tasks: Array.from({length: 26}, () => ({}))}
   ]) {
