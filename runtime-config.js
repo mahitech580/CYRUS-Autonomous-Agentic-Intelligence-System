@@ -22,7 +22,7 @@
           parsed.username || parsed.password || parsed.search || parsed.hash) {
         return DEFAULT_API_BASE_URL;
       }
-      return parsed.origin + parsed.pathname.replace(/\\/+$/, "");
+      return parsed.origin + parsed.pathname.replace(/\/+$/, "");
     } catch {
       return DEFAULT_API_BASE_URL;
     }
