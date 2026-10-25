@@ -1026,6 +1026,7 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertEqual(readiness.status_code, 503)
         self.assertFalse(readiness.get_json()["ready"])
         self.assertEqual(readiness.get_json()["reason"], "history_store_unavailable")
+        self.assertEqual(readiness.get_json()["error"], "history_store_unavailable")
         self.assertEqual(readiness.get_json()["history_store_health"], unavailable)
         # Liveness must not make a database connection; the process can be alive
         # while the readiness probe correctly reports that it cannot serve history.
