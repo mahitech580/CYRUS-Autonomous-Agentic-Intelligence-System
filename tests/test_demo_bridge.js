@@ -426,7 +426,8 @@ async function main() {
 
   for (const invalidTask of [
     {...archiveResult.body.tasks[0].task, task_id: "<script>alert(1)</script>"},
-    {...archiveResult.body.tasks[0].task, status: "IMPORTED_AS_ADMIN"}
+    {...archiveResult.body.tasks[0].task, status: "IMPORTED_AS_ADMIN"},
+    {...archiveResult.body.tasks[0].task, objective: "x".repeat(4001)}
   ]) {
     const invalidTaskImport = await makeHarness().json("/api/demo/import", {
       method: "POST",
