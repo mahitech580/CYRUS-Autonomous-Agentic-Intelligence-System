@@ -41,7 +41,7 @@ These are UI fixtures only. Even when a synthetic record includes a `retry_after
 
 Choose **EXPORT LOCAL HISTORY** in the demo banner. The simulator returns a versioned `CYRUS_BROWSER_DEMO_ARCHIVE` JSON document containing the records retained by the current browser profile. Each task passes through the existing task-report allowlist and redaction logic; provider credentials and idempotency keys are not included as task fields.
 
-The archive includes an export timestamp, schema version, count, sanitized per-task reports, and a warning that secret-like free text is detected heuristically. That warning is important: no regular-expression sanitizer can guarantee discovery of every credential embedded in arbitrary prose. Inspect the file before sharing it. The archive is a report bundle, not a restorable execution database.
+The archive includes an export timestamp, schema version, count, sanitized per-task reports, and a warning that secret-like free text is detected heuristically. That warning is important: no regular-expression sanitizer can guarantee discovery of every credential embedded in arbitrary prose. Inspect the file before sharing it. To restore an archive, choose **IMPORT ARCHIVE** in the demo banner and select the JSON file. Import accepts schema version 1 only, caps the file at 1 MiB and 25 task records, re-applies the report allowlist, rejects duplicate task IDs, and refuses imports that would exceed the 25-record local retention limit. Import is atomic: an invalid entry rejects the whole archive without partially changing history. Imported tasks are historical reports, not resumable executions; no code runs and no backend is modified.
 
 ## Retention and local reset
 
@@ -64,6 +64,7 @@ If browser storage is blocked, the demo can still operate in the current page se
 | `POST /api/tasks/{id}/retry` | Creates a new synthetic retry for a failed, cancelled, or timed-out record |
 | `GET /api/analytics` | Computes synthetic activity and recovery metrics from local records |
 | `GET /api/demo/export` | Returns a sanitized, versioned session archive |
+| `POST /api/demo/import` | Validates, re-sanitizes, and restores archive task reports locally |
 | `POST /api/demo/reset` | Clears local records and idempotency entries |
 
 The simulator applies input validation and uses the same report allowlist to help make local testing predictable, but it does not provide API authentication or production persistence. It is intended for one browser profile and should not be treated as a shared multi-user service.
