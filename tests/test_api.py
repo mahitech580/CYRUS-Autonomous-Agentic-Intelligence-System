@@ -1027,11 +1027,10 @@ class CyrusApiContractTests(unittest.TestCase):
         self.assertFalse(readiness.get_json()["ready"])
         self.assertEqual(readiness.get_json()["reason"], "history_store_unavailable")
         self.assertEqual(readiness.get_json()["history_store_health"], unavailable)
-        # Liveness stays HTTP 200 so orchestrators can distinguish a live process
-        # from a process that is currently unable to serve durable history.
+        # Liveness must not make a database connection; the process can be alive
+        # while the readiness probe correctly reports that it cannot serve history.
         self.assertEqual(health.status_code, 200)
-        self.assertFalse(health.get_json()["ready"])
-        self.assertEqual(health.get_json()["history_store_health"], unavailable)
+        self.assertTrue(health.get_json()["ready"])
 
     def test_request_id_and_security_headers_are_present(self):
         response = self.client.get("/api/health", headers={"X-Request-ID": "daily-run-12"})
