@@ -36,6 +36,11 @@ const pipeline = [
   { title: "Review", sub: "Quality gates", icon: GitPullRequest, color: "pink" },
   { title: "Release", sub: "Ship safely", icon: Rocket, color: "green" },
 ];
+const starterTasks = [
+  { label: "Secure REST API", prompt: "Build a secure REST API with JWT authentication, request validation, PostgreSQL persistence, and pytest integration tests." },
+  { label: "AI document search", prompt: "Design a document-search assistant with ingestion, chunking, embeddings, source citations, and evaluation tests. Include API contracts and security checks." },
+  { label: "Review a codebase", prompt: "Create a structured codebase review plan covering security, reliability, test coverage, dependency risks, and a prioritized refactor roadmap." },
+];
 const starterRuns = [];
 const statusLabel = { completed: "Completed", approved: "Approved", running: "In progress", review: "Needs review", queued: "Queued", failed: "Failed", cancelled: "Cancelled" };
 
@@ -262,6 +267,7 @@ export default function App() {
           {view === "Overview" ? <Overview
             runs={visibleRuns} allRuns={runs} goal={goal} setGoal={setGoal} startRun={startRun}
             isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} openRun={openRun} setView={setView} notify={notify} apiState={apiState} workspaceConfig={workspaceConfig}
+            setQuery={setQuery} setStatusFilter={setStatusFilter}
           /> : null}
           {view === "Agent fleet" ? <FleetView notify={notify} apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Runs & tasks" ? <RunsView runs={visibleRuns} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} refreshRuns={refreshRuns} refreshingRuns={refreshingRuns} notify={notify} /> : null}
@@ -280,9 +286,19 @@ export default function App() {
   );
 }
 
-function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart, openRun, setView, notify, apiState, workspaceConfig }) {
+function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart, openRun, setView, notify, apiState, workspaceConfig, setQuery, setStatusFilter }) {
   const completed = allRuns.filter((run) => ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100).length;
   const active = allRuns.filter((run) => run.status === "running" || run.status === "queued").length;
+  function loadStarter(task) {
+    setGoal(task.prompt);
+    setView("Overview");
+    window.setTimeout(() => {
+      const field = document.getElementById("task-prompt");
+      field?.focus();
+      field?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 0);
+    notify("Loaded starter: " + task.label + ". Review it and edit the goal before launch.");
+  }
   return <div className="view-stack">
     <div className="welcome-line"><div><div className="eyebrow"><span className="eyebrow-square" /> AUTONOMOUS ENGINEERING WORKSPACE <span className="eyebrow-slash">/ 001</span></div><h1>Build the future.<br /><em>One agent at a time.</em></h1><p className="hero-copy">A coordinated team for the messy middle of software engineering — from first idea to verified release.</p></div><div className="hero-orbit" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit-core"><Sparkles size={27} /></div><span className="orbit-node node-a" /><span className="orbit-node node-b" /><span className="orbit-node node-c" /><span className="orbit-label">AGENT<br />MESH</span></div></div>
 
@@ -302,8 +318,12 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
     </section> : null}
     <form className="task-composer" onSubmit={startRun}>
       <div className="composer-top"><div className="composer-icon"><Sparkles size={17} /></div><div><strong>What are we building today?</strong><span>Describe an outcome. CYRUS will map the work into a reviewable pipeline.</span></div><span className="composer-shortcut">⌘ ↵</span></div>
-      <textarea id="task-prompt" value={goal} onChange={(e) => setGoal(e.target.value)} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="e.g. Build a secure user authentication API with refresh tokens and integration tests…" rows={2} maxLength={1200} />
-      <div className="composer-bottom"><div className="composer-context"><span><Braces size={13} /> Full-stack project</span><span><Database size={13} /> DB-aware</span><span><ShieldCheck size={13} /> Human review gates</span></div><button className="button-primary" type="submit" disabled={!goal.trim() || isStarting || !canStart}>{isStarting ? "Starting…" : "Start live workflow"}<ArrowRight size={15} /></button></div>
+      <textarea id="task-prompt" value={goal} onChange={(e) => setGoal(e.target.value)} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Describe a feature, bug, API, or engineering outcome…" rows={2} maxLength={1200} />
+      <div className="starter-prompts" aria-label="Example engineering goals">
+        <span className="starter-prompts-label">START WITH</span>
+        {starterTasks.map((task) => <button key={task.label} type="button" className="starter-prompt" onClick={() => loadStarter(task)}>{task.label}<ArrowUpRight size={12} /></button>)}
+      </div>
+      <div className="composer-bottom"><div className="composer-context"><span><Braces size={13} /> Full-stack project</span><span><Database size={13} /> DB-aware</span><span><ShieldCheck size={13} /> Human review gates</span></div><button className="button-primary" type="submit" disabled={!goal.trim() || isStarting}>{isStarting ? "Starting…" : canStart ? "Start live workflow" : "Complete setup to launch"}<ArrowRight size={15} /></button></div>
     </form>
 
     <div className="metrics-grid">
@@ -322,12 +342,24 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
 
     <div className="section-divider"><span>LIVE OPERATIONS</span><span className="divider-line" /><span className="section-index">02 / 03</span></div>
     <div className="operations-grid">
-      <section className="panel-card runs-panel"><div className="panel-heading"><div><div className="eyebrow">EXECUTION STREAM</div><h2>Recent workflows</h2></div><button className="button-quiet" onClick={() => setView("Runs & tasks")}>View all <ArrowRight size={14} /></button></div>
+      <section className="panel-card runs-panel"><div className="panel-heading"><div><div className="eyebrow">EXECUTION STREAM</div><h2>Recent workflows</h2></div><button className="button-quiet" onClick={() => { setQuery(""); setStatusFilter("all"); setView("Runs & tasks"); }}>View all <ArrowRight size={14} /></button></div>
         <div className="runs-table">{runs.slice(0, 4).map((run) => <RunRow run={run} key={run.id} onOpen={openRun} />)}</div>
-        {runs.length === 0 ? <div className="empty-state"><Workflow size={24} /><strong>No workflows found</strong><span>Start a task to create the first run.</span></div> : null}
+        {runs.length === 0 ? <div className="empty-state run-empty-state">
+          <span className="run-empty-icon"><Workflow size={23} /></span>
+          <strong>{allRuns.length === 0 ? (canStart ? "Ready for your first workflow?" : "Your first workflow starts with setup") : "No workflows match these filters"}</strong>
+          <span>{allRuns.length === 0
+            ? (canStart ? "Choose a starter above or describe the engineering outcome you want CYRUS to plan, build, test, and review." : "There are no saved runs yet. Finish the required runtime checks, then launch a real seven-stage workflow.")
+            : "Saved workflows exist, but none match the current search or status filter."}</span>
+          <div className="empty-state-actions">
+            {allRuns.length === 0
+              ? <button className="button-outline" onClick={() => canStart ? loadStarter(starterTasks[0]) : setView("Settings")}>{canStart ? "Write a task" : "Complete runtime setup"}<ArrowRight size={13} /></button>
+              : <button className="button-outline" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Clear filters<RefreshCw size={13} /></button>}
+            {allRuns.length === 0 ? <button className="button-quiet" onClick={() => loadStarter(starterTasks[1])}>Try an AI project example <ArrowUpRight size={13} /></button> : null}
+          </div>
+        </div> : null}
       </section>
       <section className="panel-card fleet-panel"><div className="panel-heading"><div><div className="eyebrow">AGENT TELEMETRY</div><h2>Fleet status</h2></div><button className="icon-button" onClick={() => setView("Agent fleet")} title="Open fleet"><ArrowUpRight size={16} /></button></div>
-        <div className="fleet-summary"><div><span className="summary-number">07</span><span className="summary-label">Registered</span></div><div><span className="summary-number text-lime">07</span><span className="summary-label">Available roles</span></div><div><span className="summary-number text-blue">{apiState === "connected" ? "API" : "OFF"}</span><span className="summary-label">API status</span></div></div>
+        <div className="fleet-summary"><div><span className="summary-number">07</span><span className="summary-label">Registered roles</span></div><div><span className="summary-number text-lime">07</span><span className="summary-label">Pipeline stages</span></div><div><span className="summary-number text-blue">{apiState !== "connected" ? "OFF" : workspaceConfig?.can_start_runs ? "READY" : "SETUP"}</span><span className="summary-label">Runtime</span></div></div>
         <div className="agent-list">{agents.slice(0, 4).map((agent) => <AgentLine agent={agent} state="registered" key={agent.id} />)}</div>
         <button className="button-outline full-button" onClick={() => setView("Agent fleet")}>Open agent registry <ArrowRight size={14} /></button>
       </section>
