@@ -241,12 +241,12 @@ export default function App() {
         <div className="nav-label nav-label-spaced">SYSTEM</div>
         <button className={"nav-item" + (view === "Settings" ? " nav-active" : "")} onClick={() => { setView("Settings"); setMobileNav(false); }}><Settings2 size={17} /><span>Settings</span></button>
         <div className="sidebar-spacer" />
-        <div className="capacity-card">
-          <div className="capacity-heading"><span>WORKSPACE CAPACITY</span><CircleDot size={13} /></div>
-          <div className="capacity-value">07 <small>/ 12 agent slots</small></div>
-          <div className="capacity-track"><i /></div>
-          <div className="capacity-foot"><span>Fleet utilization</span><strong>58%</strong></div>
-        </div>
+        <section className="capacity-card sidebar-status-card" aria-label="Workspace readiness">
+          <div className="capacity-heading"><span>WORKSPACE STATUS</span><CircleDot size={13} /></div>
+          <div className="sidebar-status-value">{workspaceConfig?.can_start_runs ? "Ready to run" : apiState === "connected" ? "Setup required" : apiState === "checking" ? "Checking…" : "API offline"}</div>
+          <p>{workspaceConfig?.can_start_runs ? "Live workflow launch is enabled." : apiState === "connected" ? "Finish the server configuration to unlock live workflows." : "Reconnect the API to inspect runtime readiness."}</p>
+          <button className="sidebar-status-action" onClick={() => setView(workspaceConfig?.can_start_runs ? "Deployments" : "Settings")}>{workspaceConfig?.can_start_runs ? "View deployments" : "Complete setup"} <ArrowRight size={13} /></button>
+        </section>
         <div className="profile-row">
           <div className="profile-avatar">M</div><div className="profile-copy"><strong>Workspace owner</strong><small>Workspace environment</small></div><MoreHorizontal size={18} />
         </div>
@@ -287,6 +287,19 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
     <div className="welcome-line"><div><div className="eyebrow"><span className="eyebrow-square" /> AUTONOMOUS ENGINEERING WORKSPACE <span className="eyebrow-slash">/ 001</span></div><h1>Build the future.<br /><em>One agent at a time.</em></h1><p className="hero-copy">A coordinated team for the messy middle of software engineering — from first idea to verified release.</p></div><div className="hero-orbit" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit-core"><Sparkles size={27} /></div><span className="orbit-node node-a" /><span className="orbit-node node-b" /><span className="orbit-node node-c" /><span className="orbit-label">AGENT<br />MESH</span></div></div>
 
     {apiState !== "connected" || (workspaceConfig && !workspaceConfig.can_start_runs) ? <div className="setup-banner"><div className="setup-banner-icon"><ShieldCheck size={18} /></div><div><strong>{apiState !== "connected" ? "CYRUS API unavailable" : !workspaceConfig?.access_control_configured && workspaceConfig?.auth_required ? "Secure workspace access first" : !workspaceConfig?.provider_configured ? "Connect a real AI provider" : "Configure persistent storage"}</strong><p>{apiState !== "connected" ? "The live API is not reachable; CYRUS will not create simulated runs." : !workspaceConfig?.access_control_configured && workspaceConfig?.auth_required ? "Add CYRUS_ACCESS_KEY to cyrus-api in Vercel, then enter the same key in Settings." : !workspaceConfig?.provider_configured ? "Add OPENAI_API_KEY to the cyrus-api project's server environment variables. The secret stays server-side." : "Set DATABASE_URL to a managed PostgreSQL or MySQL database. Serverless SQLite is not durable."}</p></div><button type="button" className="button-outline" onClick={() => setView("Settings")}>Configure <ArrowRight size={13} /></button></div> : null}
+    {!canStart ? <section className="setup-checklist" aria-labelledby="setup-checklist-title">
+      <div className="setup-checklist-heading">
+        <div><div className="eyebrow">BEFORE YOUR FIRST RUN</div><h2 id="setup-checklist-title">Launch readiness</h2><p>Live runs stay locked until the required server checks pass.</p></div>
+        <span className={"setup-checklist-count " + (apiState === "connected" ? "count-known" : "count-pending")}>{apiState === "connected" ? [!workspaceConfig?.auth_required || !!workspaceConfig?.access_control_configured, !!workspaceConfig?.provider_configured, !!workspaceConfig?.persistent_storage, true].filter(Boolean).length + " / 4 checks" : "API check pending"}</span>
+      </div>
+      <div className="setup-checklist-grid">
+        <SetupCheck label="API connection" state={apiState === "connected" ? "ready" : apiState === "unavailable" ? "blocked" : "unknown"} detail={apiState === "connected" ? "Backend is reachable" : apiState === "unavailable" ? "Check deployment and API URL" : "Checking connectivity"} />
+        <SetupCheck label="Workspace access" state={apiState !== "connected" ? "unknown" : (!workspaceConfig?.auth_required || workspaceConfig?.access_control_configured) ? "ready" : "blocked"} detail={apiState !== "connected" ? "Waiting for API status" : (!workspaceConfig?.auth_required || workspaceConfig?.access_control_configured) ? "Access policy configured" : "Add CYRUS_ACCESS_KEY in Vercel"} />
+        <SetupCheck label="AI provider" state={apiState !== "connected" ? "unknown" : workspaceConfig?.provider_configured ? "ready" : "blocked"} detail={apiState !== "connected" ? "Waiting for API status" : workspaceConfig?.provider_configured ? "Server-side model key detected" : "Add OPENAI_API_KEY to cyrus-api"} />
+        <SetupCheck label="Persistent storage" state={apiState !== "connected" ? "unknown" : workspaceConfig?.persistent_storage ? "ready" : "blocked"} detail={apiState !== "connected" ? "Waiting for API status" : workspaceConfig?.persistent_storage ? "Durable database detected" : "Set DATABASE_URL to managed Postgres/MySQL"} />
+      </div>
+      <div className="setup-checklist-footer"><span><ShieldCheck size={14} /> Secrets remain on the server; the browser never receives provider credentials.</span><button type="button" className="button-quiet" onClick={() => setView("Settings")}>Open runtime settings <ArrowRight size={14} /></button></div>
+    </section> : null}
     <form className="task-composer" onSubmit={startRun}>
       <div className="composer-top"><div className="composer-icon"><Sparkles size={17} /></div><div><strong>What are we building today?</strong><span>Describe an outcome. CYRUS will map the work into a reviewable pipeline.</span></div><span className="composer-shortcut">⌘ ↵</span></div>
       <textarea id="task-prompt" value={goal} onChange={(e) => setGoal(e.target.value)} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="e.g. Build a secure user authentication API with refresh tokens and integration tests…" rows={2} maxLength={1200} />
@@ -324,8 +337,17 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
   </div>;
 }
 
+function SetupCheck({ label, detail, state }) {
+  const Icon = state === "ready" ? CheckCircle2 : state === "blocked" ? X : Clock3;
+  const stateLabel = state === "ready" ? "Ready" : state === "blocked" ? "Action needed" : "Unknown";
+  return <div className={"setup-check setup-check-" + state}>
+    <span className="setup-check-icon"><Icon size={16} /></span>
+    <div className="setup-check-copy"><strong>{label}</strong><span>{detail}</span></div>
+    <span className="setup-check-state">{stateLabel}</span>
+  </div>;
+}
 function MetricCard({ label, value, change, icon: Icon, trend }) {
-  return <div className="metric-card"><div className="metric-top"><span>{label}</span><span className={"metric-icon metric-" + trend}><Icon size={16} /></span></div><div className="metric-value">{value}<span className="metric-value-mark">.</span></div><div className="metric-bottom"><span>{change}</span>{trend === "lime" ? <ArrowUpRight size={14} className="text-lime" /> : <ArrowDownRight size={14} />}</div></div>;
+  return <div className="metric-card"><div className="metric-top"><span>{label}</span><span className={"metric-icon metric-" + trend}><Icon size={16} /></span></div><div className="metric-value">{value}</div><div className="metric-bottom"><span>{change}</span>{trend === "lime" ? <ArrowUpRight size={14} className="text-lime" /> : <ArrowDownRight size={14} />}</div></div>;
 }
 function FleetView({ notify, apiState, workspaceConfig }) {
   return <div className="view-stack subpage"><SectionTitle eyebrow="AGENT REGISTRY / 07 SPECIALISTS" title="The agent fleet" detail="Small, opinionated roles coordinated through explicit hand-offs." action={<button className="button-primary" onClick={() => notify("Custom agents are defined through backend agent adapters.")}><Plus size={15} /> Configure agent</button>} />
