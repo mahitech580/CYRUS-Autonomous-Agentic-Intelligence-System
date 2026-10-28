@@ -36,11 +36,6 @@ const pipeline = [
   { title: "Review", sub: "Quality gates", icon: GitPullRequest, color: "pink" },
   { title: "Release", sub: "Ship safely", icon: Rocket, color: "green" },
 ];
-const starterTasks = [
-  { label: "Secure REST API", prompt: "Build a secure REST API with JWT authentication, request validation, PostgreSQL persistence, and pytest integration tests." },
-  { label: "AI document search", prompt: "Design a document-search assistant with ingestion, chunking, embeddings, source citations, and evaluation tests. Include API contracts and security checks." },
-  { label: "Review a codebase", prompt: "Create a structured codebase review plan covering security, reliability, test coverage, dependency risks, and a prioritized refactor roadmap." },
-];
 const starterRuns = [];
 const starterBriefs = [
   {
@@ -309,16 +304,6 @@ export default function App() {
 function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart, openRun, setView, notify, apiState, workspaceConfig, setQuery, setStatusFilter }) {
   const completed = allRuns.filter((run) => ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100).length;
   const active = allRuns.filter((run) => run.status === "running" || run.status === "queued").length;
-  function loadStarter(task) {
-    setGoal(task.prompt);
-    setView("Overview");
-    window.setTimeout(() => {
-      const field = document.getElementById("task-prompt");
-      field?.focus();
-      field?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 0);
-    notify("Loaded starter: " + task.label + ". Review it and edit the goal before launch.");
-  }
   return <div className="view-stack">
     <div className="welcome-line"><div><div className="eyebrow"><span className="eyebrow-square" /> AUTONOMOUS ENGINEERING WORKSPACE <span className="eyebrow-slash">/ 001</span></div><h1>Build the future.<br /><em>One agent at a time.</em></h1><p className="hero-copy">A coordinated team for the messy middle of software engineering — from first idea to verified release.</p></div><div className="hero-orbit" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit-core"><Sparkles size={27} /></div><span className="orbit-node node-a" /><span className="orbit-node node-b" /><span className="orbit-node node-c" /><span className="orbit-label">AGENT<br />MESH</span></div></div>
 
@@ -326,10 +311,6 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
     <form className="task-composer" onSubmit={startRun}>
       <div className="composer-top"><div className="composer-icon"><Sparkles size={17} /></div><div><strong>What are we building today?</strong><span>Describe an outcome. CYRUS will map the work into a reviewable pipeline.</span></div><span className="composer-shortcut">⌘ ↵</span></div>
       <textarea id="task-prompt" value={goal} onChange={(e) => setGoal(e.target.value)} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Describe a feature, bug, API, or engineering outcome…" rows={2} maxLength={1200} />
-      <div className="starter-prompts" aria-label="Example engineering goals">
-        <span className="starter-prompts-label">START WITH</span>
-        {starterTasks.map((task) => <button key={task.label} type="button" className="starter-prompt" onClick={() => loadStarter(task)}>{task.label}<ArrowUpRight size={12} /></button>)}
-      </div>
       <div className="composer-bottom"><div className="composer-context"><span><Braces size={13} /> Full-stack project</span><span><Database size={13} /> DB-aware</span><span><ShieldCheck size={13} /> Human review gates</span></div><button className="button-primary" type="submit" disabled={!goal.trim() || isStarting}>{isStarting ? "Starting…" : canStart ? "Start live workflow" : "Complete setup to launch"}<ArrowRight size={15} /></button></div>
     </form>
 
