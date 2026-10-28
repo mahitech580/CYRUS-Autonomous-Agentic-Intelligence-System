@@ -618,3 +618,65 @@ body {
   .filter-select-wrap { flex: 1; justify-content: center; }
   .filter-select-wrap select { max-width: 100%; }
 }
+
+
+/* Persisted execution event timeline in run details */
+.event-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 25px;
+}
+.event-heading > span {
+  color: #8f9aaa;
+  font: 9px var(--mono);
+  letter-spacing: .7px;
+  text-transform: uppercase;
+}
+.drawer-event-list {
+  position: relative;
+  display: grid;
+  gap: 0;
+  margin: 0 0 22px 5px;
+}
+.drawer-event {
+  display: grid;
+  grid-template-columns: 12px minmax(0,1fr);
+  align-items: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 0 17px;
+}
+.event-marker {
+  z-index: 1;
+  margin-top: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #758295;
+  box-shadow: 0 0 0 4px rgba(117,130,149,.1);
+}
+.event-marker-completed, .event-marker-approved { background: #c9fa78; box-shadow: 0 0 0 4px rgba(201,250,120,.1); }
+.event-marker-failed, .event-marker-rejected { background: #ff838c; box-shadow: 0 0 0 4px rgba(255,131,140,.1); }
+.event-marker-started, .event-marker-running { background: #88b7ff; box-shadow: 0 0 0 4px rgba(136,183,255,.1); }
+.event-marker-approval_required { background: #bea7ff; box-shadow: 0 0 0 4px rgba(190,167,255,.1); }
+.event-marker-cancelled { background: #aab4c1; }
+.drawer-event-copy {
+  min-width: 0;
+  padding: 12px 13px;
+  border-radius: 10px;
+  border: 1px solid #28323e;
+  background: #141a22;
+}
+.drawer-event-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.drawer-event-top strong { color: #e5ebf3; font-size: 11px; }
+.drawer-event-top span { flex-shrink: 0; font: 9px var(--mono); color: #a4b0c0; text-transform: uppercase; letter-spacing: .45px; }
+.drawer-event-copy p { margin: 7px 0 8px; color: #b4bfcc; font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
+.drawer-event-copy time { display: block; color: #758294; font-size: 9.5px; line-height: 1.5; }
+.drawer-empty-events { padding: 18px 12px; border: 1px dashed #2c3642; border-radius: 10px; margin-bottom: 20px; }
+@media (max-width: 740px) {
+  .drawer-event-copy { padding: 11px; }
+  .drawer-event { gap: 10px; }
+  .event-heading { align-items: flex-start; flex-direction: column; }
+}
