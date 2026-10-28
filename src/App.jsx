@@ -344,7 +344,7 @@ function RunsView({ runs, query, setQuery, statusFilter, setStatusFilter, openRu
     const columns = ["id", "goal", "status", "progress", "created_at", "updated_at", "execution_mode", "current_stage", "approval_status"];
     const cell = (value) => {
       const text = value == null ? "" : String(value);
-      return '"' + text.replace(/"/g, '""').replace(/\\r?\\n/g, " ") + '"';
+      return '"' + text.replace(/"/g, '""').replace(/\r?\n/g, " ") + '"';
     };
     const csv = [columns.join(","), ...runs.map((run) => columns.map((key) => cell(run[key])).join(","))].join("\\r\\n");
     const blob = new Blob(["\\uFEFF", csv], { type: "text/csv;charset=utf-8" });
