@@ -778,9 +778,6 @@ body {
 .empty-state-actions { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 5px; }
 .empty-state-actions .button-outline, .empty-state-actions .button-quiet { min-height: 34px; font-size: 10.5px; }
 @media (max-width: 740px) {
-  .starter-prompts { align-items: flex-start; gap: 7px; padding-bottom: 12px; }
-  .starter-prompts-label { flex-basis: 100%; }
-  .starter-prompt { font-size: 9.5px; }
   .run-empty-state { padding: 20px 12px; }
   .empty-state-actions { flex-direction: column; width: 100%; }
   .empty-state-actions > button { width: 100%; }
