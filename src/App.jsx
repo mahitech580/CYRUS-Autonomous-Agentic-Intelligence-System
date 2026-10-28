@@ -8,6 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
+import { buildRunsCsv, filterRuns, mapRunRecord } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -107,13 +108,7 @@ export default function App() {
     return () => { alive = false; };
   }, []);
 
-  const visibleRuns = useMemo(() => runs.filter((run) => {
-    const needle = query.trim().toLowerCase();
-    const matchesSearch = !needle || [run.id, run.goal, run.status, run.kind].some((item) => String(item || "").toLowerCase().includes(needle));
-    const matchesStatus = statusFilter === "all"
-      || (statusFilter === "completed" ? ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100 : run.status === statusFilter);
-    return matchesSearch && matchesStatus;
-  }), [runs, query, statusFilter]);
+  const visibleRuns = useMemo(() => filterRuns(runs, query, statusFilter), [runs, query, statusFilter]);
 
   function notify(message) {
     setToast(message);
@@ -341,13 +336,8 @@ function FleetView({ notify, apiState, workspaceConfig }) {
 }
 function RunsView({ runs, query, setQuery, statusFilter, setStatusFilter, openRun, goal, setGoal, startRun, isStarting, canStart, refreshRuns, refreshingRuns, notify }) {
   function exportRunsCsv() {
-    const columns = ["id", "goal", "status", "progress", "created_at", "updated_at", "execution_mode", "current_stage", "approval_status"];
-    const cell = (value) => {
-      const text = value == null ? "" : String(value);
-      return '"' + text.replace(/"/g, '""').replace(/\r?\n/g, " ") + '"';
-    };
-    const csv = [columns.join(","), ...runs.map((run) => columns.map((key) => cell(run[key])).join(","))].join("\r\n");
-    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+    const csv = buildRunsCsv(runs);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -358,6 +348,7 @@ function RunsView({ runs, query, setQuery, statusFilter, setStatusFilter, openRu
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     notify("Exported " + runs.length + " visible workflow record" + (runs.length === 1 ? "." : "s."));
   }
+
   return <div className="view-stack subpage"><SectionTitle eyebrow="EXECUTION CONTROL / RUN HISTORY" title="Runs & tasks" detail="Inspect orchestration state, progress, and review hand-offs." action={<span className="small-counter">{runs.length} VISIBLE RUNS</span>} />
     <form className="task-composer compact-composer" onSubmit={startRun}><div className="composer-icon"><Sparkles size={16} /></div><input aria-label="New workflow goal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Describe a new engineering task…" /><button className="button-primary" disabled={!goal.trim() || isStarting || !canStart}>{isStarting ? "Starting…" : "New live run"}<ArrowRight size={14} /></button></form>{!canStart ? <div className="inline-help">Live runs require a configured model provider, protected workspace access, and persistent database. Open Settings for the exact missing requirements.</div> : null}
     <div className="list-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search workflows" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search runs, goals, or status…" /></div><label className="filter-select-wrap"><CircleDot size={13} /><select aria-label="Filter workflow status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option><option value="queued">Queued</option><option value="running">In progress</option><option value="review">Needs review</option><option value="approved">Approved</option><option value="completed">Completed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select><ChevronDown size={13} /></label><button className="button-outline" type="button" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Clear filters <X size={13} /></button><button className="button-outline" type="button" onClick={refreshRuns} disabled={refreshingRuns}><RefreshCw size={13} className={refreshingRuns ? "spin-icon" : ""} />{refreshingRuns ? "Refreshing" : "Refresh"}</button><button className="button-outline" type="button" onClick={exportRunsCsv} disabled={!runs.length}><Download size={13} /> Export CSV</button></div>
@@ -454,14 +445,6 @@ function SettingsView({ apiState, workspaceConfig, settingsOpen, setSettingsOpen
       </section>
     </div>
   </div>;
-}
-function mapRunRecord(run) {
-  const dateValue = run.updated_at || run.created_at;
-  let time = "Just now";
-  if (dateValue) {
-    try { time = new Date(dateValue).toLocaleString(); } catch { time = String(dateValue); }
-  }
-  return { ...run, time, agents: run.agent_count || 7, kind: run.execution_mode === "live-model" ? "Live AI workflow" : run.execution_mode || "Workflow" };
 }
 
 function RunDrawer({ run, onClose, onApprove, onCancel, busy }) {
