@@ -507,3 +507,62 @@ body {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+
+/* Real deployment destinations and docs links */
+.external-button { text-decoration: none; }
+.integration-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--lime);
+  text-decoration: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin-top: 10px;
+  min-height: 28px;
+}
+.integration-link:hover { color: #e0ffb7; text-decoration: underline; text-underline-offset: 4px; }
+.deployment-resource-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
+}
+.deployment-resource-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid #2b3541;
+  border-radius: 15px;
+  background: linear-gradient(150deg, rgba(20,27,36,.97), rgba(14,19,26,.97));
+  box-shadow: 0 10px 30px rgba(0,0,0,.1);
+}
+.deployment-resource-top { display: flex; align-items: center; gap: 11px; }
+.deployment-resource-icon {
+  width: 38px; height: 38px; display: grid; place-items: center;
+  border: 1px solid #39434f; border-radius: 11px;
+  color: var(--lime); background: rgba(201,250,120,.055);
+}
+.deployment-eyebrow { color: #8d9bab; font: 9px var(--mono); letter-spacing: 1px; line-height: 1.5; }
+.deployment-resource-card h3 { margin: 19px 0 8px; font-size: 17px; letter-spacing: -.3px; }
+.deployment-resource-card p { min-height: 72px; margin: 0 0 15px; color: #9ca7b5; font-size: 12px; line-height: 1.8; }
+.deployment-resource-state {
+  display: flex; align-items: center; gap: 8px; min-height: 32px;
+  margin: auto 0 15px; color: #aab5c2; font-size: 10.5px; line-height: 1.5;
+}
+.deployment-resource-state > i {
+  width: 7px; height: 7px; border-radius: 50%; background: #e4b56d; flex-shrink: 0;
+}
+.deployment-resource-state > i.deployment-live-dot { background: #c9fa78; box-shadow: 0 0 10px rgba(201,250,120,.35); }
+.deployment-resource-card .button-outline { text-align: center; }
+@media (max-width: 1030px) {
+  .deployment-resource-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 740px) {
+  .deployment-resource-grid { grid-template-columns: minmax(0,1fr); }
+  .deployment-resource-card { padding: 18px; }
+  .deployment-resource-card p { min-height: 0; }
+  .deployment-resource-top { align-items: flex-start; }
+}
