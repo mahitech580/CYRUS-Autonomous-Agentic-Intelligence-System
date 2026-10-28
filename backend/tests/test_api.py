@@ -104,3 +104,44 @@ def test_access_key_protects_workspace_data(client, monkeypatch):
     assert client.get("/api/runs").status_code == 401
     assert client.get("/api/runs", headers={"Authorization": "Bearer private-test-key"}).status_code == 200
     monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)
+
+
+
+def test_production_ephemeral_sqlite_is_rejected(client, monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("CYRUS_ACCESS_KEY", "private-test-key")
+    response = client.post(
+        "/api/runs",
+        json={"goal": "Build a secure profile API"},
+        headers={"Authorization": "Bearer private-test-key"},
+    )
+    assert response.status_code == 503
+    assert "Persistent storage is not configured" in response.json()["detail"]
+
+
+def test_cancel_queued_workflow_records_state_and_event(client, monkeypatch):
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)
+    run_id = "RUN-CANCEL-" + main.uuid4().hex[:8].upper()
+    run = main.WorkflowRun(
+        id=run_id,
+        goal="Prepare a cancellable queued workflow",
+        status="queued",
+        progress=0,
+        stages=[],
+        events=[],
+        execution_mode="live-model",
+        approval_status="pending",
+    )
+    main.append_event(run, "workflow", "CYRUS", "Run queued for test.", "queued")
+    with main.SessionLocal() as db:
+        db.add(run)
+        db.commit()
+
+    response = client.post(f"/api/runs/{run_id}/cancel")
+    assert response.status_code == 200
+    item = response.json()["item"]
+    assert item["status"] == "cancelled"
+    assert item["current_stage"] is None
+    assert item["events"][-1]["status"] == "cancelled"
