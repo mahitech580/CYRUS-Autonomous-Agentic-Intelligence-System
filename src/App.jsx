@@ -346,8 +346,8 @@ function RunsView({ runs, query, setQuery, statusFilter, setStatusFilter, openRu
       const text = value == null ? "" : String(value);
       return '"' + text.replace(/"/g, '""').replace(/\r?\n/g, " ") + '"';
     };
-    const csv = [columns.join(","), ...runs.map((run) => columns.map((key) => cell(run[key])).join(","))].join("\\r\\n");
-    const blob = new Blob(["\\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+    const csv = [columns.join(","), ...runs.map((run) => columns.map((key) => cell(run[key])).join(","))].join("\r\n");
+    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
