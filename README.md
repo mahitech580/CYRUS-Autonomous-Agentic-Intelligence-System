@@ -69,7 +69,7 @@ For Vercel, configure server-only variables in the cyrus-api project's Environme
 | OPENAI_BASE_URL | No | Responses API base URL |
 | CYRUS_MODEL | No | Model name; defaults to gpt-6-luna |
 | CYRUS_MAX_OUTPUT_TOKENS | No | Per-agent response token ceiling, default 1200 |
-| CYRUS_LLM_TIMEOUT_SECONDS | No | Timeout per provider call, default 55 |
+| CYRUS_LLM_TIMEOUT_SECONDS | No | Timeout per provider call, default 35 |
 | CYRUS_ENABLE_WEB_SEARCH | No | Enables web search for Scout only; default false |
 | DATABASE_URL | Production required | Managed durable PostgreSQL/MySQL URL |
 | CYRUS_ACCESS_KEY | Production required | Shared workspace access key |

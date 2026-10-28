@@ -204,7 +204,7 @@ def complete_agent(agent: str, role: str, instruction: str, goal: str, context: 
             endpoint,
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             json=request_body,
-            timeout=httpx.Timeout(float(os.getenv("CYRUS_LLM_TIMEOUT_SECONDS", "55"))),
+            timeout=httpx.Timeout(float(os.getenv("CYRUS_LLM_TIMEOUT_SECONDS", "35"))),
         )
     except httpx.TimeoutException as exc:
         raise RuntimeError("The model provider timed out. Check provider availability and timeout configuration.") from exc

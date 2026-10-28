@@ -18,7 +18,7 @@ The GET /api/config endpoint reports whether the model provider and durable data
 - OPENAI_BASE_URL: defaults to https://api.openai.com/v1.
 - CYRUS_MODEL: default gpt-6-luna.
 - CYRUS_MAX_OUTPUT_TOKENS: max tokens per agent response (default 1200).
-- CYRUS_LLM_TIMEOUT_SECONDS: per-request timeout (default 55).
+- CYRUS_LLM_TIMEOUT_SECONDS: per-request timeout (default 35).
 - CYRUS_ENABLE_WEB_SEARCH: if true, Scout may use the Responses API web search. This may incur extra charges.
 
 Every workflow generates seven model responses. Model usage is billed by the provider, and actual cost depends on model and output sizes.
