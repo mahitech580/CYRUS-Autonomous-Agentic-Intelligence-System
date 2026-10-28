@@ -50,7 +50,7 @@
 
 ### 8. Langfuse — trace hierarchy and observability
 - Repository: https://github.com/langfuse/langfuse
-- Source inspected: [trace page](https://github.com/langfuse/langfuse/blob/main/web/src/features/traces/TracePage.tsx), [trace graph view](https://github.com/langfuse/langfuse/blob/main/web/src/features/trace-graph-view/components/TraceGraphView.tsx), [graph node](https://github.com/langfuse/langfuse/blob/main/web/src/features/trace-graph-view/components/GraphNode.tsx), [session timeline row](https://github.com/langfuse/langfuse/blob/main/web/src/features/sessions/components/ConnectedModernSessionBodyTimeline/components/ConnectedConversationTimeline/components/SessionConversationTimeline/SessionConversationTimelineTrace/components/SessionTranscriptContent/components/SessionTimelineCollapsibleRow/SessionTimelineCollapsibleRow.tsx)
+- Source inspected: [trace page](https://github.com/langfuse/langfuse/blob/main/web/src/features/traces/TracePage.tsx), [trace graph view](https://github.com/langfuse/langfuse/blob/main/web/src/features/trace-graph-view/components/TraceGraphView.tsx), [graph node](https://github.com/langfuse/langfuse/blob/main/web/src/features/trace-graph-view/components/GraphNode.tsx), [session timeline row](https://github.com/langfuse/langfuse/blob/main/web/src/features/sessions/components/ConnectedModernSessionBodyTimeline/components/ConnectedSessionConversationTimeline/components/SessionConversationalView/components/SessionConversationTimeline/components/SessionConversationTimelineTrace/components/SessionTranscriptContent/components/SessionTimelineCollapsibleRow/SessionTimelineCollapsibleRow.tsx)
 - Pattern: observability is a hierarchical trace with expandable spans, contextual status, and links between a parent task and nested activity—not just a row of colorful counters.
 - CYRUS application: keep the saved event timeline, stage-specific artifacts, and run-level metadata together so users can explain what happened after a workflow fails.
 
@@ -60,8 +60,9 @@
 - CYRUS application: approval must remain a real persisted decision, not a cosmetic button; provider credentials and execution belong on the server. The current product intentionally does not execute generated code or deploy it automatically.
 
 ### 10. LibreChat — agent configuration discoverability
-- Project/docs: https://github.com/LibreChat-AI/LibreChat and [Agents documentation](https://www.librechat.ai/docs/features/agents)
-- Pattern: agent configuration exposes name, purpose/instructions, and model selection in one recognizable builder rather than burying every option in a general settings page.
+- Repository: https://github.com/LibreChat-AI/LibreChat
+- Source inspected: [agent detail content](https://github.com/LibreChat-AI/LibreChat/blob/main/client/src/components/Agents/AgentDetailContent.tsx), [agent card](https://github.com/LibreChat-AI/LibreChat/blob/main/client/src/components/Agents/AgentCard.tsx), [agent search](https://github.com/LibreChat-AI/LibreChat/blob/main/client/src/components/Agents/SearchBar.tsx), and [Agents documentation](https://www.librechat.ai/docs/features/agents)
+- Pattern: agent cards expose concise purpose text, selection opens a richer detail surface, and search includes clear/reset and accessibility behavior instead of cramming every setting into a general screen.
 - CYRUS application: if configurable agent profiles are added later, give each role a dedicated configuration and preview surface. Do not show “configure agent” as a working action until it saves an actual profile.
 
 ## Decisions applied in CYRUS
