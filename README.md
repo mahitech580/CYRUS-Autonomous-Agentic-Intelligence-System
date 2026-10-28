@@ -9,7 +9,7 @@ CYRUS is a model-backed engineering workspace coordinating seven specialist agen
 The workspace uses runtime-reported readiness instead of synthetic deployment events or example diffs presented as live data. The review view lists saved runs and opens persisted agent artifacts; deployment links point to the actual workspace, API docs, source and CI results. The dashboard's completed-workflow count includes runs that have finished all seven stages and reached review or approval. The UI does not indicate an integration is connected merely because an adapter is supported.
 
 
-- React + Vite frontend with a responsive operations console, run history, persisted workflow metrics, live run polling, generated stage artifacts, report export, cancellation, review decisions, and setup diagnostics.
+- React + Vite frontend with a responsive operations console, run history, persisted workflow metrics, live run polling, generated stage artifacts, Markdown report export, filtered CSV run-history export, manual refresh, cancellation, review decisions, and setup diagnostics.
 - Python/FastAPI REST API using the OpenAI Responses API (or a compatible Responses endpoint) for real model output.
 - Seven model-backed stages with saved outputs, token usage where returned, stage events, run statuses, and provider failure handling.
 - SQLAlchemy persistence. SQLite is intended for local development; production runs require managed PostgreSQL or MySQL.
@@ -102,6 +102,7 @@ Example request:
 ## Test and build
 
     npm install
+    npm test
     npm run build
     cd backend
     pytest -q
