@@ -69,6 +69,7 @@ export default function App() {
   const [runs, setRuns] = useState([]);
   const [goal, setGoal] = useState("");
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [isStarting, setIsStarting] = useState(false);
   const [apiState, setApiState] = useState("checking");
   const [mobileNav, setMobileNav] = useState(false);
@@ -107,8 +108,11 @@ export default function App() {
 
   const visibleRuns = useMemo(() => runs.filter((run) => {
     const needle = query.trim().toLowerCase();
-    return !needle || [run.id, run.goal, run.status, run.kind].some((item) => String(item || "").toLowerCase().includes(needle));
-  }), [runs, query]);
+    const matchesSearch = !needle || [run.id, run.goal, run.status, run.kind].some((item) => String(item || "").toLowerCase().includes(needle));
+    const matchesStatus = statusFilter === "all"
+      || (statusFilter === "completed" ? ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100 : run.status === statusFilter);
+    return matchesSearch && matchesStatus;
+  }), [runs, query, statusFilter]);
 
   function notify(message) {
     setToast(message);
@@ -249,7 +253,7 @@ export default function App() {
             isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} openRun={openRun} setView={setView} notify={notify} apiState={apiState} workspaceConfig={workspaceConfig}
           /> : null}
           {view === "Agent fleet" ? <FleetView notify={notify} apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
-          {view === "Runs & tasks" ? <RunsView runs={visibleRuns} query={query} setQuery={setQuery} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} /> : null}
+          {view === "Runs & tasks" ? <RunsView runs={visibleRuns} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} /> : null}
           {view === "Code review" ? <ReviewView runs={runs} openRun={openRun} notify={notify} /> : null}
           {view === "Deployments" ? <DeploymentsView apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
@@ -274,7 +278,7 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
     {apiState !== "connected" || (workspaceConfig && !workspaceConfig.can_start_runs) ? <div className="setup-banner"><div className="setup-banner-icon"><ShieldCheck size={18} /></div><div><strong>{apiState !== "connected" ? "CYRUS API unavailable" : !workspaceConfig?.access_control_configured && workspaceConfig?.auth_required ? "Secure workspace access first" : !workspaceConfig?.provider_configured ? "Connect a real AI provider" : "Configure persistent storage"}</strong><p>{apiState !== "connected" ? "The live API is not reachable; CYRUS will not create simulated runs." : !workspaceConfig?.access_control_configured && workspaceConfig?.auth_required ? "Add CYRUS_ACCESS_KEY to cyrus-api in Vercel, then enter the same key in Settings." : !workspaceConfig?.provider_configured ? "Add OPENAI_API_KEY to the cyrus-api project's server environment variables. The secret stays server-side." : "Set DATABASE_URL to a managed PostgreSQL or MySQL database. Serverless SQLite is not durable."}</p></div><button type="button" className="button-outline" onClick={() => setView("Settings")}>Configure <ArrowRight size={13} /></button></div> : null}
     <form className="task-composer" onSubmit={startRun}>
       <div className="composer-top"><div className="composer-icon"><Sparkles size={17} /></div><div><strong>What are we building today?</strong><span>Describe an outcome. CYRUS will map the work into a reviewable pipeline.</span></div><span className="composer-shortcut">⌘ ↵</span></div>
-      <textarea id="task-prompt" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="e.g. Build a secure user authentication API with refresh tokens and integration tests…" rows={2} maxLength={1200} />
+      <textarea id="task-prompt" value={goal} onChange={(e) => setGoal(e.target.value)} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="e.g. Build a secure user authentication API with refresh tokens and integration tests…" rows={2} maxLength={1200} />
       <div className="composer-bottom"><div className="composer-context"><span><Braces size={13} /> Full-stack project</span><span><Database size={13} /> DB-aware</span><span><ShieldCheck size={13} /> Human review gates</span></div><button className="button-primary" type="submit" disabled={!goal.trim() || isStarting || !canStart}>{isStarting ? "Starting…" : "Start live workflow"}<ArrowRight size={15} /></button></div>
     </form>
 
@@ -319,10 +323,10 @@ function FleetView({ notify, apiState, workspaceConfig }) {
     <div className="notice-strip"><ShieldCheck size={17} /><span><strong>Guardrail:</strong> agents prepare artifacts and recommendations; sensitive operations require explicit human approval.</span></div>
   </div>;
 }
-function RunsView({ runs, query, setQuery, openRun, goal, setGoal, startRun, isStarting, canStart }) {
+function RunsView({ runs, query, setQuery, statusFilter, setStatusFilter, openRun, goal, setGoal, startRun, isStarting, canStart }) {
   return <div className="view-stack subpage"><SectionTitle eyebrow="EXECUTION CONTROL / RUN HISTORY" title="Runs & tasks" detail="Inspect orchestration state, progress, and review hand-offs." action={<span className="small-counter">{runs.length} VISIBLE RUNS</span>} />
     <form className="task-composer compact-composer" onSubmit={startRun}><div className="composer-icon"><Sparkles size={16} /></div><input aria-label="New workflow goal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Describe a new engineering task…" /><button className="button-primary" disabled={!goal.trim() || isStarting || !canStart}>{isStarting ? "Starting…" : "New live run"}<ArrowRight size={14} /></button></form>{!canStart ? <div className="inline-help">Live runs require a configured model provider, protected workspace access, and persistent database. Open Settings for the exact missing requirements.</div> : null}
-    <div className="list-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search workflows" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search runs, goals, or status…" /></div><div className="filter-chip"><CircleDot size={13} /> All statuses <ChevronDown size={13} /></div><button className="button-outline" onClick={() => setQuery("")}>Clear filters <X size={13} /></button></div>
+    <div className="list-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search workflows" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search runs, goals, or status…" /></div><label className="filter-select-wrap"><CircleDot size={13} /><select aria-label="Filter workflow status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option><option value="queued">Queued</option><option value="running">In progress</option><option value="review">Needs review</option><option value="approved">Approved</option><option value="completed">Completed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select><ChevronDown size={13} /></label><button className="button-outline" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Clear filters <X size={13} /></button></div>
     <section className="panel-card"><div className="table-head"><span>RUN / GOAL</span><span>PROGRESS</span><span>STATUS</span><span /></div><div className="runs-table large-runs">{runs.map((run) => <RunRow key={run.id} run={run} onOpen={openRun} />)}</div>{runs.length === 0 ? <div className="empty-state"><Search size={22} /><strong>No matching runs</strong><span>Try a different search or clear the filters.</span></div> : null}</section>
   </div>;
 }
