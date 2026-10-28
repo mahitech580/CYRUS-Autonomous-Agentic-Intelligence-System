@@ -792,3 +792,37 @@ body {
   .empty-state-actions { flex-direction: column; width: 100%; }
   .empty-state-actions > button { width: 100%; }
 }
+
+
+/* Task-first engineering brief cards, informed by OpenHands, Flowise and Dify patterns */
+.starter-briefs { display: grid; gap: 13px; }
+.starter-briefs-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+.starter-briefs-heading h2 { margin: 5px 0 5px; font-size: 19px; letter-spacing: -.55px; }
+.starter-briefs-heading p { margin: 0; max-width: 650px; color: #9aa5b4; font-size: 11.5px; line-height: 1.7; }
+.starter-brief-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+.starter-brief-card { display: grid; grid-template-columns: 38px minmax(0,1fr) 16px; align-items: start; gap: 12px; min-width: 0; min-height: 106px; padding: 16px; text-align: left; border: 1px solid #2b313b; border-radius: 11px; background: linear-gradient(145deg, #151920, #111319); transition: transform .18s ease, border-color .18s ease, background .18s ease; }
+.starter-brief-card:hover { transform: translateY(-2px); border-color: #47563b; background: linear-gradient(145deg, #1a2119, #12161a); }
+.starter-brief-card:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+.starter-brief-icon { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #343d4b; border-radius: 10px; color: #a9c6ff; background: #1a2535; }
+.starter-brief-icon-1 { color: #f0bd8a; background: #2b211a; border-color: #51402e; }
+.starter-brief-icon-2 { color: var(--lime); background: #1e2719; border-color: #3a4a2e; }
+.starter-brief-card-copy { display: grid; gap: 6px; min-width: 0; }
+.starter-brief-card-copy strong { color: #e8edf4; font-size: 12.5px; line-height: 1.5; }
+.starter-brief-card-copy span { color: #9aa5b4; font-size: 10.5px; line-height: 1.7; }
+.starter-brief-arrow { margin-top: 2px; color: #7d8796; transition: color .18s ease, transform .18s ease; }
+.starter-brief-card:hover .starter-brief-arrow { color: var(--lime); transform: translate(2px,-2px); }
+@media (max-width: 1100px) {
+  .starter-brief-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .starter-brief-card:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 740px) {
+  .starter-briefs { gap: 11px; }
+  .starter-briefs-heading h2 { font-size: 18px; }
+  .starter-briefs-heading p { font-size: 11px; }
+  .starter-brief-grid { grid-template-columns: minmax(0,1fr); gap: 9px; }
+  .starter-brief-card, .starter-brief-card:last-child { grid-column: auto; min-height: 0; padding: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .starter-brief-card, .starter-brief-arrow { transition: none; }
+  .starter-brief-card:hover { transform: none; }
+}
