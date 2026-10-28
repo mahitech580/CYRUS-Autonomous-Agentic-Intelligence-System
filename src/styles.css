@@ -680,3 +680,92 @@ body {
   .drawer-event { gap: 10px; }
   .event-heading { align-items: flex-start; flex-direction: column; }
 }
+
+
+/* v0.2.2 — clearer runtime onboarding and more comfortable reading sizes */
+.sidebar-status-card { padding: 15px 13px 13px; background: linear-gradient(145deg, #151b19, #111319); border-color: #2e3b31; }
+.sidebar-status-value { margin-top: 12px; color: #f0f3f6; font-size: 18px; line-height: 1.3; font-weight: 750; letter-spacing: -.45px; }
+.sidebar-status-card p { margin: 7px 0 0; color: #9aa5a0; font-size: 10.5px; line-height: 1.65; }
+.sidebar-status-action { display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-top: 12px; padding: 9px 10px; border: 1px solid #344333; border-radius: 7px; background: rgba(199,251,99,.055); color: var(--lime); font-size: 10.5px; font-weight: 700; text-align: left; }
+.sidebar-status-action:hover { background: rgba(199,251,99,.12); border-color: #526644; }
+.setup-checklist { padding: 20px; border: 1px solid #303744; border-radius: 13px; background: linear-gradient(145deg, rgba(21,27,36,.98), rgba(16,19,25,.98)); box-shadow: 0 12px 34px rgba(0,0,0,.13); }
+.setup-checklist-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 17px; }
+.setup-checklist-heading h2 { margin: 5px 0 5px; color: #eef2f7; font-size: 20px; letter-spacing: -.55px; }
+.setup-checklist-heading p { margin: 0; color: #9aa5b4; font-size: 12px; line-height: 1.7; }
+.setup-checklist-count { flex-shrink: 0; padding: 7px 10px; border: 1px solid #56452d; border-radius: 7px; color: #efbf7e; background: rgba(233,174,94,.07); font: 10px var(--mono); }
+.setup-checklist-count.count-known { border-color: #3c4b31; color: var(--lime); background: rgba(199,251,99,.06); }
+.setup-checklist-count.count-pending { border-color: #384050; color: #aab8ce; background: rgba(126,175,255,.06); }
+.setup-checklist-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+.setup-check { display: grid; grid-template-columns: 27px minmax(0,1fr); align-items: start; column-gap: 9px; row-gap: 4px; min-width: 0; padding: 13px; border: 1px solid #2b313b; border-radius: 9px; background: rgba(8,11,16,.35); }
+.setup-check-icon { display: grid; place-items: center; width: 27px; height: 27px; border: 1px solid #3d4656; border-radius: 7px; background: #1c2430; color: #aab9d1; }
+.setup-check-copy { min-width: 0; align-self: center; }
+.setup-check-copy strong { display: block; color: #e2e8f1; font-size: 11.5px; line-height: 1.45; }
+.setup-check-copy > span { display: block; grid-column: 1 / -1; margin-top: 5px; color: #9da8b8; font-size: 10.5px; line-height: 1.65; overflow-wrap: anywhere; }
+.setup-check-state { grid-column: 1 / -1; margin-top: 5px; color: #aab7ca; font: 9px var(--mono); text-transform: uppercase; letter-spacing: .5px; }
+.setup-check-ready { border-color: #33452d; background: rgba(30,46,25,.24); }
+.setup-check-ready .setup-check-icon { color: var(--lime); border-color: #3d5632; background: rgba(199,251,99,.08); }
+.setup-check-ready .setup-check-state { color: var(--lime); }
+.setup-check-blocked { border-color: #594137; background: rgba(66,36,27,.16); }
+.setup-check-blocked .setup-check-icon { color: #efb17f; border-color: #654837; background: rgba(233,174,94,.08); }
+.setup-check-blocked .setup-check-state { color: #efb17f; }
+.setup-checklist-footer { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 16px; padding-top: 13px; border-top: 1px solid #29313c; }
+.setup-checklist-footer > span { display: inline-flex; align-items: center; gap: 7px; color: #93a0b0; font-size: 10.5px; line-height: 1.6; }
+.setup-checklist-footer > span svg { color: var(--lime); flex-shrink: 0; }
+.setup-checklist-footer .button-quiet { flex-shrink: 0; font-size: 11px; }
+
+.page-content { max-width: 1680px; padding: 38px clamp(24px, 3.1vw, 52px) 34px; }
+.view-stack { gap: 29px; }
+.nav-item { font-size: 12px; min-height: 41px; }
+.workspace-switcher strong { font-size: 11.5px; }
+.workspace-switcher small { font-size: 10px; }
+.eyebrow { font-size: 10px; letter-spacing: 1.25px; }
+.welcome-line { min-height: 212px; }
+.welcome-line h1 { font-size: clamp(38px, 3.65vw, 55px); letter-spacing: -2.4px; }
+.hero-copy { max-width: 520px; font-size: 13px; line-height: 1.85; }
+.setup-banner { padding: 16px 17px; gap: 14px; border-radius: 12px; }
+.setup-banner strong { font-size: 12px; }
+.setup-banner p { font-size: 11px; line-height: 1.75; }
+.task-composer { padding: 19px 20px 16px; border-radius: 14px; }
+.composer-top strong { font-size: 13px; }
+.composer-top span { font-size: 11px; }
+.task-composer textarea { font-size: 13px; min-height: 70px; }
+.composer-context span { font-size: 10.5px; }
+.button-primary, .button-outline, .button-quiet { font-size: 11.5px; }
+.metrics-grid { gap: 14px; }
+.metric-card { padding: 17px 17px 15px; border-radius: 12px; }
+.metric-top > span:first-child { font-size: 9.5px; letter-spacing: .6px; }
+.metric-value { font-size: 32px; padding-top: 15px; }
+.metric-bottom { font-size: 10px; line-height: 1.55; }
+.pipeline-step strong { font-size: 12px; }
+.pipeline-step small { font-size: 10px; }
+.agent-line-copy strong { font-size: 11.5px; }
+.agent-line-copy span { font-size: 10px; }
+
+@media (max-width: 1100px) {
+  .setup-checklist-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .page-content { padding-inline: 26px; }
+}
+@media (max-width: 740px) {
+  .page-content { padding: 22px 15px 20px; }
+  .view-stack { gap: 23px; }
+  .welcome-line { min-height: auto; }
+  .welcome-line h1 { font-size: clamp(32px, 8vw, 43px); letter-spacing: -1.6px; }
+  .hero-copy { font-size: 12px; }
+  .setup-banner { align-items: flex-start; flex-wrap: wrap; padding: 13px; }
+  .setup-banner > div:nth-child(2) { flex: 1 1 calc(100% - 50px); }
+  .setup-banner .button-outline { margin-left: 46px; }
+  .setup-checklist { padding: 15px; }
+  .setup-checklist-heading { flex-direction: column; gap: 10px; }
+  .setup-checklist-heading h2 { font-size: 18px; }
+  .setup-checklist-grid { grid-template-columns: minmax(0,1fr); }
+  .setup-checklist-footer { align-items: flex-start; flex-direction: column; }
+  .setup-checklist-footer .button-quiet { padding-left: 0; }
+  .task-composer { padding: 14px; }
+  .composer-top strong { font-size: 12px; }
+  .task-composer textarea { font-size: 12px; }
+  .metrics-grid { gap: 9px; }
+  .metric-card { padding: 12px; }
+  .metric-top > span:first-child { font-size: 7.8px; }
+  .metric-value { font-size: 25px; }
+  .metric-bottom { font-size: 8.5px; }
+}
