@@ -211,7 +211,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (!selectedRun?.id || apiState !== "connected") return;
+    if (!selectedRun?.id || apiState !== "connected" || !["queued", "running"].includes(selectedRun.status)) return;
     let cancelled = false;
     let timer;
     const poll = async () => {
@@ -223,7 +223,7 @@ export default function App() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [selectedRun?.id, apiState]);
+  }, [selectedRun?.id, selectedRun?.status, apiState]);
 
   return (
     <div className="app-shell">
