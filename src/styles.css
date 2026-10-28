@@ -566,3 +566,21 @@ body {
   .deployment-resource-card p { min-height: 0; }
   .deployment-resource-top { align-items: flex-start; }
 }
+
+
+/* Workflow status pills: distinguish approved and cancelled states. */
+.status-approved {
+  color: #c9fa78;
+  border-color: rgba(201,250,120,.27);
+  background: rgba(201,250,120,.085);
+}
+.status-cancelled {
+  color: #aab4c1;
+  border-color: #343e4a;
+  background: rgba(148,163,184,.075);
+}
+.status-approved .status-dot { background: #c9fa78; }
+.status-cancelled .status-dot { background: #8492a3; }
+@media (forced-colors: active) {
+  .status-pill, .tag-soft, .nav-item.nav-active { border: 1px solid CanvasText; }
+}
