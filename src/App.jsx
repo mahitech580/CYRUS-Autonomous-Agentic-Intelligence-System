@@ -7,7 +7,7 @@ import {
   Network, Play, Plus, Radio, Rocket, Search, Settings2, ShieldCheck,
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
-import { api } from "./lib/api.js";
+import { api, getAccessKey, setAccessKey } from "./lib/api.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -35,11 +35,7 @@ const pipeline = [
   { title: "Review", sub: "Quality gates", icon: GitPullRequest, color: "pink" },
   { title: "Release", sub: "Ship safely", icon: Rocket, color: "green" },
 ];
-const starterRuns = [
-  { id: "RUN-042", goal: "Add streaming status events to the task console", status: "completed", progress: 100, time: "4 min ago", agents: 6, kind: "Feature build" },
-  { id: "RUN-041", goal: "Harden API input validation and error boundaries", status: "running", progress: 68, time: "12 min ago", agents: 5, kind: "Reliability" },
-  { id: "RUN-040", goal: "Review database adapter and migration strategy", status: "review", progress: 91, time: "38 min ago", agents: 4, kind: "Code review" },
-];
+const starterRuns = [];
 const statusLabel = { completed: "Completed", running: "In progress", review: "Needs review", queued: "Queued", failed: "Failed" };
 
 function StatusPill({ status }) {
@@ -52,11 +48,17 @@ function AgentAvatar({ agent, small = false }) {
 function SectionTitle({ eyebrow, title, detail, action }) {
   return <div className="section-title"><div><div className="eyebrow">{eyebrow}</div><h2>{title}</h2>{detail ? <p>{detail}</p> : null}</div>{action}</div>;
 }
-function MiniBars() {
-  return <div className="mini-bars" aria-label="Recent activity trend">{[31, 42, 35, 56, 43, 61, 48, 70, 58, 74, 53, 82, 62, 92, 71, 85, 66, 100, 77, 89, 72, 96].map((n, i) => <i key={i} style={{ height: n + "%" }} />)}</div>;
+function MiniBars({ runs = [] }) {
+  const items = runs.slice(0, 12).reverse();
+  if (!items.length) return <div className="chart-placeholder"><Activity size={17} /><span>Workflow telemetry will appear after the first run.</span></div>;
+  return <div className="mini-bars" aria-label="Completion progress for recent workflows">{items.map((run, i) => {
+    const value = Math.max(0, Math.min(100, Number(run.progress) || 0));
+    return <i key={run.id || i} style={{ height: Math.max(5, value) + "%" }} title={(run.id || "Workflow") + ": " + value + "%"} />;
+  })}</div>;
 }
-function AgentLine({ agent, state = "idle" }) {
-  return <div className="agent-line"><AgentAvatar agent={agent} small /><div className="agent-line-copy"><strong>{agent.name}</strong><span>{agent.role}</span></div><span className={"agent-state state-" + state}><i />{state === "working" ? "Working" : state === "ready" ? "Ready" : "Standby"}</span></div>;
+function AgentLine({ agent, state = "registered" }) {
+  const label = state === "working" ? "Running" : state === "ready" ? "Ready" : "Registered";
+  return <div className="agent-line"><AgentAvatar agent={agent} small /><div className="agent-line-copy"><strong>{agent.name}</strong><span>{agent.role}</span></div><span className={"agent-state state-" + state}><i />{label}</span></div>;
 }
 function RunRow({ run, onOpen }) {
   return <button className="run-row" onClick={() => onOpen(run)}><span className="run-id">{run.id}</span><span className="run-description"><strong>{run.goal}</strong><small>{run.kind || "Workflow"} <span>·</span> {run.agents || 4} agents <span>·</span> {run.time || "Just now"}</small></span><span className="run-progress-wrap"><span className="run-progress"><i style={{ width: (run.progress || 0) + "%" }} /></span><small>{run.progress || 0}%</small></span><StatusPill status={run.status} /><ArrowRight className="run-arrow" size={15} /></button>;
@@ -64,7 +66,7 @@ function RunRow({ run, onOpen }) {
 
 export default function App() {
   const [view, setView] = useState("Overview");
-  const [runs, setRuns] = useState(starterRuns);
+  const [runs, setRuns] = useState([]);
   const [goal, setGoal] = useState("");
   const [query, setQuery] = useState("");
   const [isStarting, setIsStarting] = useState(false);
@@ -73,17 +75,33 @@ export default function App() {
   const [selectedRun, setSelectedRun] = useState(null);
   const [toast, setToast] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [workspaceConfig, setWorkspaceConfig] = useState(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    api.health().then(() => {
-      if (alive) setApiState("connected");
-      return api.runs();
-    }).then((data) => {
-      if (alive && data && Array.isArray(data.items)) {
-        setRuns(data.items.map((r) => ({ ...r, time: "From API", agents: r.agent_count || 7, kind: "Workspace run" })));
+    async function loadWorkspace() {
+      try {
+        await api.health();
+        const config = await api.config();
+        if (!alive) return;
+        setApiState("connected");
+        setWorkspaceConfig(config);
+        if (config.auth_required && !getAccessKey()) {
+          setRuns([]);
+          return;
+        }
+        try {
+          const data = await api.runs();
+          if (alive && Array.isArray(data.items)) setRuns(data.items.map(mapRunRecord));
+        } catch (error) {
+          if (![401, 503].includes(error.status)) notify(error.message || "Could not load workflow history.");
+        }
+      } catch {
+        if (alive) setApiState("unavailable");
       }
-    }).catch(() => { if (alive) setApiState("demo"); });
+    }
+    loadWorkspace();
     return () => { alive = false; };
   }, []);
 
@@ -96,49 +114,37 @@ export default function App() {
     setToast(message);
     window.setTimeout(() => setToast(""), 3200);
   }
-  function addLocalRun(text) {
-    const run = {
-      id: "RUN-" + String(Date.now()).slice(-5),
-      goal: text,
-      status: "running",
-      progress: 8,
-      time: "Just now",
-      agents: 7,
-      kind: "New workflow",
-    };
-    setRuns((current) => [run, ...current]);
-    let progress = 8;
-    const timer = window.setInterval(() => {
-      progress = Math.min(100, progress + 23);
-      setRuns((current) => current.map((item) => item.id === run.id ? { ...item, progress, status: progress >= 100 ? "review" : "running" } : item));
-      if (progress >= 100) {
-        window.clearInterval(timer);
-        notify("Workflow staged. Review the run output before release.");
-      }
-    }, 900);
-  }
   async function startRun(event) {
     event?.preventDefault();
     const cleanGoal = goal.trim();
     if (!cleanGoal || isStarting) return;
+    if (apiState !== "connected") {
+      notify("The CYRUS API is unavailable. Check the deployment and try again.");
+      setView("Settings");
+      return;
+    }
+    if (!workspaceConfig?.can_start_runs) {
+      const issue = !workspaceConfig?.access_control_configured && workspaceConfig?.auth_required
+        ? "Configure CYRUS_ACCESS_KEY in the backend environment before using workspace actions."
+        : !workspaceConfig?.provider_configured
+          ? "Configure OPENAI_API_KEY in the backend environment to enable real AI runs."
+          : "Configure persistent PostgreSQL or MySQL storage before creating production runs.";
+      notify(issue);
+      setView("Settings");
+      return;
+    }
     setIsStarting(true);
     try {
-      if (apiState === "connected") {
-        const result = await api.createRun(cleanGoal);
-        const created = result.item || result;
-        setRuns((current) => [{ ...created, id: created.id || "RUN-" + Date.now().toString().slice(-5), goal: created.goal || cleanGoal, status: created.status || "queued", progress: created.progress || 0, time: "Just now", agents: 7, kind: "API workflow" }, ...current]);
-        notify("Run queued in the CYRUS API.");
-      } else {
-        addLocalRun(cleanGoal);
-        notify("Demo workflow started. Connect the API for persistent runs.");
-      }
+      const result = await api.createRun(cleanGoal);
+      const created = mapRunRecord(result.item || result);
+      setRuns((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setGoal("");
       setView("Runs & tasks");
-    } catch {
-      addLocalRun(cleanGoal);
-      setGoal("");
-      setView("Runs & tasks");
-      notify("API unavailable. Started an in-browser demo run.");
+      setSelectedRun(created);
+      notify("Live AI workflow accepted. Follow the seven agent stages in run details.");
+    } catch (error) {
+      notify(error.message || "Could not start the workflow.");
+      if (error.status === 401) setView("Settings");
     } finally {
       setIsStarting(false);
     }
@@ -146,6 +152,63 @@ export default function App() {
   function openRun(run) {
     setSelectedRun(run);
   }
+  async function refreshSelectedRun(runId) {
+    try {
+      const response = await api.getRun(runId);
+      if (response.item) {
+        const fresh = mapRunRecord(response.item);
+        setSelectedRun((current) => current?.id === runId ? fresh : current);
+        setRuns((current) => current.map((item) => item.id === runId ? fresh : item));
+      }
+    } catch (error) {
+      if (error.status === 401) notify("Workspace access key is missing or incorrect.");
+    }
+  }
+  async function decideRun(decision, note = "") {
+    if (!selectedRun || actionBusy) return;
+    setActionBusy(true);
+    try {
+      const response = await api.approveRun(selectedRun.id, decision, note);
+      const updated = mapRunRecord(response.item);
+      setSelectedRun(updated);
+      setRuns((current) => current.map((item) => item.id === updated.id ? updated : item));
+      notify(decision === "approve" ? "Approval recorded. No deployment was triggered." : "Workflow rejected.");
+    } catch (error) {
+      notify(error.message || "Could not record the decision.");
+    } finally {
+      setActionBusy(false);
+    }
+  }
+  async function cancelSelectedRun() {
+    if (!selectedRun || actionBusy) return;
+    setActionBusy(true);
+    try {
+      const response = await api.cancelRun(selectedRun.id);
+      const updated = mapRunRecord(response.item);
+      setSelectedRun(updated);
+      setRuns((current) => current.map((item) => item.id === updated.id ? updated : item));
+      notify("Cancellation recorded.");
+    } catch (error) {
+      notify(error.message || "Could not cancel the workflow.");
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!selectedRun?.id || apiState !== "connected") return;
+    let cancelled = false;
+    let timer;
+    const poll = async () => {
+      await refreshSelectedRun(selectedRun.id);
+      if (!cancelled) timer = window.setTimeout(poll, 2500);
+    };
+    poll();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [selectedRun?.id, apiState]);
 
   return (
     <div className="app-shell">
@@ -177,41 +240,42 @@ export default function App() {
       <main className="main-panel">
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button open-mobile" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={19} /></button><span className="breadcrumb">Workspace</span><span className="breadcrumb-divider">/</span><strong>{view}</strong><span className="branch-chip"><GitBranch size={13} /> main</span></div>
-          <div className="topbar-actions"><div className={"connection-pill connection-" + apiState}><i />{apiState === "connected" ? "API connected" : apiState === "checking" ? "Checking API" : "Demo mode"}</div><button className="icon-button" title="Command palette" onClick={() => document.getElementById("task-prompt")?.focus()}><Command size={17} /></button><button className="top-avatar" title="Workspace profile">M</button></div>
+          <div className="topbar-actions"><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><button className="icon-button" title="Command palette" onClick={() => document.getElementById("task-prompt")?.focus()}><Command size={17} /></button><button className="top-avatar" title="Workspace profile">M</button></div>
         </header>
 
         <div className="page-content">
           {view === "Overview" ? <Overview
             runs={visibleRuns} allRuns={runs} goal={goal} setGoal={setGoal} startRun={startRun}
-            isStarting={isStarting} openRun={openRun} setView={setView} notify={notify} apiState={apiState}
+            isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} openRun={openRun} setView={setView} notify={notify} apiState={apiState} workspaceConfig={workspaceConfig}
           /> : null}
           {view === "Agent fleet" ? <FleetView notify={notify} apiState={apiState} /> : null}
-          {view === "Runs & tasks" ? <RunsView runs={visibleRuns} query={query} setQuery={setQuery} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} /> : null}
+          {view === "Runs & tasks" ? <RunsView runs={visibleRuns} query={query} setQuery={setQuery} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} /> : null}
           {view === "Code review" ? <ReviewView notify={notify} /> : null}
           {view === "Deployments" ? <DeploymentsView notify={notify} /> : null}
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
-          {view === "Settings" ? <SettingsView apiState={apiState} setApiState={setApiState} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
+          {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
         </div>
         <footer className="app-footer"><span><span className="footer-pulse" /> All systems nominal</span><span>CYRUS Workspace <b>0.1.0</b></span><span>Built for deliberate shipping <Zap size={12} /></span></footer>
       </main>
 
       {mobileNav ? <button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation overlay" /> : null}
       {toast ? <div className="toast"><CheckCircle2 size={17} /><span>{toast}</span><button onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div> : null}
-      {selectedRun ? <RunDrawer run={selectedRun} onClose={() => setSelectedRun(null)} /> : null}
+      {selectedRun ? <RunDrawer run={selectedRun} onClose={() => setSelectedRun(null)} onApprove={decideRun} onCancel={cancelSelectedRun} busy={actionBusy} /> : null}
     </div>
   );
 }
 
-function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, openRun, setView, notify, apiState }) {
+function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart, openRun, setView, notify, apiState, workspaceConfig }) {
   const completed = allRuns.filter((run) => run.status === "completed").length;
   const active = allRuns.filter((run) => run.status === "running" || run.status === "queued").length;
   return <div className="view-stack">
     <div className="welcome-line"><div><div className="eyebrow"><span className="eyebrow-square" /> AUTONOMOUS ENGINEERING WORKSPACE <span className="eyebrow-slash">/ 001</span></div><h1>Build the future.<br /><em>One agent at a time.</em></h1><p className="hero-copy">A coordinated team for the messy middle of software engineering — from first idea to verified release.</p></div><div className="hero-orbit" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit-core"><Sparkles size={27} /></div><span className="orbit-node node-a" /><span className="orbit-node node-b" /><span className="orbit-node node-c" /><span className="orbit-label">AGENT<br />MESH</span></div></div>
 
+    {apiState !== "connected" || (workspaceConfig && !workspaceConfig.can_start_runs) ? <div className="setup-banner"><div className="setup-banner-icon"><ShieldCheck size={18} /></div><div><strong>{apiState !== "connected" ? "CYRUS API unavailable" : !workspaceConfig?.access_control_configured && workspaceConfig?.auth_required ? "Secure workspace access first" : !workspaceConfig?.provider_configured ? "Connect a real AI provider" : "Configure persistent storage"}</strong><p>{apiState !== "connected" ? "The live API is not reachable; CYRUS will not create simulated runs." : !workspaceConfig?.access_control_configured && workspaceConfig?.auth_required ? "Add CYRUS_ACCESS_KEY to cyrus-api in Vercel, then enter the same key in Settings." : !workspaceConfig?.provider_configured ? "Add OPENAI_API_KEY to the cyrus-api project's server environment variables. The secret stays server-side." : "Set DATABASE_URL to a managed PostgreSQL or MySQL database. Serverless SQLite is not durable."}</p></div><button type="button" className="button-outline" onClick={() => setView("Settings")}>Configure <ArrowRight size={13} /></button></div> : null}
     <form className="task-composer" onSubmit={startRun}>
       <div className="composer-top"><div className="composer-icon"><Sparkles size={17} /></div><div><strong>What are we building today?</strong><span>Describe an outcome. CYRUS will map the work into a reviewable pipeline.</span></div><span className="composer-shortcut">⌘ ↵</span></div>
       <textarea id="task-prompt" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="e.g. Build a secure user authentication API with refresh tokens and integration tests…" rows={2} maxLength={1200} />
-      <div className="composer-bottom"><div className="composer-context"><span><Braces size={13} /> Full-stack project</span><span><Database size={13} /> DB-aware</span><span><ShieldCheck size={13} /> Human review gates</span></div><button className="button-primary" type="submit" disabled={!goal.trim() || isStarting}>{isStarting ? "Starting…" : "Start workflow"}<ArrowRight size={15} /></button></div>
+      <div className="composer-bottom"><div className="composer-context"><span><Braces size={13} /> Full-stack project</span><span><Database size={13} /> DB-aware</span><span><ShieldCheck size={13} /> Human review gates</span></div><button className="button-primary" type="submit" disabled={!goal.trim() || isStarting || !canStart}>{isStarting ? "Starting…" : "Start live workflow"}<ArrowRight size={15} /></button></div>
     </form>
 
     <div className="metrics-grid">
@@ -235,13 +299,13 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, openRun,
         {runs.length === 0 ? <div className="empty-state"><Workflow size={24} /><strong>No workflows found</strong><span>Start a task to create the first run.</span></div> : null}
       </section>
       <section className="panel-card fleet-panel"><div className="panel-heading"><div><div className="eyebrow">AGENT TELEMETRY</div><h2>Fleet status</h2></div><button className="icon-button" onClick={() => setView("Agent fleet")} title="Open fleet"><ArrowUpRight size={16} /></button></div>
-        <div className="fleet-summary"><div><span className="summary-number">07</span><span className="summary-label">Registered</span></div><div><span className="summary-number text-lime">03</span><span className="summary-label">On standby</span></div><div><span className="summary-number text-blue">{apiState === "connected" ? "API" : "SIM"}</span><span className="summary-label">Execution mode</span></div></div>
-        <div className="agent-list">{agents.slice(0, 4).map((agent, i) => <AgentLine agent={agent} state={i === 1 ? "working" : i === 2 ? "ready" : "idle"} key={agent.id} />)}</div>
+        <div className="fleet-summary"><div><span className="summary-number">07</span><span className="summary-label">Registered</span></div><div><span className="summary-number text-lime">07</span><span className="summary-label">Available roles</span></div><div><span className="summary-number text-blue">{apiState === "connected" ? "API" : "OFF"}</span><span className="summary-label">API status</span></div></div>
+        <div className="agent-list">{agents.slice(0, 4).map((agent) => <AgentLine agent={agent} state="ready" key={agent.id} />)}</div>
         <button className="button-outline full-button" onClick={() => setView("Agent fleet")}>Open agent registry <ArrowRight size={14} /></button>
       </section>
     </div>
     <div className="section-divider"><span>OBSERVABILITY</span><span className="divider-line" /><span className="section-index">03 / 03</span></div>
-    <section className="observability-panel"><div className="observability-copy"><div className="eyebrow">WORKSPACE SIGNAL</div><h2>Momentum, in context.</h2><p>Track workflow volume and agent throughput. Metrics are illustrative until a backend is connected.</p><div className="signal-key"><span><i className="signal-green" /> Run activity</span><span><i className="signal-blue" /> Agent events</span></div></div><div className="observability-chart"><div className="chart-summary"><div><span>LAST 24 HOURS</span><strong>+18.6% <ArrowUpRight size={15} /></strong></div><div><span>EVENT RATE</span><strong>24.8 <small>/ min</small></strong></div></div><MiniBars /><div className="chart-axis"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>NOW</span></div></div></section>
+    <section className="observability-panel"><div className="observability-copy"><div className="eyebrow">WORKSPACE SIGNAL</div><h2>Momentum, in context.</h2><p>Workflow counts and completion values below are derived from saved run records. No synthetic usage statistics are shown.</p><div className="signal-key"><span><i className="signal-green" /> Run progress</span><span><i className="signal-blue" /> Persisted runs</span></div></div><div className="observability-chart"><div className="chart-summary"><div><span>SAVED WORKFLOWS</span><strong>{String(allRuns.length).padStart(2, "0")}</strong></div><div><span>AVERAGE COMPLETION</span><strong>{allRuns.length ? Math.round(allRuns.reduce((sum, item) => sum + (Number(item.progress) || 0), 0) / allRuns.length) : 0}<small>%</small></strong></div></div><MiniBars runs={allRuns} /><div className="chart-axis"><span>OLDEST</span><span>RECENT</span></div></div></section>
   </div>;
 }
 
@@ -255,9 +319,9 @@ function FleetView({ notify, apiState }) {
     <div className="notice-strip"><ShieldCheck size={17} /><span><strong>Guardrail:</strong> agents prepare artifacts and recommendations; sensitive operations require explicit human approval.</span></div>
   </div>;
 }
-function RunsView({ runs, query, setQuery, openRun, goal, setGoal, startRun, isStarting }) {
+function RunsView({ runs, query, setQuery, openRun, goal, setGoal, startRun, isStarting, canStart }) {
   return <div className="view-stack subpage"><SectionTitle eyebrow="EXECUTION CONTROL / RUN HISTORY" title="Runs & tasks" detail="Inspect orchestration state, progress, and review hand-offs." action={<span className="small-counter">{runs.length} VISIBLE RUNS</span>} />
-    <form className="task-composer compact-composer" onSubmit={startRun}><div className="composer-icon"><Sparkles size={16} /></div><input aria-label="New workflow goal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Describe a new engineering task…" /><button className="button-primary" disabled={!goal.trim() || isStarting}>{isStarting ? "Starting…" : "New run"}<ArrowRight size={14} /></button></form>
+    <form className="task-composer compact-composer" onSubmit={startRun}><div className="composer-icon"><Sparkles size={16} /></div><input aria-label="New workflow goal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Describe a new engineering task…" /><button className="button-primary" disabled={!goal.trim() || isStarting || !canStart}>{isStarting ? "Starting…" : "New live run"}<ArrowRight size={14} /></button></form>{!canStart ? <div className="inline-help">Live runs require a configured model provider, protected workspace access, and persistent database. Open Settings for the exact missing requirements.</div> : null}
     <div className="list-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search workflows" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search runs, goals, or status…" /></div><div className="filter-chip"><CircleDot size={13} /> All statuses <ChevronDown size={13} /></div><button className="button-outline" onClick={() => setQuery("")}>Clear filters <X size={13} /></button></div>
     <section className="panel-card"><div className="table-head"><span>RUN / GOAL</span><span>PROGRESS</span><span>STATUS</span><span /></div><div className="runs-table large-runs">{runs.map((run) => <RunRow key={run.id} run={run} onOpen={openRun} />)}</div>{runs.length === 0 ? <div className="empty-state"><Search size={22} /><strong>No matching runs</strong><span>Try a different search or clear the filters.</span></div> : null}</section>
   </div>;
@@ -295,15 +359,90 @@ function IntegrationsView({ notify }) {
     <div className="notice-strip"><Database size={17} /><span><strong>Credentials:</strong> configure database URLs and provider API keys through environment variables. Never commit secrets or send them to the browser.</span></div>
   </div>;
 }
-function SettingsView({ apiState, setApiState, settingsOpen, setSettingsOpen, notify }) {
-  const [workspaceName, setWorkspaceName] = useState("Cyrus workspace");
-  const [reviewGate, setReviewGate] = useState(true);
-  const [demoTelemetry, setDemoTelemetry] = useState(true);
-  return <div className="view-stack subpage"><SectionTitle eyebrow="WORKSPACE CONTROL / PREFERENCES" title="Settings" detail="Tune workspace behavior and review how the local prototype is running." />
-    <div className="settings-layout"><section className="panel-card settings-card"><div className="panel-heading"><div><div className="eyebrow">GENERAL</div><h2>Workspace profile</h2></div><Settings2 size={18} /></div><label className="form-field"><span>Workspace name</span><input value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} /></label><div className="setting-row"><div><strong>Human review gates</strong><p>Require review before release actions.</p></div><button className={"toggle " + (reviewGate ? "toggle-on" : "")} role="switch" aria-checked={reviewGate} onClick={() => setReviewGate(!reviewGate)}><i /></button></div><div className="setting-row"><div><strong>Demo telemetry</strong><p>Display illustrative activity when no API is connected.</p></div><button className={"toggle " + (demoTelemetry ? "toggle-on" : "")} role="switch" aria-checked={demoTelemetry} onClick={() => setDemoTelemetry(!demoTelemetry)}><i /></button></div><button className="button-primary" onClick={() => notify("Workspace settings saved in this browser session.")}>Save preferences <Check size={14} /></button></section>
-    <section className="panel-card settings-card"><div className="panel-heading"><div><div className="eyebrow">RUNTIME</div><h2>Connection status</h2></div><Activity size={18} /></div><div className="runtime-status"><span className={"runtime-status-icon " + (apiState === "connected" ? "runtime-good" : "runtime-demo")}><Radio size={18} /></span><div><strong>{apiState === "connected" ? "CYRUS API connected" : "Local demo runtime"}</strong><p>{apiState === "connected" ? "Tasks can be persisted by the Python backend." : "The dashboard remains interactive without a running API."}</p></div></div><div className="setting-row"><div><strong>Execution behavior</strong><p>Choose whether this session uses the live API.</p></div><span className="tag-soft">{apiState === "connected" ? "LIVE API" : "IN-BROWSER"}</span></div><button className="button-outline full-button" onClick={() => { setSettingsOpen(!settingsOpen); notify(settingsOpen ? "Runtime details hidden." : "Runtime uses VITE_API_BASE_URL, defaulting to localhost:8000."); }}>{settingsOpen ? "Hide runtime details" : "Show runtime details"}<ArrowRight size={13} /></button>{settingsOpen ? <div className="runtime-details"><div><span>FRONTEND</span><code>React + Vite</code></div><div><span>API</span><code>FastAPI · localhost:8000</code></div><div><span>PERSISTENCE</span><code>SQLAlchemy / SQLite default</code></div><div><span>DATABASE OPTIONS</span><code>PostgreSQL · MySQL</code></div></div> : null}</section></div>
+function SettingsView({ apiState, workspaceConfig, settingsOpen, setSettingsOpen, notify }) {
+  const [accessKey, setAccessKeyState] = useState(getAccessKey());
+  return <div className="view-stack subpage"><SectionTitle eyebrow="WORKSPACE CONTROL / RUNTIME CONFIGURATION" title="Settings" detail="Inspect live dependencies and connect the server-side services needed to run real agent workflows." />
+    <div className="settings-layout">
+      <section className="panel-card settings-card"><div className="panel-heading"><div><div className="eyebrow">SAFETY POLICY</div><h2>Execution boundaries</h2></div><ShieldCheck size={18} /></div>
+        <div className="setting-row"><div><strong>Human review gate</strong><p>Every completed workflow pauses for a recorded approval decision. Approval does not deploy.</p></div><span className="tag-soft">ENFORCED</span></div>
+        <div className="setting-row"><div><strong>Generated code execution</strong><p>Agent-generated code is saved as an artifact and is not executed on the API server.</p></div><span className="tag-soft">DISABLED</span></div>
+        <div className="setting-row"><div><strong>Repository writes</strong><p>Git commits and pull requests are not made automatically. Connect a scoped, reviewable repository adapter before enabling writes.</p></div><span className="tag-soft">DISABLED</span></div>
+        <div className="notice-strip"><LockKeyhole size={16} /><span>Provider credentials and database URLs belong in server-side environment variables, never frontend code.</span></div>
+        <a className="settings-link" href="https://vercel.com/mahendra8/cyrus-api/settings/environment-variables" target="_blank" rel="noreferrer">Open API environment settings <ArrowUpRight size={13} /></a>
+      </section>
+      <section className="panel-card settings-card"><div className="panel-heading"><div><div className="eyebrow">RUNTIME</div><h2>Connection status</h2></div><Activity size={18} /></div>
+        <div className="runtime-status"><span className={"runtime-status-icon " + (apiState === "connected" ? "runtime-good" : "runtime-demo")}><Radio size={18} /></span><div><strong>{apiState === "connected" ? "CYRUS API reachable" : "CYRUS API unavailable"}</strong><p>{apiState === "connected" ? "Provider and storage readiness are reported separately below." : "Check the API deployment and VITE_API_BASE_URL."}</p></div></div>
+        <div className="runtime-details runtime-checks">
+          <div><span>MODEL PROVIDER</span><code>{workspaceConfig?.provider_configured ? (workspaceConfig.model || "Configured") : "OPENAI_API_KEY missing"}</code></div>
+          <div><span>PERSISTENT DATABASE</span><code>{workspaceConfig?.persistent_storage ? (workspaceConfig.database_dialect || "Configured") : "PostgreSQL / MySQL required"}</code></div>
+          <div><span>ACCESS CONTROL</span><code>{workspaceConfig?.auth_required ? (workspaceConfig?.access_control_configured ? "Protected" : "CYRUS_ACCESS_KEY missing") : "Local development"}</code></div>
+          <div><span>EXECUTION MODE</span><code>{workspaceConfig?.execution_mode || "API offline"}</code></div>
+          <div><span>LIVE WEB RESEARCH</span><code>{workspaceConfig?.web_search_enabled ? "Enabled for Scout" : "Not enabled"}</code></div>
+        </div>
+        <label className="form-field access-key-field"><span>Workspace access key (stored for this browser session only)</span><input type="password" autoComplete="current-password" value={accessKey} onChange={(e) => setAccessKeyState(e.target.value)} placeholder="Paste the server's CYRUS_ACCESS_KEY" /></label>
+        <button className="button-primary full-button" onClick={() => { setAccessKey(accessKey); window.location.reload(); }}>Save access key and reconnect <ArrowRight size={13} /></button>
+        <button className="button-outline full-button" onClick={() => { setSettingsOpen(!settingsOpen); notify(settingsOpen ? "Runtime details hidden." : "Runtime details expanded."); }}>{settingsOpen ? "Hide runtime details" : "Show runtime details"}<ArrowRight size={13} /></button>
+        {settingsOpen ? <div className="runtime-details"><div><span>FRONTEND</span><code>React + Vite</code></div><div><span>API</span><code>FastAPI · configured URL</code></div><div><span>LOCAL PERSISTENCE</span><code>SQLite for development</code></div><div><span>PRODUCTION PERSISTENCE</span><code>Managed PostgreSQL / MySQL</code></div><div><span>MODEL API</span><code>OpenAI Responses API compatible</code></div></div> : null}
+      </section>
+    </div>
   </div>;
 }
-function RunDrawer({ run, onClose }) {
-  return <div className="drawer-layer" role="dialog" aria-modal="true" aria-label="Workflow details"><button className="drawer-backdrop" onClick={onClose} aria-label="Close run details" /><aside className="run-drawer"><div className="drawer-head"><div><div className="eyebrow">WORKFLOW DETAILS</div><span className="run-id">{run.id}</span></div><button className="icon-button" onClick={onClose} aria-label="Close details"><X size={17} /></button></div><h2>{run.goal}</h2><StatusPill status={run.status} /><div className="drawer-progress"><div><span>Execution progress</span><strong>{run.progress || 0}%</strong></div><div className="capacity-track"><i style={{ width: (run.progress || 0) + "%" }} /></div></div><div className="drawer-meta"><div><span>WORKFLOW TYPE</span><strong>{run.kind || "Agent workflow"}</strong></div><div><span>AGENT PARTICIPANTS</span><strong>{run.agents || 7} specialists</strong></div><div><span>CREATED</span><strong>{run.time || "Recently"}</strong></div><div><span>EXECUTION MODE</span><strong>Deterministic prototype</strong></div></div><div className="drawer-section-title">Pipeline hand-offs</div><div className="drawer-timeline">{pipeline.map((step, index) => <div className="timeline-item" key={step.title}><span className={"timeline-dot" + (index < Math.round((run.progress || 0) / 100 * pipeline.length) ? " timeline-done" : "")}>{index < Math.round((run.progress || 0) / 100 * pipeline.length) ? <Check size={11} /> : index + 1}</span><div><strong>{step.title}</strong><small>{index < Math.round((run.progress || 0) / 100 * pipeline.length) ? "Stage preview prepared" : "Waiting for previous stage"}</small></div></div>)}</div><div className="drawer-note"><LifeBuoy size={15} /><span>In this starter build, stage outputs are simulated unless a model/provider adapter is configured.</span></div><button className="button-primary full-button" onClick={onClose}>Close run details <Check size={14} /></button></aside></div>;
+function mapRunRecord(run) {
+  const dateValue = run.updated_at || run.created_at;
+  let time = "Just now";
+  if (dateValue) {
+    try { time = new Date(dateValue).toLocaleString(); } catch { time = String(dateValue); }
+  }
+  return { ...run, time, agents: run.agent_count || 7, kind: run.execution_mode === "live-model" ? "Live AI workflow" : run.execution_mode || "Workflow" };
+}
+
+function RunDrawer({ run, onClose, onApprove, onCancel, busy }) {
+  const stages = Array.isArray(run.stages) ? run.stages : [];
+  const [expandedStage, setExpandedStage] = useState(stages.length ? stages[stages.length - 1].id : "plan");
+  const [note, setNote] = useState("");
+  const completedTokens = stages.reduce((sum, stage) => sum + (stage.usage?.input_tokens || 0) + (stage.usage?.output_tokens || 0), 0);
+  function exportReport() {
+    const report = [
+      "# CYRUS workflow report", "",
+      "**Run:** " + run.id,
+      "**Status:** " + run.status,
+      "**Goal:** " + run.goal,
+      "**Execution mode:** " + (run.execution_mode || "unknown"), "",
+      ...stages.flatMap((stage) => ["## " + stage.agent + " — " + stage.id, "", stage.output || stage.summary || "(No output saved)", ""]),
+      "## Event log", "",
+      ...(run.events || []).map((event) => "- [" + event.status + "] " + event.at + " — " + event.agent + ": " + event.message),
+    ].join("\n");
+    const blob = new Blob([report], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "cyrus-" + run.id.toLowerCase() + "-report.md";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+  return <div className="drawer-layer" role="dialog" aria-modal="true" aria-label="Workflow details"><button className="drawer-backdrop" onClick={onClose} aria-label="Close run details" /><aside className="run-drawer">
+    <div className="drawer-head"><div><div className="eyebrow">LIVE WORKFLOW / ARTIFACTS</div><span className="run-id">{run.id}</span></div><button className="icon-button" onClick={onClose} aria-label="Close details"><X size={17} /></button></div>
+    <h2>{run.goal}</h2><StatusPill status={run.status} />
+    <div className="drawer-progress"><div><span>{run.current_stage ? "Current stage · " + run.current_stage : "Execution progress"}</span><strong>{run.progress || 0}%</strong></div><div className="capacity-track"><i style={{ width: (run.progress || 0) + "%" }} /></div></div>
+    <div className="drawer-meta"><div><span>WORKFLOW TYPE</span><strong>{run.kind || "Agent workflow"}</strong></div><div><span>AGENT STAGES</span><strong>{stages.length} / 7 completed</strong></div><div><span>UPDATED</span><strong>{run.time || "Recently"}</strong></div><div><span>MODEL USAGE</span><strong>{completedTokens.toLocaleString()} tokens</strong></div></div>
+    {run.error ? <div className="run-error"><strong>Workflow failed</strong><p>{run.error}</p></div> : null}
+    <div className="drawer-section-title">Generated agent artifacts</div>
+    <div className="drawer-timeline">{pipeline.map((step, index) => {
+      const stageId = step.title.toLowerCase();
+      const stage = stages.find((item) => item.id === stageId);
+      const active = run.current_stage === stageId;
+      const complete = !!stage;
+      return <div className="timeline-item" key={step.title}>
+        <span className={"timeline-dot" + (complete ? " timeline-done" : active ? " timeline-active" : "")}>{complete ? <Check size={11} /> : active ? <Activity size={11} /> : index + 1}</span>
+        <div className="timeline-stage"><button className="timeline-stage-button" onClick={() => setExpandedStage(expandedStage === stageId ? "" : stageId)}><strong>{step.title} <span>{stage?.agent || step.title}</span></strong><small>{stage ? "Real model output saved" : active ? "Waiting for provider response" : run.status === "failed" ? "Not completed" : "Queued"}</small></button>
+          {expandedStage === stageId && stage ? <div className="artifact-output"><div className="artifact-label">MODEL OUTPUT</div><pre>{stage.output || stage.summary || "No output available."}</pre></div> : null}
+        </div>
+      </div>;
+    })}</div>
+    {run.status === "review" ? <div className="approval-panel"><div className="eyebrow">HUMAN REVIEW REQUIRED</div><strong>Approve the workflow artifacts?</strong><p>Approval records your decision only. It does not execute generated code, write to GitHub, or deploy a release.</p><label className="form-field"><span>Review note (optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={1000} placeholder="What did you verify?" /></label><div className="approval-actions"><button className="button-outline" disabled={busy} onClick={() => onApprove("reject", note)}>Reject artifacts</button><button className="button-primary" disabled={busy} onClick={() => onApprove("approve", note)}>{busy ? "Saving…" : "Approve artifacts"}<Check size={14} /></button></div></div> : null}
+    {["queued", "running"].includes(run.status) ? <button className="button-outline full-button" disabled={busy} onClick={onCancel}>Cancel workflow <X size={14} /></button> : null}
+    <button className="button-outline full-button" onClick={exportReport}><FileCode2 size={14} /> Export complete Markdown report</button>
+    <div className="drawer-note"><ShieldCheck size={15} /><span>Provider outputs are saved artifacts, not verified execution. Generated code is not run or committed by the server.</span></div>
+    <button className="button-primary full-button" onClick={onClose}>Close run details <Check size={14} /></button>
+  </aside></div>;
 }

@@ -105,3 +105,47 @@ h1, h2, h3, p { margin-top: 0; }.welcome-line h1 { font-size: clamp(31px, 3.4vw,
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Real provider configuration, live artifacts, and operational status */
+.setup-banner { display: flex; align-items: center; gap: 12px; padding: 13px 15px; border: 1px solid #59452b; background: linear-gradient(100deg, rgba(233,174,94,.08), #15161a); border-radius: 10px; }
+.setup-banner-icon { width: 34px; height: 34px; border: 1px solid #59452b; background: #2b241b; color: #efbf7e; border-radius: 8px; display: grid; place-items: center; flex-shrink: 0; }
+.setup-banner > div:nth-child(2) { flex: 1; min-width: 0; }
+.setup-banner strong { display: block; font-size: 10px; color: #e6d8c2; }
+.setup-banner p { margin: 4px 0 0; font-size: 9px; line-height: 1.75; color: #a89984; overflow-wrap: anywhere; }
+.setup-banner .button-outline { flex-shrink: 0; }
+.inline-help { padding: 10px 12px; border: 1px solid #34313a; border-radius: 7px; background: #17151b; font-size: 9px; line-height: 1.8; color: #a99dbb; }
+.chart-placeholder { min-height: 79px; margin-top: 15px; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 9px; border: 1px dashed #30343c; border-radius: 7px; color: #77808d; font-size: 9px; text-align: center; }
+.chart-placeholder svg { color: #8e96a4; flex-shrink: 0; }
+.runtime-checks { margin: 10px 0 15px; }
+.runtime-checks > div { align-items: flex-start; }
+.runtime-checks code { overflow-wrap: anywhere; max-width: 68%; }
+.access-key-field { margin-top: 14px; }
+.access-key-field input { font-family: var(--mono); letter-spacing: .4px; }
+.run-error { padding: 12px; margin: 14px 0; border: 1px solid #57333a; border-radius: 8px; background: #28191d; }
+.run-error strong { color: #f29ca4; font-size: 10px; }
+.run-error p { margin: 6px 0 0; color: #d0a0a4; line-height: 1.7; font-size: 9px; overflow-wrap: anywhere; }
+.timeline-active { color: var(--blue); border-color: #35517a; background: #172235; }
+.timeline-stage { min-width: 0; flex: 1; padding: 2px 0 14px; }
+.timeline-stage-button { width: 100%; text-align: left; border: 0; padding: 0; background: transparent; }
+.timeline-stage-button strong, .timeline-stage-button small { display: block; }
+.timeline-stage-button strong { color: #d9dde5; font-size: 10px; font-weight: 700; }
+.timeline-stage-button strong span { color: #848c99; font-size: 8px; font-weight: 500; margin-left: 5px; }
+.timeline-stage-button small { color: #7e8795; font-size: 8.5px; margin-top: 5px; }
+.timeline-stage-button:hover strong { color: var(--lime); }
+.artifact-output { margin-top: 10px; border: 1px solid #30343e; border-radius: 7px; overflow: hidden; background: #0b0d11; }
+.artifact-label { padding: 8px 10px; border-bottom: 1px solid #272b34; color: #8992a0; font: 8px var(--mono); letter-spacing: .8px; }
+.artifact-output pre { margin: 0; padding: 12px; max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: #c5ccd6; font: 10px/1.8 var(--mono); }
+.approval-panel { margin: 16px 0; padding: 14px; border: 1px solid #4b432c; border-radius: 9px; background: linear-gradient(120deg, rgba(199,251,99,.045), #15161a); }
+.approval-panel > strong { display: block; margin-top: 6px; font-size: 11px; }
+.approval-panel > p { margin: 7px 0 13px; color: #9a9e9f; font-size: 9px; line-height: 1.8; }
+.approval-panel .form-field { margin-bottom: 12px; }
+.approval-panel textarea { width: 100%; border: 1px solid #363a44; border-radius: 7px; background: #101217; color: #e5e9f0; padding: 9px; resize: vertical; font-size: 10px; line-height: 1.7; }
+.approval-actions { display: flex; gap: 9px; }
+.approval-actions > * { flex: 1; }
+@media (max-width: 740px) {
+  .setup-banner { align-items: flex-start; flex-wrap: wrap; }
+  .setup-banner > div:nth-child(2) { flex-basis: calc(100% - 50px); }
+  .setup-banner .button-outline { margin-left: 46px; }
+  .approval-actions { flex-direction: column; }
+  .runtime-checks code { max-width: 60%; }
+}

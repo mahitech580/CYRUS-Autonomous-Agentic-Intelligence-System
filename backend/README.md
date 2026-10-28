@@ -1,39 +1,32 @@
-# CYRUS API
+# CYRUS API and agent runtime
 
-FastAPI is the canonical REST service. Workflow records persist through SQLAlchemy. SQLite is the zero-configuration default; PostgreSQL and MySQL are supported through connection URLs and their drivers.
+FastAPI is the canonical REST service. It coordinates seven sequential model stages via the OpenAI Responses API. A run persists per-stage outputs and token usage and ends in review, requiring an explicit human decision.
 
-## Run locally
+## Local setup
 
 From the repository root:
 
-1. Create and activate a Python virtual environment.
-2. Install dependencies: pip install -r backend/requirements.txt
-3. Start the API: uvicorn backend.main:app --reload --port 8000
-4. Open the interactive API reference at http://localhost:8000/docs.
+    pip install -r backend/requirements.txt
+    # Set OPENAI_API_KEY in the process environment for actual model calls.
+    uvicorn backend.main:app --reload --port 8000
 
-The frontend defaults to http://localhost:8000. Set VITE_API_BASE_URL in a local .env file to override it.
+The GET /api/config endpoint reports whether the model provider and durable database are configured without exposing secret values.
 
-## API contract
+## Model setup
 
-- GET /api/health — service, database, mode, and timestamp.
-- GET /api/ready — readiness check, returns 503 if the database cannot be reached.
-- GET /api/agents — the seven built-in role contracts.
-- GET /api/runs?limit=30 — latest workflow runs.
-- POST /api/runs — create a workflow. JSON body: {"goal":"Build a resilient profile API"}.
-- GET /api/runs/{run_id} — inspect one run with stages and event history.
+- OPENAI_API_KEY: required on the backend only.
+- OPENAI_BASE_URL: defaults to https://api.openai.com/v1.
+- CYRUS_MODEL: default gpt-6-luna.
+- CYRUS_MAX_OUTPUT_TOKENS: max tokens per agent response (default 1200).
+- CYRUS_LLM_TIMEOUT_SECONDS: per-request timeout (default 55).
+- CYRUS_ENABLE_WEB_SEARCH: if true, Scout may use the Responses API web search. This may incur extra charges.
 
-Run creation returns HTTP 202, persists the request, then schedules a background preview. The current stage executor is deterministic and does not call an LLM, edit a Git repository, run arbitrary code, or deploy services. It prepares stage summaries and leaves the run at review with release approval required.
+Every workflow generates seven model responses. Model usage is billed by the provider, and actual cost depends on model and output sizes.
 
-## Database URLs
+## Persistence and access
 
-SQLite default: sqlite:///./cyrus.db
+SQLite is for local development only. Production runs are refused unless DATABASE_URL uses managed PostgreSQL/MySQL. Set CYRUS_ACCESS_KEY to a long random secret in the backend environment; protected endpoints require a Bearer token. Production runs are also refused if access control is not configured.
 
-PostgreSQL example: postgresql+psycopg://cyrus:change-me@localhost:5432/cyrus
+## Runtime safety
 
-MySQL example: mysql+pymysql://cyrus:change-me@localhost:3306/cyrus
-
-Use secrets from the environment, never a committed file. For production, provision migrations, connection pooling, durable job workers, authentication/authorization, rate limits, and audit logging before exposing the service publicly.
-
-## Framework integrations
-
-flask_adapter.py and django_adapter.py are optional examples for integrating status endpoints into existing Flask or Django applications. They do not duplicate the canonical orchestration state. Install Flask or Django separately if you need those adapters.
+Provider outputs are saved as artifacts, not executed on the API host. The approval route records a human decision but does not deploy. Do not expose this service publicly until provider key, persistent database, workspace key, CORS origins, backups, and cost/rate controls are configured.
