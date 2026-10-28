@@ -1,13 +1,14 @@
 {
   "name": "cyrus-engineering-workspace",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "check": "vite build"
+    "check": "vite build",
+    "test": "node --test"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
