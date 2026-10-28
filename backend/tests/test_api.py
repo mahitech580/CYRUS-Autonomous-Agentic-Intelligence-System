@@ -1,7 +1,11 @@
 import os
+import sys
 import unittest
+from pathlib import Path
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test-cyrus.db")
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi.testclient import TestClient
 from main import app, ensure_schema
