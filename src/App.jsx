@@ -345,7 +345,7 @@ function ReviewView({ runs = [], openRun, notify }) {
 function DeploymentsView({ apiState, workspaceConfig }) {
   const providerReady = !!workspaceConfig?.provider_configured;
   const storageReady = !!workspaceConfig?.persistent_storage;
-  const accessReady = !workspaceConfig?.auth_required || !!workspaceConfig?.access_control_configured;
+  const accessReady = !!workspaceConfig && (!workspaceConfig.auth_required || !!workspaceConfig.access_control_configured);
   const targets = [
     { name: "CYRUS workspace", eyebrow: "FRONTEND · VERCEL", description: "Open the deployed React workspace and verify the responsive operator console.", href: "https://cyrus-workspace-mahendra8.vercel.app", action: "Open workspace", icon: LayoutDashboard, state: "Deployed alias" },
     { name: "CYRUS API", eyebrow: "BACKEND · FASTAPI", description: "Inspect the documented API surface and use the health endpoint to test reachability.", href: "https://cyrus-api-mahendra8.vercel.app/docs", action: "Open API docs", icon: Terminal, state: apiState === "connected" ? "API reachable from this session" : "Reachability not confirmed" },
