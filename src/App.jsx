@@ -36,7 +36,7 @@ const pipeline = [
   { title: "Release", sub: "Ship safely", icon: Rocket, color: "green" },
 ];
 const starterRuns = [];
-const statusLabel = { completed: "Completed", running: "In progress", review: "Needs review", queued: "Queued", failed: "Failed" };
+const statusLabel = { completed: "Completed", approved: "Approved", running: "In progress", review: "Needs review", queued: "Queued", failed: "Failed", cancelled: "Cancelled" };
 
 function StatusPill({ status }) {
   return <span className={"status-pill status-" + status}><span className="status-dot" />{statusLabel[status] || status}</span>;
@@ -240,7 +240,7 @@ export default function App() {
       <main className="main-panel">
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button open-mobile" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={19} /></button><span className="breadcrumb">Workspace</span><span className="breadcrumb-divider">/</span><strong>{view}</strong><span className="branch-chip"><GitBranch size={13} /> main</span></div>
-          <div className="topbar-actions"><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><button className="icon-button" title="Command palette" onClick={() => document.getElementById("task-prompt")?.focus()}><Command size={17} /></button><button className="top-avatar" title="Workspace profile">M</button></div>
+          <div className="topbar-actions"><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><button className="icon-button" title="Focus task prompt" aria-label="Focus task prompt" onClick={() => { setView("Overview"); window.setTimeout(() => document.getElementById("task-prompt")?.focus(), 0); }}><Command size={17} /></button><button className="top-avatar" title="Workspace profile">M</button></div>
         </header>
 
         <div className="page-content">
@@ -248,10 +248,10 @@ export default function App() {
             runs={visibleRuns} allRuns={runs} goal={goal} setGoal={setGoal} startRun={startRun}
             isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} openRun={openRun} setView={setView} notify={notify} apiState={apiState} workspaceConfig={workspaceConfig}
           /> : null}
-          {view === "Agent fleet" ? <FleetView notify={notify} apiState={apiState} /> : null}
+          {view === "Agent fleet" ? <FleetView notify={notify} apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Runs & tasks" ? <RunsView runs={visibleRuns} query={query} setQuery={setQuery} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} /> : null}
           {view === "Code review" ? <ReviewView runs={runs} openRun={openRun} notify={notify} /> : null}
-          {view === "Deployments" ? <DeploymentsView notify={notify} /> : null}
+          {view === "Deployments" ? <DeploymentsView apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
           {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
         </div>
@@ -260,13 +260,13 @@ export default function App() {
 
       {mobileNav ? <button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation overlay" /> : null}
       {toast ? <div className="toast"><CheckCircle2 size={17} /><span>{toast}</span><button onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div> : null}
-      {selectedRun ? <RunDrawer run={selectedRun} onClose={() => setSelectedRun(null)} onApprove={decideRun} onCancel={cancelSelectedRun} busy={actionBusy} /> : null}
+      {selectedRun ? <RunDrawer key={selectedRun.id} run={selectedRun} onClose={() => setSelectedRun(null)} onApprove={decideRun} onCancel={cancelSelectedRun} busy={actionBusy} /> : null}
     </div>
   );
 }
 
 function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart, openRun, setView, notify, apiState, workspaceConfig }) {
-  const completed = allRuns.filter((run) => run.status === "completed").length;
+  const completed = allRuns.filter((run) => ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100).length;
   const active = allRuns.filter((run) => run.status === "running" || run.status === "queued").length;
   return <div className="view-stack">
     <div className="welcome-line"><div><div className="eyebrow"><span className="eyebrow-square" /> AUTONOMOUS ENGINEERING WORKSPACE <span className="eyebrow-slash">/ 001</span></div><h1>Build the future.<br /><em>One agent at a time.</em></h1><p className="hero-copy">A coordinated team for the messy middle of software engineering — from first idea to verified release.</p></div><div className="hero-orbit" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit-core"><Sparkles size={27} /></div><span className="orbit-node node-a" /><span className="orbit-node node-b" /><span className="orbit-node node-c" /><span className="orbit-label">AGENT<br />MESH</span></div></div>
@@ -312,9 +312,9 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
 function MetricCard({ label, value, change, icon: Icon, trend }) {
   return <div className="metric-card"><div className="metric-top"><span>{label}</span><span className={"metric-icon metric-" + trend}><Icon size={16} /></span></div><div className="metric-value">{value}<span className="metric-value-mark">.</span></div><div className="metric-bottom"><span>{change}</span>{trend === "lime" ? <ArrowUpRight size={14} className="text-lime" /> : <ArrowDownRight size={14} />}</div></div>;
 }
-function FleetView({ notify, apiState }) {
+function FleetView({ notify, apiState, workspaceConfig }) {
   return <div className="view-stack subpage"><SectionTitle eyebrow="AGENT REGISTRY / 07 SPECIALISTS" title="The agent fleet" detail="Small, opinionated roles coordinated through explicit hand-offs." action={<button className="button-primary" onClick={() => notify("Custom agents are defined through backend agent adapters.")}><Plus size={15} /> Configure agent</button>} />
-    <div className="fleet-banner"><div className="fleet-banner-icon"><Network size={22} /></div><div><strong>One system. Distinct responsibilities.</strong><p>Each agent gets a scoped job, a shared run context, and a clear hand-off contract. Human approval remains in the loop for release decisions.</p></div><div className="fleet-banner-status"><span className="footer-pulse" />{apiState === "connected" ? "API LINKED" : "SIMULATION"}<small>WORKSPACE MODE</small></div></div>
+    <div className="fleet-banner"><div className="fleet-banner-icon"><Network size={22} /></div><div><strong>One system. Distinct responsibilities.</strong><p>Each agent gets a scoped job, a shared run context, and a clear hand-off contract. Human approval remains in the loop for release decisions.</p></div><div className="fleet-banner-status"><span className={"footer-pulse footer-pulse-" + (apiState === "connected" ? (workspaceConfig?.can_start_runs ? "ready" : "setup") : apiState)} />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "RUNTIME READY" : "SETUP REQUIRED") : apiState === "checking" ? "CHECKING API" : "API OFFLINE"}<small>WORKSPACE MODE</small></div></div>
     <div className="agent-grid">{agents.map((agent, index) => <article className="agent-card" key={agent.id}><div className="agent-card-top"><AgentAvatar agent={agent} /><span className={"agent-tag tag-" + agent.color}>{agent.tag}</span><button className="icon-button" onClick={() => notify(agent.name + " is configured with the " + agent.role.toLowerCase() + " contract.")} aria-label={"Agent details for " + agent.name}><MoreHorizontal size={17} /></button></div><h3>{agent.name}</h3><div className="agent-role">{agent.role}</div><p>{agent.desc}</p><div className="agent-card-bottom"><span className="agent-state state-ready"><i /> Registered</span><span className="agent-model">CYRUS / {String(index + 1).padStart(2, "0")}</span></div></article>)}</div>
     <div className="notice-strip"><ShieldCheck size={17} /><span><strong>Guardrail:</strong> agents prepare artifacts and recommendations; sensitive operations require explicit human approval.</span></div>
   </div>;
@@ -451,7 +451,7 @@ function RunDrawer({ run, onClose, onApprove, onCancel, busy }) {
     URL.revokeObjectURL(url);
   }
   return <div className="drawer-layer" role="dialog" aria-modal="true" aria-label="Workflow details"><button className="drawer-backdrop" onClick={onClose} aria-label="Close run details" /><aside className="run-drawer">
-    <div className="drawer-head"><div><div className="eyebrow">LIVE WORKFLOW / ARTIFACTS</div><span className="run-id">{run.id}</span></div><button className="icon-button" onClick={onClose} aria-label="Close details"><X size={17} /></button></div>
+    <div className="drawer-head"><div><div className="eyebrow">WORKFLOW DETAILS / ARTIFACTS</div><span className="run-id">{run.id}</span></div><button className="icon-button" onClick={onClose} aria-label="Close details"><X size={17} /></button></div>
     <h2>{run.goal}</h2><StatusPill status={run.status} />
     <div className="drawer-progress"><div><span>{run.current_stage ? "Current stage · " + run.current_stage : "Execution progress"}</span><strong>{run.progress || 0}%</strong></div><div className="capacity-track"><i style={{ width: (run.progress || 0) + "%" }} /></div></div>
     <div className="drawer-meta"><div><span>WORKFLOW TYPE</span><strong>{run.kind || "Agent workflow"}</strong></div><div><span>AGENT STAGES</span><strong>{stages.length} / 7 completed</strong></div><div><span>UPDATED</span><strong>{run.time || "Recently"}</strong></div><div><span>MODEL USAGE</span><strong>{completedTokens.toLocaleString()} tokens</strong></div></div>
