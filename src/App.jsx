@@ -250,7 +250,7 @@ export default function App() {
           /> : null}
           {view === "Agent fleet" ? <FleetView notify={notify} apiState={apiState} /> : null}
           {view === "Runs & tasks" ? <RunsView runs={visibleRuns} query={query} setQuery={setQuery} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} /> : null}
-          {view === "Code review" ? <ReviewView notify={notify} /> : null}
+          {view === "Code review" ? <ReviewView runs={runs} openRun={openRun} notify={notify} /> : null}
           {view === "Deployments" ? <DeploymentsView notify={notify} /> : null}
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
           {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
@@ -326,19 +326,49 @@ function RunsView({ runs, query, setQuery, openRun, goal, setGoal, startRun, isS
     <section className="panel-card"><div className="table-head"><span>RUN / GOAL</span><span>PROGRESS</span><span>STATUS</span><span /></div><div className="runs-table large-runs">{runs.map((run) => <RunRow key={run.id} run={run} onOpen={openRun} />)}</div>{runs.length === 0 ? <div className="empty-state"><Search size={22} /><strong>No matching runs</strong><span>Try a different search or clear the filters.</span></div> : null}</section>
   </div>;
 }
-function ReviewView({ notify }) {
-  const [checks, setChecks] = useState([true, true, false, false]);
-  const items = ["Acceptance criteria mapped to tests", "Input validation and failure paths considered", "Secrets and configuration checked", "Human sign-off recorded"];
-  return <div className="view-stack subpage"><SectionTitle eyebrow="QUALITY GATES / HUMAN IN THE LOOP" title="Code review" detail="A deliberate gate between agent output and release." action={<StatusPill status="review" />} />
-    <div className="review-layout"><section className="panel-card review-main"><div className="panel-heading"><div><div className="eyebrow">PROPOSED CHANGESET</div><h2>API task orchestration</h2></div><span className="tag-soft">Preview diff</span></div><div className="diff-file"><FileCode2 size={15} /><strong>backend/cyrus/orchestrator.py</strong><span>+24 <b>−6</b></span></div><div className="code-preview"><div className="code-line"><span>01</span><code><i>async def</i> execute_workflow(run_id, context):</code></div><div className="code-line code-add"><span>02</span><code>+ plan = await planner.create_plan(context)</code></div><div className="code-line code-add"><span>03</span><code>+ await events.publish("plan.ready", plan)</code></div><div className="code-line"><span>04</span><code>  <i>for</i> stage <i>in</i> plan.stages:</code></div><div className="code-line code-add"><span>05</span><code>+     <i>await</i> guardrails.validate(stage)</code></div><div className="code-line"><span>06</span><code>      <i>await</i> execute_stage(stage, context)</code></div><div className="code-line code-remove"><span>07</span><code>− return result.status</code></div><div className="code-line code-add"><span>08</span><code>+ return WorkflowResult.from_context(context)</code></div></div><div className="diff-caption"><span><i className="diff-green" /> Added lines</span><span><i className="diff-red" /> Removed lines</span><span>Illustrative preview — not a live repository diff</span></div></section>
-    <section className="panel-card review-checklist"><div className="eyebrow">REVIEW CHECKLIST</div><h2>Ready to merge?</h2><p>Verify the essentials before approving a proposed release.</p><div className="checklist-items">{items.map((item, i) => <label className="checklist-item" key={item}><input type="checkbox" checked={checks[i]} onChange={(e) => setChecks((old) => old.map((v, j) => i === j ? e.target.checked : v))} /><span className="checkmark"><Check size={12} /></span><span>{item}</span></label>)}</div><div className="checklist-progress"><div><span>Review coverage</span><strong>{checks.filter(Boolean).length} / {checks.length}</strong></div><div className="capacity-track"><i style={{ width: (checks.filter(Boolean).length / checks.length * 100) + "%" }} /></div></div><button className="button-primary full-button" onClick={() => notify(checks.every(Boolean) ? "Checklist complete. Human approval is still required in the release environment." : "Complete every review item before requesting approval.")}>Request approval <ArrowRight size={14} /></button></section></div>
-    <div className="notice-strip"><LockKeyhole size={17} /><span><strong>Safe by default:</strong> the review screen is a prototype workflow gate, not a claim that real code has been inspected or merged.</span></div>
+function ReviewView({ runs = [], openRun, notify }) {
+  const pending = runs.filter((run) => run.status === "review");
+  const withArtifacts = runs.filter((run) => Array.isArray(run.stages) && run.stages.length > 0).slice(0, 8);
+  return <div className="view-stack subpage">
+    <SectionTitle eyebrow="QUALITY GATES / HUMAN IN THE LOOP" title="Code review" detail="Review actual saved workflow output. Open a run to inspect every agent artifact and record a decision." action={<span className="tag-soft">{pending.length} awaiting decision</span>} />
+    <section className="panel-card review-main">
+      <div className="panel-heading"><div><div className="eyebrow">PENDING APPROVALS</div><h2>Needs your review</h2><p>Only persisted workflows with a pending review state appear here.</p></div><span className={pending.length ? "status-pill status-review" : "tag-soft"}>{pending.length ? "Action required" : "All clear"}</span></div>
+      {pending.length ? <div className="runs-table">{pending.map((run) => <RunRow run={run} key={run.id} onOpen={openRun} />)}</div> : <div className="empty-state"><ShieldCheck size={25} /><strong>No pending reviews</strong><span>Completed real workflows will appear here when they reach the human approval gate.</span></div>}
+    </section>
+    <section className="panel-card review-main">
+      <div className="panel-heading"><div><div className="eyebrow">SAVED OUTPUTS</div><h2>Recent workflow artifacts</h2><p>Open a saved run to read its planning, research, architecture, code proposal, tests, review and release notes.</p></div></div>
+      {withArtifacts.length ? <div className="runs-table">{withArtifacts.map((run) => <RunRow run={run} key={run.id} onOpen={openRun} />)}</div> : <div className="empty-state"><FileCode2 size={25} /><strong>No saved artifacts yet</strong><span>Artifacts are created by real provider-backed workflows; sample diffs are not shown as live repository changes.</span></div>}
+    </section>
+    <div className="notice-strip"><LockKeyhole size={17} /><span><strong>Release safety:</strong> approval records a decision only. CYRUS does not execute generated code, commit artifacts to GitHub, or deploy a release.</span></div>
   </div>;
 }
-function DeploymentsView({ notify }) {
-  return <div className="view-stack subpage"><SectionTitle eyebrow="RELEASE ENGINEERING / ENVIRONMENTS" title="Deployments" detail="Make releases visible, reviewable, and reversible." action={<button className="button-outline" onClick={() => notify("Deployment providers can be connected through environment-specific adapters.")}><Plus size={14} /> Add environment</button>} />
-    <div className="environment-grid"><EnvironmentCard name="Development" slug="cyrus-dev" state="running" description="Local API and Vite frontend" accent="lime" onAction={notify} /><EnvironmentCard name="Staging" slug="staging / not connected" state="disconnected" description="Pre-release validation gate" accent="blue" onAction={notify} /><EnvironmentCard name="Production" slug="production / not connected" state="locked" description="Human-approved release target" accent="violet" onAction={notify} /></div>
-    <section className="panel-card release-panel"><div className="panel-heading"><div><div className="eyebrow">RELEASE CHECKLIST</div><h2>Ship with confidence</h2></div><span className="tag-soft">Policy v1</span></div><div className="release-steps">{[{n:"01",title:"Validate the build",sub:"Build and API checks must pass.",done:true},{n:"02",title:"Review the changeset",sub:"A reviewer must accept the diff.",done:false},{n:"03",title:"Confirm environment config",sub:"Secrets and database URLs stay server-side.",done:false},{n:"04",title:"Approve release",sub:"Final action requires a human confirmation.",done:false}].map((step) => <div className="release-step" key={step.n}><span className={"release-num" + (step.done ? " release-done" : "")}>{step.done ? <Check size={14} /> : step.n}</span><div><strong>{step.title}</strong><small>{step.sub}</small></div><span className={step.done ? "done-label" : "pending-label"}>{step.done ? "PASSED" : "PENDING"}</span></div>)}</div></section>
+function DeploymentsView({ apiState, workspaceConfig }) {
+  const providerReady = !!workspaceConfig?.provider_configured;
+  const storageReady = !!workspaceConfig?.persistent_storage;
+  const accessReady = !workspaceConfig?.auth_required || !!workspaceConfig?.access_control_configured;
+  const targets = [
+    { name: "CYRUS workspace", eyebrow: "FRONTEND · VERCEL", description: "Open the deployed React workspace and verify the responsive operator console.", href: "https://cyrus-workspace-mahendra8.vercel.app", action: "Open workspace", icon: LayoutDashboard, state: "Deployed alias" },
+    { name: "CYRUS API", eyebrow: "BACKEND · FASTAPI", description: "Inspect the documented API surface and use the health endpoint to test reachability.", href: "https://cyrus-api-mahendra8.vercel.app/docs", action: "Open API docs", icon: Terminal, state: apiState === "connected" ? "API reachable from this session" : "Reachability not confirmed" },
+    { name: "Source and release checks", eyebrow: "SOURCE CONTROL · GITHUB", description: "Review the code on main and inspect build/test results before promoting changes.", href: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions", action: "Open CI runs", icon: GitBranch, state: "main branch" },
+  ];
+  const gates = [
+    { title: "Frontend and API", detail: "The workspace must reach the backend.", ready: apiState === "connected" },
+    { title: "Model credentials", detail: "A valid provider key must be configured server-side.", ready: providerReady },
+    { title: "Durable database", detail: "Production workflows need managed PostgreSQL or MySQL.", ready: storageReady },
+    { title: "Workspace access", detail: "Production write/action routes must stay protected.", ready: accessReady },
+  ];
+  return <div className="view-stack subpage">
+    <SectionTitle eyebrow="RELEASE ENGINEERING / DEPLOYED TARGETS" title="Deployments" detail="Inspect the actual workspace, API and CI resources. CYRUS never reports a release as complete merely because a card or checklist exists." action={<a className="button-outline external-button" href="https://vercel.com/mahendra8/cyrus-workspace" target="_blank" rel="noreferrer">Vercel project <ArrowUpRight size={14} /></a>} />
+    <div className="deployment-resource-grid">{targets.map((target) => <article className="deployment-resource-card" key={target.name}>
+      <div className="deployment-resource-top"><span className="deployment-resource-icon"><target.icon size={18} /></span><span className="deployment-eyebrow">{target.eyebrow}</span></div>
+      <h3>{target.name}</h3><p>{target.description}</p><div className="deployment-resource-state"><i className={target.name === "CYRUS API" && apiState === "connected" ? "deployment-live-dot" : ""} />{target.state}</div>
+      <a className="button-outline full-button external-button" href={target.href} target="_blank" rel="noreferrer">{target.action}<ArrowUpRight size={14} /></a>
+    </article>)}</div>
+    <section className="panel-card release-panel"><div className="panel-heading"><div><div className="eyebrow">PRODUCTION READINESS</div><h2>Configuration gates</h2><p>These checks reflect current API configuration, not simulated deployment events.</p></div></div>
+      <div className="release-steps">{gates.map((gate,index) => <div className="release-step" key={gate.title}><span className={"release-num" + (gate.ready ? " release-done" : "")}>{gate.ready ? <Check size={14} /> : String(index+1).padStart(2,"0")}</span><div><strong>{gate.title}</strong><small>{gate.detail}</small></div><span className={gate.ready ? "done-label" : "pending-label"}>{gate.ready ? "READY" : "NEEDS SETUP"}</span></div>)}</div>
+      <a className="settings-link" href="https://vercel.com/mahendra8/cyrus-api/settings/environment-variables" target="_blank" rel="noreferrer">Configure server environment variables <ArrowUpRight size={13} /></a>
+    </section>
+    <div className="notice-strip"><ShieldCheck size={17} /><span><strong>No automatic release:</strong> repository writes and production deployment adapters are not connected to the agent pipeline. Review the source and CI result before shipping any new build.</span></div>
   </div>;
 }
 function EnvironmentCard({ name, slug, state, description, accent, onAction }) {
@@ -347,16 +377,16 @@ function EnvironmentCard({ name, slug, state, description, accent, onAction }) {
 }
 function IntegrationsView({ notify }) {
   const integrations = [
-    { icon: Code2, name: "GitHub", group: "Source control", desc: "Repositories, pull requests, and branch checks.", status: "Setup guide", color: "plain" },
-    { icon: Database, name: "PostgreSQL", group: "Relational database", desc: "Durable run records and future workflow artifacts.", status: "Supported", color: "blue" },
-    { icon: Database, name: "MySQL", group: "Relational database", desc: "Alternative SQLAlchemy-backed persistence.", status: "Supported", color: "orange" },
-    { icon: Cpu, name: "Model provider", group: "AI / ML runtime", desc: "Plug a provider adapter into the agent contract.", status: "Adapter point", color: "violet" },
-    { icon: Radio, name: "Event stream", group: "Observability", desc: "Extend the API with SSE for live stage updates.", status: "Roadmap", color: "green" },
-    { icon: Terminal, name: "CI pipeline", group: "Automation", desc: "Build, test, and package checks on each push.", status: "Included", color: "cyan" },
+    { icon: Code2, name: "GitHub", group: "Source control", desc: "Main branch, source files and automated build/test checks.", status: "Repository", color: "plain", href: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System" },
+    { icon: Database, name: "PostgreSQL", group: "Relational database", desc: "Use managed PostgreSQL with SQLAlchemy for durable workflow and artifact records.", status: "Adapter supported", color: "blue", href: "https://supabase.com/docs/guides/database/connecting-to-postgres" },
+    { icon: Database, name: "MySQL", group: "Relational database", desc: "Alternative SQLAlchemy dialect for a managed production database.", status: "Adapter supported", color: "orange", href: "https://docs.sqlalchemy.org/en/20/dialects/mysql.html" },
+    { icon: Cpu, name: "AI model provider", group: "AI runtime", desc: "Server-side OpenAI Responses API integration with an OpenAI-compatible base URL option.", status: "Server adapter", color: "violet", href: "https://platform.openai.com/docs/api-reference/responses" },
+    { icon: Radio, name: "Live event stream", group: "Observability", desc: "Current workflow details poll the API; a dedicated server-sent event stream is not connected.", status: "Not connected", color: "green", href: "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events" },
+    { icon: Workflow, name: "CI pipeline", group: "Build and test", desc: "GitHub Actions builds the frontend and runs the backend test suite on push.", status: "GitHub Actions", color: "cyan", href: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions" },
   ];
-  return <div className="view-stack subpage"><SectionTitle eyebrow="CONNECTORS / RUNTIME CAPABILITIES" title="Integrations" detail="Keep providers replaceable. Core orchestration should not depend on one vendor." action={<button className="button-primary" onClick={() => notify("Integration registry is ready for adapter configuration.")}><Plus size={14} /> Add integration</button>} />
-    <div className="integration-grid">{integrations.map((item) => <article className="integration-card" key={item.name}><div className="integration-top"><span className={"integration-icon integration-" + item.color}><item.icon size={18} /></span><span className="tag-soft">{item.status}</span></div><div className="integration-group">{item.group}</div><h3>{item.name}</h3><p>{item.desc}</p><button className="integration-link" onClick={() => notify(item.name + ": " + item.desc)}>View integration <ArrowRight size={13} /></button></article>)}</div>
-    <div className="notice-strip"><Database size={17} /><span><strong>Credentials:</strong> configure database URLs and provider API keys through environment variables. Never commit secrets or send them to the browser.</span></div>
+  return <div className="view-stack subpage"><SectionTitle eyebrow="CONNECTORS / RUNTIME CAPABILITIES" title="Integrations" detail="Follow real provider documentation and deployment controls. An integration marked supported describes code capability, not a connected account." action={<a className="button-primary external-button" href="https://vercel.com/mahendra8/cyrus-api/settings/environment-variables" target="_blank" rel="noreferrer">Configure runtime <ArrowUpRight size={14} /></a>} />
+    <div className="integration-grid">{integrations.map((item) => <article className="integration-card" key={item.name}><div className="integration-top"><span className={"integration-icon integration-" + item.color}><item.icon size={18} /></span><span className="tag-soft">{item.status}</span></div><div className="integration-group">{item.group}</div><h3>{item.name}</h3><p>{item.desc}</p><a className="integration-link" href={item.href} target="_blank" rel="noreferrer">Open resource <ArrowUpRight size={13} /></a></article>)}</div>
+    <div className="notice-strip"><Database size={17} /><span><strong>Credential safety:</strong> configure provider keys, access keys and database URLs through server-side environment variables. Never commit secrets or send them to the browser.</span></div>
   </div>;
 }
 function SettingsView({ apiState, workspaceConfig, settingsOpen, setSettingsOpen, notify }) {
