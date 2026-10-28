@@ -584,3 +584,37 @@ body {
 @media (forced-colors: active) {
   .status-pill, .tag-soft, .nav-item.nav-active { border: 1px solid CanvasText; }
 }
+
+
+/* Accessible, working run-status filter */
+.filter-select-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 39px;
+  padding: 0 11px;
+  border: 1px solid #303a46;
+  border-radius: 9px;
+  background: #151b23;
+  color: #aab5c2;
+  white-space: nowrap;
+}
+.filter-select-wrap select {
+  max-width: 150px;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  background: transparent;
+  color: #e8eef5;
+  font: 11px "Manrope", ui-sans-serif, sans-serif;
+  cursor: pointer;
+  padding: 0;
+}
+.filter-select-wrap select option { background: #11161d; color: #eef3f9; }
+.filter-select-wrap:focus-within { outline: 2px solid var(--lime); outline-offset: 2px; }
+@media (max-width: 740px) {
+  .list-toolbar { flex-wrap: wrap; }
+  .search-field { flex-basis: 100%; min-height: 42px; }
+  .filter-select-wrap { flex: 1; justify-content: center; }
+  .filter-select-wrap select { max-width: 100%; }
+}
