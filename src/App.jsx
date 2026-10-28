@@ -333,6 +333,7 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
       <div className="composer-bottom"><div className="composer-context"><span><Braces size={13} /> Full-stack project</span><span><Database size={13} /> DB-aware</span><span><ShieldCheck size={13} /> Human review gates</span></div><button className="button-primary" type="submit" disabled={!goal.trim() || isStarting}>{isStarting ? "Starting…" : canStart ? "Start live workflow" : "Complete setup to launch"}<ArrowRight size={15} /></button></div>
     </form>
 
+    <StarterBriefs onSelect={(brief) => { setGoal(brief); document.getElementById("task-prompt")?.focus(); }} />
     {!canStart ? <section className="setup-checklist" aria-labelledby="setup-checklist-title">
       <div className="setup-checklist-heading">
         <div><div className="eyebrow">BEFORE YOUR FIRST RUN</div><h2 id="setup-checklist-title">Launch readiness</h2><p>Live runs stay locked until the required server checks pass.</p></div>
@@ -346,7 +347,6 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
       </div>
       <div className="setup-checklist-footer"><span><ShieldCheck size={14} /> Secrets remain on the server; the browser never receives provider credentials.</span><button type="button" className="button-quiet" onClick={() => setView("Settings")}>Open runtime settings <ArrowRight size={14} /></button></div>
     </section> : null}
-    <StarterBriefs onSelect={(brief) => { setGoal(brief); document.getElementById("task-prompt")?.focus(); }} />
     <div className="metrics-grid">
       <MetricCard label="WORKFLOWS RUN" value={String(allRuns.length).padStart(2, "0")} change="Across this workspace" icon={Workflow} trend="neutral" />
       <MetricCard label="ACTIVE EXECUTIONS" value={String(active).padStart(2, "0")} change={active ? "Agents are processing tasks" : "No active execution"} icon={Activity} trend="lime" />
