@@ -218,7 +218,7 @@ export default function App() {
           <div className="brand-type"><strong>CYRUS<span>_</span></strong><small>ENGINEERING OS</small></div>
           <button className="icon-button close-mobile" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X size={17} /></button>
         </div>
-        <div className="workspace-switcher"><div className="workspace-glyph">C</div><div><strong>Cyrus workspace</strong><small>Personal sandbox</small></div><ChevronDown size={15} /></div>
+        <div className="workspace-switcher"><div className="workspace-glyph">C</div><div><strong>Cyrus workspace</strong><small>{workspaceConfig?.can_start_runs ? "Production runtime" : apiState === "connected" ? "Setup required" : "Connecting runtime"}</small></div><ChevronDown size={15} /></div>
         <div className="nav-label">WORKSPACE</div>
         <nav className="primary-nav" aria-label="Main navigation">
           {navigation.map((item) => <button key={item.id} className={"nav-item" + (view === item.id ? " nav-active" : "")} onClick={() => { setView(item.id); setMobileNav(false); }}><item.icon size={17} strokeWidth={1.8} /><span>{item.id}</span>{item.id === "Runs & tasks" ? <span className="nav-count">{runs.length}</span> : null}</button>)}
@@ -233,7 +233,7 @@ export default function App() {
           <div className="capacity-foot"><span>Fleet utilization</span><strong>58%</strong></div>
         </div>
         <div className="profile-row">
-          <div className="profile-avatar">M</div><div className="profile-copy"><strong>Workspace owner</strong><small>Developer plan · Local</small></div><MoreHorizontal size={18} />
+          <div className="profile-avatar">M</div><div className="profile-copy"><strong>Workspace owner</strong><small>Workspace environment</small></div><MoreHorizontal size={18} />
         </div>
       </aside>
 
@@ -255,7 +255,7 @@ export default function App() {
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
           {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
         </div>
-        <footer className="app-footer"><span><span className="footer-pulse" /> All systems nominal</span><span>CYRUS Workspace <b>0.1.0</b></span><span>Built for deliberate shipping <Zap size={12} /></span></footer>
+        <footer className="app-footer"><span><span className={"footer-pulse footer-pulse-" + (apiState === "connected" ? (workspaceConfig?.can_start_runs ? "ready" : "setup") : apiState)} /> {apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Runtime ready" : "Setup required") : apiState === "checking" ? "Checking runtime" : "API unavailable"}</span><span>CYRUS Workspace <b>0.1.0</b></span><span>Built for deliberate shipping <Zap size={12} /></span></footer>
       </main>
 
       {mobileNav ? <button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation overlay" /> : null}
@@ -300,7 +300,7 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
       </section>
       <section className="panel-card fleet-panel"><div className="panel-heading"><div><div className="eyebrow">AGENT TELEMETRY</div><h2>Fleet status</h2></div><button className="icon-button" onClick={() => setView("Agent fleet")} title="Open fleet"><ArrowUpRight size={16} /></button></div>
         <div className="fleet-summary"><div><span className="summary-number">07</span><span className="summary-label">Registered</span></div><div><span className="summary-number text-lime">07</span><span className="summary-label">Available roles</span></div><div><span className="summary-number text-blue">{apiState === "connected" ? "API" : "OFF"}</span><span className="summary-label">API status</span></div></div>
-        <div className="agent-list">{agents.slice(0, 4).map((agent) => <AgentLine agent={agent} state="ready" key={agent.id} />)}</div>
+        <div className="agent-list">{agents.slice(0, 4).map((agent) => <AgentLine agent={agent} state="registered" key={agent.id} />)}</div>
         <button className="button-outline full-button" onClick={() => setView("Agent fleet")}>Open agent registry <ArrowRight size={14} /></button>
       </section>
     </div>
