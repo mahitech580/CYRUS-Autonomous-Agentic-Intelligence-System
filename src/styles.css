@@ -771,13 +771,6 @@ body {
 }
 
 
-/* First-run ergonomics inspired by n8n's disabled-action guidance and Opik's quickstart empty states. */
-.starter-prompts { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; padding: 0 0 13px; }
-.starter-prompts-label { margin-right: 3px; color: #818b99; font: 9px var(--mono); letter-spacing: .8px; }
-.starter-prompt { display: inline-flex; align-items: center; gap: 7px; min-height: 29px; padding: 5px 9px; border: 1px solid #303641; border-radius: 7px; background: #151920; color: #b8c1ce; font-size: 10.5px; transition: border-color .15s, background .15s, color .15s; }
-.starter-prompt svg { color: #82906e; }
-.starter-prompt:hover { border-color: #4c5c3a; background: rgba(199,251,99,.07); color: var(--lime); }
-.starter-prompt:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
 .run-empty-state { min-height: 235px; padding: 24px 18px; gap: 11px; text-align: center; }
 .run-empty-icon { display: grid; place-items: center; width: 45px; height: 45px; border: 1px solid #35432e; border-radius: 13px; background: rgba(199,251,99,.065); color: var(--lime) !important; }
 .run-empty-state > strong { max-width: 360px; color: #e4e9f0; font-size: 13px; line-height: 1.5; }
