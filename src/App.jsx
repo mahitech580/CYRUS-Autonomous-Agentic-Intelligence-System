@@ -42,6 +42,26 @@ const starterTasks = [
   { label: "Review a codebase", prompt: "Create a structured codebase review plan covering security, reliability, test coverage, dependency risks, and a prioritized refactor roadmap." },
 ];
 const starterRuns = [];
+const starterBriefs = [
+  {
+    title: "Build a feature",
+    detail: "Turn a product idea into a reviewed implementation plan.",
+    icon: Code2,
+    goal: "Design and implement a secure REST API feature. Start with acceptance criteria, research relevant documentation, propose the architecture and data model, write the implementation and automated tests, review security and edge cases, then provide a release checklist. Do not execute or deploy generated code."
+  },
+  {
+    title: "Investigate a bug",
+    detail: "Trace likely causes and produce a regression-focused fix.",
+    icon: Search,
+    goal: "Investigate a software bug using the provided symptoms and code context. List assumptions, identify likely root causes, propose a minimal fix, write regression tests covering the failure and related edge cases, assess risks, and prepare a reviewer-friendly summary. Do not claim tests were run unless execution evidence exists."
+  },
+  {
+    title: "Review for release",
+    detail: "Audit quality, security, tests, and production risks.",
+    icon: ShieldCheck,
+    goal: "Perform a release-readiness review for a full-stack application. Check architecture, API contracts, input validation, authentication, data handling, error states, test coverage, observability, and deployment risks. Prioritize findings by severity and provide remediation steps and a release checklist. Do not mark unexecuted tests as passing."
+  },
+];
 const statusLabel = { completed: "Completed", approved: "Approved", running: "In progress", review: "Needs review", queued: "Queued", failed: "Failed", cancelled: "Cancelled" };
 
 function StatusPill({ status }) {
@@ -303,6 +323,16 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
     <div className="welcome-line"><div><div className="eyebrow"><span className="eyebrow-square" /> AUTONOMOUS ENGINEERING WORKSPACE <span className="eyebrow-slash">/ 001</span></div><h1>Build the future.<br /><em>One agent at a time.</em></h1><p className="hero-copy">A coordinated team for the messy middle of software engineering — from first idea to verified release.</p></div><div className="hero-orbit" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit-core"><Sparkles size={27} /></div><span className="orbit-node node-a" /><span className="orbit-node node-b" /><span className="orbit-node node-c" /><span className="orbit-label">AGENT<br />MESH</span></div></div>
 
     {apiState !== "connected" || (workspaceConfig && !workspaceConfig.can_start_runs) ? <div className="setup-banner"><div className="setup-banner-icon"><ShieldCheck size={18} /></div><div><strong>{apiState !== "connected" ? "CYRUS API unavailable" : !workspaceConfig?.access_control_configured && workspaceConfig?.auth_required ? "Secure workspace access first" : !workspaceConfig?.provider_configured ? "Connect a real AI provider" : "Configure persistent storage"}</strong><p>{apiState !== "connected" ? "The live API is not reachable; CYRUS will not create simulated runs." : !workspaceConfig?.access_control_configured && workspaceConfig?.auth_required ? "Add CYRUS_ACCESS_KEY to cyrus-api in Vercel, then enter the same key in Settings." : !workspaceConfig?.provider_configured ? "Add OPENAI_API_KEY to the cyrus-api project's server environment variables. The secret stays server-side." : "Set DATABASE_URL to a managed PostgreSQL or MySQL database. Serverless SQLite is not durable."}</p></div><button type="button" className="button-outline" onClick={() => setView("Settings")}>Configure <ArrowRight size={13} /></button></div> : null}
+    <form className="task-composer" onSubmit={startRun}>
+      <div className="composer-top"><div className="composer-icon"><Sparkles size={17} /></div><div><strong>What are we building today?</strong><span>Describe an outcome. CYRUS will map the work into a reviewable pipeline.</span></div><span className="composer-shortcut">⌘ ↵</span></div>
+      <textarea id="task-prompt" value={goal} onChange={(e) => setGoal(e.target.value)} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Describe a feature, bug, API, or engineering outcome…" rows={2} maxLength={1200} />
+      <div className="starter-prompts" aria-label="Example engineering goals">
+        <span className="starter-prompts-label">START WITH</span>
+        {starterTasks.map((task) => <button key={task.label} type="button" className="starter-prompt" onClick={() => loadStarter(task)}>{task.label}<ArrowUpRight size={12} /></button>)}
+      </div>
+      <div className="composer-bottom"><div className="composer-context"><span><Braces size={13} /> Full-stack project</span><span><Database size={13} /> DB-aware</span><span><ShieldCheck size={13} /> Human review gates</span></div><button className="button-primary" type="submit" disabled={!goal.trim() || isStarting}>{isStarting ? "Starting…" : canStart ? "Start live workflow" : "Complete setup to launch"}<ArrowRight size={15} /></button></div>
+    </form>
+
     {!canStart ? <section className="setup-checklist" aria-labelledby="setup-checklist-title">
       <div className="setup-checklist-heading">
         <div><div className="eyebrow">BEFORE YOUR FIRST RUN</div><h2 id="setup-checklist-title">Launch readiness</h2><p>Live runs stay locked until the required server checks pass.</p></div>
@@ -316,16 +346,7 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
       </div>
       <div className="setup-checklist-footer"><span><ShieldCheck size={14} /> Secrets remain on the server; the browser never receives provider credentials.</span><button type="button" className="button-quiet" onClick={() => setView("Settings")}>Open runtime settings <ArrowRight size={14} /></button></div>
     </section> : null}
-    <form className="task-composer" onSubmit={startRun}>
-      <div className="composer-top"><div className="composer-icon"><Sparkles size={17} /></div><div><strong>What are we building today?</strong><span>Describe an outcome. CYRUS will map the work into a reviewable pipeline.</span></div><span className="composer-shortcut">⌘ ↵</span></div>
-      <textarea id="task-prompt" value={goal} onChange={(e) => setGoal(e.target.value)} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Describe a feature, bug, API, or engineering outcome…" rows={2} maxLength={1200} />
-      <div className="starter-prompts" aria-label="Example engineering goals">
-        <span className="starter-prompts-label">START WITH</span>
-        {starterTasks.map((task) => <button key={task.label} type="button" className="starter-prompt" onClick={() => loadStarter(task)}>{task.label}<ArrowUpRight size={12} /></button>)}
-      </div>
-      <div className="composer-bottom"><div className="composer-context"><span><Braces size={13} /> Full-stack project</span><span><Database size={13} /> DB-aware</span><span><ShieldCheck size={13} /> Human review gates</span></div><button className="button-primary" type="submit" disabled={!goal.trim() || isStarting}>{isStarting ? "Starting…" : canStart ? "Start live workflow" : "Complete setup to launch"}<ArrowRight size={15} /></button></div>
-    </form>
-
+    <StarterBriefs onSelect={(brief) => { setGoal(brief); document.getElementById("task-prompt")?.focus(); }} />
     <div className="metrics-grid">
       <MetricCard label="WORKFLOWS RUN" value={String(allRuns.length).padStart(2, "0")} change="Across this workspace" icon={Workflow} trend="neutral" />
       <MetricCard label="ACTIVE EXECUTIONS" value={String(active).padStart(2, "0")} change={active ? "Agents are processing tasks" : "No active execution"} icon={Activity} trend="lime" />
@@ -367,6 +388,22 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
     <div className="section-divider"><span>OBSERVABILITY</span><span className="divider-line" /><span className="section-index">03 / 03</span></div>
     <section className="observability-panel"><div className="observability-copy"><div className="eyebrow">WORKSPACE SIGNAL</div><h2>Momentum, in context.</h2><p>Workflow counts and completion values below are derived from saved run records. No synthetic usage statistics are shown.</p><div className="signal-key"><span><i className="signal-green" /> Run progress</span><span><i className="signal-blue" /> Persisted runs</span></div></div><div className="observability-chart"><div className="chart-summary"><div><span>SAVED WORKFLOWS</span><strong>{String(allRuns.length).padStart(2, "0")}</strong></div><div><span>AVERAGE COMPLETION</span><strong>{allRuns.length ? Math.round(allRuns.reduce((sum, item) => sum + (Number(item.progress) || 0), 0) / allRuns.length) : 0}<small>%</small></strong></div></div><MiniBars runs={allRuns} /><div className="chart-axis"><span>OLDEST</span><span>RECENT</span></div></div></section>
   </div>;
+}
+
+function StarterBriefs({ onSelect }) {
+  return <section className="starter-briefs" aria-labelledby="starter-briefs-title">
+    <div className="starter-briefs-heading">
+      <div><div className="eyebrow">QUICK START / TASK BRIEFS</div><h2 id="starter-briefs-title">Start with a clear outcome.</h2><p>Choose a brief to prefill the composer, then tailor it to your project.</p></div>
+    </div>
+    <div className="starter-brief-grid">{starterBriefs.map((brief, index) => {
+      const Icon = brief.icon;
+      return <button key={brief.title} type="button" className="starter-brief-card" onClick={() => onSelect(brief.goal)}>
+        <span className={"starter-brief-icon starter-brief-icon-" + index}><Icon size={18} /></span>
+        <span className="starter-brief-card-copy"><strong>{brief.title}</strong><span>{brief.detail}</span></span>
+        <ArrowUpRight className="starter-brief-arrow" size={16} />
+      </button>;
+    })}</div>
+  </section>;
 }
 
 function SetupCheck({ label, detail, state }) {
