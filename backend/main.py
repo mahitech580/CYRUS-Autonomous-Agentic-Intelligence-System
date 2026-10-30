@@ -529,6 +529,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]
         "current_stage": run.current_stage,
         "error": run.error,
         "approval_status": run.approval_status or "pending",
+        "stage_count": len(run.stages or []),
         "updated_at": run.updated_at.isoformat() if run.updated_at else None,
     }}
 

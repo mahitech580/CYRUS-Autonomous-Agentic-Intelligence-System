@@ -66,3 +66,12 @@ export function mergeRunEvents(existing, incoming, replace = false) {
   }
   return [...merged.values()].slice(-250);
 }
+
+
+/** Whether the lightweight status response signals new artifact payloads. */
+export function needsRunDetailRefresh(serverStageCount, loadedStageCount) {
+  const serverCount = Number(serverStageCount);
+  const loadedCount = Number(loadedStageCount);
+  return Number.isFinite(serverCount)
+    && serverCount > Math.max(0, Number.isFinite(loadedCount) ? loadedCount : 0);
+}

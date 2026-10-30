@@ -249,6 +249,7 @@ def test_lightweight_run_status_omits_artifact_payloads(client):
     item = response.json()["item"]
     assert item["id"] == run_id
     assert item["status"] == "running"
+    assert item["stage_count"] == 0
     assert "stages" not in item
     assert "events" not in item
     assert "goal" not in item

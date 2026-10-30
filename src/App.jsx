@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents } from "./lib/runs.js";
+import { buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -102,6 +102,7 @@ export default function App() {
   const [refreshingRuns, setRefreshingRuns] = useState(false);
   const toastTimer = useRef(null);
   const drawerReturnFocus = useRef(null);
+  const loadedStageCount = useRef({});
 
   useEffect(() => () => {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
@@ -167,6 +168,7 @@ export default function App() {
     try {
       const result = await api.createRun(cleanGoal);
       const created = mapRunRecord(result.item || result);
+      loadedStageCount.current[created.id] = Array.isArray(created.stages) ? created.stages.length : 0;
       setRuns((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setGoal("");
       setView("Runs & tasks");
@@ -182,6 +184,7 @@ export default function App() {
   }
   function openRun(run) {
     if (!selectedRun) drawerReturnFocus.current = document.activeElement;
+    loadedStageCount.current[run.id] = Array.isArray(run.stages) ? run.stages.length : 0;
     setSelectedRun(run);
   }
   async function refreshRuns() {
@@ -208,13 +211,28 @@ export default function App() {
       ]);
       const status = statusResponse.item;
       if (!status) return after || "";
+      let detailItem = null;
+      const knownStageCount = loadedStageCount.current[runId] ?? 0;
+      if (needsRunDetailRefresh(status.stage_count, knownStageCount)) {
+        try {
+          const detailResponse = await api.getRun(runId);
+          detailItem = detailResponse.item || null;
+          if (detailItem) {
+            loadedStageCount.current[runId] = Array.isArray(detailItem.stages)
+              ? detailItem.stages.length
+              : knownStageCount;
+          }
+        } catch (detailError) {
+          if (detailError.status === 401) notify("Workspace access key is missing or incorrect.");
+        }
+      }
       const incoming = Array.isArray(eventResponse.items) ? eventResponse.items : [];
       const resetEvents = !!eventResponse.cursor_expired;
       setSelectedRun((current) => current?.id === runId
-        ? { ...current, ...status, events: mergeRunEvents(current.events, incoming, resetEvents) }
+        ? { ...current, ...status, ...(detailItem ? { stages: detailItem.stages } : {}), events: mergeRunEvents(current.events, incoming, resetEvents) }
         : current);
       setRuns((current) => current.map((item) => item.id === runId
-        ? { ...item, ...status, events: mergeRunEvents(item.events, incoming, resetEvents) }
+        ? { ...item, ...status, ...(detailItem ? { stages: detailItem.stages } : {}), events: mergeRunEvents(item.events, incoming, resetEvents) }
         : item));
       return eventResponse.next_after || after || "";
     } catch (error) {
