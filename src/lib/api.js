@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+const API_BASE = (import.meta.env?.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
 const KEY_NAME = "cyrus_access_key";
 
 export function getAccessKey() {
@@ -20,29 +20,68 @@ export function setAccessKey(value) {
   }
 }
 
-async function request(path, options = {}) {
+export async function request(path, options = {}) {
   const key = getAccessKey();
-  const headers = {
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
-    ...(key ? { Authorization: "Bearer " + key } : {}),
-    ...(options.headers || {}),
-  };
-  const response = await fetch(API_BASE + path, {
-    ...options,
-    headers,
-    cache: "no-store",
-  });
-  const type = response.headers.get("content-type") || "";
-  const body = type.includes("application/json")
-    ? await response.json().catch(() => ({}))
-    : await response.text().catch(() => "");
-  if (!response.ok) {
-    const message = typeof body === "object" ? body.detail || body.message : body;
-    const error = new Error(message || ("Request failed: " + response.status));
-    error.status = response.status;
-    throw error;
+  const {
+    timeoutMs = 20000,
+    signal: externalSignal,
+    ...fetchOptions
+  } = options;
+  const controller = new AbortController();
+  let timedOut = false;
+  const onExternalAbort = () => controller.abort(externalSignal.reason);
+  if (externalSignal) {
+    if (externalSignal.aborted) onExternalAbort();
+    else externalSignal.addEventListener("abort", onExternalAbort, { once: true });
   }
-  return body;
+  const timeout = Number.isFinite(Number(timeoutMs))
+    ? Math.max(1, Math.min(Number(timeoutMs), 120000))
+    : 20000;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeout);
+  const headers = {
+    ...(fetchOptions.body ? { "Content-Type": "application/json" } : {}),
+    ...(key ? { Authorization: "Bearer " + key } : {}),
+    ...(fetchOptions.headers || {}),
+  };
+
+  try {
+    const response = await fetch(API_BASE + path, {
+      ...fetchOptions,
+      headers,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    const type = response.headers.get("content-type") || "";
+    const body = type.includes("application/json")
+      ? await response.json().catch(() => ({}))
+      : await response.text().catch(() => "");
+    if (!response.ok) {
+      const message = typeof body === "object" ? body.detail || body.message : body;
+      const error = new Error(message || ("Request failed: " + response.status));
+      error.status = response.status;
+      throw error;
+    }
+    return body;
+  } catch (error) {
+    if (timedOut) {
+      const timeoutError = new Error("CYRUS API request timed out. Check the service and try again.");
+      timeoutError.name = "TimeoutError";
+      throw timeoutError;
+    }
+    if (externalSignal?.aborted) throw error;
+    if (error instanceof TypeError) {
+      const networkError = new Error("Could not reach the CYRUS API. Check the API URL and network connection.");
+      networkError.cause = error;
+      throw networkError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", onExternalAbort);
+  }
 }
 
 export const api = {
