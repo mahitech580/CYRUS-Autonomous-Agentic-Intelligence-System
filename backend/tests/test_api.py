@@ -406,3 +406,13 @@ def test_provider_key_selection_ignores_whitespace_and_falls_back(monkeypatch):
 
     monkeypatch.setenv("OPENAI_API_KEY", " primary-provider-key ")
     assert main.provider_api_key() == "primary-provider-key"
+
+
+def test_retry_after_supports_http_dates_and_bounds_waits():
+    now = main.datetime(2026, 10, 30, 12, 0, tzinfo=main.timezone.utc)
+    assert main.retry_after_seconds("2.5", now=now) == 2.5
+    assert main.retry_after_seconds("Fri, 30 Oct 2026 12:00:03 GMT", now=now) == 3.0
+    assert main.retry_after_seconds("Fri, 30 Oct 2026 12:00:20 GMT", now=now) == 5.0
+    assert main.retry_after_seconds("Fri, 30 Oct 2026 11:59:59 GMT", now=now) == 0.0
+    assert main.retry_after_seconds("not-a-date", now=now) is None
+    assert main.retry_after_seconds("NaN", now=now) is None

@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import hmac
 import logging
+import math
 import os
 import time
+from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -202,6 +204,28 @@ def provider_retry_count() -> int:
     return bounded_int_setting("CYRUS_PROVIDER_RETRIES", 2, 0, 3)
 
 
+def retry_after_seconds(value: str | None, *, now: datetime | None = None) -> float | None:
+    """Parse delta-seconds or an HTTP-date Retry-After value, capped to five seconds."""
+    if value is None:
+        return None
+    try:
+        delay = float(value)
+    except (TypeError, ValueError):
+        try:
+            retry_at = parsedate_to_datetime(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        current = now or utcnow()
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=timezone.utc)
+        delay = (retry_at - current).total_seconds()
+    if not math.isfinite(delay):
+        return None
+    return max(0.0, min(delay, 5.0))
+
+
 def complete_agent(agent: str, role: str, instruction: str, goal: str, context: list[dict[str, str]]) -> tuple[str, dict[str, int], str | None]:
     """Call the server-configured model; the API key never leaves this process."""
     key = provider_api_key()
@@ -259,11 +283,10 @@ def complete_agent(agent: str, role: str, instruction: str, goal: str, context: 
             # A 429 is a rejected request, so retrying it is safer than replaying
             # after an ambiguous read timeout or an upstream 5xx response.
             if response.status_code == 429 and attempt < retries:
-                try:
-                    delay = float(response.headers.get("Retry-After", ""))
-                except (TypeError, ValueError):
-                    delay = 0.5 * (2 ** attempt)
-                time.sleep(max(0.0, min(delay, 5.0)))
+                delay = retry_after_seconds(response.headers.get("Retry-After"))
+                if delay is None:
+                    delay = min(0.5 * (2 ** attempt), 5.0)
+                time.sleep(delay)
                 continue
             break
     except httpx.TimeoutException as exc:
