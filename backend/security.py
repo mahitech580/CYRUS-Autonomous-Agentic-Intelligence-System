@@ -21,9 +21,12 @@ _ASSIGNMENT = re.compile(
 )
 _BEARER = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{4,}")
 _PROVIDER_KEYS = re.compile(
-    r"\b(?:sk-[A-Za-z0-9_-]{12,}|rk-[A-Za-z0-9_-]{12,}|"
+    r"\\b(?:sk-[A-Za-z0-9_-]{12,}|rk-[A-Za-z0-9_-]{12,}|"
+    r"sk_(?:live|test)_[A-Za-z0-9]{12,}|rk_(?:live|test)_[A-Za-z0-9]{12,}|"
     r"gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|"
-    r"AKIA[0-9A-Z]{16})\b"
+    r"xox[baprs]-[A-Za-z0-9-]{12,}|npm_[A-Za-z0-9]{20,}|"
+    r"pypi-[A-Za-z0-9_-]{20,}|AIza[A-Za-z0-9_-]{30,}|"
+    r"ya29\\.[A-Za-z0-9._-]{20,}|AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16})\\b"
 )
 _URL_CREDENTIALS = re.compile(r"(?i)((?:https?|postgres(?:ql)?|mysql(?:\+\w+)?|redis|mongodb(?:\+srv)?)://)[^/@\s:]+:[^/@\s]+@")
 _QUERY_SECRETS = re.compile(

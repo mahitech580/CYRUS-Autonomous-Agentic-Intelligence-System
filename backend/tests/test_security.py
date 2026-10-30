@@ -40,3 +40,16 @@ def test_redacts_quoted_json_and_yaml_secret_values():
         assert secret not in result
     assert '"api_key":"[REDACTED]"' in result
     assert '"password": "[REDACTED]"' in result
+
+
+def test_redacts_additional_payment_chat_package_and_cloud_tokens():
+    text = " ".join([
+        "sk_live_1234567890abcdef", "rk_test_1234567890abcdef",
+        "xoxb-1234567890-abcdefghijkl", "npm_123456789012345678901234",
+        "pypi-123456789012345678901234", "AIza12345678901234567890123456789012",
+        "ASIA1234567890ABCDEF",
+    ])
+    result = redact_sensitive_text(text)
+    for token in text.split():
+        assert token not in result
+    assert result.count("[REDACTED_KEY]") == 7
