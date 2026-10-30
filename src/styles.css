@@ -846,3 +846,20 @@ body {
   font-size: 13px;
   line-height: 1.8;
 }
+
+
+/* Keyboard focus and reduced-motion preferences apply across every workspace view. */
+:where(a, select, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--lime, #c7fb63);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
