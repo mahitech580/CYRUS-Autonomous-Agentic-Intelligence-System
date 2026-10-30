@@ -31,3 +31,12 @@ def test_redacts_url_credentials_and_query_parameters():
 def test_preserves_normal_text_and_respects_output_limit():
     assert redact_sensitive_text("ordinary workflow failure") == "ordinary workflow failure"
     assert redact_sensitive_text("abcdef", max_length=3) == "abc"
+
+
+def test_redacts_quoted_json_and_yaml_secret_values():
+    text = '{"api_key":"json-api-secret","password": "json-password", "Authorization": "Bearer json-bearer-secret"} client_secret: ' + "'yaml-client-secret'"
+    result = redact_sensitive_text(text)
+    for secret in ("json-api-secret", "json-password", "json-bearer-secret", "yaml-client-secret"):
+        assert secret not in result
+    assert '"api_key":"[REDACTED]"' in result
+    assert '"password": "[REDACTED]"' in result

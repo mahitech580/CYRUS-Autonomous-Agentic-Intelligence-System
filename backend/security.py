@@ -4,6 +4,16 @@ from __future__ import annotations
 import re
 
 
+_QUOTED_ASSIGNMENT = re.compile(
+    r"""(?ix)
+    (?P<prefix>["']?(?:[A-Z0-9_]*_)?(?:api[_-]?key|access[_-]?key|database[_-]?url|
+    connection[_-]?string|client[_-]?secret|refresh[_-]?token|password|passwd|
+    secret|token|authorization)["']?\s*[:=]\s*)
+    (?P<quote>["']).*?(?P=quote)
+    """
+)
+
+
 _ASSIGNMENT = re.compile(
     r"(?i)\b((?:[A-Z0-9_]*_)?(?:api[_-]?key|access[_-]?key|database[_-]?url|"
     r"connection[_-]?string|client[_-]?secret|refresh[_-]?token|password|passwd|"
@@ -28,6 +38,10 @@ def redact_sensitive_text(value: object, *, max_length: int = 1800) -> str:
     keep provider credentials out of prompts and user-visible artifacts.
     """
     text = str(value or "")
+    text = _QUOTED_ASSIGNMENT.sub(
+        lambda match: f"{match.group('prefix')}{match.group('quote')}[REDACTED]{match.group('quote')}",
+        text,
+    )
     text = _ASSIGNMENT.sub(r"\1\2[REDACTED]", text)
     text = _BEARER.sub("Bearer [REDACTED]", text)
     text = _PROVIDER_KEYS.sub("[REDACTED_KEY]", text)
