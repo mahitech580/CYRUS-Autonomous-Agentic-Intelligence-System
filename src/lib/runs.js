@@ -52,3 +52,17 @@ export function mapRunRecord(run) {
       : run?.execution_mode || "Workflow",
   };
 }
+
+/**
+ * Merge incremental event pages without replaying duplicate IDs. The backend
+ * retains a bounded event window, so callers may request a full reset.
+ */
+export function mergeRunEvents(existing, incoming, replace = false) {
+  const merged = new Map();
+  const base = replace ? [] : (Array.isArray(existing) ? existing : []);
+  const additions = Array.isArray(incoming) ? incoming : [];
+  for (const event of [...base, ...additions]) {
+    if (event && typeof event.id === "string" && event.id) merged.set(event.id, event);
+  }
+  return [...merged.values()].slice(-250);
+}

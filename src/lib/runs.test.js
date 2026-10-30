@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildRunsCsv, filterRuns, mapRunRecord } from "./runs.js";
+import { buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -47,4 +47,24 @@ test("run mapping labels live AI and handles invalid timestamps", () => {
   assert.equal(mapped.kind, "Live AI workflow");
   assert.equal(mapped.time, "not-a-date");
   assert.equal(mapped.agents, 7);
+});
+
+test("incremental event merge deduplicates IDs and preserves event order", () => {
+  const existing = [{ id: "a", message: "first" }, { id: "b", message: "second" }];
+  const merged = mergeRunEvents(existing, [{ id: "b", message: "updated" }, { id: "c", message: "third" }]);
+  assert.deepEqual(merged.map((event) => event.id), ["a", "b", "c"]);
+  assert.equal(merged[1].message, "updated");
+});
+
+test("expired event cursor replaces stale history instead of duplicating it", () => {
+  const merged = mergeRunEvents([{ id: "old" }], [{ id: "fresh" }], true);
+  assert.deepEqual(merged, [{ id: "fresh" }]);
+});
+
+test("incremental event history remains within the backend retention window", () => {
+  const existing = Array.from({ length: 249 }, (_, index) => ({ id: "event-" + index }));
+  const merged = mergeRunEvents(existing, [{ id: "event-249" }, { id: "event-250" }]);
+  assert.equal(merged.length, 250);
+  assert.equal(merged[0].id, "event-1");
+  assert.equal(merged.at(-1).id, "event-250");
 });
