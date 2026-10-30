@@ -108,6 +108,77 @@ def test_access_key_protects_workspace_data(client, monkeypatch):
 
 
 
+
+def _persist_event_run():
+    run = main.WorkflowRun(
+        id="RUN-EVENT-" + main.uuid4().hex[:8].upper(),
+        goal="Exercise bounded event history",
+        status="running",
+        progress=20,
+        stages=[],
+        events=[],
+        execution_mode="live-model",
+        approval_status="pending",
+    )
+    for index in range(3):
+        main.append_event(run, "plan", "Atlas", f"Event {index + 1}", "started")
+    with main.SessionLocal() as db:
+        db.add(run)
+        db.commit()
+    return run.id
+
+
+def test_event_endpoint_pages_with_a_stable_cursor(client):
+    run_id = _persist_event_run()
+    first = client.get(f"/api/runs/{run_id}/events?limit=2")
+    assert first.status_code == 200
+    body = first.json()
+    assert len(body["items"]) == 2
+    assert body["has_more"] is True
+    assert body["cursor_expired"] is False
+    second = client.get(f"/api/runs/{run_id}/events?after={body['next_after']}&limit=2")
+    assert len(second.json()["items"]) == 1
+    assert second.json()["has_more"] is False
+
+
+def test_event_endpoint_marks_an_expired_cursor_for_client_recovery(client):
+    run_id = _persist_event_run()
+    response = client.get(f"/api/runs/{run_id}/events?after=expired-cursor")
+    assert response.status_code == 200
+    assert response.json()["cursor_expired"] is True
+    assert len(response.json()["items"]) == 3
+
+
+def test_lightweight_run_status_omits_artifact_payloads(client):
+    run_id = _persist_event_run()
+    response = client.get(f"/api/runs/{run_id}/status")
+    assert response.status_code == 200
+    item = response.json()["item"]
+    assert item["id"] == run_id
+    assert item["status"] == "running"
+    assert "stages" not in item
+    assert "events" not in item
+    assert "goal" not in item
+
+
+def test_run_goal_is_redacted_before_storage_and_execution(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("VERCEL", raising=False)
+    captured = {}
+    def capture_agent(agent, role, instruction, goal, context):
+        captured["goal"] = goal
+        return fake_agent(agent, role, instruction, goal, context)
+    monkeypatch.setattr(main, "complete_agent", capture_agent)
+    secret_goal = "Build API with Authorization: Bearer hidden-token-value and OPENAI_API_KEY=sk-proj-12345678901234567890"
+    response = client.post("/api/runs", json={"goal": secret_goal})
+    assert response.status_code == 202
+    stored = response.json()["item"]["goal"]
+    assert "hidden-token-value" not in stored
+    assert "sk-proj-12345678901234567890" not in stored
+    assert captured["goal"] == stored
+    assert "[REDACTED]" in stored
+
+
 def test_access_key_requires_bearer_authorization_scheme(client, monkeypatch):
     monkeypatch.setenv("CYRUS_ACCESS_KEY", "private-test-key")
     assert client.get("/api/runs").status_code == 401

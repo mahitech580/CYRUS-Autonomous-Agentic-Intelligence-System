@@ -444,20 +444,57 @@ def get_run(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     return {"item": as_run(run)}
 
 
+@app.get("/api/runs/{run_id}/status", dependencies=[Depends(require_workspace_access)])
+def get_run_status(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Return only the fields needed to keep an active run card current."""
+    run = db.get(WorkflowRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Workflow run not found.")
+    return {"item": {
+        "id": run.id,
+        "status": run.status,
+        "progress": run.progress,
+        "current_stage": run.current_stage,
+        "error": run.error,
+        "approval_status": run.approval_status or "pending",
+        "updated_at": run.updated_at.isoformat() if run.updated_at else None,
+    }}
+
+
 @app.get("/api/runs/{run_id}/events", dependencies=[Depends(require_workspace_access)])
 def get_run_events(
     run_id: str,
     after: str | None = Query(default=None, max_length=40),
+    limit: int = Query(default=100, ge=1, le=250),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     run = db.get(WorkflowRun, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Workflow run not found.")
-    events = run.events or []
+    available = list(run.events or [])
+    cursor_expired = False
     if after:
-        indices = [i for i, event in enumerate(events) if event.get("id") == after]
-        events = events[indices[-1] + 1:] if indices else events
-    return {"items": events, "total": len(events)}
+        indices = [i for i, event in enumerate(available) if event.get("id") == after]
+        if indices:
+            available = available[indices[-1] + 1:]
+        else:
+            # Event history is bounded; an expired cursor must trigger a client reset,
+            # not silently replay the same history as if it were new.
+            cursor_expired = True
+    if cursor_expired:
+        page = available[-limit:]
+        has_more = False
+    else:
+        page = available[:limit]
+        has_more = len(available) > len(page)
+    next_after = page[-1].get("id") if page else after
+    return {
+        "items": page,
+        "total": len(page),
+        "next_after": next_after,
+        "has_more": has_more,
+        "cursor_expired": cursor_expired,
+    }
 
 
 @app.post("/api/runs/{run_id}/approval", dependencies=[Depends(require_workspace_access)])
