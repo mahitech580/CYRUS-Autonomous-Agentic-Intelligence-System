@@ -96,6 +96,33 @@ def test_health_contract(client):
     assert "persistent_storage" in body
 
 
+
+def test_health_distinguishes_database_liveness_from_run_readiness(client, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("CYRUS_LLM_API_KEY", raising=False)
+    body = client.get("/api/health").json()
+    assert body["status"] == "ok"
+    assert body["database"] == "reachable"
+    assert body["ready_for_runs"] is False
+
+
+def test_readiness_requires_durable_storage_provider_and_production_access_key(client, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("CYRUS_LLM_API_KEY", raising=False)
+    monkeypatch.delenv("VERCEL", raising=False)
+    assert client.get("/api/ready").status_code == 503
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    assert client.get("/api/ready").status_code == 200
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("CYRUS_ACCESS_KEY", "private-test-key")
+    response = client.get("/api/ready")
+    assert response.status_code == 503
+    assert "Persistent production storage" in response.json()["detail"]
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)
+
+
 def test_agent_registry_has_seven_roles(client):
     response = client.get("/api/agents")
     assert response.status_code == 200

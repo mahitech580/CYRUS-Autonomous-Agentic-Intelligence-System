@@ -449,6 +449,8 @@ def health() -> dict[str, Any]:
         pass
     ready = provider_ready()
     durable = database_is_durable()
+    access_configured = bool(os.getenv("CYRUS_ACCESS_KEY", "").strip()) or not bool(os.getenv("VERCEL"))
+    ready_for_runs = database_ok and durable and ready and access_configured
     return {
         "status": "ok" if database_ok else "degraded",
         "service": "cyrus-api",
@@ -456,6 +458,7 @@ def health() -> dict[str, Any]:
         "database": "reachable" if database_ok else "unreachable",
         "persistent_storage": durable,
         "provider_configured": ready,
+        "ready_for_runs": ready_for_runs,
         "timestamp": utcnow().isoformat(),
         "mode": "live-model" if ready else "not-configured",
     }
@@ -601,10 +604,16 @@ def cancel_run(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
 
 
 @app.get("/api/ready")
-def ready() -> dict[str, str]:
+def ready() -> dict[str, Any]:
     try:
         with engine.connect() as connection:
             connection.exec_driver_sql("SELECT 1")
-        return {"status": "ready"}
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Database is not ready.") from exc
+    if not database_is_durable():
+        raise HTTPException(status_code=503, detail="Persistent production storage is not configured.")
+    if not provider_ready():
+        raise HTTPException(status_code=503, detail="Model provider is not configured.")
+    if os.getenv("VERCEL") and not os.getenv("CYRUS_ACCESS_KEY", "").strip():
+        raise HTTPException(status_code=503, detail="Workspace access control is not configured.")
+    return {"status": "ready", "can_start_runs": True}
