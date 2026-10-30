@@ -21,6 +21,42 @@ def fake_agent(agent, role, instruction, goal, context):
     return (f"# {agent} output\n\nGenerated test artifact for: {goal}", {"input_tokens": 20, "output_tokens": 30}, "resp-test")
 
 
+
+def test_provider_retries_rate_limit_then_returns_model_output(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("CYRUS_PROVIDER_RETRIES", "1")
+    responses = [
+        main.httpx.Response(429, headers={"Retry-After": "0"}),
+        main.httpx.Response(200, json={"output_text": "ready", "usage": {"input_tokens": 2, "output_tokens": 3}, "id": "resp-ok"}),
+    ]
+    sleeps = []
+    monkeypatch.setattr(main.httpx, "post", lambda *args, **kwargs: responses.pop(0))
+    monkeypatch.setattr(main.time, "sleep", sleeps.append)
+    output, usage, response_id = main.complete_agent("Atlas", "Planning agent", "Plan", "Build an API", [])
+    assert output == "ready"
+    assert usage == {"input_tokens": 2, "output_tokens": 3}
+    assert response_id == "resp-ok"
+    assert sleeps == [0.0]
+
+
+def test_provider_retries_connection_establishment_failure(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("CYRUS_PROVIDER_RETRIES", "1")
+    calls = {"count": 0}
+    sleeps = []
+    def fake_post(*args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise main.httpx.ConnectTimeout("connect timeout")
+        return main.httpx.Response(200, json={"output_text": "connected"})
+    monkeypatch.setattr(main.httpx, "post", fake_post)
+    monkeypatch.setattr(main.time, "sleep", sleeps.append)
+    output, _, _ = main.complete_agent("Atlas", "Planning agent", "Plan", "Build an API", [])
+    assert output == "connected"
+    assert calls["count"] == 2
+    assert sleeps == [0.5]
+
+
 def test_health_contract(client):
     response = client.get("/api/health")
     assert response.status_code == 200

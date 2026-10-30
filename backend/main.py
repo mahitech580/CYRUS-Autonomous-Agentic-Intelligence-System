@@ -9,6 +9,7 @@ from __future__ import annotations
 import hmac
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -172,6 +173,16 @@ def append_event(run: WorkflowRun, stage: str, agent: str, message: str, status:
     run.updated_at = utcnow()
 
 
+
+def provider_retry_count() -> int:
+    """Bound retries so a bad deployment setting cannot create a request storm."""
+    try:
+        configured = int(os.getenv("CYRUS_PROVIDER_RETRIES", "2"))
+    except (TypeError, ValueError):
+        return 2
+    return max(0, min(configured, 3))
+
+
 def complete_agent(agent: str, role: str, instruction: str, goal: str, context: list[dict[str, str]]) -> tuple[str, dict[str, int], str | None]:
     """Call the server-configured model; the API key never leaves this process."""
     key = os.getenv("OPENAI_API_KEY") or os.getenv("CYRUS_LLM_API_KEY")
@@ -206,12 +217,36 @@ def complete_agent(agent: str, role: str, instruction: str, goal: str, context: 
         if agent == "Scout" and os.getenv("CYRUS_ENABLE_WEB_SEARCH", "false").lower() in {"1", "true", "yes"}:
             request_body["tools"] = [{"type": "web_search"}]
             request_body["tool_choice"] = "auto"
-        response = httpx.post(
-            endpoint,
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json=request_body,
-            timeout=httpx.Timeout(float(os.getenv("CYRUS_LLM_TIMEOUT_SECONDS", "35"))),
-        )
+        retries = provider_retry_count()
+        response = None
+        for attempt in range(retries + 1):
+            try:
+                response = httpx.post(
+                    endpoint,
+                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                    json=request_body,
+                    timeout=httpx.Timeout(float(os.getenv("CYRUS_LLM_TIMEOUT_SECONDS", "35"))),
+                )
+            except (httpx.ConnectTimeout, httpx.ConnectError) as exc:
+                if attempt >= retries:
+                    raise RuntimeError("Could not connect to the configured model provider.") from exc
+                time.sleep(min(0.5 * (2 ** attempt), 2.0))
+                continue
+            except httpx.TimeoutException as exc:
+                raise RuntimeError("The model provider timed out. Check provider availability and timeout configuration.") from exc
+            except httpx.RequestError as exc:
+                raise RuntimeError("Could not reach the configured model provider.") from exc
+
+            # A 429 is a rejected request, so retrying it is safer than replaying
+            # after an ambiguous read timeout or an upstream 5xx response.
+            if response.status_code == 429 and attempt < retries:
+                try:
+                    delay = float(response.headers.get("Retry-After", ""))
+                except (TypeError, ValueError):
+                    delay = 0.5 * (2 ** attempt)
+                time.sleep(max(0.0, min(delay, 5.0)))
+                continue
+            break
     except httpx.TimeoutException as exc:
         raise RuntimeError("The model provider timed out. Check provider availability and timeout configuration.") from exc
     except httpx.RequestError as exc:
