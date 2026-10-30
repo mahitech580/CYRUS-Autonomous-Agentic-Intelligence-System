@@ -101,6 +101,7 @@ export default function App() {
   const [actionBusy, setActionBusy] = useState(false);
   const [refreshingRuns, setRefreshingRuns] = useState(false);
   const toastTimer = useRef(null);
+  const drawerReturnFocus = useRef(null);
 
   useEffect(() => () => {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
@@ -169,6 +170,7 @@ export default function App() {
       setRuns((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setGoal("");
       setView("Runs & tasks");
+      drawerReturnFocus.current = document.activeElement;
       setSelectedRun(created);
       notify("Live AI workflow accepted. Follow the seven agent stages in run details.");
     } catch (error) {
@@ -179,6 +181,7 @@ export default function App() {
     }
   }
   function openRun(run) {
+    if (!selectedRun) drawerReturnFocus.current = document.activeElement;
     setSelectedRun(run);
   }
   async function refreshRuns() {
@@ -268,6 +271,48 @@ export default function App() {
       window.clearTimeout(timer);
     };
   }, [selectedRun?.id, selectedRun?.status, apiState]);
+
+  useEffect(() => {
+    if (!selectedRun?.id) return undefined;
+    const drawer = document.querySelector(".run-drawer");
+    if (!drawer) return undefined;
+    const selector = 'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const getFocusable = () => Array.from(drawer.querySelectorAll(selector))
+      .filter((element) => !element.hasAttribute("hidden") && element.getAttribute("aria-hidden") !== "true");
+    getFocusable()[0]?.focus();
+
+    function handleDrawerKeys(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSelectedRun(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (!focusable.length) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const outside = !drawer.contains(document.activeElement);
+      if (event.shiftKey && (document.activeElement === first || outside)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || outside)) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleDrawerKeys);
+    return () => {
+      document.removeEventListener("keydown", handleDrawerKeys);
+      const previous = drawerReturnFocus.current;
+      drawerReturnFocus.current = null;
+      if (previous?.isConnected) previous.focus();
+    };
+  }, [selectedRun?.id]);
 
   return (
     <div className="app-shell">
