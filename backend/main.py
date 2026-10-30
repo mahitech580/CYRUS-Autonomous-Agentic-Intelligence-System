@@ -20,6 +20,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import DateTime, JSON, String, create_engine, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
+try:
+    from .security import redact_sensitive_text
+except ImportError:  # Support direct `main` imports used by the Vercel runtime.
+    from security import redact_sensitive_text
+
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger("cyrus")
 APP_VERSION = "0.2.0"
@@ -162,7 +167,7 @@ def as_run(item: WorkflowRun) -> dict[str, Any]:
 
 def append_event(run: WorkflowRun, stage: str, agent: str, message: str, status: str) -> None:
     events = list(run.events or [])
-    events.append({"id": uuid4().hex[:12], "at": utcnow().isoformat(), "stage": stage, "agent": agent, "message": message[:2000], "status": status})
+    events.append({"id": uuid4().hex[:12], "at": utcnow().isoformat(), "stage": stage, "agent": agent, "message": redact_sensitive_text(message, max_length=2000), "status": status})
     run.events = events[-250:]
     run.updated_at = utcnow()
 
@@ -269,6 +274,7 @@ def execute_workflow(run_id: str) -> None:
                 db.commit()
 
             output, usage, response_id = complete_agent(agent, role, instruction, goal, context)
+            output = redact_sensitive_text(output, max_length=30000)
             stage_record = {
                 "id": stage_id,
                 "agent": agent,
@@ -302,7 +308,7 @@ def execute_workflow(run_id: str) -> None:
             run.updated_at = utcnow()
             db.commit()
     except Exception as exc:
-        safe_error = str(exc)[:1800] or "Workflow failed."
+        safe_error = redact_sensitive_text(str(exc) or "Workflow failed.", max_length=1800)
         logger.warning("workflow %s failed: %s", run_id, safe_error)
         with SessionLocal() as db:
             run = db.get(WorkflowRun, run_id)
@@ -403,7 +409,7 @@ def list_runs(
 
 @app.post("/api/runs", status_code=202, dependencies=[Depends(require_workspace_access)])
 def create_run(payload: RunCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, Any]:
-    goal = payload.goal.strip()
+    goal = redact_sensitive_text(payload.goal.strip(), max_length=1200)
     if os.getenv("VERCEL") and not os.getenv("CYRUS_ACCESS_KEY", "").strip():
         raise HTTPException(status_code=503, detail="Workspace access control is not configured. Add CYRUS_ACCESS_KEY to the server environment.")
     if not provider_ready():
