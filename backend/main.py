@@ -18,7 +18,7 @@ import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, JSON, String, create_engine, inspect, select, text
+from sqlalchemy import DateTime, JSON, String, create_engine, func, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 try:
@@ -474,9 +474,10 @@ def list_runs(
     limit: int = Query(default=30, ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    statement = select(WorkflowRun).order_by(WorkflowRun.created_at.desc()).limit(limit)
+    statement = select(WorkflowRun).order_by(WorkflowRun.created_at.desc(), WorkflowRun.id.desc()).limit(limit)
     items = db.scalars(statement).all()
-    return {"items": [as_run(item) for item in items], "total": len(items)}
+    total = db.scalar(select(func.count()).select_from(WorkflowRun)) or 0
+    return {"items": [as_run(item) for item in items], "total": total}
 
 
 @app.post("/api/runs", status_code=202, dependencies=[Depends(require_workspace_access)])

@@ -372,3 +372,27 @@ def test_cancel_queued_workflow_records_state_and_event(client, monkeypatch):
     assert item["status"] == "cancelled"
     assert item["current_stage"] is None
     assert item["events"][-1]["status"] == "cancelled"
+
+
+def test_run_list_total_counts_all_records_when_results_are_limited(client):
+    with main.SessionLocal() as db:
+        before = db.query(main.WorkflowRun).count()
+        for index in range(3):
+            db.add(main.WorkflowRun(
+                id="RUN-LIST-COUNT-" + main.uuid4().hex[:8].upper(),
+                goal=f"List count regression {index}",
+                status="queued",
+                progress=0,
+                stages=[],
+                events=[],
+                execution_mode="live-model",
+                approval_status="pending",
+            ))
+        db.commit()
+        expected_total = before + 3
+
+    response = client.get("/api/runs?limit=2")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["items"]) == 2
+    assert body["total"] == expected_total
