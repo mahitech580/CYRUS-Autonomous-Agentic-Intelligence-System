@@ -816,3 +816,33 @@ body {
   .starter-brief-card, .starter-brief-arrow { transition: none; }
   .starter-brief-card:hover { transform: none; }
 }
+
+
+/* Accessible fallback shown when a React subtree cannot render. */
+.fatal-error {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg);
+}
+.fatal-error section {
+  width: min(100%, 560px);
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .28);
+}
+.fatal-error h1 {
+  margin: 10px 0;
+  color: var(--text);
+  font-size: clamp(24px, 5vw, 34px);
+  line-height: 1.2;
+}
+.fatal-error section > p:not(.eyebrow) {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
