@@ -416,3 +416,17 @@ def test_retry_after_supports_http_dates_and_bounds_waits():
     assert main.retry_after_seconds("Fri, 30 Oct 2026 11:59:59 GMT", now=now) == 0.0
     assert main.retry_after_seconds("not-a-date", now=now) is None
     assert main.retry_after_seconds("NaN", now=now) is None
+
+
+def test_api_responses_include_security_headers_and_validated_request_ids(client):
+    response = client.get("/api/health", headers={"X-Request-ID": "daily-run.42"})
+    assert response.headers["X-Request-ID"] == "daily-run.42"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert response.headers["Cache-Control"] == "no-store"
+
+    invalid = client.get("/api/health", headers={"X-Request-ID": "not a safe id"})
+    generated_id = invalid.headers["X-Request-ID"]
+    assert generated_id != "not a safe id"
+    assert len(generated_id) == 32
