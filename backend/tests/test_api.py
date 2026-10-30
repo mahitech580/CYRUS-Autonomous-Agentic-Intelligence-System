@@ -430,3 +430,11 @@ def test_api_responses_include_security_headers_and_validated_request_ids(client
     generated_id = invalid.headers["X-Request-ID"]
     assert generated_id != "not a safe id"
     assert len(generated_id) == 32
+
+
+def test_app_lifespan_initializes_database_schema(monkeypatch):
+    calls = []
+    monkeypatch.setattr(main, "ensure_schema", lambda: calls.append("initialized"))
+    with TestClient(main.app):
+        pass
+    assert calls == ["initialized"]

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+from contextlib import asynccontextmanager
 import math
 import os
 import re
@@ -419,10 +420,17 @@ def execute_workflow(run_id: str) -> None:
                 db.commit()
 
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    ensure_schema()
+    yield
+
+
 app = FastAPI(
     title="CYRUS Engineering API",
     description="Real model-backed, review-first multi-agent software engineering orchestration.",
     version=APP_VERSION,
+    lifespan=lifespan,
 )
 app.add_middleware(
     CORSMiddleware,
@@ -447,11 +455,6 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     response.headers["Cache-Control"] = "no-store"
     return response
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    ensure_schema()
 
 
 @app.get("/")
