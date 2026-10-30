@@ -266,6 +266,59 @@ def test_production_ephemeral_sqlite_is_rejected(client, monkeypatch):
     assert "Persistent storage is not configured" in response.json()["detail"]
 
 
+
+def test_cancellation_during_provider_call_discards_late_stage_output(client, monkeypatch):
+    run_id = "RUN-CANCEL-RACE-" + main.uuid4().hex[:8].upper()
+    run = main.WorkflowRun(
+        id=run_id,
+        goal="Cancel while the model is working",
+        status="queued",
+        progress=0,
+        stages=[],
+        events=[],
+        execution_mode="live-model",
+        approval_status="pending",
+    )
+    with main.SessionLocal() as db:
+        db.add(run)
+        db.commit()
+
+    def cancel_during_request(agent, role, instruction, goal, context):
+        with main.SessionLocal() as db:
+            active = db.get(main.WorkflowRun, run_id)
+            active.status = "cancelled"
+            active.current_stage = None
+            db.commit()
+        return fake_agent(agent, role, instruction, goal, context)
+
+    monkeypatch.setattr(main, "complete_agent", cancel_during_request)
+    main.execute_workflow(run_id)
+    with main.SessionLocal() as db:
+        saved = db.get(main.WorkflowRun, run_id)
+        assert saved.status == "cancelled"
+        assert saved.stages == []
+        assert saved.progress == 0
+
+
+def test_terminal_workflow_cannot_be_cancelled_again(client):
+    run_id = "RUN-TERMINAL-" + main.uuid4().hex[:8].upper()
+    run = main.WorkflowRun(
+        id=run_id,
+        goal="Already completed workflow",
+        status="review",
+        progress=100,
+        stages=[],
+        events=[],
+        execution_mode="live-model",
+        approval_status="pending",
+    )
+    with main.SessionLocal() as db:
+        db.add(run)
+        db.commit()
+    response = client.post(f"/api/runs/{run_id}/cancel")
+    assert response.status_code == 409
+
+
 def test_cancel_queued_workflow_records_state_and_event(client, monkeypatch):
     monkeypatch.delenv("VERCEL", raising=False)
     monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)

@@ -321,13 +321,19 @@ def update_run(run_id: str, mutate) -> None:
         db.commit()
 
 
+
+def get_run_for_update(db: Session, run_id: str) -> WorkflowRun | None:
+    """Serialize worker/operator state transitions on databases with row locks."""
+    return db.scalar(select(WorkflowRun).where(WorkflowRun.id == run_id).with_for_update())
+
+
 def execute_workflow(run_id: str) -> None:
     """Execute the seven real model steps and leave the final result for human review."""
     context: list[dict[str, str]] = []
     try:
         for index, (stage_id, agent, role, instruction) in enumerate(STAGE_DEFINITIONS, start=1):
             with SessionLocal() as db:
-                run = db.get(WorkflowRun, run_id)
+                run = get_run_for_update(db, run_id)
                 if run is None or run.status in {"cancelled", "rejected"}:
                     return
                 goal = run.goal
@@ -351,7 +357,7 @@ def execute_workflow(run_id: str) -> None:
             }
             context.append({"stage": stage_id, "agent": agent, "output": output})
             with SessionLocal() as db:
-                run = db.get(WorkflowRun, run_id)
+                run = get_run_for_update(db, run_id)
                 if run is None or run.status in {"cancelled", "rejected"}:
                     return
                 run.stages = list(run.stages or []) + [stage_record]
@@ -361,7 +367,7 @@ def execute_workflow(run_id: str) -> None:
                 db.commit()
 
         with SessionLocal() as db:
-            run = db.get(WorkflowRun, run_id)
+            run = get_run_for_update(db, run_id)
             if run is None or run.status in {"cancelled", "rejected"}:
                 return
             run.status = "review"
@@ -374,7 +380,7 @@ def execute_workflow(run_id: str) -> None:
         safe_error = redact_sensitive_text(str(exc) or "Workflow failed.", max_length=1800)
         logger.warning("workflow %s failed: %s", run_id, safe_error)
         with SessionLocal() as db:
-            run = db.get(WorkflowRun, run_id)
+            run = get_run_for_update(db, run_id)
             if run is not None and run.status not in {"cancelled", "rejected"}:
                 run.status = "failed"
                 run.error = safe_error
@@ -562,7 +568,7 @@ def get_run_events(
 
 @app.post("/api/runs/{run_id}/approval", dependencies=[Depends(require_workspace_access)])
 def approve_run(run_id: str, payload: ApprovalRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
-    run = db.get(WorkflowRun, run_id)
+    run = get_run_for_update(db, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Workflow run not found.")
     if run.status != "review":
@@ -580,7 +586,7 @@ def approve_run(run_id: str, payload: ApprovalRequest, db: Session = Depends(get
 
 @app.post("/api/runs/{run_id}/cancel", dependencies=[Depends(require_workspace_access)])
 def cancel_run(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
-    run = db.get(WorkflowRun, run_id)
+    run = get_run_for_update(db, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Workflow run not found.")
     if run.status not in {"queued", "running"}:
