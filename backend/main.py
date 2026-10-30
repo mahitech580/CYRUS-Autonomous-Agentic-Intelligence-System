@@ -135,7 +135,8 @@ def require_workspace_access(authorization: str | None = Header(default=None)) -
         if os.getenv("VERCEL"):
             raise HTTPException(status_code=503, detail="Workspace access control is not configured. Add CYRUS_ACCESS_KEY to the server environment.")
         return
-    supplied = (authorization or "").removeprefix("Bearer ").strip()
+    scheme, separator, credential = (authorization or "").strip().partition(" ")
+    supplied = credential.strip() if separator and scheme.lower() == "bearer" else ""
     if not supplied or not hmac.compare_digest(supplied, expected):
         raise HTTPException(status_code=401, detail="Workspace access key required.")
 
