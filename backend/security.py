@@ -15,7 +15,7 @@ _PROVIDER_KEYS = re.compile(
     r"gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|"
     r"AKIA[0-9A-Z]{16})\b"
 )
-_URL_CREDENTIALS = re.compile(r"(?i)(https?://)[^/@\s:]+:[^/@\s]+@")
+_URL_CREDENTIALS = re.compile(r"(?i)((?:https?|postgres(?:ql)?|mysql(?:\+\w+)?|redis|mongodb(?:\+srv)?)://)[^/@\s:]+:[^/@\s]+@")
 _QUERY_SECRETS = re.compile(
     r"(?i)([?&](?:api_key|access_token|refresh_token|token|secret|password)=)[^&#\s]+"
 )
