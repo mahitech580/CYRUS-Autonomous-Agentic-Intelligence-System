@@ -90,7 +90,7 @@ def utcnow() -> datetime:
 
 
 def provider_ready() -> bool:
-    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("CYRUS_LLM_API_KEY"))
+    return bool((os.getenv("OPENAI_API_KEY") or os.getenv("CYRUS_LLM_API_KEY") or "").strip())
 
 
 def provider_model() -> str:
@@ -174,13 +174,27 @@ def append_event(run: WorkflowRun, stage: str, agent: str, message: str, status:
 
 
 
+def bounded_int_setting(name: str, default: int, minimum: int, maximum: int) -> int:
+    try:
+        configured = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(configured, maximum))
+
+
+def bounded_float_setting(name: str, default: float, minimum: float, maximum: float) -> float:
+    try:
+        configured = float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    if not (configured == configured and abs(configured) != float("inf")):
+        return default
+    return max(minimum, min(configured, maximum))
+
+
 def provider_retry_count() -> int:
     """Bound retries so a bad deployment setting cannot create a request storm."""
-    try:
-        configured = int(os.getenv("CYRUS_PROVIDER_RETRIES", "2"))
-    except (TypeError, ValueError):
-        return 2
-    return max(0, min(configured, 3))
+    return bounded_int_setting("CYRUS_PROVIDER_RETRIES", 2, 0, 3)
 
 
 def complete_agent(agent: str, role: str, instruction: str, goal: str, context: list[dict[str, str]]) -> tuple[str, dict[str, int], str | None]:
@@ -211,7 +225,7 @@ def complete_agent(agent: str, role: str, instruction: str, goal: str, context: 
                 "Do not expose credentials, ask for hidden keys, execute generated code, or claim tool activity that did not occur."
             ),
             "input": user_input,
-            "max_output_tokens": max(256, min(int(os.getenv("CYRUS_MAX_OUTPUT_TOKENS", "1200")), 3000)),
+            "max_output_tokens": bounded_int_setting("CYRUS_MAX_OUTPUT_TOKENS", 1200, 256, 3000),
             "store": False,
         }
         if agent == "Scout" and os.getenv("CYRUS_ENABLE_WEB_SEARCH", "false").lower() in {"1", "true", "yes"}:
@@ -225,7 +239,7 @@ def complete_agent(agent: str, role: str, instruction: str, goal: str, context: 
                     endpoint,
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
                     json=request_body,
-                    timeout=httpx.Timeout(float(os.getenv("CYRUS_LLM_TIMEOUT_SECONDS", "35"))),
+                    timeout=httpx.Timeout(bounded_float_setting("CYRUS_LLM_TIMEOUT_SECONDS", 35.0, 1.0, 120.0)),
                 )
             except (httpx.ConnectTimeout, httpx.ConnectError) as exc:
                 if attempt >= retries:
@@ -264,23 +278,37 @@ def complete_agent(agent: str, role: str, instruction: str, goal: str, context: 
         payload = response.json()
     except ValueError as exc:
         raise RuntimeError("The model provider returned an invalid response payload.") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("The model provider returned an unexpected response shape.")
 
     output = payload.get("output_text")
     if not isinstance(output, str) or not output.strip():
         parts: list[str] = []
-        for item in payload.get("output", []):
-            for content in item.get("content", []):
-                if content.get("type") in {"output_text", "text"} and isinstance(content.get("text"), str):
-                    parts.append(content["text"])
+        output_items = payload.get("output")
+        if isinstance(output_items, list):
+            for item in output_items:
+                if not isinstance(item, dict) or not isinstance(item.get("content"), list):
+                    continue
+                for content in item["content"]:
+                    if isinstance(content, dict) and content.get("type") in {"output_text", "text"} and isinstance(content.get("text"), str):
+                        parts.append(content["text"])
         output = "\n\n".join(parts)
     if not isinstance(output, str) or not output.strip():
         raise RuntimeError("The model returned no text output.")
     usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
+
+    def token_count(name: str) -> int:
+        try:
+            return max(0, int(usage.get(name, 0) or 0))
+        except (TypeError, ValueError, OverflowError):
+            return 0
+
     token_usage = {
-        "input_tokens": int(usage.get("input_tokens", 0) or 0),
-        "output_tokens": int(usage.get("output_tokens", 0) or 0),
+        "input_tokens": token_count("input_tokens"),
+        "output_tokens": token_count("output_tokens"),
     }
-    return output.strip()[:30000], token_usage, payload.get("id")
+    response_id = payload.get("id") if isinstance(payload.get("id"), str) else None
+    return output.strip()[:30000], token_usage, response_id
 
 
 def update_run(run_id: str, mutate) -> None:

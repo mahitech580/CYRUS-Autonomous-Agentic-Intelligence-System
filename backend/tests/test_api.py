@@ -22,6 +22,36 @@ def fake_agent(agent, role, instruction, goal, context):
 
 
 
+
+def test_provider_rejects_non_object_payload_and_tolerates_invalid_usage(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(main.httpx, "post", lambda *args, **kwargs: main.httpx.Response(200, json=[]))
+    with pytest.raises(RuntimeError, match="unexpected response shape"):
+        main.complete_agent("Atlas", "Planning agent", "Plan", "Build an API", [])
+
+    monkeypatch.setattr(
+        main.httpx,
+        "post",
+        lambda *args, **kwargs: main.httpx.Response(
+            200,
+            json={"output_text": "safe output", "usage": {"input_tokens": "unknown", "output_tokens": -4}, "id": 123},
+        ),
+    )
+    output, usage, response_id = main.complete_agent("Atlas", "Planning agent", "Plan", "Build an API", [])
+    assert output == "safe output"
+    assert usage == {"input_tokens": 0, "output_tokens": 0}
+    assert response_id is None
+
+
+def test_runtime_numeric_settings_are_bounded_and_invalid_values_fall_back(monkeypatch):
+    monkeypatch.setenv("CYRUS_PROVIDER_RETRIES", "99")
+    monkeypatch.setenv("CYRUS_MAX_OUTPUT_TOKENS", "invalid")
+    monkeypatch.setenv("CYRUS_LLM_TIMEOUT_SECONDS", "999")
+    assert main.provider_retry_count() == 3
+    assert main.bounded_int_setting("CYRUS_MAX_OUTPUT_TOKENS", 1200, 256, 3000) == 1200
+    assert main.bounded_float_setting("CYRUS_LLM_TIMEOUT_SECONDS", 35.0, 1.0, 120.0) == 120.0
+
+
 def test_provider_retries_rate_limit_then_returns_model_output(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("CYRUS_PROVIDER_RETRIES", "1")
