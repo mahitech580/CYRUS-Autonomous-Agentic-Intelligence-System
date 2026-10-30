@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { buildRunsCsv, filterRuns, mapRunRecord } from "./lib/runs.js";
+import { buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -187,16 +187,27 @@ export default function App() {
       setRefreshingRuns(false);
     }
   }
-  async function refreshSelectedRun(runId) {
+  async function refreshSelectedRun(runId, after) {
     try {
-      const response = await api.getRun(runId);
-      if (response.item) {
-        const fresh = mapRunRecord(response.item);
-        setSelectedRun((current) => current?.id === runId ? fresh : current);
-        setRuns((current) => current.map((item) => item.id === runId ? fresh : item));
-      }
+      // Keep the active drawer current without repeatedly downloading every saved artifact.
+      const [statusResponse, eventResponse] = await Promise.all([
+        api.getRunStatus(runId),
+        api.runEvents(runId, after),
+      ]);
+      const status = statusResponse.item;
+      if (!status) return after || "";
+      const incoming = Array.isArray(eventResponse.items) ? eventResponse.items : [];
+      const resetEvents = !!eventResponse.cursor_expired;
+      setSelectedRun((current) => current?.id === runId
+        ? { ...current, ...status, events: mergeRunEvents(current.events, incoming, resetEvents) }
+        : current);
+      setRuns((current) => current.map((item) => item.id === runId
+        ? { ...item, ...status, events: mergeRunEvents(item.events, incoming, resetEvents) }
+        : item));
+      return eventResponse.next_after || after || "";
     } catch (error) {
       if (error.status === 401) notify("Workspace access key is missing or incorrect.");
+      return after || "";
     }
   }
   async function decideRun(decision, note = "") {
@@ -234,8 +245,12 @@ export default function App() {
     if (!selectedRun?.id || apiState !== "connected" || !["queued", "running"].includes(selectedRun.status)) return;
     let cancelled = false;
     let timer;
+    let cursor = selectedRun.events?.length
+      ? selectedRun.events[selectedRun.events.length - 1]?.id || ""
+      : "";
     const poll = async () => {
-      await refreshSelectedRun(selectedRun.id);
+      const nextCursor = await refreshSelectedRun(selectedRun.id, cursor);
+      if (nextCursor) cursor = nextCursor;
       if (!cancelled) timer = window.setTimeout(poll, 2500);
     };
     poll();

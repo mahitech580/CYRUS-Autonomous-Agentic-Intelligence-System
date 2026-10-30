@@ -51,6 +51,7 @@ export const api = {
   agents: () => request("/api/agents"),
   runs: () => request("/api/runs"),
   getRun: (runId) => request("/api/runs/" + encodeURIComponent(runId)),
+  getRunStatus: (runId) => request("/api/runs/" + encodeURIComponent(runId) + "/status"),
   runEvents: (runId, after) => request("/api/runs/" + encodeURIComponent(runId) + "/events" + (after ? "?after=" + encodeURIComponent(after) : "")),
   approveRun: (runId, decision, note = "") => request("/api/runs/" + encodeURIComponent(runId) + "/approval", {
     method: "POST",
