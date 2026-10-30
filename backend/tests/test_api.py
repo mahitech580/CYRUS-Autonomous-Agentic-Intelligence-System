@@ -107,6 +107,15 @@ def test_access_key_protects_workspace_data(client, monkeypatch):
 
 
 
+
+def test_access_key_requires_bearer_authorization_scheme(client, monkeypatch):
+    monkeypatch.setenv("CYRUS_ACCESS_KEY", "private-test-key")
+    assert client.get("/api/runs").status_code == 401
+    assert client.get("/api/runs", headers={"Authorization": "private-test-key"}).status_code == 401
+    assert client.get("/api/runs", headers={"Authorization": "Basic private-test-key"}).status_code == 401
+    assert client.get("/api/runs", headers={"Authorization": "bearer private-test-key"}).status_code == 200
+    monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)
+
 def test_production_ephemeral_sqlite_is_rejected(client, monkeypatch):
     monkeypatch.setenv("VERCEL", "1")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
