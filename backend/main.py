@@ -89,8 +89,13 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def provider_api_key() -> str:
+    """Select the first non-empty provider credential and remove accidental whitespace."""
+    return (os.getenv("OPENAI_API_KEY") or "").strip() or (os.getenv("CYRUS_LLM_API_KEY") or "").strip()
+
+
 def provider_ready() -> bool:
-    return bool((os.getenv("OPENAI_API_KEY") or os.getenv("CYRUS_LLM_API_KEY") or "").strip())
+    return bool(provider_api_key())
 
 
 def provider_model() -> str:
@@ -199,7 +204,7 @@ def provider_retry_count() -> int:
 
 def complete_agent(agent: str, role: str, instruction: str, goal: str, context: list[dict[str, str]]) -> tuple[str, dict[str, int], str | None]:
     """Call the server-configured model; the API key never leaves this process."""
-    key = os.getenv("OPENAI_API_KEY") or os.getenv("CYRUS_LLM_API_KEY")
+    key = provider_api_key()
     if not key:
         raise RuntimeError("No model provider configured. Add OPENAI_API_KEY to the server environment.")
     base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")

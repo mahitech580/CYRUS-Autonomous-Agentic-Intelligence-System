@@ -396,3 +396,13 @@ def test_run_list_total_counts_all_records_when_results_are_limited(client):
     body = response.json()
     assert len(body["items"]) == 2
     assert body["total"] == expected_total
+
+
+def test_provider_key_selection_ignores_whitespace_and_falls_back(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "   ")
+    monkeypatch.setenv("CYRUS_LLM_API_KEY", " fallback-provider-key ")
+    assert main.provider_ready() is True
+    assert main.provider_api_key() == "fallback-provider-key"
+
+    monkeypatch.setenv("OPENAI_API_KEY", " primary-provider-key ")
+    assert main.provider_api_key() == "primary-provider-key"
