@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Bot, Boxes, Braces,
   Check, CheckCircle2, ChevronDown, CircleDot, Clock3, Code2, Command,
@@ -100,6 +100,11 @@ export default function App() {
   const [workspaceConfig, setWorkspaceConfig] = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [refreshingRuns, setRefreshingRuns] = useState(false);
+  const toastTimer = useRef(null);
+
+  useEffect(() => () => {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -131,8 +136,12 @@ export default function App() {
   const visibleRuns = useMemo(() => filterRuns(runs, query, statusFilter), [runs, query, statusFilter]);
 
   function notify(message) {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
     setToast(message);
-    window.setTimeout(() => setToast(""), 3200);
+    toastTimer.current = window.setTimeout(() => {
+      setToast("");
+      toastTimer.current = null;
+    }, 3200);
   }
   async function startRun(event) {
     event?.preventDefault();
