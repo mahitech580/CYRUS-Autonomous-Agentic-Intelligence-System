@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { request } from "./api.js";
+import { api, request } from "./api.js";
 
 test("API requests disable caching and parse JSON responses", async (t) => {
   const originalFetch = globalThis.fetch;
@@ -74,6 +74,25 @@ test("API errors preserve HTTP status and server detail", async (t) => {
     (error) => error.status === 401 && error.message === "Access denied",
   );
 });
+
+test("run polling API helpers forward AbortSignals and encode run IDs", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const controller = new AbortController();
+  let captured;
+  globalThis.fetch = async (url, options) => {
+    captured = { url, options };
+    return new Response(JSON.stringify({ item: { id: "RUN/1" } }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  await api.getRunStatus("RUN/1", { signal: controller.signal });
+  assert.equal(captured.url, "http://localhost:8000/api/runs/RUN%2F1/status");
+  assert.equal(captured.options.signal, controller.signal);
+});
+
 
 test("HTTP errors expose the server request ID for support diagnostics", async (t) => {
   const originalFetch = globalThis.fetch;

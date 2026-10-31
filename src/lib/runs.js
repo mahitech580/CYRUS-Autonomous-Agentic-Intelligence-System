@@ -71,6 +71,14 @@ export function mergeRunEvents(existing, incoming, replace = false) {
 }
 
 
+/** Exponential retry delay for transient run-poll failures, capped at 30 seconds. */
+export function nextRunPollDelay(failures) {
+  const count = Number.isFinite(Number(failures))
+    ? Math.max(0, Math.min(5, Math.floor(Number(failures))))
+    : 0;
+  return Math.min(2500 * (2 ** count), 30000);
+}
+
 /** Keep successful status and event responses independent during polling. */
 export function settleRunPoll(statusResult, eventResult) {
   const statusOk = statusResult?.status === "fulfilled" && !!statusResult.value?.item;

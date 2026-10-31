@@ -84,6 +84,17 @@ test("incremental event history remains within the backend retention window", ()
 });
 
 
+test("run polling retry delay grows exponentially and is capped", () => {
+  assert.equal(nextRunPollDelay(0), 2500);
+  assert.equal(nextRunPollDelay(1), 5000);
+  assert.equal(nextRunPollDelay(2), 10000);
+  assert.equal(nextRunPollDelay(3), 20000);
+  assert.equal(nextRunPollDelay(4), 30000);
+  assert.equal(nextRunPollDelay(100), 30000);
+  assert.equal(nextRunPollDelay("invalid"), 2500);
+});
+
+
 test("run polling keeps a successful status when the event request fails", () => {
   const result = settleRunPoll(
     { status: "fulfilled", value: { item: { id: "RUN-1", status: "running" } } },

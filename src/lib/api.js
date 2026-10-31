@@ -96,9 +96,9 @@ export const api = {
   config: () => request("/api/config"),
   agents: () => request("/api/agents"),
   runs: () => request("/api/runs"),
-  getRun: (runId) => request("/api/runs/" + encodeURIComponent(runId)),
-  getRunStatus: (runId) => request("/api/runs/" + encodeURIComponent(runId) + "/status"),
-  runEvents: (runId, after) => request("/api/runs/" + encodeURIComponent(runId) + "/events" + (after ? "?after=" + encodeURIComponent(after) : "")),
+  getRun: (runId, options = {}) => request("/api/runs/" + encodeURIComponent(runId), options),
+  getRunStatus: (runId, options = {}) => request("/api/runs/" + encodeURIComponent(runId) + "/status", options),
+  runEvents: (runId, after, options = {}) => request("/api/runs/" + encodeURIComponent(runId) + "/events" + (after ? "?after=" + encodeURIComponent(after) : ""), options),
   approveRun: (runId, decision, note = "") => request("/api/runs/" + encodeURIComponent(runId) + "/approval", {
     method: "POST",
     body: JSON.stringify({ decision, note }),

@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -213,10 +213,10 @@ export default function App() {
       setRefreshingRuns(false);
     }
   }
-  async function refreshSelectedRun(runId, after) {
+  async function refreshSelectedRun(runId, after, signal) {
     const [statusResult, eventResult] = await Promise.allSettled([
-      api.getRunStatus(runId),
-      api.runEvents(runId, after),
+      api.getRunStatus(runId, { signal }),
+      api.runEvents(runId, after, { signal }),
     ]);
     const poll = settleRunPoll(statusResult, eventResult);
     if (!poll.statusOk) {
@@ -232,7 +232,7 @@ export default function App() {
     const knownStageCount = loadedStageCount.current[runId] ?? 0;
     if (needsRunDetailRefresh(status.stage_count, knownStageCount)) {
       try {
-        const detailResponse = await api.getRun(runId);
+        const detailResponse = await api.getRun(runId, { signal });
         detailItem = detailResponse.item || null;
         if (detailItem) {
           loadedStageCount.current[runId] = Array.isArray(detailItem.stages)
@@ -293,21 +293,71 @@ export default function App() {
   useEffect(() => {
     if (!selectedRun?.id || selectedRun.detail_loading || apiState !== "connected" || !["queued", "running"].includes(selectedRun.status)) return;
     let cancelled = false;
-    let timer;
+    let timer = null;
+    let controller = null;
+    let inFlight = false;
+    let resumeImmediately = false;
+    let failures = 0;
     let cursor = selectedRun.events?.length
       ? selectedRun.events[selectedRun.events.length - 1]?.id || ""
       : "";
-    const poll = async () => {
-      const nextCursor = await refreshSelectedRun(selectedRun.id, cursor);
-      if (nextCursor) cursor = nextCursor;
-      if (!cancelled) timer = window.setTimeout(poll, 2500);
+
+    const schedule = (delay) => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(poll, delay);
     };
+    const poll = async () => {
+      if (cancelled || inFlight) return;
+      if (document.visibilityState === "hidden") {
+        schedule(5000);
+        return;
+      }
+      inFlight = true;
+      const activeController = new AbortController();
+      controller = activeController;
+      let delay = 2500;
+      try {
+        const result = await refreshSelectedRun(selectedRun.id, cursor, activeController.signal);
+        if (result.cursor) cursor = result.cursor;
+        failures = result.ok ? 0 : Math.min(failures + 1, 5);
+        delay = result.ok ? 2500 : nextRunPollDelay(failures);
+      } catch (error) {
+        if (error?.name !== "AbortError") failures = Math.min(failures + 1, 5);
+        delay = nextRunPollDelay(failures);
+      } finally {
+        inFlight = false;
+        if (controller === activeController) controller = null;
+        if (!cancelled) {
+          if (resumeImmediately && document.visibilityState !== "hidden") {
+            resumeImmediately = false;
+            schedule(0);
+          } else {
+            schedule(document.visibilityState === "hidden" ? 5000 : delay);
+          }
+        }
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        if (timer) window.clearTimeout(timer);
+        controller?.abort();
+      } else if (inFlight) {
+        resumeImmediately = true;
+      } else {
+        if (timer) window.clearTimeout(timer);
+        poll();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     poll();
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
+      if (timer) window.clearTimeout(timer);
+      controller?.abort();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [selectedRun?.id, selectedRun?.status, apiState]);
+  }, [selectedRun?.id, selectedRun?.status, selectedRun?.detail_loading, apiState]);
 
   useEffect(() => {
     if (!selectedRun?.id) return undefined;
