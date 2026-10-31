@@ -23,6 +23,24 @@ def fake_agent(agent, role, instruction, goal, context):
 
 
 
+def test_provider_rejects_partial_or_unfinished_responses(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    for status, message in [
+        ("incomplete", "response was incomplete"),
+        ("in_progress", "did not complete"),
+        ("failed", "did not complete"),
+    ]:
+        monkeypatch.setattr(
+            main.httpx,
+            "post",
+            lambda *args, _status=status, **kwargs: main.httpx.Response(
+                200, json={"status": _status, "output_text": "partial provider text"}
+            ),
+        )
+        with pytest.raises(RuntimeError, match=message):
+            main.complete_agent("Atlas", "Planning agent", "Plan", "Build an API", [])
+
+
 def test_provider_rejects_non_object_payload_and_tolerates_invalid_usage(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setattr(main.httpx, "post", lambda *args, **kwargs: main.httpx.Response(200, json=[]))
