@@ -21,6 +21,46 @@ test("API requests disable caching and parse JSON responses", async (t) => {
   assert.ok(captured.options.signal instanceof AbortSignal);
 });
 
+test("request supports Headers instances and preserves explicit authorization", async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalWindow = globalThis.window;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    if (originalWindow === undefined) delete globalThis.window;
+    else globalThis.window = originalWindow;
+  });
+  globalThis.window = { sessionStorage: { getItem: () => "session-key" } };
+  let captured;
+  globalThis.fetch = async (_url, options) => {
+    captured = options;
+    return new Response(JSON.stringify({ status: "ok" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  await request("/api/runs", {
+    method: "POST",
+    body: "{}",
+    headers: new Headers({ "X-Trace": "trace-123", Authorization: "Basic explicit-value" }),
+  });
+  assert.equal(captured.headers.get("x-trace"), "trace-123");
+  assert.equal(captured.headers.get("content-type"), "application/json");
+  assert.equal(captured.headers.get("authorization"), "Basic explicit-value");
+});
+
+
+test("JSON content types are parsed case-insensitively", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => new Response(JSON.stringify({ status: "ok" }), {
+    status: 200,
+    headers: { "content-type": "Application/JSON; charset=UTF-8" },
+  });
+  assert.deepEqual(await request("/api/health"), { status: "ok" });
+});
+
+
 test("API errors preserve HTTP status and server detail", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });

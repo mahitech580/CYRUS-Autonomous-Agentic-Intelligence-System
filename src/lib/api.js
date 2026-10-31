@@ -41,11 +41,13 @@ export async function request(path, options = {}) {
     timedOut = true;
     controller.abort();
   }, timeout);
-  const headers = {
-    ...(fetchOptions.body ? { "Content-Type": "application/json" } : {}),
-    ...(key ? { Authorization: "Bearer " + key } : {}),
-    ...(fetchOptions.headers || {}),
-  };
+  const headers = new Headers(fetchOptions.headers || {});
+  if (fetchOptions.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (key && !headers.has("Authorization")) {
+    headers.set("Authorization", "Bearer " + key);
+  }
 
   try {
     const response = await fetch(API_BASE + path, {
@@ -54,7 +56,7 @@ export async function request(path, options = {}) {
       cache: "no-store",
       signal: controller.signal,
     });
-    const type = response.headers.get("content-type") || "";
+    const type = (response.headers.get("content-type") || "").toLowerCase();
     const body = type.includes("application/json")
       ? await response.json().catch(() => ({}))
       : await response.text().catch(() => "");
