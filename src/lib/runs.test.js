@@ -36,6 +36,20 @@ test("CSV export quotes commas, quotes and newlines and emits spreadsheet-friend
   assert.equal(csv.split("\r\n").length, 3);
 });
 
+test("CSV export neutralizes spreadsheet formulas and normalizes carriage returns", () => {
+  const csv = buildRunsCsv([
+    { id: "RUN-CSV", goal: '=HYPERLINK("https://attacker.test","open")\rnext', status: "review", progress: 100 },
+    { id: "RUN-CSV-2", goal: "  +SUM(1,2)", status: "review", progress: 100 },
+    { id: "RUN-CSV-3", goal: "@cmd", status: "review", progress: 100 },
+    { id: "RUN-CSV-4", goal: "-1+1", status: "review", progress: 100 },
+  ]);
+  assert.ok(csv.includes('"\'=HYPERLINK(""https://attacker.test"",""open"") next"'));
+  assert.ok(csv.includes('"'  +SUM(1,2)"'));
+  assert.ok(csv.includes('"'@cmd"'));
+  assert.ok(csv.includes('"'-1+1"'));
+});
+
+
 test("CSV export has a header even for an empty workflow list", () => {
   const csv = buildRunsCsv([]);
   assert.ok(csv.startsWith("\uFEFFid,goal,status,progress"));
