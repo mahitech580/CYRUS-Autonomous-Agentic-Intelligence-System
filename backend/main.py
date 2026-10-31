@@ -624,7 +624,8 @@ def get_run_events(
     next_after = page[-1].get("id") if page else after
     return {
         "items": page,
-        "total": len(page),
+        # total describes the retained event window, not just this page.
+        "total": len(run.events or []),
         "next_after": next_after,
         "has_more": has_more,
         "cursor_expired": cursor_expired,

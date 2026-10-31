@@ -245,10 +245,12 @@ def test_event_endpoint_pages_with_a_stable_cursor(client):
     assert first.status_code == 200
     body = first.json()
     assert len(body["items"]) == 2
+    assert body["total"] == 3
     assert body["has_more"] is True
     assert body["cursor_expired"] is False
     second = client.get(f"/api/runs/{run_id}/events?after={body['next_after']}&limit=2")
     assert len(second.json()["items"]) == 1
+    assert second.json()["total"] == 3
     assert second.json()["has_more"] is False
 
 
