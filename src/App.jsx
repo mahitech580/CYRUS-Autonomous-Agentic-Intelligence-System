@@ -72,7 +72,7 @@ function SectionTitle({ eyebrow, title, detail, action }) {
 function MiniBars({ runs = [] }) {
   const items = runs.slice(0, 12).reverse();
   if (!items.length) return <div className="chart-placeholder"><Activity size={17} /><span>Workflow telemetry will appear after the first run.</span></div>;
-  return <div className="mini-bars" aria-label="Completion progress for recent workflows">{items.map((run, i) => {
+  return <div className="mini-bars" role="img" aria-label="Completion progress for recent workflows">{items.map((run, i) => {
     const value = Math.max(0, Math.min(100, Number(run.progress) || 0));
     return <i key={run.id || i} style={{ height: Math.max(5, value) + "%" }} title={(run.id || "Workflow") + ": " + value + "%"} />;
   })}</div>;
@@ -431,7 +431,7 @@ export default function App() {
       <main className="main-panel">
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button open-mobile" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={19} /></button><span className="breadcrumb">Workspace</span><span className="breadcrumb-divider">/</span><strong>{view}</strong><span className="branch-chip"><GitBranch size={13} /> main</span></div>
-          <div className="topbar-actions"><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><button className="icon-button" title="Focus task prompt" aria-label="Focus task prompt" onClick={() => { setView("Overview"); window.setTimeout(() => document.getElementById("task-prompt")?.focus(), 0); }}><Command size={17} /></button><button className="top-avatar" title="Workspace profile">M</button></div>
+          <div className="topbar-actions"><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><button className="icon-button" title="Focus task prompt" aria-label="Focus task prompt" onClick={() => { setView("Overview"); window.setTimeout(() => document.getElementById("task-prompt")?.focus(), 0); }}><Command size={17} /></button><span className="top-avatar" role="img" aria-label="Workspace profile">M</span></div>
         </header>
 
         <div className="page-content">
@@ -451,7 +451,7 @@ export default function App() {
       </main>
 
       {mobileNav ? <button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation overlay" /> : null}
-      {toast ? <div className="toast"><CheckCircle2 size={17} /><span>{toast}</span><button onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div> : null}
+      {toast ? <div className="toast" role="status" aria-live="polite" aria-atomic="true"><CheckCircle2 size={17} /><span>{toast}</span><button onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div> : null}
       {selectedRun ? <RunDrawer key={selectedRun.id} run={selectedRun} onClose={() => setSelectedRun(null)} onApprove={decideRun} onCancel={cancelSelectedRun} busy={actionBusy} /> : null}
     </div>
   );
@@ -687,6 +687,7 @@ function RunDrawer({ run, onClose, onApprove, onCancel, busy }) {
   const [expandedStage, setExpandedStage] = useState(stages.length ? stages[stages.length - 1].id : "plan");
   const [note, setNote] = useState("");
   const completedTokens = stages.reduce((sum, stage) => sum + (stage.usage?.input_tokens || 0) + (stage.usage?.output_tokens || 0), 0);
+  const progressValue = Math.max(0, Math.min(100, Number(run.progress) || 0));
   function exportReport() {
     const report = [
       "# CYRUS workflow report", "",
@@ -709,7 +710,7 @@ function RunDrawer({ run, onClose, onApprove, onCancel, busy }) {
   return <div className="drawer-layer" role="dialog" aria-modal="true" aria-label="Workflow details"><button className="drawer-backdrop" onClick={onClose} aria-label="Close run details" /><aside className="run-drawer">
     <div className="drawer-head"><div><div className="eyebrow">WORKFLOW DETAILS / ARTIFACTS</div><span className="run-id">{run.id}</span></div><button className="icon-button" onClick={onClose} aria-label="Close details"><X size={17} /></button></div>
     <h2>{run.goal}</h2><StatusPill status={run.status} />
-    <div className="drawer-progress"><div><span>{run.current_stage ? "Current stage · " + run.current_stage : "Execution progress"}</span><strong>{run.progress || 0}%</strong></div><div className="capacity-track"><i style={{ width: (run.progress || 0) + "%" }} /></div></div>
+    <div className="drawer-progress"><div><span>{run.current_stage ? "Current stage · " + run.current_stage : "Execution progress"}</span><strong>{run.progress || 0}%</strong></div><div className="capacity-track" role="progressbar" aria-label="Workflow progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progressValue}><i style={{ width: progressValue + "%" }} /></div></div>
     <div className="drawer-meta"><div><span>WORKFLOW TYPE</span><strong>{run.kind || "Agent workflow"}</strong></div><div><span>AGENT STAGES</span><strong>{run.detail_loading ? "Loading details…" : stages.length + " / 7 completed"}</strong></div><div><span>UPDATED</span><strong>{run.time || "Recently"}</strong></div><div><span>MODEL USAGE</span><strong>{completedTokens.toLocaleString()} tokens</strong></div></div>
     {run.error ? <div className="run-error"><strong>Workflow failed</strong><p>{run.error}</p></div> : null}
     {run.detail_loading ? <div className="empty-state drawer-loading" role="status">Loading saved artifacts and execution history…</div> : null}
@@ -727,7 +728,7 @@ function RunDrawer({ run, onClose, onApprove, onCancel, busy }) {
       </div>;
     })}</div>
     <div className="drawer-section-title event-heading">Execution event history <span>{events.length} recorded</span></div>
-    {events.length ? <div className="drawer-event-list" aria-label="Execution event history">{events.slice().reverse().map((event, index) => {
+    {events.length ? <div className="drawer-event-list" role="log" aria-live="polite" aria-relevant="additions" aria-label="Execution event history">{events.slice().reverse().map((event, index) => {
       const eventStatus = String(event.status || "info").replace(/[^a-z0-9_-]/gi, "");
       return <article className="drawer-event" key={event.id || (event.at || "event") + "-" + index}>
         <span className={"event-marker event-marker-" + eventStatus} />
