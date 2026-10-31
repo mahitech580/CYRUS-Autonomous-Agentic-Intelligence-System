@@ -84,6 +84,30 @@ test("incremental event history remains within the backend retention window", ()
 });
 
 
+test("run polling keeps a successful status when the event request fails", () => {
+  const result = settleRunPoll(
+    { status: "fulfilled", value: { item: { id: "RUN-1", status: "running" } } },
+    { status: "rejected", reason: new Error("temporary event failure") },
+  );
+  assert.equal(result.status.status, "running");
+  assert.equal(result.statusOk, true);
+  assert.equal(result.events, null);
+  assert.equal(result.eventsOk, false);
+});
+
+test("run polling reports event success independently from status success", () => {
+  const events = { items: [{ id: "event-1" }], next_after: "event-1" };
+  const result = settleRunPoll(
+    { status: "rejected", reason: new Error("temporary status failure") },
+    { status: "fulfilled", value: events },
+  );
+  assert.equal(result.status, null);
+  assert.equal(result.statusOk, false);
+  assert.deepEqual(result.events, events);
+  assert.equal(result.eventsOk, true);
+});
+
+
 test("run detail refresh is requested only when new stages are persisted", () => {
   assert.equal(needsRunDetailRefresh(1, 0), true);
   assert.equal(needsRunDetailRefresh(2, 2), false);

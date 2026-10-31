@@ -71,6 +71,18 @@ export function mergeRunEvents(existing, incoming, replace = false) {
 }
 
 
+/** Keep successful status and event responses independent during polling. */
+export function settleRunPoll(statusResult, eventResult) {
+  const statusOk = statusResult?.status === "fulfilled" && !!statusResult.value?.item;
+  const eventsOk = eventResult?.status === "fulfilled";
+  return {
+    status: statusOk ? statusResult.value.item : null,
+    events: eventsOk ? eventResult.value : null,
+    statusOk,
+    eventsOk,
+  };
+}
+
 /** Whether the lightweight status response signals new artifact payloads. */
 export function needsRunDetailRefresh(serverStageCount, loadedStageCount) {
   const serverCount = Number(serverStageCount);

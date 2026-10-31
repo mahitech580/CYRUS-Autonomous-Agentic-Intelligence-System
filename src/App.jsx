@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh } from "./lib/runs.js";
+import { settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -214,42 +214,50 @@ export default function App() {
     }
   }
   async function refreshSelectedRun(runId, after) {
-    try {
-      // Keep the active drawer current without repeatedly downloading every saved artifact.
-      const [statusResponse, eventResponse] = await Promise.all([
-        api.getRunStatus(runId),
-        api.runEvents(runId, after),
-      ]);
-      const status = statusResponse.item;
-      if (!status) return after || "";
-      let detailItem = null;
-      const knownStageCount = loadedStageCount.current[runId] ?? 0;
-      if (needsRunDetailRefresh(status.stage_count, knownStageCount)) {
-        try {
-          const detailResponse = await api.getRun(runId);
-          detailItem = detailResponse.item || null;
-          if (detailItem) {
-            loadedStageCount.current[runId] = Array.isArray(detailItem.stages)
-              ? detailItem.stages.length
-              : knownStageCount;
-          }
-        } catch (detailError) {
-          if (detailError.status === 401) notify("Workspace access key is missing or incorrect.");
-        }
-      }
-      const incoming = Array.isArray(eventResponse.items) ? eventResponse.items : [];
-      const resetEvents = !!eventResponse.cursor_expired;
-      setSelectedRun((current) => current?.id === runId
-        ? { ...current, ...status, ...(detailItem ? { stages: detailItem.stages } : {}), events: mergeRunEvents(current.events, incoming, resetEvents) }
-        : current);
-      setRuns((current) => current.map((item) => item.id === runId
-        ? { ...item, ...status, ...(detailItem ? { stages: detailItem.stages } : {}), events: mergeRunEvents(item.events, incoming, resetEvents) }
-        : item));
-      return eventResponse.next_after || after || "";
-    } catch (error) {
-      if (error.status === 401) notify("Workspace access key is missing or incorrect.");
-      return after || "";
+    const [statusResult, eventResult] = await Promise.allSettled([
+      api.getRunStatus(runId),
+      api.runEvents(runId, after),
+    ]);
+    const poll = settleRunPoll(statusResult, eventResult);
+    if (!poll.statusOk) {
+      const error = statusResult.status === "rejected" ? statusResult.reason : null;
+      if (error?.status === 401) notify("Workspace access key is missing or incorrect.");
+      return { cursor: after || "", ok: false };
     }
+
+    // A transient event-history failure must not discard a healthy status update.
+    const status = poll.status;
+    const eventResponse = poll.events;
+    let detailItem = null;
+    const knownStageCount = loadedStageCount.current[runId] ?? 0;
+    if (needsRunDetailRefresh(status.stage_count, knownStageCount)) {
+      try {
+        const detailResponse = await api.getRun(runId);
+        detailItem = detailResponse.item || null;
+        if (detailItem) {
+          loadedStageCount.current[runId] = Array.isArray(detailItem.stages)
+            ? detailItem.stages.length
+            : knownStageCount;
+        }
+      } catch (detailError) {
+        if (detailError.status === 401) notify("Workspace access key is missing or incorrect.");
+      }
+    }
+    if (eventResult.status === "rejected" && eventResult.reason?.status === 401) {
+      notify("Workspace access key is missing or incorrect.");
+    }
+    const incoming = Array.isArray(eventResponse?.items) ? eventResponse.items : [];
+    const resetEvents = !!eventResponse?.cursor_expired;
+    setSelectedRun((current) => current?.id === runId
+      ? { ...current, ...status, ...(detailItem ? { stages: detailItem.stages } : {}), events: mergeRunEvents(current.events, incoming, resetEvents) }
+      : current);
+    setRuns((current) => current.map((item) => item.id === runId
+      ? { ...item, ...status, ...(detailItem ? { stages: detailItem.stages } : {}), events: mergeRunEvents(item.events, incoming, resetEvents) }
+      : item));
+    return {
+      cursor: eventResponse?.next_after || after || "",
+      ok: poll.eventsOk,
+    };
   }
   async function decideRun(decision, note = "") {
     if (!selectedRun || actionBusy) return;
