@@ -75,6 +75,23 @@ test("API errors preserve HTTP status and server detail", async (t) => {
   );
 });
 
+test("HTTP errors expose the server request ID for support diagnostics", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => new Response(JSON.stringify({ detail: "Provider unavailable" }), {
+    status: 503,
+    headers: { "content-type": "application/json", "x-request-id": "cyrus-request-42" },
+  });
+
+  await assert.rejects(
+    request("/api/runs"),
+    (error) => error.status === 503
+      && error.requestId === "cyrus-request-42"
+      && error.message === "Provider unavailable (Request ID: cyrus-request-42)",
+  );
+});
+
+
 test("API timeouts abort a stalled request with an actionable message", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });

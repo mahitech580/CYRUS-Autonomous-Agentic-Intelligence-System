@@ -62,8 +62,13 @@ export async function request(path, options = {}) {
       : await response.text().catch(() => "");
     if (!response.ok) {
       const message = typeof body === "object" ? body.detail || body.message : body;
-      const error = new Error(message || ("Request failed: " + response.status));
+      const requestId = response.headers.get("x-request-id");
+      const error = new Error(
+        (message || ("Request failed: " + response.status)) +
+        (requestId ? " (Request ID: " + requestId + ")" : ""),
+      );
       error.status = response.status;
+      if (requestId) error.requestId = requestId;
       throw error;
     }
     return body;
