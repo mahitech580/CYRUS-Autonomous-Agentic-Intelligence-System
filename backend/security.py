@@ -17,9 +17,12 @@ _QUOTED_ASSIGNMENT = re.compile(
 _ASSIGNMENT = re.compile(
     r"(?i)\b((?:[A-Z0-9_]*_)?(?:api[_-]?key|access[_-]?key|database[_-]?url|"
     r"connection[_-]?string|client[_-]?secret|refresh[_-]?token|password|passwd|"
-    r"secret|token|authorization))(\s*[:=]\s*)(?:(?:Bearer)\s+)?[^\s,;\"']+"
+    r"secret|token|authorization))(\s*[:=]\s*)(?:(?:Bearer|Basic)\s+)?[^\s,;\"']+"
 )
 _BEARER = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{4,}")
+_JWT = re.compile(
+    r"(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}(?![A-Za-z0-9_-])"
+)
 _PROVIDER_KEYS = re.compile(
     r"\b(?:sk-[A-Za-z0-9_-]{12,}|rk-[A-Za-z0-9_-]{12,}|"
     r"sk_(?:live|test)_[A-Za-z0-9]{12,}|rk_(?:live|test)_[A-Za-z0-9]{12,}|"
@@ -47,6 +50,7 @@ def redact_sensitive_text(value: object, *, max_length: int = 1800) -> str:
     )
     text = _ASSIGNMENT.sub(r"\1\2[REDACTED]", text)
     text = _BEARER.sub("Bearer [REDACTED]", text)
+    text = _JWT.sub("[REDACTED_TOKEN]", text)
     text = _PROVIDER_KEYS.sub("[REDACTED_KEY]", text)
     text = _URL_CREDENTIALS.sub(r"\1[REDACTED]@", text)
     text = _QUERY_SECRETS.sub(r"\1[REDACTED]", text)

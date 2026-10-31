@@ -28,6 +28,17 @@ def test_redacts_url_credentials_and_query_parameters():
     assert "token=[REDACTED]" in result
 
 
+def test_redacts_basic_authorization_and_standalone_jwt_tokens():
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTYifQ.signature1234567890"
+    basic = "dXNlcjpwYXNzd29yZA=="
+    result = redact_sensitive_text(f"Authorization: Basic {basic} session={jwt}")
+    assert basic not in result
+    assert jwt not in result
+    assert "Authorization: [REDACTED]" in result
+    assert "[REDACTED_TOKEN]" in result
+    assert "api.example.com" in redact_sensitive_text("api.example.com")
+
+
 def test_preserves_normal_text_and_respects_output_limit():
     assert redact_sensitive_text("ordinary workflow failure") == "ordinary workflow failure"
     assert redact_sensitive_text("abcdef", max_length=3) == "abc"
