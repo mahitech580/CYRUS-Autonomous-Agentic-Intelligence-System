@@ -418,6 +418,31 @@ def test_run_list_total_counts_all_records_when_results_are_limited(client):
     assert body["total"] == expected_total
 
 
+def test_run_list_omits_artifact_payloads_and_reports_detail_counts(client):
+    run = main.WorkflowRun(
+        id="RUN-SUMMARY-" + main.uuid4().hex[:8].upper(),
+        goal="Keep list responses lightweight",
+        status="review",
+        progress=100,
+        stages=[{"id": "plan", "output": "large generated artifact"}],
+        events=[{"id": "event-1", "message": "stage completed"}],
+        execution_mode="live-model",
+        approval_status="pending",
+    )
+    with main.SessionLocal() as db:
+        db.add(run)
+        db.commit()
+
+    response = client.get("/api/runs?limit=100")
+    assert response.status_code == 200
+    item = next(entry for entry in response.json()["items"] if entry["id"] == run.id)
+    assert item["stage_count"] == 1
+    assert item["event_count"] == 1
+    assert "stages" not in item
+    assert "events" not in item
+    assert "large generated artifact" not in str(item)
+
+
 def test_provider_key_selection_ignores_whitespace_and_falls_back(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "   ")
     monkeypatch.setenv("CYRUS_LLM_API_KEY", " fallback-provider-key ")

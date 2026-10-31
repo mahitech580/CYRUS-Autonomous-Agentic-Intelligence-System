@@ -182,10 +182,21 @@ export default function App() {
       setIsStarting(false);
     }
   }
-  function openRun(run) {
+  async function openRun(run) {
     if (!selectedRun) drawerReturnFocus.current = document.activeElement;
-    loadedStageCount.current[run.id] = Array.isArray(run.stages) ? run.stages.length : 0;
-    setSelectedRun(run);
+    const summary = mapRunRecord(run);
+    loadedStageCount.current[run.id] = 0;
+    setSelectedRun({ ...summary, stages: [], events: [], detail_loading: true });
+    try {
+      const response = await api.getRun(run.id);
+      const detail = mapRunRecord(response.item || response);
+      loadedStageCount.current[run.id] = Array.isArray(detail.stages) ? detail.stages.length : 0;
+      setSelectedRun((current) => current?.id === run.id ? detail : current);
+    } catch (error) {
+      setSelectedRun((current) => current?.id === run.id ? { ...current, detail_loading: false } : current);
+      notify(error.message || "Could not load workflow details.");
+      if (error.status === 401) setView("Settings");
+    }
   }
   async function refreshRuns() {
     if (refreshingRuns) return;
@@ -272,7 +283,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (!selectedRun?.id || apiState !== "connected" || !["queued", "running"].includes(selectedRun.status)) return;
+    if (!selectedRun?.id || selectedRun.detail_loading || apiState !== "connected" || !["queued", "running"].includes(selectedRun.status)) return;
     let cancelled = false;
     let timer;
     let cursor = selectedRun.events?.length
@@ -641,8 +652,9 @@ function RunDrawer({ run, onClose, onApprove, onCancel, busy }) {
     <div className="drawer-head"><div><div className="eyebrow">WORKFLOW DETAILS / ARTIFACTS</div><span className="run-id">{run.id}</span></div><button className="icon-button" onClick={onClose} aria-label="Close details"><X size={17} /></button></div>
     <h2>{run.goal}</h2><StatusPill status={run.status} />
     <div className="drawer-progress"><div><span>{run.current_stage ? "Current stage · " + run.current_stage : "Execution progress"}</span><strong>{run.progress || 0}%</strong></div><div className="capacity-track"><i style={{ width: (run.progress || 0) + "%" }} /></div></div>
-    <div className="drawer-meta"><div><span>WORKFLOW TYPE</span><strong>{run.kind || "Agent workflow"}</strong></div><div><span>AGENT STAGES</span><strong>{stages.length} / 7 completed</strong></div><div><span>UPDATED</span><strong>{run.time || "Recently"}</strong></div><div><span>MODEL USAGE</span><strong>{completedTokens.toLocaleString()} tokens</strong></div></div>
+    <div className="drawer-meta"><div><span>WORKFLOW TYPE</span><strong>{run.kind || "Agent workflow"}</strong></div><div><span>AGENT STAGES</span><strong>{run.detail_loading ? "Loading details…" : stages.length + " / 7 completed"}</strong></div><div><span>UPDATED</span><strong>{run.time || "Recently"}</strong></div><div><span>MODEL USAGE</span><strong>{completedTokens.toLocaleString()} tokens</strong></div></div>
     {run.error ? <div className="run-error"><strong>Workflow failed</strong><p>{run.error}</p></div> : null}
+    {run.detail_loading ? <div className="empty-state drawer-loading" role="status">Loading saved artifacts and execution history…</div> : null}
     <div className="drawer-section-title">Generated agent artifacts</div>
     <div className="drawer-timeline">{pipeline.map((step, index) => {
       const stageId = step.title.toLowerCase();

@@ -175,6 +175,26 @@ def as_run(item: WorkflowRun) -> dict[str, Any]:
     }
 
 
+def as_run_summary(item: WorkflowRun) -> dict[str, Any]:
+    """Return list-safe metadata without embedding potentially large model artifacts."""
+    created, updated = item.created_at, item.updated_at
+    return {
+        "id": item.id,
+        "goal": item.goal,
+        "status": item.status,
+        "progress": item.progress,
+        "created_at": created.isoformat() if created else None,
+        "updated_at": updated.isoformat() if updated else None,
+        "execution_mode": item.execution_mode,
+        "current_stage": item.current_stage,
+        "error": item.error,
+        "approval_status": item.approval_status or "pending",
+        "agent_count": len(AGENTS),
+        "stage_count": len(item.stages or []),
+        "event_count": len(item.events or []),
+    }
+
+
 def append_event(run: WorkflowRun, stage: str, agent: str, message: str, status: str) -> None:
     events = list(run.events or [])
     events.append({"id": uuid4().hex[:12], "at": utcnow().isoformat(), "stage": stage, "agent": agent, "message": redact_sensitive_text(message, max_length=2000), "status": status})
@@ -537,7 +557,7 @@ def list_runs(
     statement = select(WorkflowRun).order_by(WorkflowRun.created_at.desc(), WorkflowRun.id.desc()).limit(limit)
     items = db.scalars(statement).all()
     total = db.scalar(select(func.count()).select_from(WorkflowRun)) or 0
-    return {"items": [as_run(item) for item in items], "total": total}
+    return {"items": [as_run_summary(item) for item in items], "total": total}
 
 
 @app.post("/api/runs", status_code=202, dependencies=[Depends(require_workspace_access)])
