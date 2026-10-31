@@ -477,6 +477,20 @@ def test_api_responses_include_security_headers_and_validated_request_ids(client
     assert len(generated_id) == 32
 
 
+def test_request_logs_include_correlation_and_latency_without_query_values(client, caplog):
+    with caplog.at_level("INFO", logger="cyrus"):
+        response = client.get(
+            "/api/health?token=private-query-value",
+            headers={"X-Request-ID": "daily-log-7"},
+        )
+    assert response.status_code == 200
+    assert "request completed" in caplog.text
+    assert "request_id=daily-log-7" in caplog.text
+    assert "route=/api/health" in caplog.text
+    assert "duration_ms=" in caplog.text
+    assert "private-query-value" not in caplog.text
+
+
 def test_app_lifespan_initializes_database_schema(monkeypatch):
     calls = []
     monkeypatch.setattr(main, "ensure_schema", lambda: calls.append("initialized"))

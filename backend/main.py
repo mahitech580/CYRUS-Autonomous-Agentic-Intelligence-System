@@ -479,7 +479,30 @@ async def add_security_headers(request: Request, call_next):
     supplied_id = request.headers.get("X-Request-ID", "").strip()
     request_id = supplied_id if re.fullmatch(r"[A-Za-z0-9._-]{1,64}", supplied_id) else uuid4().hex
     request.state.request_id = request_id
-    response = await call_next(request)
+    started_at = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        route = request.scope.get("route")
+        route_path = getattr(route, "path", "/unmatched")
+        logger.exception(
+            "request failed request_id=%s method=%s route=%s duration_ms=%.1f",
+            request_id,
+            request.method,
+            route_path,
+            (time.perf_counter() - started_at) * 1000,
+        )
+        raise
+    route = request.scope.get("route")
+    route_path = getattr(route, "path", "/unmatched")
+    logger.info(
+        "request completed request_id=%s method=%s route=%s status_code=%s duration_ms=%.1f",
+        request_id,
+        request.method,
+        route_path,
+        response.status_code,
+        (time.perf_counter() - started_at) * 1000,
+    )
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
