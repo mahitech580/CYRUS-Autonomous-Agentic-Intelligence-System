@@ -44,9 +44,9 @@ test("CSV export neutralizes spreadsheet formulas and normalizes carriage return
     { id: "RUN-CSV-4", goal: "-1+1", status: "review", progress: 100 },
   ]);
   assert.ok(csv.includes('"\'=HYPERLINK(""https://attacker.test"",""open"") next"'));
-  assert.ok(csv.includes('"'  +SUM(1,2)"'));
-  assert.ok(csv.includes('"'@cmd"'));
-  assert.ok(csv.includes('"'-1+1"'));
+  assert.ok(csv.includes(`"'  +SUM(1,2)"`));
+  assert.ok(csv.includes(`"'@cmd"`));
+  assert.ok(csv.includes(`"'-1+1"`));
 });
 
 

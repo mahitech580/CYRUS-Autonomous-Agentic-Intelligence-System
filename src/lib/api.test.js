@@ -75,22 +75,27 @@ test("API errors preserve HTTP status and server detail", async (t) => {
   );
 });
 
-test("run polling API helpers forward AbortSignals and encode run IDs", async (t) => {
+test("run polling API helpers honor AbortSignals and encode run IDs", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
   const controller = new AbortController();
   let captured;
-  globalThis.fetch = async (url, options) => {
+  globalThis.fetch = (url, options) => {
     captured = { url, options };
-    return new Response(JSON.stringify({ item: { id: "RUN/1" } }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
+    return new Promise((_resolve, reject) => {
+      options.signal.addEventListener("abort", () => {
+        const error = new Error("aborted");
+        error.name = "AbortError";
+        reject(error);
+      }, { once: true });
     });
   };
 
-  await api.getRunStatus("RUN/1", { signal: controller.signal });
+  const pending = api.getRunStatus("RUN/1", { signal: controller.signal });
+  controller.abort();
+  await assert.rejects(pending, (error) => error.name === "AbortError");
   assert.equal(captured.url, "http://localhost:8000/api/runs/RUN%2F1/status");
-  assert.equal(captured.options.signal, controller.signal);
+  assert.equal(captured.options.signal.aborted, true);
 });
 
 
