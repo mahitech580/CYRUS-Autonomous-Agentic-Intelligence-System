@@ -571,3 +571,24 @@ def test_runtime_readiness_requires_a_reachable_database(client, monkeypatch):
     assert health["ready_for_runs"] is False
     assert client.get("/api/ready").status_code == 503
 
+def test_provider_endpoint_requires_https_except_for_loopback(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://api.openai.com/v1")
+    assert main.provider_ready() is False
+    with pytest.raises(RuntimeError, match="provider URL is invalid"):
+        main.complete_agent("Atlas", "Planning agent", "Plan", "Build an API", [])
+
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://localhost:9000/v1/")
+    assert main.provider_ready() is True
+    assert main.provider_endpoint() == "http://localhost:9000/v1/responses"
+
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://user:password@api.openai.com/v1")
+    assert main.provider_ready() is False
+
+
+def test_provider_identity_uses_exact_openai_hostname(monkeypatch):
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://api.notopenai.com/v1")
+    assert main.provider_name() == "OpenAI-compatible Responses API"
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    assert main.provider_name() == "OpenAI Responses API"
+

@@ -16,6 +16,7 @@ import time
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import httpx
@@ -99,8 +100,31 @@ def provider_api_key() -> str:
     return (os.getenv("OPENAI_API_KEY") or "").strip() or (os.getenv("CYRUS_LLM_API_KEY") or "").strip()
 
 
+def provider_endpoint() -> str | None:
+    """Build a safe Responses endpoint; only HTTPS or loopback HTTP is accepted."""
+    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").strip().rstrip("/")
+    try:
+        parsed = urlsplit(base_url)
+        hostname = parsed.hostname
+        _ = parsed.port  # Force validation of malformed port values.
+    except ValueError:
+        return None
+    if (
+        parsed.scheme.lower() not in {"https", "http"}
+        or not hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    if parsed.scheme.lower() == "http" and hostname.lower() not in {"localhost", "127.0.0.1", "::1"}:
+        return None
+    return base_url if base_url.endswith("/responses") else f"{base_url}/responses"
+
+
 def provider_ready() -> bool:
-    return bool(provider_api_key())
+    return bool(provider_api_key()) and provider_endpoint() is not None
 
 
 def provider_model() -> str:
@@ -108,8 +132,11 @@ def provider_model() -> str:
 
 
 def provider_name() -> str:
-    endpoint = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").lower()
-    if "openai.com" in endpoint:
+    try:
+        hostname = (urlsplit(os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")).hostname or "").lower()
+    except ValueError:
+        hostname = ""
+    if hostname == "openai.com" or hostname.endswith(".openai.com"):
         return "OpenAI Responses API"
     return "OpenAI-compatible Responses API"
 
@@ -266,8 +293,9 @@ def complete_agent(agent: str, role: str, instruction: str, goal: str, context: 
     key = provider_api_key()
     if not key:
         raise RuntimeError("No model provider configured. Add OPENAI_API_KEY to the server environment.")
-    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-    endpoint = base_url if base_url.endswith("/responses") else f"{base_url}/responses"
+    endpoint = provider_endpoint()
+    if endpoint is None:
+        raise RuntimeError("The configured model provider URL is invalid. Use HTTPS or a local HTTP endpoint.")
     history = "\n\n".join(
         f"### {entry['agent']} / {entry['stage']}\n{entry['output'][:3500]}"
         for entry in context[-5:]
