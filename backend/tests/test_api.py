@@ -676,3 +676,17 @@ def test_request_failure_logs_correlation_without_exception_text(caplog):
     assert "RuntimeError" in caplog.text
     assert "do-not-log-this-token" not in caplog.text
 
+def test_provider_rejects_unknown_and_non_string_statuses_with_partial_text(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    for status in ("partial", "", 123, {"state": "completed"}):
+        monkeypatch.setattr(
+            main.httpx,
+            "post",
+            lambda *args, _status=status, **kwargs: main.httpx.Response(
+                200,
+                json={"status": _status, "output_text": "apparently usable partial text"},
+            ),
+        )
+        with pytest.raises(RuntimeError, match="response status|did not complete"):
+            main.complete_agent("Atlas", "Planning agent", "Plan", "Build an API", [])
+

@@ -384,13 +384,15 @@ def complete_agent(agent: str, role: str, instruction: str, goal: str, context: 
     # A successful HTTP response can still contain an unfinished Responses API
     # object. Never persist partial text as a completed agent stage.
     response_status = payload.get("status")
-    if isinstance(response_status, str):
+    if response_status is not None:
+        if not isinstance(response_status, str):
+            raise RuntimeError("The model provider returned an invalid response status.")
         normalized_status = response_status.strip().lower()
         if normalized_status == "incomplete":
             raise RuntimeError(
                 "The model response was incomplete. Increase the output-token limit or retry the workflow."
             )
-        if normalized_status in {"failed", "cancelled", "canceled", "in_progress", "queued"}:
+        if normalized_status != "completed":
             raise RuntimeError("The model provider did not complete the response.")
 
     output = payload.get("output_text")
