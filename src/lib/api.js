@@ -56,12 +56,15 @@ export async function request(path, options = {}) {
       cache: "no-store",
       signal: controller.signal,
     });
-    const type = (response.headers.get("content-type") || "").toLowerCase();
-    const body = type.includes("application/json")
-      ? await response.json().catch(() => ({}))
+    const contentType = (response.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase();
+    const isJson = contentType === "application/json" || contentType.endsWith("+json");
+    const body = isJson
+      ? await response.json().catch(() => null)
       : await response.text().catch(() => "");
     if (!response.ok) {
-      const message = typeof body === "object" ? body.detail || body.message : body;
+      const message = body && typeof body === "object"
+        ? body.detail || body.message || body.title
+        : body;
       const requestId = response.headers.get("x-request-id");
       const error = new Error(
         (message || ("Request failed: " + response.status)) +

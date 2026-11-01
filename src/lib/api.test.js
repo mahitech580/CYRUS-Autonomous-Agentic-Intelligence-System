@@ -143,3 +143,39 @@ test("network failures are normalized without hiding HTTP errors", async (t) => 
     /Could not reach the CYRUS API/,
   );
 });
+
+test("API client parses RFC 9457 problem JSON responses", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    type: "about:blank",
+    title: "Service unavailable",
+    detail: "The database is temporarily unavailable.",
+    status: 503,
+  }), {
+    status: 503,
+    headers: { "content-type": "Application/Problem+JSON; charset=utf-8" },
+  });
+
+  await assert.rejects(
+    request("/api/runs"),
+    (error) => error.status === 503
+      && error.message === "The database is temporarily unavailable.",
+  );
+});
+
+
+test("API client handles a null JSON error body without throwing a TypeError", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => new Response("null", {
+    status: 502,
+    headers: { "content-type": "application/json" },
+  });
+
+  await assert.rejects(
+    request("/api/health"),
+    (error) => error.status === 502 && error.message === "Request failed: 502",
+  );
+});
+
