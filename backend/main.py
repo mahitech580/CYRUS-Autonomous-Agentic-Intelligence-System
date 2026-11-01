@@ -880,6 +880,44 @@ def cancel_run(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     return {"item": as_run(run), "notice": "Cancellation recorded."}
 
 
+
+@app.post("/api/runs/{run_id}/retry", status_code=202, dependencies=[Depends(require_workspace_access)])
+def retry_run(run_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, Any]:
+    source = db.get(WorkflowRun, run_id)
+    if source is None:
+        raise HTTPException(status_code=404, detail="Workflow run not found.")
+    if source.status != "failed":
+        raise HTTPException(status_code=409, detail="Only failed workflows can be retried.")
+
+    if not provider_ready():
+        raise HTTPException(status_code=503, detail="Real AI is not configured. Add OPENAI_API_KEY to the server environment.")
+    if not database_is_durable():
+        raise HTTPException(status_code=503, detail="Persistent storage is not configured. Set DATABASE_URL to managed PostgreSQL or MySQL before retrying production runs.")
+
+    retried = WorkflowRun(
+        id="RUN-" + uuid4().hex[:10].upper(),
+        goal=source.goal,
+        status="queued",
+        progress=0,
+        stages=[],
+        events=[],
+        execution_mode="live-model",
+        approval_status="pending",
+    )
+    append_event(
+        retried,
+        "workflow",
+        "CYRUS",
+        f"Retry queued from failed workflow {source.id}. Previous artifacts remain available in the original run.",
+        "queued",
+    )
+    db.add(retried)
+    db.commit()
+    db.refresh(retried)
+    background_tasks.add_task(execute_workflow, retried.id)
+    return {"item": as_run(retried), "notice": "A new workflow attempt was queued; the failed run and its artifacts were preserved."}
+
+
 @app.get("/api/ready")
 def ready() -> dict[str, Any]:
     if not database_is_reachable():
