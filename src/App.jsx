@@ -728,7 +728,7 @@ function RunDrawer({ run, onClose, onApprove, onCancel, busy }) {
       </div>;
     })}</div>
     <div className="drawer-section-title event-heading">Execution event history <span>{events.length} recorded</span></div>
-    {events.length ? <div className="drawer-event-list" role="log" aria-live="polite" aria-relevant="additions" aria-label="Execution event history">{events.slice().reverse().map((event, index) => {
+    {events.length ? <div className="drawer-event-list" role="region" aria-live="polite" aria-relevant="additions text" aria-label="Execution event history">{events.slice().reverse().map((event, index) => {
       const eventStatus = String(event.status || "info").replace(/[^a-z0-9_-]/gi, "");
       return <article className="drawer-event" key={event.id || (event.at || "event") + "-" + index}>
         <span className={"event-marker event-marker-" + eventStatus} />
