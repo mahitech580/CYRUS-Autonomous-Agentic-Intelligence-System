@@ -702,4 +702,5 @@ def test_provider_marks_output_that_exceeds_artifact_limit(monkeypatch):
     assert len(output) <= 30000
     assert output.startswith("A" * 100)
     assert output.endswith("[Output truncated by CYRUS at 30,000 characters.]")
+    assert "\n\n[Output truncated" in output
 
