@@ -23,7 +23,8 @@ import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, JSON, String, create_engine, func, inspect, select, text, update
+from sqlalchemy import DateTime, Index, JSON, String, create_engine, func, inspect, select, text, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 try:
@@ -46,6 +47,7 @@ class Base(DeclarativeBase):
 
 class WorkflowRun(Base):
     __tablename__ = "workflow_runs"
+    __table_args__ = (Index("uq_workflow_runs_idempotency_key", "idempotency_key", unique=True),)
 
     id: Mapped[str] = mapped_column(String(48), primary_key=True)
     goal: Mapped[str] = mapped_column(String(1200), nullable=False)
@@ -60,6 +62,7 @@ class WorkflowRun(Base):
     error: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     approval_status: Mapped[str] = mapped_column(String(24), default="pending", nullable=False)
     execution_token: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
 
 AGENTS = [
@@ -178,11 +181,14 @@ def ensure_schema() -> None:
         "error": "VARCHAR(2000)",
         "approval_status": "VARCHAR(24) NOT NULL DEFAULT 'pending'",
         "execution_token": "VARCHAR(48)",
+        "idempotency_key": "VARCHAR(128)",
     }
     with engine.begin() as connection:
         for name, sql_type in additive.items():
             if name not in existing:
                 connection.execute(text(f"ALTER TABLE workflow_runs ADD COLUMN {name} {sql_type}"))
+    idempotency_index = next(index for index in WorkflowRun.__table__.indexes if index.name == "uq_workflow_runs_idempotency_key")
+    idempotency_index.create(bind=engine, checkfirst=True)
 
 
 def get_db():
@@ -579,7 +585,7 @@ app.add_middleware(
     allow_origins=configured_cors_origins(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key"],
     expose_headers=["X-Request-ID"],
 )
 
@@ -694,16 +700,33 @@ def list_runs(
 
 
 @app.post("/api/runs", status_code=202, dependencies=[Depends(require_workspace_access)])
-def create_run(payload: RunCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, Any]:
+def create_run(
+    payload: RunCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+) -> dict[str, Any]:
     goal = redact_sensitive_text(payload.goal.strip(), max_length=1200)
+    if len(goal) < 8:
+        raise HTTPException(status_code=422, detail="Describe the engineering outcome in at least 8 characters.")
+
+    request_key = idempotency_key.strip() if idempotency_key is not None else None
+    if request_key is not None:
+        if not re.fullmatch(r"[A-Za-z0-9._:-]{8,128}", request_key):
+            raise HTTPException(status_code=400, detail="Idempotency-Key must contain 8–128 safe ASCII characters.")
+        existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == request_key))
+        if existing is not None:
+            if existing.goal != goal:
+                raise HTTPException(status_code=409, detail="This Idempotency-Key was already used for a different workflow goal.")
+            return {"item": as_run(existing), "notice": "The workflow was already accepted with this idempotency key."}
+
     if os.getenv("VERCEL") and not os.getenv("CYRUS_ACCESS_KEY", "").strip():
         raise HTTPException(status_code=503, detail="Workspace access control is not configured. Add CYRUS_ACCESS_KEY to the server environment.")
     if not provider_ready():
         raise HTTPException(status_code=503, detail="Real AI is not configured. Add OPENAI_API_KEY to the server environment.")
     if not database_is_durable():
         raise HTTPException(status_code=503, detail="Persistent storage is not configured. Set DATABASE_URL to managed PostgreSQL or MySQL before creating production runs.")
-    if len(goal) < 8:
-        raise HTTPException(status_code=422, detail="Describe the engineering outcome in at least 8 characters.")
+
     run = WorkflowRun(
         id="RUN-" + uuid4().hex[:10].upper(),
         goal=goal,
@@ -713,10 +736,23 @@ def create_run(payload: RunCreate, background_tasks: BackgroundTasks, db: Sessio
         events=[],
         execution_mode="live-model",
         approval_status="pending",
+        idempotency_key=request_key,
     )
     append_event(run, "workflow", "CYRUS", "Run queued for seven real model-backed stages.", "queued")
     db.add(run)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        if request_key is None:
+            raise
+        existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == request_key))
+        if existing is None:
+            raise HTTPException(status_code=409, detail="The workflow could not reserve this idempotency key. Retry with a new key.")
+        if existing.goal != goal:
+            raise HTTPException(status_code=409, detail="This Idempotency-Key was already used for a different workflow goal.")
+        return {"item": as_run(existing), "notice": "The workflow was already accepted with this idempotency key."}
+
     db.refresh(run)
     background_tasks.add_task(execute_workflow, run.id)
     return {"item": as_run(run), "notice": "Accepted. Model-backed agent stages are starting."}
