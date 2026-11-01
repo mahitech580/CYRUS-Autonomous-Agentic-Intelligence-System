@@ -109,8 +109,9 @@ export const api = {
   cancelRun: (runId) => request("/api/runs/" + encodeURIComponent(runId) + "/cancel", {
     method: "POST",
   }),
-  createRun: (goal) => request("/api/runs", {
+  createRun: (goal, idempotencyKey) => request("/api/runs", {
     method: "POST",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
     body: JSON.stringify({ goal }),
   }),
 };

@@ -179,3 +179,21 @@ test("API client handles a null JSON error body without throwing a TypeError", a
   );
 });
 
+
+test("createRun sends the idempotency key as a request header", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let captured;
+  globalThis.fetch = async (_url, options) => {
+    captured = options;
+    return new Response(JSON.stringify({ item: { id: "RUN-IDEMPOTENT" } }), {
+      status: 202,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  await api.createRun("Build an idempotent workflow", "cyrus-request-key-123");
+  assert.equal(captured.headers.get("idempotency-key"), "cyrus-request-key-123");
+  assert.equal(captured.method, "POST");
+});
+
