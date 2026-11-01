@@ -595,14 +595,12 @@ def test_provider_identity_uses_exact_openai_hostname(monkeypatch):
     assert main.provider_name() == "OpenAI Responses API"
 
 def test_cors_exposes_request_id_for_browser_error_diagnostics(client):
-    response = client.options(
+    response = client.get(
         "/api/health",
-        headers={
-            "Origin": "http://localhost:5173",
-            "Access-Control-Request-Method": "GET",
-        },
+        headers={"Origin": "http://localhost:5173"},
     )
     assert response.status_code == 200
+    assert response.headers.get("x-request-id")
     exposed = response.headers.get("access-control-expose-headers", "").lower()
     assert "x-request-id" in exposed
 
