@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import os
 import sys
 from pathlib import Path
@@ -645,4 +647,32 @@ def test_database_timestamps_are_serialized_as_explicit_utc(client):
     assert detail["updated_at"] == "2026-11-01T12:30:00+00:00"
     assert status["updated_at"] == "2026-11-01T12:30:00+00:00"
     assert summary["created_at"] == "2026-11-01T12:30:00+00:00"
+
+def test_request_failure_logs_correlation_without_exception_text(caplog):
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": "/api/private",
+        "raw_path": b"/api/private",
+        "query_string": b"",
+        "headers": [(b"x-request-id", b"safe-correlation-42")],
+        "server": ("testserver", 80),
+        "client": ("testclient", 1234),
+        "root_path": "",
+    }
+    request = main.Request(scope)
+
+    async def fail_with_secret(_request):
+        raise RuntimeError("Bearer do-not-log-this-token")
+
+    with caplog.at_level(logging.ERROR, logger="cyrus"):
+        with pytest.raises(RuntimeError):
+            asyncio.run(main.add_security_headers(request, fail_with_secret))
+
+    assert "safe-correlation-42" in caplog.text
+    assert "RuntimeError" in caplog.text
+    assert "do-not-log-this-token" not in caplog.text
 

@@ -587,14 +587,17 @@ async def add_security_headers(request: Request, call_next):
     started_at = time.perf_counter()
     try:
         response = await call_next(request)
-    except Exception:
+    except Exception as exc:
         route = request.scope.get("route")
         route_path = getattr(route, "path", "/unmatched")
-        logger.exception(
-            "request failed request_id=%s method=%s route=%s duration_ms=%.1f",
+        # Exception strings and tracebacks can contain SQL parameters, request
+        # values or upstream payloads. Correlate failures without logging them.
+        logger.error(
+            "request failed request_id=%s method=%s route=%s exception_type=%s duration_ms=%.1f",
             request_id,
             request.method,
             route_path,
+            type(exc).__name__,
             (time.perf_counter() - started_at) * 1000,
         )
         raise
