@@ -22,7 +22,7 @@ import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, JSON, String, create_engine, func, inspect, select, text
+from sqlalchemy import DateTime, JSON, String, create_engine, func, inspect, select, text, update
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 try:
@@ -58,6 +58,7 @@ class WorkflowRun(Base):
     current_stage: Mapped[str | None] = mapped_column(String(48), nullable=True)
     error: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     approval_status: Mapped[str] = mapped_column(String(24), default="pending", nullable=False)
+    execution_token: Mapped[str | None] = mapped_column(String(48), nullable=True)
 
 
 AGENTS = [
@@ -129,6 +130,7 @@ def ensure_schema() -> None:
         "current_stage": "VARCHAR(48)",
         "error": "VARCHAR(2000)",
         "approval_status": "VARCHAR(24) NOT NULL DEFAULT 'pending'",
+        "execution_token": "VARCHAR(48)",
     }
     with engine.begin() as connection:
         for name, sql_type in additive.items():
@@ -390,16 +392,29 @@ def get_run_for_update(db: Session, run_id: str) -> WorkflowRun | None:
 
 
 def execute_workflow(run_id: str) -> None:
-    """Execute the seven real model steps and leave the final result for human review."""
+    """Claim a queued run once, execute its seven model steps, and leave it for review."""
     context: list[dict[str, str]] = []
+    worker_token = uuid4().hex
     try:
+        # A conditional UPDATE is an atomic compare-and-set on SQLite and SQL
+        # databases. A duplicate BackgroundTask cannot start a second worker.
+        with SessionLocal() as db:
+            claim = db.execute(
+                update(WorkflowRun)
+                .where(WorkflowRun.id == run_id, WorkflowRun.status == "queued")
+                .values(status="running", execution_token=worker_token, updated_at=utcnow())
+            )
+            if claim.rowcount != 1:
+                db.rollback()
+                return
+            db.commit()
+
         for index, (stage_id, agent, role, instruction) in enumerate(STAGE_DEFINITIONS, start=1):
             with SessionLocal() as db:
                 run = get_run_for_update(db, run_id)
-                if run is None or run.status in {"cancelled", "rejected"}:
+                if run is None or run.status != "running" or run.execution_token != worker_token:
                     return
                 goal = run.goal
-                run.status = "running"
                 run.current_stage = stage_id
                 append_event(run, stage_id, agent, f"{agent} started the {stage_id} stage.", "started")
                 db.commit()
@@ -420,7 +435,7 @@ def execute_workflow(run_id: str) -> None:
             context.append({"stage": stage_id, "agent": agent, "output": output})
             with SessionLocal() as db:
                 run = get_run_for_update(db, run_id)
-                if run is None or run.status in {"cancelled", "rejected"}:
+                if run is None or run.status != "running" or run.execution_token != worker_token:
                     return
                 run.stages = list(run.stages or []) + [stage_record]
                 run.progress = int(index / len(STAGE_DEFINITIONS) * 100)
@@ -430,10 +445,11 @@ def execute_workflow(run_id: str) -> None:
 
         with SessionLocal() as db:
             run = get_run_for_update(db, run_id)
-            if run is None or run.status in {"cancelled", "rejected"}:
+            if run is None or run.status != "running" or run.execution_token != worker_token:
                 return
             run.status = "review"
             run.current_stage = None
+            run.execution_token = None
             run.approval_status = "pending"
             append_event(run, "review", "CYRUS", "All seven model stages completed. Review the generated artifacts before approving any release action.", "approval_required")
             run.updated_at = utcnow()
@@ -443,11 +459,12 @@ def execute_workflow(run_id: str) -> None:
         logger.warning("workflow %s failed: %s", run_id, safe_error)
         with SessionLocal() as db:
             run = get_run_for_update(db, run_id)
-            if run is not None and run.status not in {"cancelled", "rejected"}:
+            if run is not None and run.status == "running" and run.execution_token == worker_token:
                 run.status = "failed"
                 run.error = safe_error
                 run.current_stage = None
-                append_event(run, run.current_stage or "workflow", "CYRUS", safe_error, "failed")
+                run.execution_token = None
+                append_event(run, "workflow", "CYRUS", safe_error, "failed")
                 run.updated_at = utcnow()
                 db.commit()
 
