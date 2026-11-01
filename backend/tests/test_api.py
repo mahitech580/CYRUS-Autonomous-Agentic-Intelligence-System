@@ -207,6 +207,64 @@ def test_approval_is_logged_but_does_not_deploy(client, monkeypatch):
     assert "does not trigger a deployment" in body["item"]["events"][-1]["message"]
 
 
+
+def test_approval_decision_is_single_use(client):
+    run_id = "RUN-APPROVAL-CAS-" + main.uuid4().hex[:8].upper()
+    run = main.WorkflowRun(
+        id=run_id,
+        goal="Protect the human approval state transition",
+        status="review",
+        progress=100,
+        stages=[],
+        events=[],
+        execution_mode="live-model",
+        approval_status="pending",
+    )
+    with main.SessionLocal() as db:
+        db.add(run)
+        db.commit()
+
+    approved = client.post(f"/api/runs/{run_id}/approval", json={"decision": "approve"})
+    rejected = client.post(f"/api/runs/{run_id}/approval", json={"decision": "reject"})
+
+    assert approved.status_code == 200
+    assert rejected.status_code == 409
+    with main.SessionLocal() as db:
+        saved = db.get(main.WorkflowRun, run_id)
+        assert saved.status == "approved"
+        assert saved.approval_status == "approved"
+        assert len(saved.events) == 1
+
+
+def test_cancellation_transition_is_single_use(client):
+    run_id = "RUN-CANCEL-CAS-" + main.uuid4().hex[:8].upper()
+    run = main.WorkflowRun(
+        id=run_id,
+        goal="Protect the workflow cancellation state transition",
+        status="running",
+        progress=20,
+        stages=[],
+        events=[],
+        execution_mode="live-model",
+        approval_status="pending",
+        execution_token="worker-cas-token",
+    )
+    with main.SessionLocal() as db:
+        db.add(run)
+        db.commit()
+
+    first = client.post(f"/api/runs/{run_id}/cancel")
+    second = client.post(f"/api/runs/{run_id}/cancel")
+
+    assert first.status_code == 200
+    assert second.status_code == 409
+    with main.SessionLocal() as db:
+        saved = db.get(main.WorkflowRun, run_id)
+        assert saved.status == "cancelled"
+        assert saved.execution_token is None
+        assert len(saved.events) == 1
+
+
 def test_missing_run_is_404(client):
     response = client.get("/api/runs/RUN-NOT-REAL")
     assert response.status_code == 404
