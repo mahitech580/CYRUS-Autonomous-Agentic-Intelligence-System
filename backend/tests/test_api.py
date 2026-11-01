@@ -557,3 +557,17 @@ def test_cancel_clears_worker_ownership(client):
         assert saved.status == "cancelled"
         assert saved.execution_token is None
 
+def test_runtime_readiness_requires_a_reachable_database(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setattr(main, "database_is_reachable", lambda: False)
+
+    config = client.get("/api/config").json()
+    assert config["database_reachable"] is False
+    assert config["can_start_runs"] is False
+
+    health = client.get("/api/health").json()
+    assert health["status"] == "degraded"
+    assert health["ready_for_runs"] is False
+    assert client.get("/api/ready").status_code == 503
+

@@ -122,6 +122,17 @@ def database_is_durable() -> bool:
     return not bool(os.getenv("VERCEL")) and engine.dialect.name == "sqlite"
 
 
+def database_is_reachable() -> bool:
+    """Check liveness without exposing database exception text or connection details."""
+    try:
+        with engine.connect() as connection:
+            connection.exec_driver_sql("SELECT 1")
+        return True
+    except Exception as exc:
+        logger.warning("database health check failed exception_type=%s", type(exc).__name__)
+        return False
+
+
 def ensure_schema() -> None:
     Base.metadata.create_all(bind=engine)
     # Small additive upgrade path for installations created with v0.1.0.
@@ -536,6 +547,7 @@ def root() -> dict[str, str]:
 
 @app.get("/api/config")
 def config() -> dict[str, Any]:
+    database_ok = database_is_reachable()
     durable = database_is_durable()
     ready = provider_ready()
     access_control = bool(os.getenv("CYRUS_ACCESS_KEY", "").strip())
@@ -548,25 +560,20 @@ def config() -> dict[str, Any]:
         "provider": provider_name() if ready else None,
         "model": provider_model() if ready else None,
         "persistent_storage": durable,
+        "database_reachable": database_ok,
         "database_dialect": engine.dialect.name,
         "storage_warning": None if durable else "A persistent PostgreSQL/MySQL database is required for production runs.",
         "auth_required": access_control_required,
         "access_control_configured": access_control_configured,
         "web_search_enabled": os.getenv("CYRUS_ENABLE_WEB_SEARCH", "false").lower() in {"1", "true", "yes"},
         "execution_mode": "live-model" if ready else "not-configured",
-        "can_start_runs": ready and durable and access_control_configured,
+        "can_start_runs": database_ok and ready and durable and access_control_configured,
     }
 
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
-    database_ok = False
-    try:
-        with engine.connect() as connection:
-            connection.exec_driver_sql("SELECT 1")
-        database_ok = True
-    except Exception:
-        pass
+    database_ok = database_is_reachable()
     ready = provider_ready()
     durable = database_is_durable()
     access_configured = bool(os.getenv("CYRUS_ACCESS_KEY", "").strip()) or not bool(os.getenv("VERCEL"))
@@ -729,11 +736,8 @@ def cancel_run(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
 
 @app.get("/api/ready")
 def ready() -> dict[str, Any]:
-    try:
-        with engine.connect() as connection:
-            connection.exec_driver_sql("SELECT 1")
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail="Database is not ready.") from exc
+    if not database_is_reachable():
+        raise HTTPException(status_code=503, detail="Database is not ready.")
     if not database_is_durable():
         raise HTTPException(status_code=503, detail="Persistent production storage is not configured.")
     if not provider_ready():
