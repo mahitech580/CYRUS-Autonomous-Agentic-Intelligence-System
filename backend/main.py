@@ -787,16 +787,31 @@ def get_run_events(
 
 @app.post("/api/runs/{run_id}/approval", dependencies=[Depends(require_workspace_access)])
 def approve_run(run_id: str, payload: ApprovalRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
-    run = get_run_for_update(db, run_id)
+    decision = payload.decision
+    target_status = "approved" if decision == "approve" else "rejected"
+    transition = db.execute(
+        update(WorkflowRun)
+        .where(WorkflowRun.id == run_id, WorkflowRun.status == "review")
+        .values(status=target_status, approval_status=target_status, updated_at=utcnow())
+    )
+    if transition.rowcount != 1:
+        existing = db.get(WorkflowRun, run_id)
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Workflow run not found.")
+        raise HTTPException(status_code=409, detail="Only runs awaiting review can be approved or rejected.")
+
+    # Conditional UPDATE is the compare-and-set: only one operator decision can
+    # win, including on SQLite where SELECT ... FOR UPDATE is not enforced.
+    db.expire_all()
+    run = db.get(WorkflowRun, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Workflow run not found.")
-    if run.status != "review":
-        raise HTTPException(status_code=409, detail="Only runs awaiting review can be approved or rejected.")
-    decision = payload.decision
-    run.approval_status = "approved" if decision == "approve" else "rejected"
-    run.status = "approved" if decision == "approve" else "rejected"
-    note = payload.note.strip() or ("Human approved the workflow artifacts." if decision == "approve" else "Human rejected the workflow artifacts.")
-    append_event(run, "approval", "Workspace operator", note + " This decision does not trigger a deployment.", run.approval_status)
+    note = payload.note.strip() or (
+        "Human approved the workflow artifacts."
+        if decision == "approve"
+        else "Human rejected the workflow artifacts."
+    )
+    append_event(run, "approval", "Workspace operator", note + " This decision does not trigger a deployment.", target_status)
     run.updated_at = utcnow()
     db.commit()
     db.refresh(run)
@@ -805,14 +820,23 @@ def approve_run(run_id: str, payload: ApprovalRequest, db: Session = Depends(get
 
 @app.post("/api/runs/{run_id}/cancel", dependencies=[Depends(require_workspace_access)])
 def cancel_run(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
-    run = get_run_for_update(db, run_id)
+    transition = db.execute(
+        update(WorkflowRun)
+        .where(WorkflowRun.id == run_id, WorkflowRun.status.in_({"queued", "running"}))
+        .values(status="cancelled", current_stage=None, execution_token=None, updated_at=utcnow())
+    )
+    if transition.rowcount != 1:
+        existing = db.get(WorkflowRun, run_id)
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Workflow run not found.")
+        raise HTTPException(status_code=409, detail="Only queued or running runs can be cancelled.")
+
+    # Re-read the row after the conditional state transition so the event is
+    # appended to the winning state, not to a stale ORM snapshot.
+    db.expire_all()
+    run = db.get(WorkflowRun, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Workflow run not found.")
-    if run.status not in {"queued", "running"}:
-        raise HTTPException(status_code=409, detail="Only queued or running runs can be cancelled.")
-    run.status = "cancelled"
-    run.current_stage = None
-    run.execution_token = None
     append_event(run, "workflow", "Workspace operator", "Run cancellation requested. The active provider request may finish before the worker stops.", "cancelled")
     run.updated_at = utcnow()
     db.commit()
