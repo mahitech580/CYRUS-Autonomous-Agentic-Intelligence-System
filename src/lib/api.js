@@ -20,6 +20,31 @@ export function setAccessKey(value) {
   }
 }
 
+
+function errorMessageFromBody(body, status) {
+  let detail = body;
+  if (body && typeof body === "object" && !Array.isArray(body)) {
+    detail = body.detail ?? body.message ?? body.title;
+  }
+  if (Array.isArray(detail)) {
+    const messages = detail.map((entry) => {
+      if (typeof entry === "string") return entry;
+      if (!entry || typeof entry !== "object") return "";
+      const message = typeof entry.msg === "string"
+        ? entry.msg
+        : typeof entry.message === "string" ? entry.message : "";
+      const location = Array.isArray(entry.loc)
+        ? entry.loc.filter((part) => typeof part === "string" || typeof part === "number")
+          .filter((part) => part !== "body").join(".")
+        : "";
+      return message ? (location ? location + ": " + message : message) : "";
+    }).filter(Boolean);
+    if (messages.length) return messages.join("; ").slice(0, 500);
+  }
+  if (typeof detail === "string" && detail.trim()) return detail.trim().slice(0, 500);
+  return "Request failed: " + status;
+}
+
 export async function request(path, options = {}) {
   const key = getAccessKey();
   const {
@@ -62,9 +87,7 @@ export async function request(path, options = {}) {
       ? await response.json().catch(() => null)
       : await response.text().catch(() => "");
     if (!response.ok) {
-      const message = body && typeof body === "object"
-        ? body.detail || body.message || body.title
-        : body;
+      const message = errorMessageFromBody(body, response.status);
       const requestId = response.headers.get("x-request-id");
       const error = new Error(
         (message || ("Request failed: " + response.status)) +

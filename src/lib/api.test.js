@@ -197,3 +197,24 @@ test("createRun sends the idempotency key as a request header", async (t) => {
   assert.equal(captured.method, "POST");
 });
 
+
+test("API client formats FastAPI validation errors into actionable field messages", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    detail: [
+      { loc: ["body", "goal"], msg: "String should have at least 8 characters", type: "string_too_short" },
+      { loc: ["body", "other"], msg: "Field required", type: "missing" },
+    ],
+  }), {
+    status: 422,
+    headers: { "content-type": "application/json", "x-request-id": "validation-42" },
+  });
+
+  await assert.rejects(
+    request("/api/runs"),
+    (error) => error.status === 422
+      && error.requestId === "validation-42"
+      && error.message === "goal: String should have at least 8 characters; other: Field required (Request ID: validation-42)",
+  );
+});
