@@ -265,6 +265,68 @@ def test_cancellation_transition_is_single_use(client):
         assert len(saved.events) == 1
 
 
+
+def test_create_run_replays_idempotency_key_without_scheduling_twice(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    scheduled = []
+    monkeypatch.setattr(main, "execute_workflow", lambda run_id: scheduled.append(run_id))
+    headers = {"Idempotency-Key": "cyrus-run-request-2026-001"}
+    payload = {"goal": "Build a secure account API with idempotent creation"}
+
+    first = client.post("/api/runs", json=payload, headers=headers)
+    assert first.status_code == 202
+    run_id = first.json()["item"]["id"]
+
+    # A replay remains safe even if provider configuration changes after the
+    # original request was accepted.
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    replay = client.post("/api/runs", json=payload, headers=headers)
+
+    assert replay.status_code == 202
+    assert replay.json()["item"]["id"] == run_id
+    assert len(scheduled) == 1
+    with main.SessionLocal() as db:
+        matches = db.query(main.WorkflowRun).filter_by(idempotency_key=headers["Idempotency-Key"]).all()
+        assert len(matches) == 1
+
+
+def test_create_run_rejects_idempotency_key_reuse_for_another_goal(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    scheduled = []
+    monkeypatch.setattr(main, "execute_workflow", lambda run_id: scheduled.append(run_id))
+    headers = {"Idempotency-Key": "cyrus-run-request-2026-002"}
+
+    first = client.post(
+        "/api/runs",
+        json={"goal": "Build a secure account API with one accepted request"},
+        headers=headers,
+    )
+    conflict = client.post(
+        "/api/runs",
+        json={"goal": "Build a different billing API with the same request key"},
+        headers=headers,
+    )
+
+    assert first.status_code == 202
+    assert conflict.status_code == 409
+    assert len(scheduled) == 1
+
+
+def test_create_run_rejects_malformed_idempotency_keys_before_scheduling(client):
+    response = client.post(
+        "/api/runs",
+        json={"goal": "Build a secure account API with idempotency"},
+        headers={"Idempotency-Key": "bad"},
+    )
+    assert response.status_code == 400
+    assert "Idempotency-Key" in response.json()["detail"]
+
+
 def test_missing_run_is_404(client):
     response = client.get("/api/runs/RUN-NOT-REAL")
     assert response.status_code == 404
