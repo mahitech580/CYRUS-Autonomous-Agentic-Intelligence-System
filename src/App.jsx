@@ -704,8 +704,15 @@ function RunDrawer({ run, onClose, onApprove, onCancel, busy }) {
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = "cyrus-" + run.id.toLowerCase() + "-report.md";
-    anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.hidden = true;
+    document.body.appendChild(anchor);
+    try {
+      anchor.click();
+    } finally {
+      anchor.remove();
+      // Let the browser finish reading the Blob URL before releasing it.
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
   }
   return <div className="drawer-layer" role="dialog" aria-modal="true" aria-label="Workflow details"><button className="drawer-backdrop" onClick={onClose} aria-label="Close run details" /><aside className="run-drawer">
     <div className="drawer-head"><div><div className="eyebrow">WORKFLOW DETAILS / ARTIFACTS</div><span className="run-id">{run.id}</span></div><button className="icon-button" onClick={onClose} aria-label="Close details"><X size={17} /></button></div>
