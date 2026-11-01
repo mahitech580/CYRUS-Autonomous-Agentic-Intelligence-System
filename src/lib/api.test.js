@@ -218,3 +218,20 @@ test("API client formats FastAPI validation errors into actionable field message
       && error.message === "goal: String should have at least 8 characters; other: Field required (Request ID: validation-42)",
   );
 });
+
+test("retryRun posts to the encoded workflow retry endpoint", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let captured;
+  globalThis.fetch = async (url, options) => {
+    captured = { url, options };
+    return new Response(JSON.stringify({ item: { id: "RUN-RETRY" } }), {
+      status: 202,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  await api.retryRun("RUN/failed");
+  assert.equal(captured.url, "http://localhost:8000/api/runs/RUN%2Ffailed/retry");
+  assert.equal(captured.options.method, "POST");
+});

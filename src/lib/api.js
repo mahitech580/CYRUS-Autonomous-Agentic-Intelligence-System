@@ -129,6 +129,7 @@ export const api = {
     method: "POST",
     body: JSON.stringify({ decision, note }),
   }),
+  retryRun: (runId) => request("/api/runs/" + encodeURIComponent(runId) + "/retry", { method: "POST" }),
   cancelRun: (runId) => request("/api/runs/" + encodeURIComponent(runId) + "/cancel", {
     method: "POST",
   }),

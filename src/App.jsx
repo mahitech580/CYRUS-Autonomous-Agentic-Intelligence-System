@@ -277,6 +277,23 @@ export default function App() {
       setActionBusy(false);
     }
   }
+  async function retrySelectedRun() {
+    if (!selectedRun || actionBusy) return;
+    const sourceId = selectedRun.id;
+    setActionBusy(true);
+    try {
+      const response = await api.retryRun(sourceId);
+      const retried = mapRunRecord(response.item || response);
+      loadedStageCount.current[retried.id] = Array.isArray(retried.stages) ? retried.stages.length : 0;
+      setRuns((current) => [retried, ...current.filter((item) => item.id !== retried.id)]);
+      setSelectedRun(retried);
+      notify("Retry queued as " + retried.id + ". The original failed workflow was preserved.");
+    } catch (error) {
+      notify(error.message || "Could not retry the failed workflow.");
+    } finally {
+      setActionBusy(false);
+    }
+  }
   async function cancelSelectedRun() {
     if (!selectedRun || actionBusy) return;
     setActionBusy(true);
@@ -455,7 +472,7 @@ export default function App() {
 
       {mobileNav ? <button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation overlay" /> : null}
       {toast ? <div className="toast" role="status" aria-live="polite" aria-atomic="true"><CheckCircle2 size={17} /><span>{toast}</span><button onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div> : null}
-      {selectedRun ? <RunDrawer key={selectedRun.id} run={selectedRun} onClose={() => setSelectedRun(null)} onApprove={decideRun} onCancel={cancelSelectedRun} busy={actionBusy} /> : null}
+      {selectedRun ? <RunDrawer key={selectedRun.id} run={selectedRun} onClose={() => setSelectedRun(null)} onApprove={decideRun} onCancel={cancelSelectedRun} onRetry={retrySelectedRun} busy={actionBusy} /> : null}
     </div>
   );
 }
@@ -684,7 +701,7 @@ function formatEventTime(value) {
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString();
 }
 
-function RunDrawer({ run, onClose, onApprove, onCancel, busy }) {
+function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
   const stages = Array.isArray(run.stages) ? run.stages : [];
   const events = Array.isArray(run.events) ? run.events : [];
   const [expandedStage, setExpandedStage] = useState(stages.length ? stages[stages.length - 1].id : "plan");
@@ -750,6 +767,7 @@ function RunDrawer({ run, onClose, onApprove, onCancel, busy }) {
       </article>;
     })}</div> : <div className="empty-state drawer-empty-events"><Activity size={18} /><span>No execution events have been recorded for this run.</span></div>}
     {run.status === "review" ? <div className="approval-panel"><div className="eyebrow">HUMAN REVIEW REQUIRED</div><strong>Approve the workflow artifacts?</strong><p>Approval records your decision only. It does not execute generated code, write to GitHub, or deploy a release.</p><label className="form-field"><span>Review note (optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={1000} placeholder="What did you verify?" /></label><div className="approval-actions"><button className="button-outline" disabled={busy} onClick={() => onApprove("reject", note)}>Reject artifacts</button><button className="button-primary" disabled={busy} onClick={() => onApprove("approve", note)}>{busy ? "Saving…" : "Approve artifacts"}<Check size={14} /></button></div></div> : null}
+    {run.status === "failed" ? <button className="button-primary full-button" disabled={busy} onClick={onRetry}><RefreshCw size={14} /> Retry as new workflow</button> : null}
     {["queued", "running"].includes(run.status) ? <button className="button-outline full-button" disabled={busy} onClick={onCancel}>Cancel workflow <X size={14} /></button> : null}
     <button className="button-outline full-button" onClick={exportReport}><FileCode2 size={14} /> Export complete Markdown report</button>
     <div className="drawer-note"><ShieldCheck size={15} /><span>Provider outputs are saved artifacts, not verified execution. Generated code is not run or committed by the server.</span></div>
