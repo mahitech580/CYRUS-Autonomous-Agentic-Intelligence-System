@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll } from "./runs.js";
+import { buildRunsCsv, filterRuns, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -124,4 +124,18 @@ test("run detail refresh is requested only when new stages are persisted", () =>
   assert.equal(needsRunDetailRefresh(2, 2), false);
   assert.equal(needsRunDetailRefresh(undefined, 0), false);
   assert.equal(needsRunDetailRefresh("invalid", 0), false);
+});
+
+test("workflow creation reuses an idempotency key after an ambiguous request failure", () => {
+  const holder = { current: null };
+  let generated = 0;
+  const createKey = () => "request-key-" + (++generated);
+
+  const firstAttempt = getOrCreateRunRequestKey(holder, "Build a reliable workflow", createKey);
+  const retryAttempt = getOrCreateRunRequestKey(holder, "Build a reliable workflow", createKey);
+  const changedGoal = getOrCreateRunRequestKey(holder, "Build a different workflow", createKey);
+
+  assert.equal(firstAttempt, retryAttempt);
+  assert.notEqual(firstAttempt, changedGoal);
+  assert.equal(generated, 2);
 });

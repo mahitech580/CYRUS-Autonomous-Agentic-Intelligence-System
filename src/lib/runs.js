@@ -98,3 +98,18 @@ export function needsRunDetailRefresh(serverStageCount, loadedStageCount) {
   return Number.isFinite(serverCount)
     && serverCount > Math.max(0, Number.isFinite(loadedCount) ? loadedCount : 0);
 }
+
+/** Keep one creation key for the same goal until the server acknowledges it. */
+export function getOrCreateRunRequestKey(holder, goal, createKey = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "cyrus-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+}) {
+  const cleanGoal = String(goal || "").trim();
+  if (!holder || typeof holder !== "object") {
+    throw new TypeError("A mutable request-key holder is required.");
+  }
+  if (!holder.current || holder.current.goal !== cleanGoal) {
+    holder.current = { goal: cleanGoal, key: createKey() };
+  }
+  return holder.current.key;
+}

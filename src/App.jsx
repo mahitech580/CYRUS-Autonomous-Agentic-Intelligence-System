@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -103,6 +103,7 @@ export default function App() {
   const toastTimer = useRef(null);
   const drawerReturnFocus = useRef(null);
   const loadedStageCount = useRef({});
+  const createRunRequest = useRef(null);
 
   useEffect(() => () => {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
@@ -164,9 +165,11 @@ export default function App() {
       setView("Settings");
       return;
     }
+    const requestKey = getOrCreateRunRequestKey(createRunRequest, cleanGoal);
     setIsStarting(true);
     try {
-      const result = await api.createRun(cleanGoal);
+      const result = await api.createRun(cleanGoal, requestKey);
+      createRunRequest.current = null;
       const created = mapRunRecord(result.item || result);
       loadedStageCount.current[created.id] = Array.isArray(created.stages) ? created.stages.length : 0;
       setRuns((current) => [created, ...current.filter((item) => item.id !== created.id)]);
