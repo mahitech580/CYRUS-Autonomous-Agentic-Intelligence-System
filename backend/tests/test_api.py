@@ -327,6 +327,66 @@ def test_create_run_rejects_malformed_idempotency_keys_before_scheduling(client)
     assert "Idempotency-Key" in response.json()["detail"]
 
 
+
+def test_retry_failed_workflow_creates_a_new_attempt_and_preserves_original(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    source_id = "RUN-RETRY-SOURCE-" + main.uuid4().hex[:8].upper()
+    source = main.WorkflowRun(
+        id=source_id,
+        goal="Recover a failed seven-stage workflow safely",
+        status="failed",
+        progress=42,
+        stages=[{"id": "plan", "output": "preserved original planning artifact"}],
+        events=[],
+        execution_mode="live-model",
+        current_stage=None,
+        error="Temporary provider failure",
+        approval_status="pending",
+    )
+    with main.SessionLocal() as db:
+        db.add(source)
+        db.commit()
+
+    scheduled = []
+    monkeypatch.setattr(main, "execute_workflow", lambda run_id: scheduled.append(run_id))
+    response = client.post(f"/api/runs/{source_id}/retry")
+
+    assert response.status_code == 202
+    retried = response.json()["item"]
+    assert retried["id"] != source_id
+    assert retried["goal"] == source.goal
+    assert retried["status"] == "queued"
+    assert retried["stages"] == []
+    assert source_id in retried["events"][-1]["message"]
+    assert scheduled == [retried["id"]]
+
+    with main.SessionLocal() as db:
+        original = db.get(main.WorkflowRun, source_id)
+        assert original.status == "failed"
+        assert original.stages[0]["output"] == "preserved original planning artifact"
+
+
+def test_retry_rejects_workflows_that_are_not_failed(client):
+    run_id = "RUN-RETRY-REVIEW-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=run_id,
+            goal="Do not retry a workflow awaiting human review",
+            status="review",
+            progress=100,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+
+    response = client.post(f"/api/runs/{run_id}/retry")
+    assert response.status_code == 409
+
+
 def test_missing_run_is_404(client):
     response = client.get("/api/runs/RUN-NOT-REAL")
     assert response.status_code == 404
