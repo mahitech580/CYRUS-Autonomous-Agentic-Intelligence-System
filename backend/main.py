@@ -95,6 +95,15 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def utc_iso(value: datetime | None) -> str | None:
+    """Serialize database datetimes consistently, including SQLite's naive UTC values."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat()
+
+
 def provider_api_key() -> str:
     """Select the first non-empty provider credential and remove accidental whitespace."""
     return (os.getenv("OPENAI_API_KEY") or "").strip() or (os.getenv("CYRUS_LLM_API_KEY") or "").strip()
@@ -203,8 +212,8 @@ def as_run(item: WorkflowRun) -> dict[str, Any]:
         "goal": item.goal,
         "status": item.status,
         "progress": item.progress,
-        "created_at": created.isoformat() if created else None,
-        "updated_at": updated.isoformat() if updated else None,
+        "created_at": utc_iso(created),
+        "updated_at": utc_iso(updated),
         "stages": item.stages or [],
         "events": item.events or [],
         "execution_mode": item.execution_mode,
@@ -726,7 +735,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]
         "error": run.error,
         "approval_status": run.approval_status or "pending",
         "stage_count": len(run.stages or []),
-        "updated_at": run.updated_at.isoformat() if run.updated_at else None,
+        "updated_at": utc_iso(run.updated_at),
     }}
 
 

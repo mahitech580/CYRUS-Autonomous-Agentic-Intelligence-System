@@ -616,3 +616,33 @@ def test_cors_origin_configuration_is_normalized_and_deduplicated(monkeypatch):
         "http://localhost",
     ]
 
+def test_database_timestamps_are_serialized_as_explicit_utc(client):
+    run_id = "RUN-UTC-" + main.uuid4().hex[:8].upper()
+    naive_utc = main.datetime(2026, 11, 1, 12, 30, 0)
+    run = main.WorkflowRun(
+        id=run_id,
+        goal="Preserve UTC timestamps through SQLite",
+        status="running",
+        progress=20,
+        created_at=naive_utc,
+        updated_at=naive_utc,
+        stages=[],
+        events=[],
+        execution_mode="live-model",
+        approval_status="pending",
+    )
+    with main.SessionLocal() as db:
+        db.add(run)
+        db.commit()
+
+    detail = client.get(f"/api/runs/{run_id}").json()["item"]
+    status = client.get(f"/api/runs/{run_id}/status").json()["item"]
+    summary = next(
+        item for item in client.get("/api/runs?limit=100").json()["items"]
+        if item["id"] == run_id
+    )
+    assert detail["created_at"] == "2026-11-01T12:30:00+00:00"
+    assert detail["updated_at"] == "2026-11-01T12:30:00+00:00"
+    assert status["updated_at"] == "2026-11-01T12:30:00+00:00"
+    assert summary["created_at"] == "2026-11-01T12:30:00+00:00"
+
