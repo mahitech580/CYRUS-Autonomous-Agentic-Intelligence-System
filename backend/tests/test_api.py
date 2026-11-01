@@ -690,3 +690,16 @@ def test_provider_rejects_unknown_and_non_string_statuses_with_partial_text(monk
         with pytest.raises(RuntimeError, match="response status|did not complete"):
             main.complete_agent("Atlas", "Planning agent", "Plan", "Build an API", [])
 
+def test_provider_marks_output_that_exceeds_artifact_limit(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    oversized = "A" * 30050
+    monkeypatch.setattr(
+        main.httpx,
+        "post",
+        lambda *args, **kwargs: main.httpx.Response(200, json={"output_text": oversized}),
+    )
+    output, _, _ = main.complete_agent("Atlas", "Planning agent", "Plan", "Build an API", [])
+    assert len(output) <= 30000
+    assert output.startswith("A" * 100)
+    assert output.endswith("[Output truncated by CYRUS at 30,000 characters.]")
+

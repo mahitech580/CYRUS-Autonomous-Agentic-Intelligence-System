@@ -422,7 +422,11 @@ def complete_agent(agent: str, role: str, instruction: str, goal: str, context: 
         "output_tokens": token_count("output_tokens"),
     }
     response_id = payload.get("id") if isinstance(payload.get("id"), str) else None
-    return output.strip()[:30000], token_usage, response_id
+    clean_output = output.strip()
+    if len(clean_output) > 30000:
+        marker = "\\n\\n[Output truncated by CYRUS at 30,000 characters.]"
+        clean_output = clean_output[:30000 - len(marker)].rstrip() + marker
+    return clean_output, token_usage, response_id
 
 
 def update_run(run_id: str, mutate) -> None:
