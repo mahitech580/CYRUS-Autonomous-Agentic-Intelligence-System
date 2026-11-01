@@ -520,9 +520,48 @@ app = FastAPI(
     version=APP_VERSION,
     lifespan=lifespan,
 )
+
+
+def configured_cors_origins() -> list[str]:
+    """Normalize exact HTTP(S) origins and ignore malformed or path-bearing values."""
+    raw = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173",
+    )
+    origins: list[str] = []
+    for candidate in raw.split(","):
+        value = candidate.strip()
+        if not value:
+            continue
+        try:
+            parsed = urlsplit(value)
+            hostname = parsed.hostname
+            port = parsed.port
+        except ValueError:
+            continue
+        scheme = parsed.scheme.lower()
+        if (
+            scheme not in {"http", "https"}
+            or not hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            continue
+        hostname = hostname.lower()
+        host = f"[{hostname}]" if ":" in hostname else hostname
+        if (scheme == "https" and port == 443) or (scheme == "http" and port == 80):
+            port = None
+        netloc = host + (f":{port}" if port is not None else "")
+        origin = f"{scheme}://{netloc}"
+        if origin not in origins:
+            origins.append(origin)
+    return origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if origin.strip()],
+    allow_origins=configured_cors_origins(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],

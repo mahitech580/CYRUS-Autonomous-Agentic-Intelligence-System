@@ -604,3 +604,15 @@ def test_cors_exposes_request_id_for_browser_error_diagnostics(client):
     exposed = response.headers.get("access-control-expose-headers", "").lower()
     assert "x-request-id" in exposed
 
+def test_cors_origin_configuration_is_normalized_and_deduplicated(monkeypatch):
+    monkeypatch.setenv(
+        "CORS_ORIGINS",
+        " https://Workspace.Example.com/,https://workspace.example.com,"
+        "http://localhost:80/,https://bad.example.com/path,not-an-origin,"
+        "https://user:pass@example.com",
+    )
+    assert main.configured_cors_origins() == [
+        "https://workspace.example.com",
+        "http://localhost",
+    ]
+
