@@ -702,6 +702,7 @@ def cancel_run(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
         raise HTTPException(status_code=409, detail="Only queued or running runs can be cancelled.")
     run.status = "cancelled"
     run.current_stage = None
+    run.execution_token = None
     append_event(run, "workflow", "Workspace operator", "Run cancellation requested. The active provider request may finish before the worker stops.", "cancelled")
     run.updated_at = utcnow()
     db.commit()

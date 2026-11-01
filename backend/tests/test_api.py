@@ -497,3 +497,63 @@ def test_app_lifespan_initializes_database_schema(monkeypatch):
     with TestClient(main.app):
         pass
     assert calls == ["initialized"]
+
+def test_workflow_worker_claim_is_single_use(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    run_id = "RUN-WORKER-CLAIM-" + main.uuid4().hex[:8].upper()
+    run = main.WorkflowRun(
+        id=run_id,
+        goal="Prevent duplicate background workers",
+        status="queued",
+        progress=0,
+        stages=[],
+        events=[],
+        execution_mode="live-model",
+        approval_status="pending",
+    )
+    with main.SessionLocal() as db:
+        db.add(run)
+        db.commit()
+
+    calls = []
+    def counted_agent(agent, role, instruction, goal, context):
+        calls.append(agent)
+        return fake_agent(agent, role, instruction, goal, context)
+
+    monkeypatch.setattr(main, "complete_agent", counted_agent)
+    main.execute_workflow(run_id)
+    main.execute_workflow(run_id)
+
+    with main.SessionLocal() as db:
+        saved = db.get(main.WorkflowRun, run_id)
+        assert saved.status == "review"
+        assert saved.progress == 100
+        assert len(saved.stages) == 7
+        assert saved.execution_token is None
+    assert len(calls) == 7
+
+
+def test_cancel_clears_worker_ownership(client):
+    run_id = "RUN-CANCEL-OWNER-" + main.uuid4().hex[:8].upper()
+    run = main.WorkflowRun(
+        id=run_id,
+        goal="Cancel a running workflow worker",
+        status="running",
+        progress=20,
+        stages=[],
+        events=[],
+        execution_mode="live-model",
+        approval_status="pending",
+        execution_token="active-worker-token",
+    )
+    with main.SessionLocal() as db:
+        db.add(run)
+        db.commit()
+
+    response = client.post(f"/api/runs/{run_id}/cancel")
+    assert response.status_code == 200
+    with main.SessionLocal() as db:
+        saved = db.get(main.WorkflowRun, run_id)
+        assert saved.status == "cancelled"
+        assert saved.execution_token is None
+
