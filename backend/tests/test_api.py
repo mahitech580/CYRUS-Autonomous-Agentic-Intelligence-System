@@ -592,3 +592,15 @@ def test_provider_identity_uses_exact_openai_hostname(monkeypatch):
     monkeypatch.setenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
     assert main.provider_name() == "OpenAI Responses API"
 
+def test_cors_exposes_request_id_for_browser_error_diagnostics(client):
+    response = client.options(
+        "/api/health",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+    exposed = response.headers.get("access-control-expose-headers", "").lower()
+    assert "x-request-id" in exposed
+
