@@ -198,6 +198,25 @@ test("createRun sends the idempotency key as a request header", async (t) => {
 });
 
 
+test("retryRun sends a stable idempotency key to the retry endpoint", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let captured;
+  globalThis.fetch = async (url, options) => {
+    captured = { url, options };
+    return new Response(JSON.stringify({ item: { id: "RUN-RETRY-1" } }), {
+      status: 202,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  await api.retryRun("RUN-FAILED-1", "retry-request-key-123");
+  assert.equal(captured.url, "http://localhost:8000/api/runs/RUN-FAILED-1/retry");
+  assert.equal(captured.options.method, "POST");
+  assert.equal(captured.options.headers.get("idempotency-key"), "retry-request-key-123");
+});
+
+
 test("API client formats FastAPI validation errors into actionable field messages", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });

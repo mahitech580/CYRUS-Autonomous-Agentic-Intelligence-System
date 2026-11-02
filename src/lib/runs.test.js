@@ -126,6 +126,23 @@ test("run detail refresh is requested only when new stages are persisted", () =>
   assert.equal(needsRunDetailRefresh("invalid", 0), false);
 });
 
+test("failed-workflow retries keep independent idempotency keys per source run", () => {
+  const holder = { current: new Map() };
+  let generated = 0;
+  const createKey = () => "retry-key-" + (++generated);
+
+  const first = getOrCreateRetryRequestKey(holder, "RUN-FAILED-1", createKey);
+  const replay = getOrCreateRetryRequestKey(holder, "RUN-FAILED-1", createKey);
+  const otherRun = getOrCreateRetryRequestKey(holder, "RUN-FAILED-2", createKey);
+
+  assert.equal(first, replay);
+  assert.notEqual(first, otherRun);
+  assert.equal(generated, 2);
+  holder.current.delete("RUN-FAILED-1");
+  assert.notEqual(getOrCreateRetryRequestKey(holder, "RUN-FAILED-1", createKey), first);
+});
+
+
 test("workflow creation reuses an idempotency key after an ambiguous request failure", () => {
   const holder = { current: null };
   let generated = 0;

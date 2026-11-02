@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -104,6 +104,7 @@ export default function App() {
   const drawerReturnFocus = useRef(null);
   const loadedStageCount = useRef({});
   const createRunRequest = useRef(null);
+  const retryRunRequests = useRef(new Map());
 
   useEffect(() => () => {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
@@ -282,7 +283,9 @@ export default function App() {
     const sourceId = selectedRun.id;
     setActionBusy(true);
     try {
-      const response = await api.retryRun(sourceId);
+      const requestKey = getOrCreateRetryRequestKey(retryRunRequests, sourceId);
+      const response = await api.retryRun(sourceId, requestKey);
+      retryRunRequests.current.delete(sourceId);
       const retried = mapRunRecord(response.item || response);
       loadedStageCount.current[retried.id] = Array.isArray(retried.stages) ? retried.stages.length : 0;
       setRuns((current) => [retried, ...current.filter((item) => item.id !== retried.id)]);

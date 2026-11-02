@@ -71,6 +71,21 @@ export function mergeRunEvents(existing, incoming, replace = false) {
 }
 
 
+/** Keep a stable retry key per failed source run until the server acknowledges it. */
+export function getOrCreateRetryRequestKey(holder, runId, createKey = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "cyrus-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+}) {
+  const sourceId = String(runId || "").trim();
+  if (!holder || typeof holder !== "object" || !sourceId) {
+    throw new TypeError("A request-key holder and source run ID are required.");
+  }
+  if (!(holder.current instanceof Map)) holder.current = new Map();
+  if (!holder.current.has(sourceId)) holder.current.set(sourceId, createKey());
+  return holder.current.get(sourceId);
+}
+
+
 /** Exponential retry delay for transient run-poll failures, capped at 30 seconds. */
 export function nextRunPollDelay(failures) {
   const count = Number.isFinite(Number(failures))

@@ -129,7 +129,10 @@ export const api = {
     method: "POST",
     body: JSON.stringify({ decision, note }),
   }),
-  retryRun: (runId) => request("/api/runs/" + encodeURIComponent(runId) + "/retry", { method: "POST" }),
+  retryRun: (runId, idempotencyKey) => request("/api/runs/" + encodeURIComponent(runId) + "/retry", {
+    method: "POST",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
+  }),
   cancelRun: (runId) => request("/api/runs/" + encodeURIComponent(runId) + "/cancel", {
     method: "POST",
   }),
