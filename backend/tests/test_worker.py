@@ -189,7 +189,7 @@ def test_run_once_does_not_report_a_run_when_another_worker_claimed_it(monkeypat
     assert worker.run_once() is None
 
 
-def test_worker_loop_refreshes_and_removes_heartbeat_on_shutdown(monkeypatch):
+def test_worker_loop_refreshes_and_removes_heartbeat_on_shutdown(monkeypatch, caplog):
     monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
     main.ensure_schema()
     stop = threading.Event()
@@ -201,8 +201,12 @@ def test_worker_loop_refreshes_and_removes_heartbeat_on_shutdown(monkeypatch):
         stop.set()
     monkeypatch.setattr(main, "execute_workflow", execute)
 
-    worker.run_worker(stop_event=stop, worker_id="worker-shutdown-test")
+    with caplog.at_level("INFO", logger="cyrus.worker"):
+        worker.run_worker(stop_event=stop, worker_id="worker-shutdown-test")
 
+    assert "worker started worker_id=worker-shutdown-test" in caplog.text
+    assert "workflow dispatch worker_id=worker-shutdown-test run_id=RUN-WORKER-STOP" in caplog.text
+    assert "worker stopped worker_id=worker-shutdown-test" in caplog.text
     assert executed == ["RUN-WORKER-STOP"]
     with main.SessionLocal() as db:
         assert db.get(main.WorkerHeartbeat, "worker-shutdown-test") is None

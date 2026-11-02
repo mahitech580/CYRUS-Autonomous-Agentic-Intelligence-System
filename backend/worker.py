@@ -76,6 +76,13 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
     main.touch_worker_heartbeat(identity)
     heartbeat = threading.Thread(target=heartbeat_loop, name="cyrus-worker-heartbeat", daemon=True)
     heartbeat.start()
+    logger.info(
+        "worker started worker_id=%s poll_seconds=%.1f heartbeat_seconds=%.1f recovery_seconds=%.1f",
+        identity,
+        poll_seconds,
+        heartbeat_seconds,
+        recovery_seconds,
+    )
     last_recovery = 0.0
     try:
         while not stop.is_set():
@@ -91,10 +98,17 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
 
             active["run_id"] = run_id
             main.touch_worker_heartbeat(identity, run_id)
+            logger.info("workflow dispatch worker_id=%s run_id=%s", identity, run_id)
             try:
                 # The worker claim is a conditional UPDATE, so multiple pollers
                 # may observe the same queued row but only one can execute it.
-                main.execute_workflow(run_id)
+                claimed = main.execute_workflow(run_id)
+                logger.info(
+                    "workflow dispatch returned worker_id=%s run_id=%s claimed=%s",
+                    identity,
+                    run_id,
+                    claimed,
+                )
             finally:
                 active["run_id"] = None
                 main.touch_worker_heartbeat(identity)
@@ -106,6 +120,7 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
             main.remove_worker_heartbeat(identity)
         except Exception as exc:
             logger.warning("worker heartbeat cleanup failed exception_type=%s", type(exc).__name__)
+        logger.info("worker stopped worker_id=%s", identity)
 
 
 def main_entrypoint() -> None:
