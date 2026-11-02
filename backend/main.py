@@ -6,6 +6,7 @@ committed, or deployed by this service.
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
 import logging
 from contextlib import asynccontextmanager
@@ -1044,13 +1045,34 @@ def cancel_run(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
 
 
 
+def retry_idempotency_storage_key(source_id: str, request_key: str) -> str:
+    """Scope retry idempotency to its source run without storing the client key."""
+    digest = hashlib.sha256(f"{source_id}\\0{request_key}".encode("utf-8")).hexdigest()
+    return "retry:" + digest
+
+
 @app.post("/api/runs/{run_id}/retry", status_code=202, dependencies=[Depends(require_workspace_access)])
-def retry_run(run_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, Any]:
+def retry_run(
+    run_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+) -> dict[str, Any]:
     source = db.get(WorkflowRun, run_id)
     if source is None:
         raise HTTPException(status_code=404, detail="Workflow run not found.")
     if source.status != "failed":
         raise HTTPException(status_code=409, detail="Only failed workflows can be retried.")
+
+    request_key = idempotency_key.strip() if idempotency_key is not None else None
+    storage_key = None
+    if request_key is not None:
+        if not re.fullmatch(r"[A-Za-z0-9._:-]{8,128}", request_key):
+            raise HTTPException(status_code=400, detail="Idempotency-Key must contain 8–128 safe ASCII characters.")
+        storage_key = retry_idempotency_storage_key(source.id, request_key)
+        existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == storage_key))
+        if existing is not None:
+            return {"item": as_run(existing), "notice": "This retry was already accepted with the supplied idempotency key."}
 
     if not provider_ready():
         raise HTTPException(status_code=503, detail="Real AI is not configured. Add OPENAI_API_KEY to the server environment.")
@@ -1068,6 +1090,7 @@ def retry_run(run_id: str, background_tasks: BackgroundTasks, db: Session = Depe
         events=[],
         execution_mode="live-model",
         approval_status="pending",
+        idempotency_key=storage_key,
     )
     append_event(
         retried,
@@ -1077,7 +1100,16 @@ def retry_run(run_id: str, background_tasks: BackgroundTasks, db: Session = Depe
         "queued",
     )
     db.add(retried)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        if storage_key is None:
+            raise
+        existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == storage_key))
+        if existing is None:
+            raise HTTPException(status_code=409, detail="The retry could not reserve this idempotency key. Retry with a new key.")
+        return {"item": as_run(existing), "notice": "This retry was already accepted with the supplied idempotency key."}
     db.refresh(retried)
     if external_worker_required():
         notice = "A new workflow attempt was queued for the durable worker; the failed run and its artifacts were preserved."

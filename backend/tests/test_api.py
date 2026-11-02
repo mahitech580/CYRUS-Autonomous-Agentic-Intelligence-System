@@ -913,6 +913,58 @@ def test_create_run_rejects_external_worker_mode_without_a_fresh_heartbeat(clien
     assert response.status_code == 503
     assert "execution worker" in response.json()["detail"].lower()
 
+def test_retry_replays_idempotency_key_without_creating_duplicate_workflows(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    monkeypatch.setattr(main, "worker_is_ready", lambda: True)
+    source_id = "RUN-RETRY-IDEMP-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=source_id,
+            goal="Retry an interrupted workflow exactly once",
+            status="failed",
+            progress=40,
+            stages=[{"id": "plan", "output": "preserved original artifact"}],
+            events=[],
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+
+    headers = {"Idempotency-Key": "retry-request-123"}
+    first = client.post(f"/api/runs/{source_id}/retry", headers=headers)
+    replay = client.post(f"/api/runs/{source_id}/retry", headers=headers)
+
+    assert first.status_code == 202
+    assert replay.status_code == 202
+    assert replay.json()["item"]["id"] == first.json()["item"]["id"]
+    assert "already accepted" in replay.json()["notice"]
+    with main.SessionLocal() as db:
+        saved = db.get(main.WorkflowRun, first.json()["item"]["id"])
+        assert saved.idempotency_key.startswith("retry:")
+        assert saved.idempotency_key != headers["Idempotency-Key"]
+        assert db.get(main.WorkflowRun, source_id).stages[0]["output"] == "preserved original artifact"
+
+
+def test_retry_rejects_malformed_idempotency_keys(client, monkeypatch):
+    source_id = "RUN-RETRY-BADKEY-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=source_id, goal="Reject malformed retry idempotency keys",
+            status="failed", progress=10, stages=[], events=[],
+            execution_mode="live-model", approval_status="pending",
+        ))
+        db.commit()
+
+    response = client.post(
+        f"/api/runs/{source_id}/retry",
+        headers={"Idempotency-Key": "bad key"},
+    )
+    assert response.status_code == 400
+
+
 def test_retry_uses_the_durable_queue_when_external_worker_is_required(client, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
