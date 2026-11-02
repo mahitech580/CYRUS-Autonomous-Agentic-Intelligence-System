@@ -842,6 +842,8 @@ def create_run(
         raise HTTPException(status_code=503, detail="Real AI is not configured. Add OPENAI_API_KEY to the server environment.")
     if not database_is_durable():
         raise HTTPException(status_code=503, detail="Persistent storage is not configured. Set DATABASE_URL to managed PostgreSQL or MySQL before creating production runs.")
+    if not worker_is_ready():
+        raise HTTPException(status_code=503, detail="The durable execution worker is not available. Start the CYRUS worker service and wait for its heartbeat.")
 
     run = WorkflowRun(
         id="RUN-" + uuid4().hex[:10].upper(),
@@ -870,8 +872,12 @@ def create_run(
         return {"item": as_run(existing), "notice": "The workflow was already accepted with this idempotency key."}
 
     db.refresh(run)
-    background_tasks.add_task(execute_workflow, run.id)
-    return {"item": as_run(run), "notice": "Accepted. Model-backed agent stages are starting."}
+    if external_worker_required():
+        notice = "Accepted. The durable worker will pick up this queued workflow."
+    else:
+        background_tasks.add_task(execute_workflow, run.id)
+        notice = "Accepted. Model-backed agent stages are starting."
+    return {"item": as_run(run), "notice": notice}
 
 
 @app.get("/api/runs/{run_id}", dependencies=[Depends(require_workspace_access)])

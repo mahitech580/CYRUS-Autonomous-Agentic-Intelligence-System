@@ -882,3 +882,33 @@ def test_provider_marks_output_that_exceeds_artifact_limit(monkeypatch):
     assert output.endswith("[Output truncated by CYRUS at 30,000 characters.]")
     assert "\n\n[Output truncated" in output
 
+
+def test_create_run_uses_the_durable_queue_when_external_worker_is_required(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    main.touch_worker_heartbeat("worker-create-queue-test")
+    scheduled = []
+    monkeypatch.setattr(main, "execute_workflow", scheduled.append)
+
+    response = client.post("/api/runs", json={"goal": "Queue this workflow for the durable worker"})
+
+    assert response.status_code == 202
+    assert response.json()["item"]["status"] == "queued"
+    assert "durable worker" in response.json()["notice"]
+    assert scheduled == []
+    main.remove_worker_heartbeat("worker-create-queue-test")
+
+
+def test_create_run_rejects_external_worker_mode_without_a_fresh_heartbeat(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    main.remove_worker_heartbeat("worker-create-missing-test")
+
+    response = client.post("/api/runs", json={"goal": "Require a live durable execution worker"})
+
+    assert response.status_code == 503
+    assert "execution worker" in response.json()["detail"].lower()
