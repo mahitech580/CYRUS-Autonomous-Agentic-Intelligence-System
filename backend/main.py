@@ -47,7 +47,11 @@ class Base(DeclarativeBase):
 
 class WorkflowRun(Base):
     __tablename__ = "workflow_runs"
-    __table_args__ = (Index("uq_workflow_runs_idempotency_key", "idempotency_key", unique=True),)
+    __table_args__ = (
+        Index("uq_workflow_runs_idempotency_key", "idempotency_key", unique=True),
+        Index("ix_workflow_runs_queue_order", "status", "created_at", "id"),
+        Index("ix_workflow_runs_stale_recovery", "status", "updated_at", "id"),
+    )
 
     id: Mapped[str] = mapped_column(String(48), primary_key=True)
     goal: Mapped[str] = mapped_column(String(1200), nullable=False)
@@ -266,8 +270,10 @@ def ensure_schema() -> None:
         for name, sql_type in additive.items():
             if name not in existing:
                 connection.execute(text(f"ALTER TABLE workflow_runs ADD COLUMN {name} {sql_type}"))
-    idempotency_index = next(index for index in WorkflowRun.__table__.indexes if index.name == "uq_workflow_runs_idempotency_key")
-    idempotency_index.create(bind=engine, checkfirst=True)
+    # create_all skips indexes when a legacy table already exists, so apply every
+    # declared index explicitly after additive column upgrades.
+    for index in WorkflowRun.__table__.indexes:
+        index.create(bind=engine, checkfirst=True)
 
 
 def get_db():

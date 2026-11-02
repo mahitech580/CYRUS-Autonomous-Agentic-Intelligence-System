@@ -202,6 +202,13 @@ def test_worker_refuses_to_start_without_external_worker_mode(monkeypatch):
     with pytest.raises(RuntimeError, match="CYRUS_EXTERNAL_WORKER"):
         worker.run_worker(stop_event=threading.Event(), worker_id="worker-disabled-test")
 
+def test_queue_and_recovery_queries_have_composite_indexes():
+    main.ensure_schema()
+    indexes = {index["name"] for index in main.inspect(main.engine).get_indexes("workflow_runs")}
+    assert "ix_workflow_runs_queue_order" in indexes
+    assert "ix_workflow_runs_stale_recovery" in indexes
+
+
 def test_queue_snapshot_reports_aggregate_pressure_without_run_details():
     main.ensure_schema()
     now = main.utcnow()
