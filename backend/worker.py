@@ -47,8 +47,7 @@ def run_once() -> str | None:
     run_id = next_queued_run_id()
     if run_id is None:
         return None
-    main.execute_workflow(run_id)
-    return run_id
+    return run_id if main.execute_workflow(run_id) else None
 
 
 def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | None = None) -> None:

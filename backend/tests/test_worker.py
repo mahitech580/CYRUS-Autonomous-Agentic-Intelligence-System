@@ -170,11 +170,23 @@ def test_worker_selects_the_oldest_queued_run_and_processes_one(monkeypatch):
 
     executed = []
     monkeypatch.setattr(main, "recover_stale_runs", lambda: 0)
-    monkeypatch.setattr(main, "execute_workflow", executed.append)
+    def execute(run_id):
+        executed.append(run_id)
+        return True
+
+    monkeypatch.setattr(main, "execute_workflow", execute)
 
     assert worker.next_queued_run_id() == older_id
     assert worker.run_once() == older_id
     assert executed == [older_id]
+
+
+def test_run_once_does_not_report_a_run_when_another_worker_claimed_it(monkeypatch):
+    monkeypatch.setattr(main, "recover_stale_runs", lambda: 0)
+    monkeypatch.setattr(worker, "next_queued_run_id", lambda: "RUN-CLAIMED-ELSEWHERE")
+    monkeypatch.setattr(main, "execute_workflow", lambda _run_id: False)
+
+    assert worker.run_once() is None
 
 
 def test_worker_loop_refreshes_and_removes_heartbeat_on_shutdown(monkeypatch):

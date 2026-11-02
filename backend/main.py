@@ -589,10 +589,11 @@ def get_run_for_update(db: Session, run_id: str) -> WorkflowRun | None:
     return db.scalar(select(WorkflowRun).where(WorkflowRun.id == run_id).with_for_update())
 
 
-def execute_workflow(run_id: str) -> None:
+def execute_workflow(run_id: str) -> bool:
     """Claim a queued run once, execute its seven model steps, and leave it for review."""
     context: list[dict[str, str]] = []
     worker_token = uuid4().hex
+    claimed = False
     try:
         # A conditional UPDATE is an atomic compare-and-set on SQLite and SQL
         # databases. A duplicate BackgroundTask cannot start a second worker.
@@ -604,14 +605,15 @@ def execute_workflow(run_id: str) -> None:
             )
             if claim.rowcount != 1:
                 db.rollback()
-                return
+                return False
             db.commit()
+            claimed = True
 
         for index, (stage_id, agent, role, instruction) in enumerate(STAGE_DEFINITIONS, start=1):
             with SessionLocal() as db:
                 run = get_run_for_update(db, run_id)
                 if run is None or run.status != "running" or run.execution_token != worker_token:
-                    return
+                    return claimed
                 goal = run.goal
                 run.current_stage = stage_id
                 append_event(run, stage_id, agent, f"{agent} started the {stage_id} stage.", "started")
@@ -634,7 +636,7 @@ def execute_workflow(run_id: str) -> None:
             with SessionLocal() as db:
                 run = get_run_for_update(db, run_id)
                 if run is None or run.status != "running" or run.execution_token != worker_token:
-                    return
+                    return claimed
                 run.stages = list(run.stages or []) + [stage_record]
                 run.progress = int(index / len(STAGE_DEFINITIONS) * 100)
                 append_event(run, stage_id, agent, f"{agent} completed {stage_id} with generated artifacts.", "completed")
@@ -652,6 +654,7 @@ def execute_workflow(run_id: str) -> None:
             append_event(run, "review", "CYRUS", "All seven model stages completed. Review the generated artifacts before approving any release action.", "approval_required")
             run.updated_at = utcnow()
             db.commit()
+        return claimed
     except Exception as exc:
         safe_error = redact_sensitive_text(str(exc) or "Workflow failed.", max_length=1800)
         logger.warning("workflow %s failed: %s", run_id, safe_error)
@@ -665,6 +668,7 @@ def execute_workflow(run_id: str) -> None:
                 append_event(run, "workflow", "CYRUS", safe_error, "failed")
                 run.updated_at = utcnow()
                 db.commit()
+        return claimed
 
 
 @asynccontextmanager

@@ -703,8 +703,8 @@ def test_workflow_worker_claim_is_single_use(client, monkeypatch):
         return fake_agent(agent, role, instruction, goal, context)
 
     monkeypatch.setattr(main, "complete_agent", counted_agent)
-    main.execute_workflow(run_id)
-    main.execute_workflow(run_id)
+    assert main.execute_workflow(run_id) is True
+    assert main.execute_workflow(run_id) is False
 
     with main.SessionLocal() as db:
         saved = db.get(main.WorkflowRun, run_id)
