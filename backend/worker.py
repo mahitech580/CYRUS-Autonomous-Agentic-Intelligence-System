@@ -25,9 +25,11 @@ logger = logging.getLogger("cyrus.worker")
 
 
 def worker_identity() -> str:
+    """Build a safe per-process lease ID even when replicas share a configured prefix."""
     configured = os.getenv("CYRUS_WORKER_ID", "").strip()
-    candidate = configured or f"{socket.gethostname()}-{os.getpid()}"
-    return re.sub(r"[^A-Za-z0-9._:-]", "-", candidate)[:64] or "cyrus-worker"
+    prefix = re.sub(r"[^A-Za-z0-9._:-]", "-", configured or "cyrus-worker")[:20]
+    host = re.sub(r"[^A-Za-z0-9._:-]", "-", socket.gethostname())[:24] or "host"
+    return f"{prefix or 'cyrus-worker'}-{host}-{os.getpid()}"[:64]
 
 
 def next_queued_run_id() -> str | None:

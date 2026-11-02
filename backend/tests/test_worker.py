@@ -208,6 +208,20 @@ def test_worker_loop_refreshes_and_removes_heartbeat_on_shutdown(monkeypatch):
         assert db.get(main.WorkerHeartbeat, "worker-shutdown-test") is None
 
 
+def test_worker_identity_is_safe_and_unique_per_process(monkeypatch):
+    monkeypatch.setenv("CYRUS_WORKER_ID", "compose worker")
+    monkeypatch.setattr(worker.socket, "gethostname", lambda: "host/name")
+    monkeypatch.setattr(worker.os, "getpid", lambda: 1234)
+    first = worker.worker_identity()
+    monkeypatch.setattr(worker.os, "getpid", lambda: 1235)
+    second = worker.worker_identity()
+
+    assert first == "compose-worker-host-name-1234"
+    assert second == "compose-worker-host-name-1235"
+    assert first != second
+    assert len(first) <= 64
+
+
 def test_worker_refuses_to_start_without_external_worker_mode(monkeypatch):
     monkeypatch.delenv("VERCEL", raising=False)
     monkeypatch.delenv("CYRUS_EXTERNAL_WORKER", raising=False)
