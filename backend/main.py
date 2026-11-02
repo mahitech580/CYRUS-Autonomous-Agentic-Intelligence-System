@@ -14,7 +14,7 @@ import os
 import re
 import time
 from email.utils import parsedate_to_datetime
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -23,7 +23,7 @@ import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, Index, JSON, String, create_engine, func, inspect, select, text, update
+from sqlalchemy import DateTime, Index, JSON, String, create_engine, delete, func, inspect, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -63,6 +63,14 @@ class WorkflowRun(Base):
     approval_status: Mapped[str] = mapped_column(String(24), default="pending", nullable=False)
     execution_token: Mapped[str | None] = mapped_column(String(48), nullable=True)
     idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+
+class WorkerHeartbeat(Base):
+    __tablename__ = "worker_heartbeats"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    active_run_id: Mapped[str | None] = mapped_column(String(48), nullable=True)
 
 
 AGENTS = [
@@ -159,6 +167,55 @@ def database_is_durable() -> bool:
     if engine.dialect.name in {"postgresql", "mysql", "mariadb"}:
         return True
     return not bool(os.getenv("VERCEL")) and engine.dialect.name == "sqlite"
+
+
+def external_worker_required() -> bool:
+    """Serverless deployments must use a separately supervised durable worker."""
+    configured = os.getenv("CYRUS_EXTERNAL_WORKER", "false").strip().lower() in {"1", "true", "yes"}
+    return bool(os.getenv("VERCEL")) or configured
+
+
+def worker_heartbeat_ttl_seconds() -> int:
+    return bounded_int_setting("CYRUS_WORKER_HEARTBEAT_TTL_SECONDS", 90, 30, 300)
+
+
+def worker_is_ready() -> bool:
+    """Require a recent external-worker heartbeat only when inline execution is disabled."""
+    if not external_worker_required():
+        return True
+    cutoff = utcnow() - timedelta(seconds=worker_heartbeat_ttl_seconds())
+    try:
+        with SessionLocal() as db:
+            return db.scalar(
+                select(WorkerHeartbeat.id)
+                .where(WorkerHeartbeat.last_seen_at >= cutoff)
+                .limit(1)
+            ) is not None
+    except Exception as exc:
+        logger.warning("worker readiness check failed exception_type=%s", type(exc).__name__)
+        return False
+
+
+def touch_worker_heartbeat(worker_id: str, active_run_id: str | None = None) -> None:
+    """Persist a worker lease without storing host details or credentials."""
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{1,64}", worker_id or ""):
+        raise ValueError("Worker ID must contain 1–64 safe ASCII characters.")
+    with SessionLocal() as db:
+        heartbeat = db.get(WorkerHeartbeat, worker_id)
+        if heartbeat is None:
+            heartbeat = WorkerHeartbeat(id=worker_id, last_seen_at=utcnow(), active_run_id=active_run_id)
+            db.add(heartbeat)
+        else:
+            heartbeat.last_seen_at = utcnow()
+            heartbeat.active_run_id = active_run_id
+        db.commit()
+
+
+def remove_worker_heartbeat(worker_id: str) -> None:
+    """Remove a cleanly stopped worker so readiness changes immediately."""
+    with SessionLocal() as db:
+        db.execute(delete(WorkerHeartbeat).where(WorkerHeartbeat.id == worker_id))
+        db.commit()
 
 
 def database_is_reachable() -> bool:
@@ -659,7 +716,9 @@ def config() -> dict[str, Any]:
         "access_control_configured": access_control_configured,
         "web_search_enabled": os.getenv("CYRUS_ENABLE_WEB_SEARCH", "false").lower() in {"1", "true", "yes"},
         "execution_mode": "live-model" if ready else "not-configured",
-        "can_start_runs": database_ok and ready and durable and access_control_configured,
+        "worker_required": external_worker_required(),
+        "worker_ready": worker_is_ready(),
+        "can_start_runs": database_ok and ready and durable and access_control_configured and worker_is_ready(),
     }
 
 
@@ -669,7 +728,9 @@ def health() -> dict[str, Any]:
     ready = provider_ready()
     durable = database_is_durable()
     access_configured = bool(os.getenv("CYRUS_ACCESS_KEY", "").strip()) or not bool(os.getenv("VERCEL"))
-    ready_for_runs = database_ok and durable and ready and access_configured
+    worker_required = external_worker_required()
+    worker_ready = worker_is_ready()
+    ready_for_runs = database_ok and durable and ready and access_configured and worker_ready
     return {
         "status": "ok" if database_ok else "degraded",
         "service": "cyrus-api",
@@ -678,6 +739,8 @@ def health() -> dict[str, Any]:
         "persistent_storage": durable,
         "provider_configured": ready,
         "ready_for_runs": ready_for_runs,
+        "worker_required": worker_required,
+        "worker_ready": worker_ready,
         "timestamp": utcnow().isoformat(),
         "mode": "live-model" if ready else "not-configured",
     }
@@ -928,4 +991,6 @@ def ready() -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="Model provider is not configured.")
     if os.getenv("VERCEL") and not os.getenv("CYRUS_ACCESS_KEY", "").strip():
         raise HTTPException(status_code=503, detail="Workspace access control is not configured.")
+    if not worker_is_ready():
+        raise HTTPException(status_code=503, detail="The durable execution worker is not available. Start the CYRUS worker service and wait for its heartbeat.")
     return {"status": "ready", "can_start_runs": True}

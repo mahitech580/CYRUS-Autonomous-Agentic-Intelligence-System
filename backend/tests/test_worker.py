@@ -1,0 +1,67 @@
+import os
+import sys
+from datetime import timedelta
+from pathlib import Path
+
+os.environ.setdefault("DATABASE_URL", "sqlite:///./test-cyrus.db")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import pytest
+from fastapi.testclient import TestClient
+import main
+
+
+@pytest.fixture
+def client():
+    main.ensure_schema()
+    with TestClient(main.app) as test_client:
+        yield test_client
+
+
+def test_inline_development_mode_does_not_require_a_worker(monkeypatch):
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("CYRUS_EXTERNAL_WORKER", raising=False)
+    assert main.external_worker_required() is False
+    assert main.worker_is_ready() is True
+
+
+def test_vercel_requires_a_fresh_external_worker_heartbeat(monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.delenv("CYRUS_EXTERNAL_WORKER", raising=False)
+    main.ensure_schema()
+    main.remove_worker_heartbeat("worker-readiness-test")
+
+    assert main.external_worker_required() is True
+    assert main.worker_is_ready() is False
+
+    main.touch_worker_heartbeat("worker-readiness-test")
+    assert main.worker_is_ready() is True
+
+
+def test_worker_heartbeat_expires_after_the_configured_ttl(monkeypatch):
+    monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
+    monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_TTL_SECONDS", "30")
+    main.ensure_schema()
+    main.touch_worker_heartbeat("worker-expiry-test")
+
+    with main.SessionLocal() as db:
+        heartbeat = db.get(main.WorkerHeartbeat, "worker-expiry-test")
+        heartbeat.last_seen_at = main.utcnow() - timedelta(seconds=31)
+        db.commit()
+
+    assert main.worker_is_ready() is False
+
+
+def test_config_disables_launch_when_external_worker_is_missing(client, monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("CYRUS_ACCESS_KEY", "test-access-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-provider-key")
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    main.remove_worker_heartbeat("worker-config-test")
+
+    response = client.get("/api/config")
+
+    assert response.status_code == 200
+    assert response.json()["worker_required"] is True
+    assert response.json()["worker_ready"] is False
+    assert response.json()["can_start_runs"] is False
