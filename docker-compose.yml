@@ -18,6 +18,10 @@ services:
 
   api:
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     build:
       context: .
       dockerfile: Dockerfile.api
@@ -43,6 +47,10 @@ services:
 
 
   worker:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     build:
       context: .
       dockerfile: Dockerfile.api
