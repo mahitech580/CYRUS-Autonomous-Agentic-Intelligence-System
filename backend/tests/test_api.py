@@ -158,6 +158,9 @@ def test_config_does_not_expose_secrets(client):
     assert "OPENAI_API_KEY" not in str(body)
     assert "DATABASE_URL" not in str(body)
     assert "provider_configured" in body
+    assert "available_workers" in body
+    assert "active_workers" in body
+    assert "oldest_queued_seconds" in body
 
 
 def test_rejects_short_goal(client, monkeypatch):

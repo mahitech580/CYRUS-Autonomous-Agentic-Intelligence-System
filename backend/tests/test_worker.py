@@ -274,22 +274,25 @@ def test_queue_and_recovery_queries_have_composite_indexes():
 
 
 def test_queue_snapshot_reports_aggregate_pressure_without_run_details():
+    clear_worker_heartbeats()
     main.ensure_schema()
     now = main.utcnow()
     queued_id = "RUN-QUEUE-OBS-" + main.uuid4().hex[:8].upper()
     running_id = "RUN-RUNNING-OBS-" + main.uuid4().hex[:8].upper()
+    heartbeat_id = "worker-queue-observability-" + main.uuid4().hex[:8]
     with main.SessionLocal() as db:
         db.add_all([
             main.WorkflowRun(
                 id=queued_id, goal="A private queued goal", status="queued",
                 progress=0, stages=[], events=[], execution_mode="live-model",
-                created_at=now,
+                created_at=now - timedelta(seconds=12),
             ),
             main.WorkflowRun(
                 id=running_id, goal="A private running goal", status="running",
                 progress=10, stages=[], events=[], execution_mode="live-model",
                 created_at=now,
             ),
+            main.WorkerHeartbeat(id=heartbeat_id, last_seen_at=now, active_run_id=running_id),
         ])
         db.commit()
 
@@ -297,11 +300,15 @@ def test_queue_snapshot_reports_aggregate_pressure_without_run_details():
 
     assert snapshot["queued_workflows"] >= 1
     assert snapshot["running_workflows"] >= 1
-    assert "oldest_queued_at" in snapshot
+    assert snapshot["available_workers"] == 1
+    assert snapshot["active_workers"] == 1
+    assert snapshot["oldest_queued_seconds"] >= 10
     assert "private" not in str(snapshot)
+    assert heartbeat_id not in str(snapshot)
     with main.SessionLocal() as db:
         db.delete(db.get(main.WorkflowRun, queued_id))
         db.delete(db.get(main.WorkflowRun, running_id))
+        db.delete(db.get(main.WorkerHeartbeat, heartbeat_id))
         db.commit()
 
 
