@@ -17,7 +17,9 @@ services:
       retries: 10
 
   api:
+    init: true
     restart: unless-stopped
+    stop_grace_period: 30s
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -47,6 +49,7 @@ services:
 
 
   worker:
+    init: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
