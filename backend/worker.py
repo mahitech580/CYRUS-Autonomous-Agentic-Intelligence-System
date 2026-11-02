@@ -102,7 +102,7 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
             try:
                 # The worker claim is a conditional UPDATE, so multiple pollers
                 # may observe the same queued row but only one can execute it.
-                claimed = main.execute_workflow(run_id)
+                claimed = main.execute_workflow(run_id, should_stop=stop.is_set)
                 logger.info(
                     "workflow dispatch returned worker_id=%s run_id=%s claimed=%s",
                     identity,

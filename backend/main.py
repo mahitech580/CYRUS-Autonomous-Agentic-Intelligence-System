@@ -16,7 +16,7 @@ import re
 import time
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -590,7 +590,39 @@ def get_run_for_update(db: Session, run_id: str) -> WorkflowRun | None:
     return db.scalar(select(WorkflowRun).where(WorkflowRun.id == run_id).with_for_update())
 
 
-def execute_workflow(run_id: str) -> bool:
+def interrupt_claimed_workflow(run_id: str, worker_token: str) -> bool:
+    """Fail a claimed run cleanly on shutdown while retaining completed artifacts."""
+    message = "Worker shutdown requested. Completed artifacts were preserved; retry as a new workflow."
+    with SessionLocal() as db:
+        transition = db.execute(
+            update(WorkflowRun)
+            .where(
+                WorkflowRun.id == run_id,
+                WorkflowRun.status == "running",
+                WorkflowRun.execution_token == worker_token,
+            )
+            .values(
+                status="failed",
+                error=message,
+                current_stage=None,
+                execution_token=None,
+                updated_at=utcnow(),
+            )
+        )
+        if transition.rowcount != 1:
+            db.rollback()
+            return False
+        db.expire_all()
+        run = db.get(WorkflowRun, run_id)
+        if run is None:
+            db.rollback()
+            return False
+        append_event(run, "workflow", "CYRUS", message, "failed")
+        db.commit()
+        return True
+
+
+def execute_workflow(run_id: str, *, should_stop: Callable[[], bool] | None = None) -> bool:
     """Claim a queued run once, execute its seven model steps, and leave it for review."""
     context: list[dict[str, str]] = []
     worker_token = uuid4().hex
@@ -611,6 +643,9 @@ def execute_workflow(run_id: str) -> bool:
             claimed = True
 
         for index, (stage_id, agent, role, instruction) in enumerate(STAGE_DEFINITIONS, start=1):
+            if should_stop is not None and should_stop():
+                interrupt_claimed_workflow(run_id, worker_token)
+                return claimed
             with SessionLocal() as db:
                 run = get_run_for_update(db, run_id)
                 if run is None or run.status != "running" or run.execution_token != worker_token:

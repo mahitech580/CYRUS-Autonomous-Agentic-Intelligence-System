@@ -189,6 +189,39 @@ def test_run_once_does_not_report_a_run_when_another_worker_claimed_it(monkeypat
     assert worker.run_once() is None
 
 
+def test_shutdown_marks_the_active_run_failed_and_preserves_completed_stages(monkeypatch):
+    main.ensure_schema()
+    run_id = "RUN-SHUTDOWN-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(_queued_run(run_id, main.utcnow()))
+        db.commit()
+
+    completed = []
+
+    def fake_complete(agent, role, instruction, goal, context):
+        completed.append(agent)
+        return ("saved artifact", {"input_tokens": 1, "output_tokens": 1}, "resp-shutdown")
+
+    monkeypatch.setattr(main, "complete_agent", fake_complete)
+
+    claimed = main.execute_workflow(
+        run_id,
+        should_stop=lambda: len(completed) >= 1,
+    )
+
+    assert claimed is True
+    assert len(completed) == 1
+    with main.SessionLocal() as db:
+        saved = db.get(main.WorkflowRun, run_id)
+        assert saved.status == "failed"
+        assert saved.progress == 14
+        assert len(saved.stages) == 1
+        assert saved.stages[0]["output"] == "saved artifact"
+        assert saved.execution_token is None
+        assert "shutdown requested" in saved.error.lower()
+        assert saved.events[-1]["status"] == "failed"
+
+
 def test_worker_loop_refreshes_and_removes_heartbeat_on_shutdown(monkeypatch, caplog):
     monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
     main.ensure_schema()
@@ -196,8 +229,9 @@ def test_worker_loop_refreshes_and_removes_heartbeat_on_shutdown(monkeypatch, ca
     executed = []
     monkeypatch.setattr(main, "recover_stale_runs", lambda: 0)
     monkeypatch.setattr(worker, "next_queued_run_id", lambda: "RUN-WORKER-STOP")
-    def execute(run_id):
+    def execute(run_id, *, should_stop=None):
         executed.append(run_id)
+        assert callable(should_stop)
         stop.set()
     monkeypatch.setattr(main, "execute_workflow", execute)
 
