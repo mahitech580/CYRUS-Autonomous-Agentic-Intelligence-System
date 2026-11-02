@@ -64,6 +64,22 @@ Provision the database in your own account, enable TLS as recommended by the pro
 
 Set a long random CYRUS_ACCESS_KEY in the backend host's environment variables. Then enter the same value in CYRUS Settings. Protected routes require an Authorization Bearer token; the browser keeps the key in session storage only. Do not reuse a provider key as the workspace access key.
 
+### Run a durable external worker
+
+Serverless API instances must not own long-running seven-stage executions. Vercel deployments therefore require a separate worker process and a recent worker heartbeat before workflow creation is enabled. The API writes accepted work to the shared SQL database; the worker polls the oldest queued run and claims it with the existing conditional status update.
+
+Run the worker as a supervised long-running service with the same DATABASE_URL and server-side provider credential as the API:
+
+    CYRUS_EXTERNAL_WORKER=true python -m backend.worker
+
+The worker refreshes its heartbeat every 15 seconds by default. The API considers a heartbeat fresh for 90 seconds. A running workflow that stops updating its persisted lease for 10 minutes is marked failed; its completed artifacts are preserved, and the workspace can create a new retry attempt. The worker does not execute generated code or deploy releases.
+
+For local Docker development, configure OPENAI_API_KEY in the shell or local .env file and run:
+
+    docker compose up --build
+
+The Compose stack starts PostgreSQL, the API, the durable worker, and the Vite workspace. Never commit the local .env file or real provider/access credentials.
+
 For Vercel, configure server-only variables in the cyrus-api project's Environment Variables settings. The frontend project only needs VITE_API_BASE_URL=https://cyrus-api-mahendra8.vercel.app. Never copy OPENAI_API_KEY, DATABASE_URL, or CYRUS_ACCESS_KEY into frontend environment variables. Configure CORS_ORIGINS with the exact trusted frontend origin(s).
 
 ## Environment variables
