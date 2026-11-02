@@ -303,3 +303,71 @@ def test_queue_snapshot_reports_aggregate_pressure_without_run_details():
         db.delete(db.get(main.WorkflowRun, queued_id))
         db.delete(db.get(main.WorkflowRun, running_id))
         db.commit()
+
+
+
+def test_worker_retry_delay_is_exponential_and_bounded():
+    assert worker.worker_retry_delay(1, 2.0) == 2.0
+    assert worker.worker_retry_delay(2, 2.0) == 4.0
+    assert worker.worker_retry_delay(3, 2.0) == 8.0
+    assert worker.worker_retry_delay(99, 30.0) == 30.0
+    assert worker.worker_retry_delay(0, 0.1) == 0.5
+
+
+def test_worker_initialization_retries_transient_schema_failure(monkeypatch):
+    attempts = {"schema": 0, "heartbeat": 0}
+
+    class Stop:
+        def is_set(self):
+            return False
+
+        def wait(self, _delay):
+            return False
+
+    def ensure_schema():
+        attempts["schema"] += 1
+        if attempts["schema"] == 1:
+            raise RuntimeError("temporary database outage")
+
+    def touch_heartbeat(_identity):
+        attempts["heartbeat"] += 1
+
+    monkeypatch.setattr(main, "ensure_schema", ensure_schema)
+    monkeypatch.setattr(main, "touch_worker_heartbeat", touch_heartbeat)
+    monkeypatch.setattr(worker, "worker_retry_delay", lambda *_args: 0.0)
+
+    assert worker.initialize_worker(Stop(), "worker-startup-test", 1.0) is True
+    assert attempts == {"schema": 2, "heartbeat": 1}
+
+
+def test_worker_loop_recovers_after_transient_queue_query_failure(monkeypatch, caplog):
+    monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
+    monkeypatch.setattr(main, "ensure_schema", lambda: None)
+    monkeypatch.setattr(main, "touch_worker_heartbeat", lambda *_args: None)
+    monkeypatch.setattr(main, "remove_worker_heartbeat", lambda *_args: None)
+    monkeypatch.setattr(main, "recover_stale_runs", lambda: 0)
+    monkeypatch.setattr(worker, "worker_retry_delay", lambda *_args: 0.0)
+    stop = threading.Event()
+    attempts = {"queue": 0}
+    executed = []
+
+    def next_run():
+        attempts["queue"] += 1
+        if attempts["queue"] == 1:
+            raise RuntimeError("temporary query failure")
+        return "RUN-WORKER-RECOVERY"
+
+    def execute(run_id, *, should_stop=None):
+        executed.append(run_id)
+        stop.set()
+        return True
+
+    monkeypatch.setattr(worker, "next_queued_run_id", next_run)
+    monkeypatch.setattr(main, "execute_workflow", execute)
+
+    with caplog.at_level("WARNING", logger="cyrus.worker"):
+        worker.run_worker(stop_event=stop, worker_id="worker-recovery-test")
+
+    assert attempts["queue"] >= 2
+    assert executed == ["RUN-WORKER-RECOVERY"]
+    assert "worker loop retry exception_type=RuntimeError" in caplog.text
