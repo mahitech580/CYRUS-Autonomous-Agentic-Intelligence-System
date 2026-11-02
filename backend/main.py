@@ -682,7 +682,7 @@ def execute_workflow(run_id: str, *, should_stop: Callable[[], bool] | None = No
         with SessionLocal() as db:
             run = get_run_for_update(db, run_id)
             if run is None or run.status != "running" or run.execution_token != worker_token:
-                return
+                return claimed
             run.status = "review"
             run.current_stage = None
             run.execution_token = None
