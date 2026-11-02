@@ -912,3 +912,33 @@ def test_create_run_rejects_external_worker_mode_without_a_fresh_heartbeat(clien
 
     assert response.status_code == 503
     assert "execution worker" in response.json()["detail"].lower()
+
+def test_retry_uses_the_durable_queue_when_external_worker_is_required(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    main.touch_worker_heartbeat("worker-retry-queue-test")
+    source_id = "RUN-RETRY-QUEUE-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=source_id,
+            goal="Retry a failed workflow through the external worker",
+            status="failed",
+            progress=25,
+            stages=[{"id": "plan", "output": "original artifact"}],
+            events=[],
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+    scheduled = []
+    monkeypatch.setattr(main, "execute_workflow", scheduled.append)
+
+    response = client.post(f"/api/runs/{source_id}/retry")
+
+    assert response.status_code == 202
+    assert response.json()["item"]["status"] == "queued"
+    assert "durable worker" in response.json()["notice"]
+    assert scheduled == []
+    main.remove_worker_heartbeat("worker-retry-queue-test")

@@ -1015,6 +1015,8 @@ def retry_run(run_id: str, background_tasks: BackgroundTasks, db: Session = Depe
         raise HTTPException(status_code=503, detail="Real AI is not configured. Add OPENAI_API_KEY to the server environment.")
     if not database_is_durable():
         raise HTTPException(status_code=503, detail="Persistent storage is not configured. Set DATABASE_URL to managed PostgreSQL or MySQL before retrying production runs.")
+    if not worker_is_ready():
+        raise HTTPException(status_code=503, detail="The durable execution worker is not available. Start the CYRUS worker service and wait for its heartbeat.")
 
     retried = WorkflowRun(
         id="RUN-" + uuid4().hex[:10].upper(),
@@ -1036,8 +1038,12 @@ def retry_run(run_id: str, background_tasks: BackgroundTasks, db: Session = Depe
     db.add(retried)
     db.commit()
     db.refresh(retried)
-    background_tasks.add_task(execute_workflow, retried.id)
-    return {"item": as_run(retried), "notice": "A new workflow attempt was queued; the failed run and its artifacts were preserved."}
+    if external_worker_required():
+        notice = "A new workflow attempt was queued for the durable worker; the failed run and its artifacts were preserved."
+    else:
+        background_tasks.add_task(execute_workflow, retried.id)
+        notice = "A new workflow attempt was queued; the failed run and its artifacts were preserved."
+    return {"item": as_run(retried), "notice": notice}
 
 
 @app.get("/api/ready")
