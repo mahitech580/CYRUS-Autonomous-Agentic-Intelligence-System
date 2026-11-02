@@ -468,7 +468,7 @@ export default function App() {
           {view === "Code review" ? <ReviewView runs={runs} openRun={openRun} notify={notify} /> : null}
           {view === "Deployments" ? <DeploymentsView apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
-          {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
+          {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} setWorkspaceConfig={setWorkspaceConfig} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
         </div>
         <footer className="app-footer"><span><span className={"footer-pulse footer-pulse-" + (apiState === "connected" ? (workspaceConfig?.can_start_runs ? "ready" : "setup") : apiState)} /> {apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Runtime ready" : "Setup required") : apiState === "checking" ? "Checking runtime" : "API unavailable"}</span><span>CYRUS Workspace <b>0.2.2</b></span><span>Built for deliberate shipping <Zap size={12} /></span></footer>
       </main>
@@ -670,8 +670,24 @@ function IntegrationsView({ notify }) {
     <div className="notice-strip"><Database size={17} /><span><strong>Credential safety:</strong> configure provider keys, access keys and database URLs through server-side environment variables. Never commit secrets or send them to the browser.</span></div>
   </div>;
 }
-function SettingsView({ apiState, workspaceConfig, settingsOpen, setSettingsOpen, notify }) {
+function SettingsView({ apiState, workspaceConfig, setWorkspaceConfig, settingsOpen, setSettingsOpen, notify }) {
   const [accessKey, setAccessKeyState] = useState(getAccessKey());
+  const [refreshingRuntime, setRefreshingRuntime] = useState(false);
+
+  async function refreshRuntime() {
+    if (refreshingRuntime) return;
+    setRefreshingRuntime(true);
+    try {
+      const config = await api.config();
+      setWorkspaceConfig(config);
+      notify("Runtime and queue status refreshed.");
+    } catch (error) {
+      notify(error.message || "Could not refresh runtime status.");
+    } finally {
+      setRefreshingRuntime(false);
+    }
+  }
+
   return <div className="view-stack subpage"><SectionTitle eyebrow="WORKSPACE CONTROL / RUNTIME CONFIGURATION" title="Settings" detail="Inspect live dependencies and connect the server-side services needed to run real agent workflows." />
     <div className="settings-layout">
       <section className="panel-card settings-card"><div className="panel-heading"><div><div className="eyebrow">SAFETY POLICY</div><h2>Execution boundaries</h2></div><ShieldCheck size={18} /></div>
@@ -681,7 +697,7 @@ function SettingsView({ apiState, workspaceConfig, settingsOpen, setSettingsOpen
         <div className="notice-strip"><LockKeyhole size={16} /><span>Provider credentials and database URLs belong in server-side environment variables, never frontend code.</span></div>
         <a className="settings-link" href="https://vercel.com/mahendra8/cyrus-api/settings/environment-variables" target="_blank" rel="noreferrer">Open API environment settings <ArrowUpRight size={13} /></a>
       </section>
-      <section className="panel-card settings-card"><div className="panel-heading"><div><div className="eyebrow">RUNTIME</div><h2>Connection status</h2></div><Activity size={18} /></div>
+      <section className="panel-card settings-card"><div className="panel-heading"><div><div className="eyebrow">RUNTIME</div><h2>Connection status</h2></div><button className="button-outline" type="button" onClick={refreshRuntime} disabled={refreshingRuntime}><RefreshCw size={13} className={refreshingRuntime ? "spin-icon" : ""} />{refreshingRuntime ? "Refreshing" : "Refresh status"}</button></div>
         <div className="runtime-status"><span className={"runtime-status-icon " + (apiState === "connected" ? "runtime-good" : "runtime-demo")}><Radio size={18} /></span><div><strong>{apiState === "connected" ? "CYRUS API reachable" : "CYRUS API unavailable"}</strong><p>{apiState === "connected" ? "Provider and storage readiness are reported separately below." : "Check the API deployment and VITE_API_BASE_URL."}</p></div></div>
         <div className="runtime-details runtime-checks">
           <div><span>MODEL PROVIDER</span><code>{workspaceConfig?.provider_configured ? (workspaceConfig.model || "Configured") : "OPENAI_API_KEY missing"}</code></div>
