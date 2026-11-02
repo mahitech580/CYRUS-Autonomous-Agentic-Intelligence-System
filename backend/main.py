@@ -315,6 +315,59 @@ def append_event(run: WorkflowRun, stage: str, agent: str, message: str, status:
 
 
 
+def worker_stale_after_seconds() -> int:
+    """Allow the longest bounded provider call and retry window before recovery."""
+    return bounded_int_setting("CYRUS_WORKER_STALE_SECONDS", 600, 300, 1800)
+
+
+def recover_stale_runs(*, now: datetime | None = None) -> int:
+    """Fence and fail runs whose worker stopped updating the persisted lease."""
+    current = now or utcnow()
+    cutoff = current - timedelta(seconds=worker_stale_after_seconds())
+    recovered = 0
+    with SessionLocal() as db:
+        stale_ids = db.scalars(
+            select(WorkflowRun.id)
+            .where(WorkflowRun.status == "running", WorkflowRun.updated_at < cutoff)
+            .order_by(WorkflowRun.updated_at.asc(), WorkflowRun.id.asc())
+            .limit(100)
+        ).all()
+        for run_id in stale_ids:
+            changed = db.execute(
+                update(WorkflowRun)
+                .where(
+                    WorkflowRun.id == run_id,
+                    WorkflowRun.status == "running",
+                    WorkflowRun.updated_at < cutoff,
+                )
+                .values(
+                    status="failed",
+                    error="Worker lease expired. The workflow was interrupted and marked failed; retry it as a new workflow to preserve partial artifacts.",
+                    current_stage=None,
+                    execution_token=None,
+                    updated_at=current,
+                )
+            )
+            if changed.rowcount != 1:
+                continue
+            db.expire_all()
+            run = db.get(WorkflowRun, run_id)
+            if run is None:
+                db.commit()
+                continue
+            append_event(
+                run,
+                "workflow",
+                "CYRUS",
+                "Worker lease expired. The interrupted run was marked failed; its saved artifacts remain available for review or retry.",
+                "failed",
+            )
+            db.commit()
+            recovered += 1
+    return recovered
+
+
+
 def bounded_int_setting(name: str, default: int, minimum: int, maximum: int) -> int:
     try:
         configured = int(os.getenv(name, str(default)))

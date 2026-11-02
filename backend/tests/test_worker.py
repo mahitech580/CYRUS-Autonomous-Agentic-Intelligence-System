@@ -65,3 +65,60 @@ def test_config_disables_launch_when_external_worker_is_missing(client, monkeypa
     assert response.json()["worker_required"] is True
     assert response.json()["worker_ready"] is False
     assert response.json()["can_start_runs"] is False
+
+def test_recover_stale_worker_run_fails_it_and_preserves_partial_artifacts(monkeypatch):
+    monkeypatch.setenv("CYRUS_WORKER_STALE_SECONDS", "300")
+    run_id = "RUN-STALE-" + main.uuid4().hex[:8].upper()
+    now = main.utcnow()
+    original_stages = [{"id": "plan", "output": "saved planning artifact"}]
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=run_id,
+            goal="Recover an interrupted durable worker run safely",
+            status="running",
+            progress=14,
+            stages=original_stages,
+            events=[],
+            execution_mode="live-model",
+            current_stage="research",
+            execution_token="stale-worker-token",
+            updated_at=now - timedelta(seconds=301),
+        ))
+        db.commit()
+
+    assert main.recover_stale_runs(now=now) == 1
+
+    with main.SessionLocal() as db:
+        recovered = db.get(main.WorkflowRun, run_id)
+        assert recovered.status == "failed"
+        assert recovered.current_stage is None
+        assert recovered.execution_token is None
+        assert recovered.stages == original_stages
+        assert "Worker lease expired" in recovered.error
+        assert recovered.events[-1]["status"] == "failed"
+
+
+def test_recovery_ignores_fresh_and_non_running_workflows(monkeypatch):
+    monkeypatch.setenv("CYRUS_WORKER_STALE_SECONDS", "300")
+    now = main.utcnow()
+    fresh_id = "RUN-FRESH-" + main.uuid4().hex[:8].upper()
+    cancelled_id = "RUN-CANCELLED-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add_all([
+            main.WorkflowRun(
+                id=fresh_id, goal="Keep a fresh worker lease", status="running",
+                progress=10, stages=[], events=[], execution_mode="live-model",
+                updated_at=now, execution_token="fresh-token",
+            ),
+            main.WorkflowRun(
+                id=cancelled_id, goal="Do not recover a cancelled workflow", status="cancelled",
+                progress=10, stages=[], events=[], execution_mode="live-model",
+                updated_at=now - timedelta(seconds=900), execution_token=None,
+            ),
+        ])
+        db.commit()
+
+    assert main.recover_stale_runs(now=now) == 0
+    with main.SessionLocal() as db:
+        assert db.get(main.WorkflowRun, fresh_id).status == "running"
+        assert db.get(main.WorkflowRun, cancelled_id).status == "cancelled"
