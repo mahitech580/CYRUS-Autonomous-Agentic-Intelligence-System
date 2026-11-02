@@ -122,3 +122,70 @@ def test_recovery_ignores_fresh_and_non_running_workflows(monkeypatch):
     with main.SessionLocal() as db:
         assert db.get(main.WorkflowRun, fresh_id).status == "running"
         assert db.get(main.WorkflowRun, cancelled_id).status == "cancelled"
+
+import threading
+
+try:
+    from backend import worker
+except ImportError:
+    import worker
+
+
+def _queued_run(run_id, created_at):
+    return main.WorkflowRun(
+        id=run_id,
+        goal="Process this queued workflow with a durable worker",
+        status="queued",
+        progress=0,
+        stages=[],
+        events=[],
+        execution_mode="live-model",
+        created_at=created_at,
+    )
+
+
+def test_worker_selects_the_oldest_queued_run_and_processes_one(monkeypatch):
+    main.ensure_schema()
+    now = main.utcnow()
+    older_id = "RUN-WORKER-OLD-" + main.uuid4().hex[:8].upper()
+    newer_id = "RUN-WORKER-NEW-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add_all([
+            _queued_run(newer_id, now),
+            _queued_run(older_id, now - timedelta(seconds=10)),
+        ])
+        db.commit()
+
+    executed = []
+    monkeypatch.setattr(main, "recover_stale_runs", lambda: 0)
+    monkeypatch.setattr(main, "execute_workflow", executed.append)
+
+    assert worker.next_queued_run_id() == older_id
+    assert worker.run_once() == older_id
+    assert executed == [older_id]
+
+
+def test_worker_loop_refreshes_and_removes_heartbeat_on_shutdown(monkeypatch):
+    monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
+    main.ensure_schema()
+    stop = threading.Event()
+    executed = []
+    monkeypatch.setattr(main, "recover_stale_runs", lambda: 0)
+    monkeypatch.setattr(worker, "next_queued_run_id", lambda: "RUN-WORKER-STOP")
+    def execute(run_id):
+        executed.append(run_id)
+        stop.set()
+    monkeypatch.setattr(main, "execute_workflow", execute)
+
+    worker.run_worker(stop_event=stop, worker_id="worker-shutdown-test")
+
+    assert executed == ["RUN-WORKER-STOP"]
+    with main.SessionLocal() as db:
+        assert db.get(main.WorkerHeartbeat, "worker-shutdown-test") is None
+
+
+def test_worker_refuses_to_start_without_external_worker_mode(monkeypatch):
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("CYRUS_EXTERNAL_WORKER", raising=False)
+    with pytest.raises(RuntimeError, match="CYRUS_EXTERNAL_WORKER"):
+        worker.run_worker(stop_event=threading.Event(), worker_id="worker-disabled-test")
