@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: cyrus
       POSTGRES_USER: cyrus
@@ -16,6 +17,7 @@ services:
       retries: 10
 
   api:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile.api
@@ -62,9 +64,11 @@ services:
       CYRUS_WORKER_HEARTBEAT_SECONDS: ${CYRUS_WORKER_HEARTBEAT_SECONDS:-15}
       CYRUS_WORKER_HEARTBEAT_TTL_SECONDS: ${CYRUS_WORKER_HEARTBEAT_TTL_SECONDS:-90}
       CYRUS_WORKER_STALE_SECONDS: ${CYRUS_WORKER_STALE_SECONDS:-600}
+    # The API initializes the shared schema before the worker starts polling.
     depends_on:
-      db:
+      api:
         condition: service_healthy
+    stop_grace_period: 150s
     healthcheck:
       test: ["CMD", "python", "-c", "from backend.main import worker_is_ready; assert worker_is_ready()"]
       interval: 15s
