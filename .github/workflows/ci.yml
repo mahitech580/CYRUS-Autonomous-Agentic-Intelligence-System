@@ -43,9 +43,37 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - run: python -m pip install -r requirements.txt
       - run: pytest -q
-      - name: Validate Docker Compose configuration
+      - name: Verify local Compose exposure and container hardening
         working-directory: .
-        run: POSTGRES_PASSWORD=ci-only-placeholder docker compose config --quiet
+        run: |
+          POSTGRES_PASSWORD=ci-only-placeholder docker compose config --format json > /tmp/cyrus-compose.json
+          python - <<'PY'
+          import json
+
+          with open("/tmp/cyrus-compose.json", encoding="utf-8") as handle:
+              config = json.load(handle)
+          services = config["services"]
+
+          def has_loopback_port(service_name, published_port):
+              return any(
+                  str(port.get("published")) == str(published_port)
+                  and str(port.get("target")) == str(published_port)
+                  and port.get("host_ip") == "127.0.0.1"
+                  for port in services[service_name].get("ports", [])
+              )
+
+          assert has_loopback_port("db", 5432), "PostgreSQL must bind to loopback"
+          assert has_loopback_port("api", 8000), "API must bind to loopback"
+          assert has_loopback_port("web", 5173), "Workspace dev server must bind to loopback"
+          assert services["db"]["environment"]["POSTGRES_PASSWORD"] == "ci-only-placeholder"
+          assert "change-me" not in json.dumps(config)
+
+          for service_name in ("api", "worker"):
+              service = services[service_name]
+              assert service.get("init") is True, f"{service_name} must use an init process"
+              assert "no-new-privileges:true" in service.get("security_opt", [])
+              assert "ALL" in service.get("cap_drop", [])
+          PY
       - name: Build and smoke-test the non-root API container
         working-directory: .
         run: |
