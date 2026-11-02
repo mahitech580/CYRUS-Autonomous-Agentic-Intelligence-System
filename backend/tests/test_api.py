@@ -802,8 +802,8 @@ def test_database_timestamps_are_serialized_as_explicit_utc(client):
     run = main.WorkflowRun(
         id=run_id,
         goal="Preserve UTC timestamps through SQLite",
-        status="running",
-        progress=20,
+        status="completed",
+        progress=100,
         created_at=naive_utc,
         updated_at=naive_utc,
         stages=[],

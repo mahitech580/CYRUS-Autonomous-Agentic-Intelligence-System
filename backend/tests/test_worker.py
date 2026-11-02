@@ -11,6 +11,13 @@ from fastapi.testclient import TestClient
 import main
 
 
+def clear_worker_heartbeats():
+    main.ensure_schema()
+    with main.SessionLocal() as db:
+        db.execute(main.delete(main.WorkerHeartbeat))
+        db.commit()
+
+
 @pytest.fixture
 def client():
     main.ensure_schema()
@@ -26,6 +33,7 @@ def test_inline_development_mode_does_not_require_a_worker(monkeypatch):
 
 
 def test_vercel_requires_a_fresh_external_worker_heartbeat(monkeypatch):
+    clear_worker_heartbeats()
     monkeypatch.setenv("VERCEL", "1")
     monkeypatch.delenv("CYRUS_EXTERNAL_WORKER", raising=False)
     main.ensure_schema()
@@ -36,9 +44,11 @@ def test_vercel_requires_a_fresh_external_worker_heartbeat(monkeypatch):
 
     main.touch_worker_heartbeat("worker-readiness-test")
     assert main.worker_is_ready() is True
+    main.remove_worker_heartbeat("worker-readiness-test")
 
 
 def test_worker_heartbeat_expires_after_the_configured_ttl(monkeypatch):
+    clear_worker_heartbeats()
     monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
     monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_TTL_SECONDS", "30")
     main.ensure_schema()
@@ -50,9 +60,11 @@ def test_worker_heartbeat_expires_after_the_configured_ttl(monkeypatch):
         db.commit()
 
     assert main.worker_is_ready() is False
+    main.remove_worker_heartbeat("worker-expiry-test")
 
 
 def test_config_disables_launch_when_external_worker_is_missing(client, monkeypatch):
+    clear_worker_heartbeats()
     monkeypatch.setenv("VERCEL", "1")
     monkeypatch.setenv("CYRUS_ACCESS_KEY", "test-access-key")
     monkeypatch.setenv("OPENAI_API_KEY", "test-provider-key")
