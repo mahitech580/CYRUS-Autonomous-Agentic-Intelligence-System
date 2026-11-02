@@ -371,3 +371,34 @@ def test_worker_loop_recovers_after_transient_queue_query_failure(monkeypatch, c
     assert attempts["queue"] >= 2
     assert executed == ["RUN-WORKER-RECOVERY"]
     assert "worker loop retry exception_type=RuntimeError" in caplog.text
+
+
+
+def test_prune_stale_worker_heartbeats_removes_only_expired_rows(monkeypatch):
+    monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_TTL_SECONDS", "30")
+    main.ensure_schema()
+    now = main.utcnow()
+    stale_id = "worker-stale-cleanup-" + main.uuid4().hex[:8]
+    fresh_id = "worker-fresh-cleanup-" + main.uuid4().hex[:8]
+    with main.SessionLocal() as db:
+        db.add_all([
+            main.WorkerHeartbeat(
+                id=stale_id,
+                last_seen_at=now - timedelta(seconds=31),
+                active_run_id=None,
+            ),
+            main.WorkerHeartbeat(
+                id=fresh_id,
+                last_seen_at=now,
+                active_run_id=None,
+            ),
+        ])
+        db.commit()
+
+    assert main.prune_stale_worker_heartbeats(now=now) == 1
+
+    with main.SessionLocal() as db:
+        assert db.get(main.WorkerHeartbeat, stale_id) is None
+        assert db.get(main.WorkerHeartbeat, fresh_id) is not None
+        db.delete(db.get(main.WorkerHeartbeat, fresh_id))
+        db.commit()

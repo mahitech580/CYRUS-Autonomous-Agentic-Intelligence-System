@@ -222,6 +222,15 @@ def remove_worker_heartbeat(worker_id: str) -> None:
         db.execute(delete(WorkerHeartbeat).where(WorkerHeartbeat.id == worker_id))
         db.commit()
 
+
+def prune_stale_worker_heartbeats(*, now: datetime | None = None) -> int:
+    """Delete expired process leases so crashed/restarted workers do not grow the table forever."""
+    cutoff = (now or utcnow()) - timedelta(seconds=worker_heartbeat_ttl_seconds())
+    with SessionLocal() as db:
+        result = db.execute(delete(WorkerHeartbeat).where(WorkerHeartbeat.last_seen_at < cutoff))
+        db.commit()
+        return max(0, int(result.rowcount or 0))
+
 def workflow_queue_snapshot() -> dict[str, Any] | None:
     """Expose aggregate queue pressure without returning goals or workflow identifiers."""
     try:

@@ -130,8 +130,13 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
                 now = time.monotonic()
                 if now - last_recovery >= recovery_seconds:
                     recovered = main.recover_stale_runs()
-                    if recovered:
-                        logger.info("worker recovered stale_workflows=%s", recovered)
+                    pruned = main.prune_stale_worker_heartbeats()
+                    if recovered or pruned:
+                        logger.info(
+                            "worker maintenance recovered_workflows=%s pruned_heartbeats=%s",
+                            recovered,
+                            pruned,
+                        )
                     last_recovery = now
 
                 run_id = next_queued_run_id()
