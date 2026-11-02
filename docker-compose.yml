@@ -4,9 +4,9 @@ services:
     environment:
       POSTGRES_DB: cyrus
       POSTGRES_USER: cyrus
-      POSTGRES_PASSWORD: change-me
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - cyrus-postgres:/var/lib/postgresql/data
     healthcheck:
@@ -20,7 +20,7 @@ services:
       context: .
       dockerfile: Dockerfile.api
     environment:
-      DATABASE_URL: postgresql+psycopg://cyrus:change-me@db:5432/cyrus
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://cyrus:${POSTGRES_PASSWORD:-change-me}@db:5432/cyrus}
       CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
       CYRUS_EXTERNAL_WORKER: "true"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -47,7 +47,7 @@ services:
     command: ["python", "-m", "backend.worker"]
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+psycopg://cyrus:change-me@db:5432/cyrus
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://cyrus:${POSTGRES_PASSWORD:-change-me}@db:5432/cyrus}
       CYRUS_EXTERNAL_WORKER: "true"
       CYRUS_WORKER_ID: compose-worker
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
