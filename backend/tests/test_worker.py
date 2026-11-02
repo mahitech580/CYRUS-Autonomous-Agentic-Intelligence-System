@@ -189,3 +189,34 @@ def test_worker_refuses_to_start_without_external_worker_mode(monkeypatch):
     monkeypatch.delenv("CYRUS_EXTERNAL_WORKER", raising=False)
     with pytest.raises(RuntimeError, match="CYRUS_EXTERNAL_WORKER"):
         worker.run_worker(stop_event=threading.Event(), worker_id="worker-disabled-test")
+
+def test_queue_snapshot_reports_aggregate_pressure_without_run_details():
+    main.ensure_schema()
+    now = main.utcnow()
+    queued_id = "RUN-QUEUE-OBS-" + main.uuid4().hex[:8].upper()
+    running_id = "RUN-RUNNING-OBS-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add_all([
+            main.WorkflowRun(
+                id=queued_id, goal="A private queued goal", status="queued",
+                progress=0, stages=[], events=[], execution_mode="live-model",
+                created_at=now,
+            ),
+            main.WorkflowRun(
+                id=running_id, goal="A private running goal", status="running",
+                progress=10, stages=[], events=[], execution_mode="live-model",
+                created_at=now,
+            ),
+        ])
+        db.commit()
+
+    snapshot = main.workflow_queue_snapshot()
+
+    assert snapshot["queued_workflows"] >= 1
+    assert snapshot["running_workflows"] >= 1
+    assert "oldest_queued_at" in snapshot
+    assert "private" not in str(snapshot)
+    with main.SessionLocal() as db:
+        db.delete(db.get(main.WorkflowRun, queued_id))
+        db.delete(db.get(main.WorkflowRun, running_id))
+        db.commit()

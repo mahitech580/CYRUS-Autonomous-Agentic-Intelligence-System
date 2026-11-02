@@ -217,6 +217,28 @@ def remove_worker_heartbeat(worker_id: str) -> None:
         db.execute(delete(WorkerHeartbeat).where(WorkerHeartbeat.id == worker_id))
         db.commit()
 
+def workflow_queue_snapshot() -> dict[str, Any] | None:
+    """Expose aggregate queue pressure without returning goals or workflow identifiers."""
+    try:
+        with SessionLocal() as db:
+            queued = db.scalar(
+                select(func.count()).select_from(WorkflowRun).where(WorkflowRun.status == "queued")
+            ) or 0
+            running = db.scalar(
+                select(func.count()).select_from(WorkflowRun).where(WorkflowRun.status == "running")
+            ) or 0
+            oldest = db.scalar(
+                select(func.min(WorkflowRun.created_at)).where(WorkflowRun.status == "queued")
+            )
+            return {
+                "queued_workflows": int(queued),
+                "running_workflows": int(running),
+                "oldest_queued_at": utc_iso(oldest),
+            }
+    except Exception as exc:
+        logger.warning("workflow queue snapshot failed exception_type=%s", type(exc).__name__)
+        return None
+
 
 def database_is_reachable() -> bool:
     """Check liveness without exposing database exception text or connection details."""
@@ -755,6 +777,9 @@ def config() -> dict[str, Any]:
     access_control = bool(os.getenv("CYRUS_ACCESS_KEY", "").strip())
     access_control_required = access_control or bool(os.getenv("VERCEL"))
     access_control_configured = access_control or not bool(os.getenv("VERCEL"))
+    worker_required = external_worker_required()
+    worker_ready = worker_is_ready()
+    queue = workflow_queue_snapshot()
     return {
         "service": "cyrus-api",
         "version": APP_VERSION,
@@ -769,9 +794,12 @@ def config() -> dict[str, Any]:
         "access_control_configured": access_control_configured,
         "web_search_enabled": os.getenv("CYRUS_ENABLE_WEB_SEARCH", "false").lower() in {"1", "true", "yes"},
         "execution_mode": "live-model" if ready else "not-configured",
-        "worker_required": external_worker_required(),
-        "worker_ready": worker_is_ready(),
-        "can_start_runs": database_ok and ready and durable and access_control_configured and worker_is_ready(),
+        "worker_required": worker_required,
+        "worker_ready": worker_ready,
+        "queued_workflows": queue["queued_workflows"] if queue else None,
+        "running_workflows": queue["running_workflows"] if queue else None,
+        "oldest_queued_at": queue["oldest_queued_at"] if queue else None,
+        "can_start_runs": database_ok and ready and durable and access_control_configured and worker_ready,
     }
 
 
@@ -783,6 +811,7 @@ def health() -> dict[str, Any]:
     access_configured = bool(os.getenv("CYRUS_ACCESS_KEY", "").strip()) or not bool(os.getenv("VERCEL"))
     worker_required = external_worker_required()
     worker_ready = worker_is_ready()
+    queue = workflow_queue_snapshot()
     ready_for_runs = database_ok and durable and ready and access_configured and worker_ready
     return {
         "status": "ok" if database_ok else "degraded",
@@ -794,6 +823,8 @@ def health() -> dict[str, Any]:
         "ready_for_runs": ready_for_runs,
         "worker_required": worker_required,
         "worker_ready": worker_ready,
+        "queued_workflows": queue["queued_workflows"] if queue else None,
+        "running_workflows": queue["running_workflows"] if queue else None,
         "timestamp": utcnow().isoformat(),
         "mode": "live-model" if ready else "not-configured",
     }
