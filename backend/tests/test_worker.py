@@ -230,9 +230,10 @@ def test_worker_loop_refreshes_and_removes_heartbeat_on_shutdown(monkeypatch, ca
     executed = []
     monkeypatch.setattr(main, "recover_stale_runs", lambda: 0)
     monkeypatch.setattr(worker, "next_queued_run_id", lambda: "RUN-WORKER-STOP")
-    def execute(run_id, *, should_stop=None):
+    def execute(run_id, *, should_stop=None, worker_id=None):
         executed.append(run_id)
         assert callable(should_stop)
+        assert worker_id == "worker-shutdown-test"
         stop.set()
     monkeypatch.setattr(main, "execute_workflow", execute)
 
@@ -365,7 +366,7 @@ def test_worker_loop_recovers_after_transient_queue_query_failure(monkeypatch, c
             raise RuntimeError("temporary query failure")
         return "RUN-WORKER-RECOVERY"
 
-    def execute(run_id, *, should_stop=None):
+    def execute(run_id, *, should_stop=None, worker_id=None):
         executed.append(run_id)
         stop.set()
         return True
@@ -553,3 +554,57 @@ def test_concurrent_durable_workers_cannot_claim_the_same_run_twice(monkeypatch)
     finally:
         for worker_id in workers:
             main.remove_worker_heartbeat(worker_id)
+
+
+def test_worker_keeps_active_lease_renewing_while_shutdown_drains_provider_call(monkeypatch):
+    monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
+    worker_id = "worker-drain-test"
+    run_id = "RUN-WORKER-DRAIN"
+    stop = threading.Event()
+    entered = threading.Event()
+    release = threading.Event()
+    renewed_after_stop = threading.Event()
+    removed = []
+    heartbeat_values = []
+
+    def touch(_identity, active_run_id=None):
+        heartbeat_values.append(active_run_id)
+        if stop.is_set() and active_run_id == run_id:
+            renewed_after_stop.set()
+
+    def bounded_setting(name, _default, _minimum, _maximum):
+        return 0.01 if name == "CYRUS_WORKER_HEARTBEAT_SECONDS" else 0.5
+
+    monkeypatch.setattr(main, "ensure_schema", lambda: None)
+    monkeypatch.setattr(main, "touch_worker_heartbeat", touch)
+    monkeypatch.setattr(main, "remove_worker_heartbeat", removed.append)
+    monkeypatch.setattr(main, "recover_stale_runs", lambda: 0)
+    monkeypatch.setattr(main, "prune_stale_worker_heartbeats", lambda: 0)
+    monkeypatch.setattr(main, "bounded_float_setting", bounded_setting)
+    monkeypatch.setattr(worker, "next_queued_run_id", lambda: run_id)
+
+    def execute(_run_id, *, should_stop=None, worker_id=None):
+        assert worker_id == worker_id_expected
+        assert callable(should_stop)
+        entered.set()
+        release.wait(timeout=3)
+        return True
+
+    worker_id_expected = worker_id
+    monkeypatch.setattr(main, "execute_workflow", execute)
+    thread = threading.Thread(
+        target=worker.run_worker,
+        kwargs={"stop_event": stop, "worker_id": worker_id},
+    )
+    thread.start()
+    try:
+        assert entered.wait(timeout=2)
+        stop.set()
+        assert renewed_after_stop.wait(timeout=2)
+    finally:
+        release.set()
+        thread.join(timeout=3)
+
+    assert not thread.is_alive()
+    assert worker_id in removed
+    assert run_id in heartbeat_values
