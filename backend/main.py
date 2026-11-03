@@ -67,6 +67,7 @@ class WorkflowRun(Base):
     error: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     approval_status: Mapped[str] = mapped_column(String(24), default="pending", nullable=False)
     execution_token: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    execution_worker_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
 
@@ -285,6 +286,7 @@ def ensure_schema() -> None:
         "error": "VARCHAR(2000)",
         "approval_status": "VARCHAR(24) NOT NULL DEFAULT 'pending'",
         "execution_token": "VARCHAR(48)",
+        "execution_worker_id": "VARCHAR(64)",
         "idempotency_key": "VARCHAR(128)",
     }
     with engine.begin() as connection:
