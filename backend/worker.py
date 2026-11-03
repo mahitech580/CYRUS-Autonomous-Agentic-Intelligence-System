@@ -111,10 +111,11 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
         # Keep renewing the lease while an in-flight provider call drains after
         # SIGTERM. The workflow checks the stop signal between model stages.
         while not heartbeat_stop.is_set():
-            with active_lock:
-                active_run_id = active["run_id"]
             try:
-                main.touch_worker_heartbeat(identity, active_run_id)
+                # Serialize the database write with active-run transitions so a
+                # delayed heartbeat cannot restore a run ID after it was cleared.
+                with active_lock:
+                    main.touch_worker_heartbeat(identity, active["run_id"])
             except Exception as exc:
                 logger.warning("worker heartbeat failed exception_type=%s", type(exc).__name__)
             heartbeat_stop.wait(heartbeat_seconds)
@@ -151,10 +152,10 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
                     stop.wait(poll_seconds)
                     continue
 
-                with active_lock:
-                    active["run_id"] = run_id
                 try:
-                    main.touch_worker_heartbeat(identity, run_id)
+                    with active_lock:
+                        active["run_id"] = run_id
+                        main.touch_worker_heartbeat(identity, run_id)
                     logger.info("workflow dispatch worker_id=%s run_id=%s", identity, run_id)
                     started_at = time.perf_counter()
                     claimed = main.execute_workflow(run_id, should_stop=stop.is_set, worker_id=identity)
@@ -168,10 +169,10 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
                     )
                     consecutive_failures = 0
                 finally:
-                    with active_lock:
-                        active["run_id"] = None
                     try:
-                        main.touch_worker_heartbeat(identity)
+                        with active_lock:
+                            active["run_id"] = None
+                            main.touch_worker_heartbeat(identity)
                     except Exception as exc:
                         # A transient heartbeat write must not terminate queue consumption.
                         logger.warning("worker heartbeat refresh failed exception_type=%s", type(exc).__name__)
