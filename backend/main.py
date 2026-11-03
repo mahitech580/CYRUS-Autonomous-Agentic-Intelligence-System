@@ -649,6 +649,7 @@ def interrupt_claimed_workflow(run_id: str, worker_token: str) -> bool:
                 error=message,
                 current_stage=None,
                 execution_token=None,
+                execution_worker_id=None,
                 updated_at=utcnow(),
             )
         )
@@ -749,6 +750,7 @@ def execute_workflow(
             run.status = "review"
             run.current_stage = None
             run.execution_token = None
+            run.execution_worker_id = None
             run.approval_status = "pending"
             append_event(run, "review", "CYRUS", "All seven model stages completed. Review the generated artifacts before approving any release action.", "approval_required")
             run.updated_at = utcnow()
@@ -764,6 +766,7 @@ def execute_workflow(
                 run.error = safe_error
                 run.current_stage = None
                 run.execution_token = None
+                run.execution_worker_id = None
                 append_event(run, "workflow", "CYRUS", safe_error, "failed")
                 run.updated_at = utcnow()
                 db.commit()
@@ -1124,7 +1127,7 @@ def cancel_run(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     transition = db.execute(
         update(WorkflowRun)
         .where(WorkflowRun.id == run_id, WorkflowRun.status.in_({"queued", "running"}))
-        .values(status="cancelled", current_stage=None, execution_token=None, updated_at=utcnow())
+        .values(status="cancelled", current_stage=None, execution_token=None, execution_worker_id=None, updated_at=utcnow())
     )
     if transition.rowcount != 1:
         existing = db.get(WorkflowRun, run_id)
