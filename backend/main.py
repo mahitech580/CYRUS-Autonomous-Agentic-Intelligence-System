@@ -24,7 +24,7 @@ import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, Index, JSON, String, create_engine, delete, func, inspect, select, text, update
+from sqlalchemy import DateTime, Index, JSON, String, and_, create_engine, delete, func, inspect, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -372,14 +372,35 @@ def worker_stale_after_seconds() -> int:
 
 
 def recover_stale_runs(*, now: datetime | None = None) -> int:
-    """Fence and fail runs whose worker stopped updating the persisted lease."""
+    """Fence runs whose owning durable-worker heartbeat is missing or expired.
+
+    Legacy and inline runs without a worker owner retain the conservative
+    updated_at timeout. Durable-worker runs are recovered as soon as their
+    matching active-run heartbeat lease expires.
+    """
     current = now or utcnow()
     cutoff = current - timedelta(seconds=worker_stale_after_seconds())
+    lease_cutoff = current - timedelta(seconds=worker_heartbeat_ttl_seconds())
+    fresh_worker_lease = select(WorkerHeartbeat.id).where(
+        WorkerHeartbeat.id == WorkflowRun.execution_worker_id,
+        WorkerHeartbeat.active_run_id == WorkflowRun.id,
+        WorkerHeartbeat.last_seen_at >= lease_cutoff,
+    ).exists()
+    stale_ownership = or_(
+        and_(
+            WorkflowRun.execution_worker_id.is_(None),
+            WorkflowRun.updated_at < cutoff,
+        ),
+        and_(
+            WorkflowRun.execution_worker_id.is_not(None),
+            ~fresh_worker_lease,
+        ),
+    )
     recovered = 0
     with SessionLocal() as db:
         stale_ids = db.scalars(
             select(WorkflowRun.id)
-            .where(WorkflowRun.status == "running", WorkflowRun.updated_at < cutoff)
+            .where(WorkflowRun.status == "running", stale_ownership)
             .order_by(WorkflowRun.updated_at.asc(), WorkflowRun.id.asc())
             .limit(100)
         ).all()
@@ -389,13 +410,14 @@ def recover_stale_runs(*, now: datetime | None = None) -> int:
                 .where(
                     WorkflowRun.id == run_id,
                     WorkflowRun.status == "running",
-                    WorkflowRun.updated_at < cutoff,
+                    stale_ownership,
                 )
                 .values(
                     status="failed",
                     error="Worker lease expired. The workflow was interrupted and marked failed; retry it as a new workflow to preserve partial artifacts.",
                     current_stage=None,
                     execution_token=None,
+                    execution_worker_id=None,
                     updated_at=current,
                 )
             )
@@ -416,7 +438,6 @@ def recover_stale_runs(*, now: datetime | None = None) -> int:
             db.commit()
             recovered += 1
     return recovered
-
 
 
 def bounded_int_setting(name: str, default: int, minimum: int, maximum: int) -> int:
