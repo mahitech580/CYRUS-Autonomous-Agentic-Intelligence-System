@@ -150,7 +150,7 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
                     main.touch_worker_heartbeat(identity, run_id)
                     logger.info("workflow dispatch worker_id=%s run_id=%s", identity, run_id)
                     started_at = time.perf_counter()
-                    claimed = main.execute_workflow(run_id, should_stop=stop.is_set)
+                    claimed = main.execute_workflow(run_id, should_stop=stop.is_set, worker_id=identity)
                     duration_ms = (time.perf_counter() - started_at) * 1000
                     logger.info(
                         "workflow dispatch returned worker_id=%s run_id=%s claimed=%s duration_ms=%.1f",
