@@ -1,5 +1,6 @@
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
 
@@ -508,3 +509,47 @@ def test_recovery_uses_worker_heartbeat_lease_not_only_run_age(monkeypatch):
             if heartbeat is not None:
                 db.delete(heartbeat)
         db.commit()
+
+
+def test_concurrent_durable_workers_cannot_claim_the_same_run_twice(monkeypatch):
+    main.ensure_schema()
+    run_id = "RUN-CONCURRENT-CLAIM-" + main.uuid4().hex[:8].upper()
+    workers = [
+        "worker-race-a-" + main.uuid4().hex[:8],
+        "worker-race-b-" + main.uuid4().hex[:8],
+    ]
+    with main.SessionLocal() as db:
+        db.add(_queued_run(run_id, main.utcnow()))
+        db.commit()
+    for worker_id in workers:
+        main.touch_worker_heartbeat(worker_id, run_id)
+
+    calls = []
+    calls_lock = threading.Lock()
+
+    def fake_complete(agent, _role, _instruction, _goal, _context):
+        with calls_lock:
+            calls.append(agent)
+        return ("concurrent claim artifact", {"input_tokens": 1, "output_tokens": 1}, "resp-race")
+
+    monkeypatch.setattr(main, "complete_agent", fake_complete)
+    start = threading.Barrier(2)
+
+    def compete(worker_id):
+        start.wait(timeout=5)
+        return main.execute_workflow(run_id, worker_id=worker_id)
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(compete, workers))
+        assert sorted(results) == [False, True]
+        assert len(calls) == 7
+        with main.SessionLocal() as db:
+            saved = db.get(main.WorkflowRun, run_id)
+            assert saved.status == "review"
+            assert len(saved.stages) == 7
+            assert saved.execution_worker_id is None
+            assert saved.execution_token is None
+    finally:
+        for worker_id in workers:
+            main.remove_worker_heartbeat(worker_id)
