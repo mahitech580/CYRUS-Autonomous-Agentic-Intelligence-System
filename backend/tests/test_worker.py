@@ -444,3 +444,67 @@ def test_durable_workflow_claim_requires_live_worker_lease_and_releases_owner(mo
             assert saved.execution_token is None
     finally:
         main.remove_worker_heartbeat(worker_id)
+
+
+def test_recovery_uses_worker_heartbeat_lease_not_only_run_age(monkeypatch):
+    monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_TTL_SECONDS", "30")
+    monkeypatch.setenv("CYRUS_WORKER_STALE_SECONDS", "600")
+    main.ensure_schema()
+    now = main.utcnow()
+    expired_id = "RUN-LEASE-EXPIRED-" + main.uuid4().hex[:8].upper()
+    live_id = "RUN-LEASE-LIVE-" + main.uuid4().hex[:8].upper()
+    mismatch_id = "RUN-LEASE-MISMATCH-" + main.uuid4().hex[:8].upper()
+    expired_worker = "worker-expired-" + main.uuid4().hex[:8]
+    live_worker = "worker-live-" + main.uuid4().hex[:8]
+    mismatch_worker = "worker-mismatch-" + main.uuid4().hex[:8]
+    with main.SessionLocal() as db:
+        db.add_all([
+            main.WorkflowRun(
+                id=expired_id, goal="Recover a worker with an expired lease",
+                status="running", progress=14, stages=[], events=[],
+                execution_mode="live-model", updated_at=now,
+                execution_token="expired-token", execution_worker_id=expired_worker,
+            ),
+            main.WorkflowRun(
+                id=live_id, goal="Keep a worker with a fresh lease",
+                status="running", progress=14, stages=[], events=[],
+                execution_mode="live-model",
+                updated_at=now - timedelta(seconds=601),
+                execution_token="live-token", execution_worker_id=live_worker,
+            ),
+            main.WorkflowRun(
+                id=mismatch_id, goal="Recover a heartbeat assigned to another run",
+                status="running", progress=14, stages=[], events=[],
+                execution_mode="live-model", updated_at=now,
+                execution_token="mismatch-token", execution_worker_id=mismatch_worker,
+            ),
+            main.WorkerHeartbeat(
+                id=expired_worker, last_seen_at=now - timedelta(seconds=31),
+                active_run_id=expired_id,
+            ),
+            main.WorkerHeartbeat(
+                id=live_worker, last_seen_at=now, active_run_id=live_id,
+            ),
+            main.WorkerHeartbeat(
+                id=mismatch_worker, last_seen_at=now, active_run_id="RUN-OTHER-OWNER",
+            ),
+        ])
+        db.commit()
+
+    assert main.recover_stale_runs(now=now) >= 2
+    with main.SessionLocal() as db:
+        expired = db.get(main.WorkflowRun, expired_id)
+        live = db.get(main.WorkflowRun, live_id)
+        mismatch = db.get(main.WorkflowRun, mismatch_id)
+        assert expired.status == "failed"
+        assert expired.execution_token is None
+        assert expired.execution_worker_id is None
+        assert live.status == "running"
+        assert live.execution_worker_id == live_worker
+        assert mismatch.status == "failed"
+        assert mismatch.execution_worker_id is None
+        for worker_id in (expired_worker, live_worker, mismatch_worker):
+            heartbeat = db.get(main.WorkerHeartbeat, worker_id)
+            if heartbeat is not None:
+                db.delete(heartbeat)
+        db.commit()
