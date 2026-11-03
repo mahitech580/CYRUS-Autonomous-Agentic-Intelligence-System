@@ -104,14 +104,20 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
         return
 
     active = {"run_id": None}
+    active_lock = threading.Lock()
+    heartbeat_stop = threading.Event()
 
     def heartbeat_loop() -> None:
-        while not stop.is_set():
+        # Keep renewing the lease while an in-flight provider call drains after
+        # SIGTERM. The workflow checks the stop signal between model stages.
+        while not heartbeat_stop.is_set():
+            with active_lock:
+                active_run_id = active["run_id"]
             try:
-                main.touch_worker_heartbeat(identity, active["run_id"])
+                main.touch_worker_heartbeat(identity, active_run_id)
             except Exception as exc:
                 logger.warning("worker heartbeat failed exception_type=%s", type(exc).__name__)
-            stop.wait(heartbeat_seconds)
+            heartbeat_stop.wait(heartbeat_seconds)
 
     heartbeat = threading.Thread(target=heartbeat_loop, name="cyrus-worker-heartbeat", daemon=True)
     heartbeat.start()
@@ -145,7 +151,8 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
                     stop.wait(poll_seconds)
                     continue
 
-                active["run_id"] = run_id
+                with active_lock:
+                    active["run_id"] = run_id
                 try:
                     main.touch_worker_heartbeat(identity, run_id)
                     logger.info("workflow dispatch worker_id=%s run_id=%s", identity, run_id)
@@ -161,7 +168,8 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
                     )
                     consecutive_failures = 0
                 finally:
-                    active["run_id"] = None
+                    with active_lock:
+                        active["run_id"] = None
                     try:
                         main.touch_worker_heartbeat(identity)
                     except Exception as exc:
@@ -179,11 +187,17 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
                 stop.wait(delay)
     finally:
         stop.set()
+        heartbeat_stop.set()
         heartbeat.join(timeout=heartbeat_seconds + 1)
-        try:
-            main.remove_worker_heartbeat(identity)
-        except Exception as exc:
-            logger.warning("worker heartbeat cleanup failed exception_type=%s", type(exc).__name__)
+        if heartbeat.is_alive():
+            # Do not delete a lease while its heartbeat thread may still be
+            # completing a database write; normal TTL cleanup will expire it.
+            logger.warning("worker heartbeat thread did not stop; leaving lease to expire")
+        else:
+            try:
+                main.remove_worker_heartbeat(identity)
+            except Exception as exc:
+                logger.warning("worker heartbeat cleanup failed exception_type=%s", type(exc).__name__)
         logger.info("worker stopped worker_id=%s", identity)
 
 def main_entrypoint() -> None:
