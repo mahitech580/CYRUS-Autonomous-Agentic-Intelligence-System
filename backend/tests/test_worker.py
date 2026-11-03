@@ -409,3 +409,38 @@ def test_prune_stale_worker_heartbeats_removes_only_expired_rows(monkeypatch):
         assert db.get(main.WorkerHeartbeat, fresh_id) is not None
         db.delete(db.get(main.WorkerHeartbeat, fresh_id))
         db.commit()
+
+
+def test_durable_workflow_claim_requires_live_worker_lease_and_releases_owner(monkeypatch):
+    main.ensure_schema()
+    run_id = "RUN-LEASE-CLAIM-" + main.uuid4().hex[:8].upper()
+    worker_id = "worker-claim-owner-" + main.uuid4().hex[:8]
+    with main.SessionLocal() as db:
+        db.add(_queued_run(run_id, main.utcnow()))
+        db.commit()
+
+    # A durable worker may not claim a run unless its fresh heartbeat already
+    # advertises that exact active run.
+    assert main.execute_workflow(run_id, worker_id=worker_id) is False
+    with main.SessionLocal() as db:
+        assert db.get(main.WorkflowRun, run_id).status == "queued"
+
+    main.touch_worker_heartbeat(worker_id, run_id)
+    observed_owners = []
+
+    def fake_complete(_agent, _role, _instruction, _goal, _context):
+        with main.SessionLocal() as db:
+            observed_owners.append(db.get(main.WorkflowRun, run_id).execution_worker_id)
+        return ("lease-owned artifact", {"input_tokens": 1, "output_tokens": 1}, "resp-lease")
+
+    monkeypatch.setattr(main, "complete_agent", fake_complete)
+    try:
+        assert main.execute_workflow(run_id, worker_id=worker_id) is True
+        assert observed_owners and set(observed_owners) == {worker_id}
+        with main.SessionLocal() as db:
+            saved = db.get(main.WorkflowRun, run_id)
+            assert saved.status == "review"
+            assert saved.execution_worker_id is None
+            assert saved.execution_token is None
+    finally:
+        main.remove_worker_heartbeat(worker_id)
