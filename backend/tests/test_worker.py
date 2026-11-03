@@ -608,3 +608,79 @@ def test_worker_keeps_active_lease_renewing_while_shutdown_drains_provider_call(
     assert not thread.is_alive()
     assert worker_id in removed
     assert run_id in heartbeat_values
+
+
+def test_queue_snapshot_reports_orphaned_leases_without_private_run_data(client):
+    main.ensure_schema()
+    now = main.utcnow()
+    before = main.workflow_queue_snapshot()["orphaned_workflows"]
+    orphan_id = "RUN-ORPHAN-OBS-" + main.uuid4().hex[:8].upper()
+    live_id = "RUN-LIVE-OBS-" + main.uuid4().hex[:8].upper()
+    orphan_worker = "worker-orphan-obs-" + main.uuid4().hex[:8]
+    live_worker = "worker-live-obs-" + main.uuid4().hex[:8]
+    with main.SessionLocal() as db:
+        db.add_all([
+            main.WorkflowRun(
+                id=orphan_id, goal="private orphaned workflow goal",
+                status="running", progress=10, stages=[], events=[],
+                execution_mode="live-model", updated_at=now,
+                execution_token="orphan-token", execution_worker_id=orphan_worker,
+            ),
+            main.WorkflowRun(
+                id=live_id, goal="private healthy workflow goal",
+                status="running", progress=10, stages=[], events=[],
+                execution_mode="live-model", updated_at=now,
+                execution_token="live-token", execution_worker_id=live_worker,
+            ),
+            main.WorkerHeartbeat(
+                id=live_worker, last_seen_at=now, active_run_id=live_id,
+            ),
+        ])
+        db.commit()
+
+    try:
+        snapshot = main.workflow_queue_snapshot()
+        assert snapshot["orphaned_workflows"] == before + 1
+        assert orphan_id not in str(snapshot)
+        assert live_id not in str(snapshot)
+        assert orphan_worker not in str(snapshot)
+        assert "private" not in str(snapshot)
+        assert client.get("/api/config").json()["orphaned_workflows"] == snapshot["orphaned_workflows"]
+        assert client.get("/api/health").json()["orphaned_workflows"] == snapshot["orphaned_workflows"]
+    finally:
+        with main.SessionLocal() as db:
+            for run_id in (orphan_id, live_id):
+                run = db.get(main.WorkflowRun, run_id)
+                if run is not None:
+                    db.delete(run)
+            heartbeat = db.get(main.WorkerHeartbeat, live_worker)
+            if heartbeat is not None:
+                db.delete(heartbeat)
+            db.commit()
+
+
+def test_queue_order_uses_run_id_as_a_stable_fifo_tiebreaker():
+    main.ensure_schema()
+    created_at = main.datetime(2000, 1, 1, tzinfo=main.timezone.utc)
+    run_ids = [
+        "RUN-FAIR-A-" + main.uuid4().hex[:8].upper(),
+        "RUN-FAIR-B-" + main.uuid4().hex[:8].upper(),
+    ]
+    run_ids.sort()
+    with main.SessionLocal() as db:
+        db.add_all([_queued_run(run_id, created_at) for run_id in run_ids])
+        db.commit()
+    try:
+        assert worker.next_queued_run_id() == run_ids[0]
+        with main.SessionLocal() as db:
+            first = db.get(main.WorkflowRun, run_ids[0])
+            first.status = "running"
+            db.commit()
+        assert worker.next_queued_run_id() == run_ids[1]
+    finally:
+        with main.SessionLocal() as db:
+            for run_id in run_ids:
+                run = db.get(main.WorkflowRun, run_id)
+                if run is not None:
+                    db.delete(run)
+            db.commit()
