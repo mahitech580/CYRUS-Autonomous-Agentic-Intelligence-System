@@ -705,6 +705,7 @@ function SettingsView({ apiState, workspaceConfig, setWorkspaceConfig, settingsO
           <div><span>ACCESS CONTROL</span><code>{workspaceConfig?.auth_required ? (workspaceConfig?.access_control_configured ? "Protected" : "CYRUS_ACCESS_KEY missing") : "Local development"}</code></div>
           <div><span>WORKER CAPACITY</span><code>{workspaceConfig?.worker_required ? (workspaceConfig?.worker_ready ? (workspaceConfig?.available_workers ?? 0) + " available · " + (workspaceConfig?.active_workers ?? 0) + " active" : "No fresh worker heartbeat") : "Inline development execution"}</code></div>
           <div><span>QUEUE PRESSURE</span><code>{workspaceConfig?.queued_workflows == null ? "Unavailable" : workspaceConfig.queued_workflows + " queued · " + (workspaceConfig.running_workflows ?? 0) + " running"}</code></div>
+          <div><span>ORPHANED WORKFLOWS</span><code>{workspaceConfig?.orphaned_workflows == null ? "Unavailable" : workspaceConfig.orphaned_workflows + " awaiting lease recovery"}</code></div>
           <div><span>OLDEST QUEUED</span><code>{workspaceConfig?.queued_workflows == null ? "Unavailable" : workspaceConfig.queued_workflows === 0 ? "No queued work" : Math.round(workspaceConfig.oldest_queued_seconds ?? 0) + " seconds"}</code></div>
           <div><span>EXECUTION MODE</span><code>{workspaceConfig?.execution_mode || "API offline"}</code></div>
           <div><span>LIVE WEB RESEARCH</span><code>{workspaceConfig?.web_search_enabled ? "Enabled for Scout" : "Not enabled"}</code></div>

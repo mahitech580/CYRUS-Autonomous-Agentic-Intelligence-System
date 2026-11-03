@@ -250,6 +250,18 @@ def workflow_queue_snapshot() -> dict[str, Any] | None:
                     WorkerHeartbeat.active_run_id.is_not(None),
                 )
             ) or 0
+            fresh_worker_lease = select(WorkerHeartbeat.id).where(
+                WorkerHeartbeat.id == WorkflowRun.execution_worker_id,
+                WorkerHeartbeat.active_run_id == WorkflowRun.id,
+                WorkerHeartbeat.last_seen_at >= worker_cutoff,
+            ).exists()
+            orphaned = db.scalar(
+                select(func.count()).select_from(WorkflowRun).where(
+                    WorkflowRun.status == "running",
+                    WorkflowRun.execution_worker_id.is_not(None),
+                    ~fresh_worker_lease,
+                )
+            ) or 0
             oldest_age = None
             if oldest is not None:
                 normalized_oldest = oldest.replace(tzinfo=timezone.utc) if oldest.tzinfo is None else oldest.astimezone(timezone.utc)
@@ -261,6 +273,7 @@ def workflow_queue_snapshot() -> dict[str, Any] | None:
                 "oldest_queued_seconds": oldest_age,
                 "available_workers": int(available_workers),
                 "active_workers": int(active_workers),
+                "orphaned_workflows": int(orphaned),
             }
     except Exception as exc:
         logger.warning("workflow queue snapshot failed exception_type=%s", type(exc).__name__)
@@ -913,6 +926,7 @@ def config() -> dict[str, Any]:
         "oldest_queued_seconds": queue["oldest_queued_seconds"] if queue else None,
         "available_workers": queue["available_workers"] if queue else None,
         "active_workers": queue["active_workers"] if queue else None,
+        "orphaned_workflows": queue["orphaned_workflows"] if queue else None,
         "oldest_queued_at": queue["oldest_queued_at"] if queue else None,
         "can_start_runs": database_ok and ready and durable and access_control_configured and worker_ready,
     }
@@ -940,6 +954,7 @@ def health() -> dict[str, Any]:
         "worker_ready": worker_ready,
         "queued_workflows": queue["queued_workflows"] if queue else None,
         "running_workflows": queue["running_workflows"] if queue else None,
+        "orphaned_workflows": queue["orphaned_workflows"] if queue else None,
         "timestamp": utcnow().isoformat(),
         "mode": "live-model" if ready else "not-configured",
     }
