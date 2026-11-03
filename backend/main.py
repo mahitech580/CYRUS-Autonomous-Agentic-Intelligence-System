@@ -644,8 +644,15 @@ def interrupt_claimed_workflow(run_id: str, worker_token: str) -> bool:
         return True
 
 
-def execute_workflow(run_id: str, *, should_stop: Callable[[], bool] | None = None) -> bool:
-    """Claim a queued run once, execute its seven model steps, and leave it for review."""
+def execute_workflow(
+    run_id: str,
+    *,
+    should_stop: Callable[[], bool] | None = None,
+    worker_id: str | None = None,
+) -> bool:
+    """Claim a queued run once, optionally fencing it to a live durable-worker lease."""
+    if worker_id is not None and not re.fullmatch(r"[A-Za-z0-9._:-]{1,64}", worker_id):
+        raise ValueError("Worker ID must contain 1–64 safe ASCII characters.")
     context: list[dict[str, str]] = []
     worker_token = uuid4().hex
     claimed = False
@@ -653,10 +660,23 @@ def execute_workflow(run_id: str, *, should_stop: Callable[[], bool] | None = No
         # A conditional UPDATE is an atomic compare-and-set on SQLite and SQL
         # databases. A duplicate BackgroundTask cannot start a second worker.
         with SessionLocal() as db:
+            claim_conditions = [WorkflowRun.id == run_id, WorkflowRun.status == "queued"]
+            if worker_id is not None:
+                live_lease = select(WorkerHeartbeat.id).where(
+                    WorkerHeartbeat.id == worker_id,
+                    WorkerHeartbeat.active_run_id == run_id,
+                    WorkerHeartbeat.last_seen_at >= utcnow() - timedelta(seconds=worker_heartbeat_ttl_seconds()),
+                ).exists()
+                claim_conditions.append(live_lease)
             claim = db.execute(
                 update(WorkflowRun)
-                .where(WorkflowRun.id == run_id, WorkflowRun.status == "queued")
-                .values(status="running", execution_token=worker_token, updated_at=utcnow())
+                .where(*claim_conditions)
+                .values(
+                    status="running",
+                    execution_token=worker_token,
+                    execution_worker_id=worker_id,
+                    updated_at=utcnow(),
+                )
             )
             if claim.rowcount != 1:
                 db.rollback()
