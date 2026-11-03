@@ -684,3 +684,66 @@ def test_queue_order_uses_run_id_as_a_stable_fifo_tiebreaker():
                 if run is not None:
                     db.delete(run)
             db.commit()
+
+
+def test_delayed_heartbeat_cannot_restore_a_cleared_active_run(monkeypatch):
+    monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
+    worker_id = "worker-heartbeat-order-test"
+    run_id = "RUN-HEARTBEAT-ORDER"
+    stop = threading.Event()
+    heartbeat_entered = threading.Event()
+    release_heartbeat = threading.Event()
+    execute_returning = threading.Event()
+    clear_attempted = threading.Event()
+    saw_active = threading.Event()
+    heartbeat_values = []
+
+    def touch(_identity, active_run_id=None):
+        heartbeat_values.append(active_run_id)
+        if active_run_id == run_id:
+            saw_active.set()
+            if threading.current_thread().name == "cyrus-worker-heartbeat" and not release_heartbeat.is_set():
+                heartbeat_entered.set()
+                release_heartbeat.wait(timeout=3)
+        elif active_run_id is None and saw_active.is_set() and threading.current_thread().name == "cyrus-worker-runner":
+            clear_attempted.set()
+
+    def bounded_setting(name, _default, _minimum, _maximum):
+        return 0.01 if name == "CYRUS_WORKER_HEARTBEAT_SECONDS" else 0.5
+
+    monkeypatch.setattr(main, "ensure_schema", lambda: None)
+    monkeypatch.setattr(main, "touch_worker_heartbeat", touch)
+    monkeypatch.setattr(main, "remove_worker_heartbeat", lambda _identity: None)
+    monkeypatch.setattr(main, "recover_stale_runs", lambda: 0)
+    monkeypatch.setattr(main, "prune_stale_worker_heartbeats", lambda: 0)
+    monkeypatch.setattr(main, "bounded_float_setting", bounded_setting)
+    monkeypatch.setattr(worker, "next_queued_run_id", lambda: run_id)
+
+    def execute(_run_id, *, should_stop=None, worker_id=None):
+        assert worker_id == worker_id_expected
+        assert heartbeat_entered.wait(timeout=2)
+        execute_returning.set()
+        stop.set()
+        return True
+
+    worker_id_expected = worker_id
+    monkeypatch.setattr(main, "execute_workflow", execute)
+    thread = threading.Thread(
+        name="cyrus-worker-runner",
+        target=worker.run_worker,
+        kwargs={"stop_event": stop, "worker_id": worker_id},
+    )
+    thread.start()
+    try:
+        assert execute_returning.wait(timeout=2)
+        # The heartbeat DB write still owns the active-state lock. Clearing the
+        # run must wait, otherwise its delayed write could restore a stale ID.
+        assert not clear_attempted.wait(timeout=0.05)
+        release_heartbeat.set()
+    finally:
+        release_heartbeat.set()
+        thread.join(timeout=3)
+
+    assert not thread.is_alive()
+    assert clear_attempted.is_set()
+    assert heartbeat_values[-1] is None
