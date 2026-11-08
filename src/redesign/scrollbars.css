@@ -1,0 +1,5 @@
+* { scrollbar-color:rgba(117,151,211,.38) rgba(8,15,30,.7); scrollbar-width:thin; }
+*::-webkit-scrollbar { width:10px; height:10px; }
+*::-webkit-scrollbar-track { background:rgba(8,15,30,.72); }
+*::-webkit-scrollbar-thumb { border:2px solid rgba(8,15,30,.72); border-radius:99px; background:linear-gradient(180deg,#4b80a9,#625e9a); }
+*::-webkit-scrollbar-thumb:hover { background:linear-gradient(180deg,#61c5de,#9b86d5); }
