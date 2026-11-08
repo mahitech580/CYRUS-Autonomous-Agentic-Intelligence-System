@@ -1,0 +1,8 @@
+.pipeline-section { position:relative; overflow:hidden; }
+.pipeline-section::before { content:""; position:absolute; width:300px; height:300px; right:-130px; top:-180px; border-radius:50%; background:radial-gradient(circle,rgba(114,122,255,.11),transparent 68%); pointer-events:none; }
+.pipeline-track { position:relative; gap:10px; }
+.pipeline-step { border:1px solid rgba(128,157,214,.22); border-radius:15px; background:linear-gradient(160deg,rgba(23,39,70,.92),rgba(13,23,44,.95)); box-shadow:inset 0 1px rgba(255,255,255,.035); }
+.pipeline-step:hover { border-color:rgba(103,232,249,.45); background:linear-gradient(160deg,rgba(31,55,90,.96),rgba(17,30,55,.98)); box-shadow:0 12px 28px rgba(0,0,0,.2); }
+.pipeline-icon { border:1px solid rgba(135,171,235,.2); background:linear-gradient(135deg,rgba(64,108,163,.24),rgba(105,81,163,.2)); color:#a9eaff; }
+.pipeline-connector { color:#6682ad; }
+.pipeline-foot { color:#9aacc8; }
