@@ -1,0 +1,16 @@
+@media (max-width: 1180px) {
+  .welcome-line { grid-template-columns:minmax(0,1fr) minmax(285px,.78fr); gap:24px; }
+  .hero-media { min-height:230px; }
+  .setup-checklist-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .agent-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .deployment-resource-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 900px) {
+  .welcome-line { grid-template-columns:minmax(0,1fr); }
+  .hero-media { min-height:225px; max-width:100%; }
+  .operations-grid, .settings-layout { grid-template-columns:minmax(0,1fr); }
+  .setup-checklist-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .pipeline-track { overflow-x:auto; padding:4px 2px 12px; scroll-snap-type:x mandatory; }
+  .pipeline-step-wrap { min-width:132px; scroll-snap-align:start; }
+}
