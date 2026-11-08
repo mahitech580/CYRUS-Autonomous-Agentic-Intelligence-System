@@ -1,0 +1,10 @@
+.settings-layout { align-items:start; gap:17px; }
+.settings-card { overflow:hidden; }
+.settings-card .panel-heading { padding-bottom:15px; border-bottom:1px solid rgba(126,158,219,.14); }
+.settings-card .panel-heading h2 { color:#eef6ff; }
+.setting-row { border-bottom-color:rgba(126,158,219,.13); }
+.setting-row strong { color:#e5efff; }
+.setting-row p { color:#9eafca; }
+.setting-row .tag-soft { color:#a7c5eb; border-color:rgba(126,158,219,.2); background:rgba(62,92,149,.13); }
+.settings-link { color:#78e8ff; }
+.access-key-field input { color:#eaf3ff; background:rgba(7,15,31,.72); border-color:rgba(126,158,219,.24); }
