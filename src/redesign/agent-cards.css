@@ -1,0 +1,9 @@
+.agent-grid { gap:15px; }
+.agent-card { position:relative; overflow:hidden; border:1px solid rgba(126,158,219,.2); border-radius:18px; background:linear-gradient(150deg,rgba(19,33,60,.94),rgba(10,19,38,.97)); box-shadow:0 14px 36px rgba(0,0,0,.16); }
+.agent-card::after { content:""; position:absolute; width:120px; height:120px; right:-68px; top:-70px; border-radius:50%; background:radial-gradient(circle,rgba(116,129,255,.12),transparent 70%); pointer-events:none; }
+.agent-card:hover { transform:translateY(-3px); border-color:rgba(103,232,249,.35); box-shadow:0 18px 42px rgba(0,0,0,.24); }
+.agent-card h3 { color:#eef6ff; font-size:20px; }
+.agent-role { color:#91b2e4; }
+.agent-card p { color:#a2b1ca; }
+.agent-card-bottom { border-top-color:rgba(126,158,219,.15); }
+.agent-model { color:#788cac; }
