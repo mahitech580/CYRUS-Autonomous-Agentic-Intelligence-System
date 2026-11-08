@@ -1,0 +1,14 @@
+.setup-checklist { border-color:rgba(123,157,218,.23); border-radius:18px; background:linear-gradient(145deg,rgba(16,29,53,.9),rgba(10,19,37,.94)); box-shadow:0 18px 45px rgba(0,0,0,.16); }
+.setup-checklist-heading h2 { color:#ecf4ff; }
+.setup-checklist-heading p { color:#9dafca; }
+.setup-checklist-grid { grid-template-columns:repeat(5,minmax(0,1fr)); gap:9px; }
+.setup-check { border-color:rgba(125,153,205,.18); border-radius:13px; background:rgba(17,31,57,.72); }
+.setup-check-icon { border-color:rgba(125,159,220,.2); background:rgba(49,72,116,.25); color:#a9c8fb; }
+.setup-check-ready { border-color:rgba(96,224,190,.28); background:rgba(38,112,97,.11); }
+.setup-check-ready .setup-check-icon { color:#78efd0; border-color:rgba(98,242,210,.24); background:rgba(46,144,124,.14); }
+.setup-check-blocked { border-color:rgba(248,174,119,.28); background:rgba(125,73,42,.1); }
+.setup-check-blocked .setup-check-state { color:#ffca90; }
+.setup-check-copy strong { color:#e4edff; }
+.setup-check-copy > span { color:#9aabc7; }
+.setup-checklist-footer { border-top-color:rgba(124,153,208,.16); }
+.setup-checklist-footer > span { color:#a0b0ca; }
