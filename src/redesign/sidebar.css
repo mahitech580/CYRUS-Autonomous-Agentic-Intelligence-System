@@ -1,0 +1,5 @@
+.sidebar { background: linear-gradient(180deg, rgba(10,17,34,.97), rgba(7,12,25,.98)); border-right-color: rgba(126,158,219,.18); box-shadow: 18px 0 55px rgba(0,0,0,.16); backdrop-filter: blur(22px); }
+.sidebar::after { content:""; position:absolute; top:0; right:-1px; height:100%; width:1px; background:linear-gradient(180deg,transparent,rgba(103,232,249,.42),rgba(167,139,250,.2),transparent); pointer-events:none; }
+.sidebar-status-card { border-color:rgba(103,232,249,.2); background:linear-gradient(145deg,rgba(19,36,61,.88),rgba(11,20,38,.95)); }
+.sidebar-status-value { color:#eaf6ff; }
+.sidebar-status-card p { color:#9eafca; }
