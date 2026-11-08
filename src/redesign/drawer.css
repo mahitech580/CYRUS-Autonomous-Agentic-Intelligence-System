@@ -1,0 +1,9 @@
+.drawer-layer { backdrop-filter:blur(3px); }
+.drawer-backdrop { background:rgba(3,8,20,.78); backdrop-filter:blur(7px); }
+.run-drawer { color:#eaf2ff; border-left:1px solid rgba(126,158,219,.23); background:linear-gradient(180deg,#0d1730 0%,#091224 100%); box-shadow:-28px 0 90px rgba(0,0,0,.46); }
+.drawer-head { border-bottom:1px solid rgba(126,158,219,.16); padding-bottom:15px; }
+.run-drawer h2 { color:#eff6ff; }
+.drawer-meta > div { border-color:rgba(126,158,219,.18); background:rgba(20,35,64,.65); }
+.drawer-meta span { color:#8499bd; }
+.drawer-meta strong { color:#d7e5fb; }
+.drawer-note { border-color:rgba(103,232,249,.19); background:rgba(38,93,121,.13); color:#a9c2df; }
