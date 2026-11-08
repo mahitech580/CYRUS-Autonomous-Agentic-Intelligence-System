@@ -1,0 +1,7 @@
+.operations-grid { gap:16px; }
+.observability-panel { border-color:rgba(126,158,219,.22); border-radius:19px; background:linear-gradient(145deg,rgba(17,31,57,.93),rgba(10,19,37,.96)); }
+.observability-copy h2 { color:#eff6ff; }
+.observability-copy p { color:#a1b2ce; }
+.chart-summary strong { color:#f2f7ff; }
+.chart-summary span, .chart-axis { color:#869bbc; }
+.mini-bars i { background:linear-gradient(180deg,#7cecff,#8b9eff 70%,#ad93f7); box-shadow:0 0 12px rgba(103,232,249,.13); }
