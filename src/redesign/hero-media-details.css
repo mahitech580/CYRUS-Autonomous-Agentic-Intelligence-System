@@ -1,0 +1,9 @@
+.hero-media-caption { display:flex; align-items:center; gap:12px; padding:15px 18px 23px; color:#eff7ff; }
+.hero-media-icon { display:grid; place-items:center; flex:0 0 42px; width:42px; height:42px; border:1px solid rgba(152,192,255,.38); border-radius:13px; color:#a9f3ff; background:rgba(13,35,70,.55); backdrop-filter:blur(12px); }
+.hero-media-caption > span:nth-child(2) { display:grid; min-width:0; gap:4px; }
+.hero-media-caption strong { font-size:13px; letter-spacing:-.2px; }
+.hero-media-caption small { color:#c0cce0; font-size:10px; line-height:1.55; }
+.hero-media-state { margin-left:auto; flex-shrink:0; padding:7px 9px; border:1px solid rgba(246,195,119,.3); border-radius:999px; color:#ffd69b; background:rgba(10,18,36,.58); font:8px var(--mono); letter-spacing:.6px; }
+.hero-media-state.is-ready { color:#8af5d4; border-color:rgba(98,242,210,.36); }
+.hero-media-credit { position:absolute; right:14px; bottom:7px; color:rgba(210,225,248,.68); font-size:8px; text-decoration:none; }
+.hero-media-credit:hover { color:#fff; text-decoration:underline; }
