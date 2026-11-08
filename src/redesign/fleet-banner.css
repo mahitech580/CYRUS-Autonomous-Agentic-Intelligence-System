@@ -1,0 +1,6 @@
+.fleet-banner { border:1px solid rgba(103,232,249,.22); border-radius:20px; background:radial-gradient(ellipse at 92% 5%,rgba(119,102,231,.18),transparent 34%),linear-gradient(115deg,rgba(17,43,70,.95),rgba(17,25,53,.94)); box-shadow:0 18px 48px rgba(0,0,0,.2); }
+.fleet-banner-icon { color:#a7f2ff; border:1px solid rgba(103,232,249,.24); background:rgba(46,129,164,.18); }
+.fleet-banner strong { color:#eef8ff; }
+.fleet-banner p { color:#a9bbd7; }
+.fleet-banner-status { color:#b3d5ff; }
+.fleet-banner-status small { color:#8298bb; }
