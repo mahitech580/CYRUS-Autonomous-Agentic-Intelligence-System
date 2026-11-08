@@ -504,7 +504,7 @@ function StarterBriefs({ onSelect }) {
     <div className="starter-brief-grid">{starterBriefs.map((brief, index) => {
       const Icon = brief.icon;
       return <button key={brief.title} type="button" className="starter-brief-card" onClick={() => onSelect(brief.goal)}>
-        <span className={"starter-brief-icon starter-brief-icon-" + index}><Icon size={18} /></span>
+        <span className={"starter-brief-media starter-brief-media-" + index}><img src={brief.image} alt="" loading="lazy" decoding="async" /><span className={"starter-brief-icon starter-brief-icon-" + index}><Icon size={18} /></span></span>
         <span className="starter-brief-card-copy"><strong>{brief.title}</strong><span>{brief.detail}</span></span>
         <ArrowUpRight className="starter-brief-arrow" size={16} />
       </button>;
