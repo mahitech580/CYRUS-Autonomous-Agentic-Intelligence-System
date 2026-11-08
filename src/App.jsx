@@ -41,18 +41,21 @@ const starterBriefs = [
   {
     title: "Build a feature",
     detail: "Turn a product idea into a reviewed implementation plan.",
+    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=720&q=80",
     icon: Code2,
     goal: "Design and implement a secure REST API feature. Start with acceptance criteria, research relevant documentation, propose the architecture and data model, write the implementation and automated tests, review security and edge cases, then provide a release checklist. Do not execute or deploy generated code."
   },
   {
     title: "Investigate a bug",
     detail: "Trace likely causes and produce a regression-focused fix.",
+    image: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=720&q=80",
     icon: Search,
     goal: "Investigate a software bug using the provided symptoms and code context. List assumptions, identify likely root causes, propose a minimal fix, write regression tests covering the failure and related edge cases, assess risks, and prepare a reviewer-friendly summary. Do not claim tests were run unless execution evidence exists."
   },
   {
     title: "Review for release",
     detail: "Audit quality, security, tests, and production risks.",
+    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=720&q=80",
     icon: ShieldCheck,
     goal: "Perform a release-readiness review for a full-stack application. Check architecture, API contracts, input validation, authentication, data handling, error states, test coverage, observability, and deployment risks. Prioritize findings by severity and provide remediation steps and a release checklist. Do not mark unexecuted tests as passing."
   },
