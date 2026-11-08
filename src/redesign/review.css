@@ -1,0 +1,9 @@
+.review-main { overflow:hidden; }
+.review-main .panel-heading { padding-bottom:15px; border-bottom:1px solid rgba(126,158,219,.14); }
+.review-main .panel-heading h2 { color:#edf5ff; }
+.review-main .panel-heading p { color:#9eafca; }
+.review-main .runs-table { display:grid; gap:8px; }
+.review-main .empty-state { margin-top:4px; }
+.notice-strip { border-color:rgba(103,232,249,.17); border-radius:14px; background:linear-gradient(100deg,rgba(24,50,77,.58),rgba(17,27,50,.75)); color:#a8bad6; }
+.notice-strip > svg { color:#88eafa; }
+.notice-strip strong { color:#e6f3ff; }
