@@ -1,0 +1,5 @@
+.brand-mark { transform:none; border:1px solid rgba(103,232,249,.5); border-radius:11px; background:linear-gradient(145deg,rgba(25,83,111,.65),rgba(48,37,100,.68)); box-shadow:0 0 24px rgba(74,221,255,.13),inset 0 1px rgba(255,255,255,.12); }
+.brand-mark span { background:linear-gradient(180deg,#a5f4ff,#7da5ff); }
+.brand-type strong { letter-spacing:2.8px; color:#f1f7ff; }
+.brand-type strong span { color:var(--accent-cyan); }
+.brand-type small { color:#8294b6; letter-spacing:1.7px; }
