@@ -1,0 +1,4 @@
+.setup-banner { border:1px solid rgba(246,190,117,.28); border-radius:16px; background:linear-gradient(105deg,rgba(87,56,35,.26),rgba(19,30,52,.9)); box-shadow:0 12px 35px rgba(0,0,0,.12); }
+.setup-banner-icon { color:#ffd08a; border-color:rgba(255,204,131,.28); background:rgba(132,83,35,.18); }
+.setup-banner strong { color:#ffe2b7; }
+.setup-banner p { color:#c5b39f; }
