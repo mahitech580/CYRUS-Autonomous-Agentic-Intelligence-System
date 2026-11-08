@@ -53,3 +53,12 @@ test("deployment cards do not imply an unverified Vercel deployment is live", as
   assert.ok(app.includes("verify the latest deployment"));
   assert.ok(!app.includes('state: "Deployed alias"'));
 });
+
+
+test("navigation exposes the current page and the task prompt has a programmatic label", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('aria-current={view === item.id ? "page" : undefined}'));
+  assert.ok(app.includes('aria-current={view === "Settings" ? "page" : undefined}'));
+  assert.ok(app.includes('id="task-prompt-label"'));
+  assert.ok(app.includes('aria-labelledby="task-prompt-label"'));
+});
