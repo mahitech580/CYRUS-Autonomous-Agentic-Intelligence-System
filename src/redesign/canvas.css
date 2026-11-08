@@ -1,0 +1,14 @@
+body {
+  background:
+    radial-gradient(ellipse at 78% 8%, rgba(67, 91, 180, .2), transparent 34%),
+    radial-gradient(ellipse at 8% 72%, rgba(31, 174, 190, .11), transparent 32%),
+    linear-gradient(145deg, #080d1c 0%, #070b17 52%, #0b1222 100%);
+  background-attachment: fixed;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(rgba(135, 164, 224, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(135, 164, 224, .035) 1px, transparent 1px);
+  background-size: 48px 48px; mask-image: linear-gradient(to bottom, rgba(0,0,0,.8), transparent 78%);
+}
+html { scroll-behavior: smooth; }
+.app-shell { background: transparent; isolation: isolate; }
