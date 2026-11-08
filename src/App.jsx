@@ -636,9 +636,9 @@ function DeploymentsView({ apiState, workspaceConfig }) {
   const storageReady = !!workspaceConfig?.persistent_storage;
   const accessReady = !!workspaceConfig && (!workspaceConfig.auth_required || !!workspaceConfig.access_control_configured);
   const targets = [
-    { name: "CYRUS workspace", eyebrow: "FRONTEND · VERCEL", description: "Open the deployed React workspace and verify the responsive operator console.", href: "https://cyrus-workspace-mahendra8.vercel.app", action: "Open workspace", icon: LayoutDashboard, state: "Deployed alias" },
+    { name: "CYRUS workspace", eyebrow: "FRONTEND · VERCEL", description: "Open the configured React workspace URL and verify the latest deployment and responsive operator console.", href: "https://cyrus-workspace-mahendra8.vercel.app", action: "Open workspace", icon: LayoutDashboard, state: "Configured URL · latest deploy unverified" },
     { name: "CYRUS API", eyebrow: "BACKEND · FASTAPI", description: "Inspect the documented API surface and use the health endpoint to test reachability.", href: "https://cyrus-api-mahendra8.vercel.app/docs", action: "Open API docs", icon: Terminal, state: apiState === "connected" ? "API reachable from this session" : "Reachability not confirmed" },
-    { name: "Source and release checks", eyebrow: "SOURCE CONTROL · GITHUB", description: "Review the code on main and inspect build/test results before promoting changes.", href: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions", action: "Open CI runs", icon: GitBranch, state: "main branch" },
+    { name: "Source and release checks", eyebrow: "SOURCE CONTROL · GITHUB", description: "Review the code on main and inspect build/test results before promoting changes.", href: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions", action: "Open CI runs", icon: GitBranch, state: "Workflow history link" },
   ];
   const gates = [
     { title: "Frontend and API", detail: "The workspace must reach the backend.", ready: apiState === "connected" },

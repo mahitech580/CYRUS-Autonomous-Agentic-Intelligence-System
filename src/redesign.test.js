@@ -44,3 +44,12 @@ test("photographic references stay on Unsplash and carry accessible context", as
   assert.ok(app.includes('loading="lazy"'));
   assert.ok(app.includes("https://unsplash.com/license"));
 });
+
+
+test("deployment cards do not imply an unverified Vercel deployment is live", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('state: "Configured URL · latest deploy unverified"'));
+  assert.ok(app.includes('state: "Workflow history link"'));
+  assert.ok(app.includes("verify the latest deployment"));
+  assert.ok(!app.includes('state: "Deployed alias"'));
+});
