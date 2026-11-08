@@ -1,0 +1,4 @@
+.workspace-switcher { border-color:rgba(129,157,211,.2); background:linear-gradient(120deg,rgba(24,38,67,.84),rgba(13,22,42,.9)); box-shadow:inset 0 1px rgba(255,255,255,.04); }
+.workspace-glyph { color:#061222; background:linear-gradient(135deg,#6de9ff,#a78bfa); box-shadow:0 6px 22px rgba(103,232,249,.2); }
+.workspace-switcher strong { color:#e9f3ff; }
+.workspace-switcher small { color:#94a4c2; }
