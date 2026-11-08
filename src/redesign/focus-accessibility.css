@@ -1,0 +1,9 @@
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline:2px solid #79ecff; outline-offset:3px; box-shadow:0 0 0 5px rgba(103,232,249,.12); }
+:focus:not(:focus-visible) { outline:none; }
+button, a, input, textarea, select { -webkit-tap-highlight-color:rgba(103,232,249,.12); }
+button, .nav-item, .starter-brief-card, .run-row { touch-action:manipulation; }
+@media (prefers-contrast: more) {
+  :root { --line: #60769c; --muted: #c2cee3; }
+  .nav-item, .button-outline, .panel-card, .agent-card, .integration-card, .deployment-resource-card { border-color:rgba(180,205,255,.55); }
+  .hero-media-caption small, .starter-brief-card-copy span { color:#edf4ff; }
+}
