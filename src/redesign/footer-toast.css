@@ -1,0 +1,8 @@
+.app-footer { border-top-color:rgba(126,158,219,.16); color:#879cbe; }
+.app-footer > span:nth-child(2) { color:#aec2e2; }
+.app-footer b { color:#7ceaff; }
+.toast { border:1px solid rgba(126,158,219,.28); border-radius:15px; color:#eaf4ff; background:linear-gradient(135deg,rgba(24,43,76,.98),rgba(18,29,56,.98)); box-shadow:0 22px 65px rgba(0,0,0,.42),0 0 32px rgba(103,232,249,.08); backdrop-filter:blur(18px); }
+.toast > svg { color:#77eed0; }
+.toast button { color:#9eb4d5; }
+.footer-pulse-ready { background:#76f0d0; box-shadow:0 0 12px rgba(118,240,208,.65); }
+.footer-pulse-setup { background:#ffd08a; box-shadow:0 0 10px rgba(255,208,138,.42); }
