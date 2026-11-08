@@ -1,0 +1,11 @@
+.event-heading > span { color:#90a6c8; }
+.drawer-event { border-bottom-color:rgba(126,158,219,.13); }
+.drawer-event-copy { border-left-color:rgba(126,158,219,.2); }
+.drawer-event-top strong { color:#dceaff; }
+.drawer-event-top span { color:#90a8cf; }
+.drawer-event-copy p { color:#b0bfd8; }
+.drawer-event-copy time { color:#7f93b7; }
+.event-marker-completed, .event-marker-approved { background:#75ebd0; box-shadow:0 0 0 4px rgba(98,242,210,.1),0 0 12px rgba(98,242,210,.3); }
+.event-marker-failed, .event-marker-rejected { background:#ff8ba7; box-shadow:0 0 0 4px rgba(255,139,167,.1); }
+.event-marker-started, .event-marker-running { background:#7bdfff; box-shadow:0 0 0 4px rgba(123,223,255,.1); }
+.event-marker-approval_required { background:#bd9cff; box-shadow:0 0 0 4px rgba(189,156,255,.1); }
