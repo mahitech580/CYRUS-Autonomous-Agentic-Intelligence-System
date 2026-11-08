@@ -1,0 +1,23 @@
+:root {
+  color-scheme: dark;
+  --bg: #070b18;
+  --panel: #0d1528;
+  --panel-soft: #121d34;
+  --line: #263451;
+  --line-soft: #1c2942;
+  --muted: #a0aec7;
+  --muted-2: #7889a8;
+  --text: #eef4ff;
+  --lime: #67e8f9;
+  --blue: #7da5ff;
+  --cyan: #62f2d2;
+  --violet: #b69cff;
+  --mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius: 16px;
+  --accent-cyan: #62e9ff;
+  --accent-violet: #a78bfa;
+  --accent-pink: #f18ac8;
+  --accent-mint: #72f1c4;
+  --surface-glass: rgba(14, 23, 43, .82);
+  --shadow-deep: 0 24px 80px rgba(0, 0, 0, .34);
+}
