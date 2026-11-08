@@ -1,0 +1,7 @@
+.metrics-grid { gap:14px; }
+.metric-card { position:relative; overflow:hidden; border:1px solid rgba(126,158,219,.22); border-radius:18px; background:linear-gradient(145deg,rgba(18,32,59,.92),rgba(10,19,37,.96)); box-shadow:0 14px 38px rgba(0,0,0,.16); }
+.metric-card::after { content:""; position:absolute; right:-35px; top:-48px; width:130px; height:130px; border-radius:50%; border:1px solid rgba(127,172,244,.11); box-shadow:0 0 0 16px rgba(127,172,244,.025),0 0 0 34px rgba(127,172,244,.018); }
+.metric-top > span:first-child { color:#8ea5cb; letter-spacing:1px; }
+.metric-icon { color:#a8ecff; border-color:rgba(103,232,249,.22); background:rgba(61,137,171,.14); }
+.metric-value { color:#f2f7ff; }
+.metric-bottom { color:#8fa2c2; }
