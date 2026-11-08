@@ -1,0 +1,8 @@
+.metric-card, .panel-card, .agent-card, .integration-card, .deployment-resource-card, .starter-brief-card, .pipeline-step { transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease,background-color .22s ease; }
+.metric-card:hover, .integration-card:hover, .deployment-resource-card:hover { transform:translateY(-2px); border-color:rgba(103,232,249,.34); box-shadow:0 20px 48px rgba(0,0,0,.23); }
+.button-primary, .button-outline, .button-quiet, .icon-button { transition:transform .18s ease,color .18s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease; }
+.status-pill { border:1px solid rgba(126,158,219,.17); background:rgba(63,86,131,.16); }
+.status-running { color:#94e8ff; border-color:rgba(103,232,249,.24); background:rgba(48,130,159,.12); }
+.status-completed, .status-approved { color:#8bf1d2; border-color:rgba(98,242,210,.24); background:rgba(49,137,117,.12); }
+.status-failed, .status-cancelled { color:#ffa5b4; border-color:rgba(255,139,167,.25); background:rgba(133,54,78,.13); }
+.status-review { color:#d0b7ff; border-color:rgba(189,156,255,.28); background:rgba(101,69,152,.16); }
