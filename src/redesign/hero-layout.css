@@ -1,0 +1,7 @@
+.welcome-line { display:grid; grid-template-columns:minmax(0,1.08fr) minmax(330px,.92fr); align-items:center; gap:clamp(24px,4vw,66px); min-height:300px; padding:8px 0 18px; }
+.welcome-line > div:first-child { position:relative; z-index:2; max-width:720px; }
+.welcome-line h1 { color:#f4f7ff; font-size:clamp(42px,5vw,72px); line-height:.99; letter-spacing:-3.3px; text-wrap:balance; }
+.welcome-line h1 em { color:transparent; background:linear-gradient(100deg,#72ecff 0%,#a4a5ff 52%,#d4a6ff 100%); background-clip:text; -webkit-background-clip:text; }
+.hero-copy { max-width:570px; color:#aab8d2; font-size:14px; line-height:1.9; }
+.eyebrow { color:#8ca4ce; letter-spacing:1.7px; }
+.eyebrow-square { background:var(--accent-cyan); box-shadow:0 0 14px rgba(103,232,249,.5); }
