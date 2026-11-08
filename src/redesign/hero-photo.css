@@ -1,0 +1,7 @@
+.hero-media { position:relative; isolation:isolate; display:flex; flex-direction:column; justify-content:space-between; min-width:0; min-height:255px; margin:0; overflow:hidden; border:1px solid rgba(135,165,229,.34); border-radius:24px; background:linear-gradient(135deg,#182d55,#10162d); box-shadow:0 26px 78px rgba(0,0,0,.36),0 0 55px rgba(79,117,222,.1); }
+.hero-media > img { position:absolute; z-index:-2; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; opacity:.78; filter:saturate(.9) contrast(1.08); }
+.hero-media-shade { position:absolute; z-index:-1; inset:0; background:linear-gradient(180deg,rgba(6,12,27,.36),rgba(7,12,28,.08) 36%,rgba(7,12,27,.9)),linear-gradient(100deg,rgba(16,31,68,.35),transparent 75%); }
+.hero-media-top { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:17px 18px; color:#d3e7ff; font:9px var(--mono); letter-spacing:1px; }
+.hero-media-top > span:first-child { display:inline-flex; align-items:center; gap:8px; }
+.hero-media-top i { width:7px; height:7px; border-radius:50%; background:#73f1cd; box-shadow:0 0 12px #73f1cd; }
+.hero-media-code { color:#c2b3ff; }
