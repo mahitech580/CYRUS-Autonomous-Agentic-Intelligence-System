@@ -1,0 +1,9 @@
+@media (prefers-reduced-motion: no-preference) {
+  .hero-media > img { animation: image-drift 24s ease-in-out infinite alternate; }
+  .hero-media::after { content:""; position:absolute; inset:-40% auto -40% -45%; width:38%; transform:rotate(16deg); background:linear-gradient(90deg,transparent,rgba(197,232,255,.1),transparent); animation:hero-sheen 11s ease-in-out infinite; pointer-events:none; }
+  @keyframes image-drift { from { transform:scale(1.025); } to { transform:scale(1.075); } }
+  @keyframes hero-sheen { 0%,55% { left:-45%; opacity:0; } 66% { opacity:1; } 82%,100% { left:115%; opacity:0; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+}
