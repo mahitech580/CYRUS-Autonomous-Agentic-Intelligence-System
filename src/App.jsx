@@ -493,7 +493,7 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
       <div className="hero-media-top"><span><i /> WORKFLOW VISUAL / 07 STAGES</span><span className="hero-media-code">CYRUS · 0.2.2</span></div>
       <figcaption className="hero-media-caption"><span className="hero-media-icon"><Sparkles size={19} /></span><span><strong>One coordinated agent mesh</strong><small>Plan · Research · Architect · Build · Verify · Review · Release</small></span><span className={"hero-media-state " + (workspaceConfig?.can_start_runs ? "is-ready" : "is-staged")}>{workspaceConfig?.can_start_runs ? "RUNTIME READY" : apiState === "connected" ? "SETUP REQUIRED" : "CONNECTING"}</span></figcaption>
       <a className="hero-media-credit" href="https://unsplash.com/license" target="_blank" rel="noreferrer">Visual source · Unsplash</a>
-    </figure></div>;
+    </figure></div>
 }
 
 function StarterBriefs({ onSelect }) {
