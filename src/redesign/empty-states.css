@@ -1,0 +1,5 @@
+.empty-state, .run-empty-state { border:1px dashed rgba(127,157,216,.28); border-radius:17px; background:radial-gradient(ellipse at 50% 0%,rgba(98,146,221,.11),transparent 62%),rgba(13,24,45,.52); color:#a4b4cf; }
+.empty-state > svg, .run-empty-icon { color:#83e8f6; }
+.empty-state strong, .run-empty-state > strong { color:#e8f2ff; }
+.empty-state span, .run-empty-state > span:not(.run-empty-icon) { color:#9aacc9; }
+.run-empty-icon { border-color:rgba(103,232,249,.26); background:rgba(58,132,167,.14); }
