@@ -1,0 +1,9 @@
+.topbar { border-bottom-color:rgba(129,157,211,.15); background:rgba(8,14,28,.72); backdrop-filter:blur(22px); }
+.topbar-left, .breadcrumb, .topbar-left strong { color:#d8e4f7; }
+.breadcrumb-divider { color:#607293; }
+.branch-chip { color:#a8c7ff; border-color:rgba(125,165,255,.25); background:rgba(90,120,186,.12); }
+.connection-pill { border-color:rgba(129,157,211,.22); background:rgba(17,29,52,.82); color:#c5d4ee; }
+.connection-connected { color:#77f2cc; border-color:rgba(98,242,210,.3); background:rgba(48,158,135,.1); }
+.connection-checking { color:#9edbff; }
+.connection-demo { color:#f2c98b; }
+.top-avatar { border:1px solid rgba(103,232,249,.42); background:linear-gradient(135deg,#214b74,#654b9d); color:#effaff; }
