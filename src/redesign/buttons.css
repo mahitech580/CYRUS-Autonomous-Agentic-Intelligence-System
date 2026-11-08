@@ -1,0 +1,8 @@
+.button-primary { color:#081426; border:1px solid rgba(188,220,255,.42); background:linear-gradient(105deg,#72eaff 0%,#8cb8ff 52%,#bea0ff 100%); box-shadow:0 9px 26px rgba(82,157,236,.2),inset 0 1px rgba(255,255,255,.5); font-weight:800; }
+.button-primary:hover:not(:disabled) { color:#061221; filter:brightness(1.08); transform:translateY(-2px); box-shadow:0 14px 32px rgba(82,157,236,.28); }
+.button-outline { color:#c3d5f2; border-color:rgba(127,158,218,.29); background:rgba(20,34,61,.52); }
+.button-outline:hover:not(:disabled) { color:#f1f8ff; border-color:rgba(103,232,249,.48); background:rgba(40,75,115,.36); }
+.button-quiet { color:#9db0d0; }
+.button-quiet:hover { color:#83eaff; background:rgba(103,232,249,.08); }
+.icon-button { color:#9eb2d4; border-color:rgba(127,158,218,.18); background:rgba(18,31,56,.5); }
+.icon-button:hover { color:#e8f8ff; border-color:rgba(103,232,249,.4); background:rgba(48,87,133,.32); }
