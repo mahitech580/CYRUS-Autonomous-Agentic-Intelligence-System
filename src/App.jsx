@@ -484,71 +484,13 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
   const completed = allRuns.filter((run) => ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100).length;
   const active = allRuns.filter((run) => run.status === "running" || run.status === "queued").length;
   return <div className="view-stack">
-    <div className="welcome-line"><div><div className="eyebrow"><span className="eyebrow-square" /> AUTONOMOUS ENGINEERING WORKSPACE <span className="eyebrow-slash">/ 001</span></div><h1>Build the future.<br /><em>One agent at a time.</em></h1><p className="hero-copy">A coordinated team for the messy middle of software engineering — from first idea to verified release.</p></div><div className="hero-orbit" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit-core"><Sparkles size={27} /></div><span className="orbit-node node-a" /><span className="orbit-node node-b" /><span className="orbit-node node-c" /><span className="orbit-label">AGENT<br />MESH</span></div></div>
-
-    {apiState !== "connected" || (workspaceConfig && !workspaceConfig.can_start_runs) ? <div className="setup-banner"><div className="setup-banner-icon"><ShieldCheck size={18} /></div><div><strong>{apiState !== "connected" ? "CYRUS API unavailable" : !workspaceConfig?.access_control_configured && workspaceConfig?.auth_required ? "Secure workspace access first" : !workspaceConfig?.provider_configured ? "Connect a real AI provider" : !workspaceConfig?.persistent_storage ? "Configure persistent storage" : workspaceConfig?.worker_required && !workspaceConfig?.worker_ready ? "Start the durable execution worker" : "Check runtime readiness"}</strong><p>{apiState !== "connected" ? "The live API is not reachable; CYRUS will not create simulated runs." : !workspaceConfig?.access_control_configured && workspaceConfig?.auth_required ? "Add CYRUS_ACCESS_KEY to cyrus-api in Vercel, then enter the same key in Settings." : !workspaceConfig?.provider_configured ? "Add OPENAI_API_KEY to the cyrus-api project's server environment variables. The secret stays server-side." : !workspaceConfig?.persistent_storage ? "Set DATABASE_URL to a managed PostgreSQL or MySQL database. Serverless SQLite is not durable." : workspaceConfig?.worker_required && !workspaceConfig?.worker_ready ? "Start python -m backend.worker as a supervised service using the same DATABASE_URL and provider credential as the API." : "Check the API health and runtime configuration before launching a workflow."}</p></div><button type="button" className="button-outline" onClick={() => setView("Settings")}>Configure <ArrowRight size={13} /></button></div> : null}
-    <form className="task-composer" onSubmit={startRun}>
-      <div className="composer-top"><div className="composer-icon"><Sparkles size={17} /></div><div><strong>What are we building today?</strong><span>Describe an outcome. CYRUS will map the work into a reviewable pipeline.</span></div><span className="composer-shortcut">⌘ ↵</span></div>
-      <textarea id="task-prompt" value={goal} onChange={(e) => setGoal(e.target.value)} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Describe a feature, bug, API, or engineering outcome…" rows={2} maxLength={1200} />
-      <div className="composer-bottom"><div className="composer-context"><span><Braces size={13} /> Full-stack project</span><span><Database size={13} /> DB-aware</span><span><ShieldCheck size={13} /> Human review gates</span></div><button className="button-primary" type="submit" disabled={!goal.trim() || isStarting}>{isStarting ? "Starting…" : canStart ? "Start live workflow" : "Complete setup to launch"}<ArrowRight size={15} /></button></div>
-    </form>
-
-    <StarterBriefs onSelect={(brief) => { setGoal(brief); document.getElementById("task-prompt")?.focus(); }} />
-    {!canStart ? <section className="setup-checklist" aria-labelledby="setup-checklist-title">
-      <div className="setup-checklist-heading">
-        <div><div className="eyebrow">BEFORE YOUR FIRST RUN</div><h2 id="setup-checklist-title">Launch readiness</h2><p>Live runs stay locked until the required server checks pass.</p></div>
-        <span className={"setup-checklist-count " + (apiState === "connected" ? "count-known" : "count-pending")}>{apiState === "connected" ? [true, !workspaceConfig?.auth_required || !!workspaceConfig?.access_control_configured, !!workspaceConfig?.provider_configured, !!workspaceConfig?.persistent_storage, !workspaceConfig?.worker_required || !!workspaceConfig?.worker_ready].filter(Boolean).length + " / 5 checks" : "API check pending"}</span>
-      </div>
-      <div className="setup-checklist-grid">
-        <SetupCheck label="API connection" state={apiState === "connected" ? "ready" : apiState === "unavailable" ? "blocked" : "unknown"} detail={apiState === "connected" ? "Backend is reachable" : apiState === "unavailable" ? "Check deployment and API URL" : "Checking connectivity"} />
-        <SetupCheck label="Workspace access" state={apiState !== "connected" ? "unknown" : (!workspaceConfig?.auth_required || workspaceConfig?.access_control_configured) ? "ready" : "blocked"} detail={apiState !== "connected" ? "Waiting for API status" : (!workspaceConfig?.auth_required || workspaceConfig?.access_control_configured) ? "Access policy configured" : "Add CYRUS_ACCESS_KEY in Vercel"} />
-        <SetupCheck label="AI provider" state={apiState !== "connected" ? "unknown" : workspaceConfig?.provider_configured ? "ready" : "blocked"} detail={apiState !== "connected" ? "Waiting for API status" : workspaceConfig?.provider_configured ? "Server-side model key detected" : "Add OPENAI_API_KEY to cyrus-api"} />
-        <SetupCheck label="Persistent storage" state={apiState !== "connected" ? "unknown" : workspaceConfig?.persistent_storage ? "ready" : "blocked"} detail={apiState !== "connected" ? "Waiting for API status" : workspaceConfig?.persistent_storage ? "Durable database detected" : "Set DATABASE_URL to managed Postgres/MySQL"} />
-        <SetupCheck label="Execution worker" state={apiState !== "connected" ? "unknown" : (!workspaceConfig?.worker_required || workspaceConfig?.worker_ready) ? "ready" : "blocked"} detail={apiState !== "connected" ? "Waiting for API status" : !workspaceConfig?.worker_required ? "Inline development execution enabled" : workspaceConfig?.worker_ready ? "Fresh worker heartbeat detected" : "Start the supervised backend worker"} />
-      </div>
-      <div className="setup-checklist-footer"><span><ShieldCheck size={14} /> Secrets remain on the server; the browser never receives provider credentials.</span><button type="button" className="button-quiet" onClick={() => setView("Settings")}>Open runtime settings <ArrowRight size={14} /></button></div>
-    </section> : null}
-    <div className="metrics-grid">
-      <MetricCard label="WORKFLOWS RUN" value={String(allRuns.length).padStart(2, "0")} change="Across this workspace" icon={Workflow} trend="neutral" />
-      <MetricCard label="ACTIVE EXECUTIONS" value={String(active).padStart(2, "0")} change={active ? "Agents are processing tasks" : "No active execution"} icon={Activity} trend="lime" />
-      <MetricCard label="COMPLETED RUNS" value={String(completed).padStart(2, "0")} change="Review artifacts before release" icon={CheckCircle2} trend="blue" />
-      <MetricCard label="AGENT FLEET" value="07" change="Specialists · staged pipeline" icon={Bot} trend="violet" />
-    </div>
-
-    <div className="section-divider"><span>ORCHESTRATION</span><span className="divider-line" /><span className="section-index">01 / 03</span></div>
-    <section className="pipeline-section">
-      <div className="section-title"><div><h2>From intent to impact</h2><p>One shared context. Seven focused roles. Explicit quality gates.</p></div><button className="button-quiet" onClick={() => setView("Agent fleet")}>Explore agent fleet <ArrowRight size={14} /></button></div>
-      <div className="pipeline-track">{pipeline.map((step, index) => <div className="pipeline-step-wrap" key={step.title}><button className={"pipeline-step pipeline-" + step.color} onClick={() => index === 5 ? setView("Code review") : index === 6 ? setView("Deployments") : setView("Agent fleet")}><span className="pipeline-icon"><step.icon size={17} /></span><strong>{step.title}</strong><small>{step.sub}</small></button>{index < pipeline.length - 1 ? <span className="pipeline-connector"><ArrowRight size={14} /></span> : null}</div>)}</div>
-      <div className="pipeline-foot"><span><span className="legend-dot legend-lime" /> Sequential hand-offs</span><span><span className="legend-dot legend-blue" /> Shared task context</span><button onClick={() => notify("Quality gates are enforced by the review stage before release.")}> <LockKeyhole size={12} /> Review gates enabled</button></div>
-    </section>
-
-    <div className="section-divider"><span>LIVE OPERATIONS</span><span className="divider-line" /><span className="section-index">02 / 03</span></div>
-    <div className="operations-grid">
-      <section className="panel-card runs-panel"><div className="panel-heading"><div><div className="eyebrow">EXECUTION STREAM</div><h2>Recent workflows</h2></div><button className="button-quiet" onClick={() => { setQuery(""); setStatusFilter("all"); setView("Runs & tasks"); }}>View all <ArrowRight size={14} /></button></div>
-        <div className="runs-table">{runs.slice(0, 4).map((run) => <RunRow run={run} key={run.id} onOpen={openRun} />)}</div>
-        {runs.length === 0 ? <div className="empty-state run-empty-state">
-          <span className="run-empty-icon"><Workflow size={23} /></span>
-          <strong>{allRuns.length === 0 ? (canStart ? "Ready for your first workflow?" : "Your first workflow starts with setup") : "No workflows match these filters"}</strong>
-          <span>{allRuns.length === 0
-            ? (canStart ? "Choose a starter above or describe the engineering outcome you want CYRUS to plan, build, test, and review." : "There are no saved runs yet. Finish the required runtime checks, then launch a real seven-stage workflow.")
-            : "Saved workflows exist, but none match the current search or status filter."}</span>
-          <div className="empty-state-actions">
-            {allRuns.length === 0
-              ? <button className="button-outline" onClick={() => canStart ? loadStarter(starterTasks[0]) : setView("Settings")}>{canStart ? "Write a task" : "Complete runtime setup"}<ArrowRight size={13} /></button>
-              : <button className="button-outline" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Clear filters<RefreshCw size={13} /></button>}
-            {allRuns.length === 0 ? <button className="button-quiet" onClick={() => loadStarter(starterTasks[1])}>Try an AI project example <ArrowUpRight size={13} /></button> : null}
-          </div>
-        </div> : null}
-      </section>
-      <section className="panel-card fleet-panel"><div className="panel-heading"><div><div className="eyebrow">AGENT TELEMETRY</div><h2>Fleet status</h2></div><button className="icon-button" onClick={() => setView("Agent fleet")} title="Open fleet"><ArrowUpRight size={16} /></button></div>
-        <div className="fleet-summary"><div><span className="summary-number">07</span><span className="summary-label">Registered roles</span></div><div><span className="summary-number text-lime">07</span><span className="summary-label">Pipeline stages</span></div><div><span className="summary-number text-blue">{apiState !== "connected" ? "OFF" : workspaceConfig?.can_start_runs ? "READY" : "SETUP"}</span><span className="summary-label">Runtime</span></div></div>
-        <div className="agent-list">{agents.slice(0, 4).map((agent) => <AgentLine agent={agent} state="registered" key={agent.id} />)}</div>
-        <button className="button-outline full-button" onClick={() => setView("Agent fleet")}>Open agent registry <ArrowRight size={14} /></button>
-      </section>
-    </div>
-    <div className="section-divider"><span>OBSERVABILITY</span><span className="divider-line" /><span className="section-index">03 / 03</span></div>
-    <section className="observability-panel"><div className="observability-copy"><div className="eyebrow">WORKSPACE SIGNAL</div><h2>Momentum, in context.</h2><p>Workflow counts and completion values below are derived from saved run records. No synthetic usage statistics are shown.</p><div className="signal-key"><span><i className="signal-green" /> Run progress</span><span><i className="signal-blue" /> Persisted runs</span></div></div><div className="observability-chart"><div className="chart-summary"><div><span>SAVED WORKFLOWS</span><strong>{String(allRuns.length).padStart(2, "0")}</strong></div><div><span>AVERAGE COMPLETION</span><strong>{allRuns.length ? Math.round(allRuns.reduce((sum, item) => sum + (Number(item.progress) || 0), 0) / allRuns.length) : 0}<small>%</small></strong></div></div><MiniBars runs={allRuns} /><div className="chart-axis"><span>OLDEST</span><span>RECENT</span></div></div></section>
-  </div>;
+    <div className="welcome-line"><div><div className="eyebrow"><span className="eyebrow-square" /> AUTONOMOUS ENGINEERING WORKSPACE <span className="eyebrow-slash">/ 001</span></div><h1>Build the future.<br /><em>One agent at a time.</em></h1><p className="hero-copy">A coordinated team for the messy middle of software engineering — from first idea to verified release.</p></div><figure className="hero-media">
+      <img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1600&q=85" alt="Rows of illuminated server racks in a modern data center" fetchPriority="high" decoding="async" />
+      <div className="hero-media-shade" aria-hidden="true" />
+      <div className="hero-media-top"><span><i /> WORKFLOW VISUAL / 07 STAGES</span><span className="hero-media-code">CYRUS · 0.2.2</span></div>
+      <figcaption className="hero-media-caption"><span className="hero-media-icon"><Sparkles size={19} /></span><span><strong>One coordinated agent mesh</strong><small>Plan · Research · Architect · Build · Verify · Review · Release</small></span><span className={"hero-media-state " + (workspaceConfig?.can_start_runs ? "is-ready" : "is-staged")}>{workspaceConfig?.can_start_runs ? "RUNTIME READY" : apiState === "connected" ? "SETUP REQUIRED" : "CONNECTING"}</span></figcaption>
+      <a className="hero-media-credit" href="https://unsplash.com/license" target="_blank" rel="noreferrer">Visual source · Unsplash</a>
+    </figure>;
 }
 
 function StarterBriefs({ onSelect }) {
