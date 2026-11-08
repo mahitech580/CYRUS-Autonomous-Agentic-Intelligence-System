@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll } from "./runs.js";
+import { getRunStageState, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -155,4 +155,19 @@ test("workflow creation reuses an idempotency key after an ambiguous request fai
   assert.equal(firstAttempt, retryAttempt);
   assert.notEqual(firstAttempt, changedGoal);
   assert.equal(generated, 2);
+});
+
+
+test("run stage state distinguishes completed, active, failed and not-reached stages", () => {
+  const run = {
+    status: "failed",
+    current_stage: null,
+    stages: [{ id: "plan", status: "completed" }],
+    events: [{ id: "failure-1", stage: "research", agent: "Scout", status: "failed" }],
+  };
+  assert.equal(getRunStageState(run, "plan"), "completed");
+  assert.equal(getRunStageState(run, "research"), "failed");
+  assert.equal(getRunStageState(run, "architect"), "queued");
+  assert.equal(getRunStageState({ status: "running", current_stage: "test" }, "test"), "active");
+  assert.equal(getRunStageState(null, "plan"), "queued");
 });

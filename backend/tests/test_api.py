@@ -997,3 +997,38 @@ def test_retry_uses_the_durable_queue_when_external_worker_is_required(client, m
     assert "durable worker" in response.json()["notice"]
     assert scheduled == []
     main.remove_worker_heartbeat("worker-retry-queue-test")
+
+
+def test_workflow_failure_event_identifies_the_stage_and_agent(client, monkeypatch):
+    run_id = "RUN-FAIL-STAGE-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=run_id,
+            goal="Identify the exact stage that failed",
+            status="queued",
+            progress=0,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+
+    def fail_during_research(agent, role, instruction, goal, context):
+        if agent == "Scout":
+            raise RuntimeError("Research provider temporarily unavailable")
+        return fake_agent(agent, role, instruction, goal, context)
+
+    monkeypatch.setattr(main, "complete_agent", fail_during_research)
+    assert main.execute_workflow(run_id) is True
+
+    with main.SessionLocal() as db:
+        saved = db.get(main.WorkflowRun, run_id)
+        assert saved.status == "failed"
+        assert saved.current_stage is None
+        assert [stage["id"] for stage in saved.stages] == ["plan"]
+        failed_event = saved.events[-1]
+        assert failed_event["status"] == "failed"
+        assert failed_event["stage"] == "research"
+        assert failed_event["agent"] == "Scout"
+        assert failed_event["message"] == "Research provider temporarily unavailable"

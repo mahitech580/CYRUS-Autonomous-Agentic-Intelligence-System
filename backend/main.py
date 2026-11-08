@@ -775,12 +775,17 @@ def execute_workflow(
         with SessionLocal() as db:
             run = get_run_for_update(db, run_id)
             if run is not None and run.status == "running" and run.execution_token == worker_token:
+                failed_stage = run.current_stage
+                failed_agent = next(
+                    (agent for stage_id, agent, _role, _instruction in STAGE_DEFINITIONS if stage_id == failed_stage),
+                    "CYRUS",
+                )
                 run.status = "failed"
                 run.error = safe_error
                 run.current_stage = None
                 run.execution_token = None
                 run.execution_worker_id = None
-                append_event(run, "workflow", "CYRUS", safe_error, "failed")
+                append_event(run, failed_stage or "workflow", failed_agent, safe_error, "failed")
                 run.updated_at = utcnow()
                 db.commit()
         return claimed

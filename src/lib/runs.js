@@ -128,3 +128,15 @@ export function getOrCreateRunRequestKey(holder, goal, createKey = () => {
   }
   return holder.current.key;
 }
+
+
+/** Resolve each pipeline stage from persisted artifacts, the active stage, and failure events. */
+export function getRunStageState(run, stageId) {
+  const stages = Array.isArray(run?.stages) ? run.stages : [];
+  if (stages.some((stage) => stage?.id === stageId)) return "completed";
+  const events = Array.isArray(run?.events) ? run.events : [];
+  const failed = events.some((event) => event?.status === "failed" && event?.stage === stageId);
+  if (failed) return "failed";
+  if (run?.current_stage === stageId && ["queued", "running"].includes(run?.status)) return "active";
+  return "queued";
+}

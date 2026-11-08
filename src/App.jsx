@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -779,11 +779,13 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
     <div className="drawer-timeline">{pipeline.map((step, index) => {
       const stageId = step.title.toLowerCase();
       const stage = stages.find((item) => item.id === stageId);
-      const active = run.current_stage === stageId;
-      const complete = !!stage;
+      const stageState = getRunStageState(run, stageId);
+      const active = stageState === "active";
+      const complete = stageState === "completed";
+      const failed = stageState === "failed";
       return <div className="timeline-item" key={step.title}>
-        <span className={"timeline-dot" + (complete ? " timeline-done" : active ? " timeline-active" : "")}>{complete ? <Check size={11} /> : active ? <Activity size={11} /> : index + 1}</span>
-        <div className="timeline-stage"><button className="timeline-stage-button" onClick={() => setExpandedStage(expandedStage === stageId ? "" : stageId)}><strong>{step.title} <span>{stage?.agent || step.title}</span></strong><small>{stage ? "Real model output saved" : active ? "Waiting for provider response" : run.status === "failed" ? "Not completed" : "Queued"}</small></button>
+        <span className={"timeline-dot" + (complete ? " timeline-done" : active ? " timeline-active" : failed ? " timeline-failed" : "")}>{complete ? <Check size={11} /> : active ? <Activity size={11} /> : failed ? <X size={11} /> : index + 1}</span>
+        <div className="timeline-stage"><button className="timeline-stage-button" onClick={() => setExpandedStage(expandedStage === stageId ? "" : stageId)}><strong>{step.title} <span>{stage?.agent || step.title}</span></strong><small>{complete ? "Real model output saved" : active ? "Waiting for provider response" : failed ? "Failed at this stage" : run.status === "failed" ? "Not reached" : "Queued"}</small></button>
           {expandedStage === stageId && stage ? <div className="artifact-output"><div className="artifact-label">MODEL OUTPUT</div><pre>{stage.output || stage.summary || "No output available."}</pre></div> : null}
         </div>
       </div>;
