@@ -1,0 +1,9 @@
+@media (max-width: 640px) {
+  .large-runs .run-row { grid-template-columns:minmax(0,1fr) 18px; align-items:start; gap:8px 10px; padding:14px 2px; }
+  .large-runs .run-description { grid-column:1; grid-row:1; min-width:0; }
+  .large-runs .run-description strong { display:block; white-space:normal; overflow-wrap:anywhere; line-height:1.6; }
+  .large-runs .run-description small { white-space:normal; line-height:1.6; }
+  .large-runs .run-progress-wrap { display:flex; grid-column:1; grid-row:2; width:100%; margin-top:0; }
+  .large-runs .status-pill { display:inline-flex; grid-column:1; grid-row:3; justify-self:start; margin-top:2px; }
+  .large-runs .run-arrow { grid-column:2; grid-row:1; }
+}
