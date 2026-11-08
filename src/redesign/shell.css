@@ -1,0 +1,6 @@
+.main-panel { background: transparent; }
+.page-content { width: min(100%, 1760px); margin-inline: auto; padding-block: clamp(26px, 3.2vw, 48px) 38px; }
+.view-stack { gap: clamp(22px, 2.2vw, 34px); }
+.panel-card, .pipeline-section, .observability-panel, .release-panel, .settings-layout .panel-card { border-color: rgba(129, 157, 211, .18); border-radius: 20px; background: linear-gradient(145deg, rgba(17, 28, 51, .88), rgba(10, 18, 34, .92)); box-shadow: 0 18px 55px rgba(0,0,0,.16); backdrop-filter: blur(18px); }
+.section-title h2, .panel-heading h2 { color: #f2f6ff; }
+.section-title p, .panel-heading p { color: #a4b2cc; }
