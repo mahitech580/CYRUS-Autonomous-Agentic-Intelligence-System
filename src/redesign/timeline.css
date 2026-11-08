@@ -1,0 +1,12 @@
+.drawer-progress { border-color:rgba(126,158,219,.18); background:rgba(20,35,64,.68); }
+.drawer-progress div:first-child { color:#a9bad5; }
+.drawer-progress strong { color:#8ceeff; }
+.drawer-section-title { color:#dce9fb; }
+.timeline-stage { border-color:rgba(126,158,219,.2); border-radius:13px; background:linear-gradient(140deg,rgba(22,38,68,.83),rgba(13,24,45,.9)); }
+.timeline-stage-button strong { color:#e5efff; }
+.timeline-stage-button strong span { color:#94aacc; }
+.timeline-stage-button small { color:#8fa4c5; }
+.timeline-dot { border-color:rgba(126,158,219,.25); background:#152541; color:#b7cae9; }
+.timeline-done { color:#09201e; border-color:#75ebd0; background:#75ebd0; box-shadow:0 0 16px rgba(98,242,210,.22); }
+.timeline-active { color:#071829; border-color:#7deaff; background:#7deaff; box-shadow:0 0 16px rgba(103,232,249,.28); }
+.artifact-output pre { border:1px solid rgba(126,158,219,.17); border-radius:11px; background:rgba(5,12,26,.7); color:#c9d9f2; }
