@@ -1,0 +1,10 @@
+.panel-card { border-color:rgba(126,158,219,.2); }
+.table-head { color:#7f94b8; border-bottom-color:rgba(126,158,219,.16); }
+.run-row { border-color:rgba(126,158,219,.12); border-radius:12px; background:rgba(15,27,51,.5); }
+.run-row:hover { border-color:rgba(103,232,249,.28); background:rgba(31,54,89,.5); }
+.run-id { color:#8faee2; }
+.run-description strong { color:#e6efff; }
+.run-description small { color:#8fa1bf; }
+.run-progress { background:#1f3152; }
+.run-progress i { background:linear-gradient(90deg,#62dfff,#8da7ff,#b39aff); box-shadow:0 0 12px rgba(103,232,249,.2); }
+.run-arrow { color:#8ea6ce; }
