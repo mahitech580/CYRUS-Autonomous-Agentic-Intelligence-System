@@ -254,3 +254,43 @@ test("retryRun posts to the encoded workflow retry endpoint", async (t) => {
   assert.equal(captured.url, "http://localhost:8000/api/runs/RUN%2Ffailed/retry");
   assert.equal(captured.options.method, "POST");
 });
+
+
+test("runtime snapshot verifies API health before returning configuration", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    calls.push(url);
+    const body = url.endsWith("/api/health")
+      ? { status: "degraded" }
+      : { provider_configured: true, can_start_runs: false };
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  const snapshot = await api.runtime();
+  assert.deepEqual(snapshot, { provider_configured: true, can_start_runs: false });
+  assert.deepEqual(calls, [
+    "http://localhost:8000/api/health",
+    "http://localhost:8000/api/config",
+  ]);
+});
+
+test("runtime snapshot stops before configuration when the health probe fails", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    calls.push(url);
+    return new Response(JSON.stringify({ detail: "API unavailable" }), {
+      status: 503,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  await assert.rejects(api.runtime(), (error) => error.status === 503);
+  assert.deepEqual(calls, ["http://localhost:8000/api/health"]);
+});

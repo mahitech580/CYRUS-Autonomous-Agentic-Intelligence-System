@@ -120,6 +120,10 @@ export async function request(path, options = {}) {
 export const api = {
   health: () => request("/api/health"),
   config: () => request("/api/config"),
+  runtime: async () => {
+    await request("/api/health");
+    return request("/api/config");
+  },
   agents: () => request("/api/agents"),
   runs: () => request("/api/runs"),
   getRun: (runId, options = {}) => request("/api/runs/" + encodeURIComponent(runId), options),

@@ -117,8 +117,7 @@ export default function App() {
     let alive = true;
     async function loadWorkspace() {
       try {
-        await api.health();
-        const config = await api.config();
+        const config = await api.runtime();
         if (!alive) return;
         setApiState("connected");
         setWorkspaceConfig(config);
@@ -471,7 +470,7 @@ export default function App() {
           {view === "Code review" ? <ReviewView runs={runs} openRun={openRun} notify={notify} /> : null}
           {view === "Deployments" ? <DeploymentsView apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
-          {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} setWorkspaceConfig={setWorkspaceConfig} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
+          {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} setWorkspaceConfig={setWorkspaceConfig} setApiState={setApiState} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
         </div>
         <footer className="app-footer"><span><span className={"footer-pulse footer-pulse-" + (apiState === "connected" ? (workspaceConfig?.can_start_runs ? "ready" : "setup") : apiState)} /> {apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Runtime ready" : "Setup required") : apiState === "checking" ? "Checking runtime" : "API unavailable"}</span><span>CYRUS Workspace <b>0.2.2</b></span><span>Built for deliberate shipping <Zap size={12} /></span></footer>
       </main>
@@ -679,7 +678,7 @@ function IntegrationsView({ notify }) {
     <div className="notice-strip"><Database size={17} /><span><strong>Credential safety:</strong> configure provider keys, access keys and database URLs through server-side environment variables. Never commit secrets or send them to the browser.</span></div>
   </div>;
 }
-function SettingsView({ apiState, workspaceConfig, setWorkspaceConfig, settingsOpen, setSettingsOpen, notify }) {
+function SettingsView({ apiState, workspaceConfig, setWorkspaceConfig, setApiState, settingsOpen, setSettingsOpen, notify }) {
   const [accessKey, setAccessKeyState] = useState(getAccessKey());
   const [refreshingRuntime, setRefreshingRuntime] = useState(false);
 
@@ -687,10 +686,12 @@ function SettingsView({ apiState, workspaceConfig, setWorkspaceConfig, settingsO
     if (refreshingRuntime) return;
     setRefreshingRuntime(true);
     try {
-      const config = await api.config();
+      const config = await api.runtime();
       setWorkspaceConfig(config);
-      notify("Runtime and queue status refreshed.");
+      setApiState("connected");
+      notify("API connection and runtime configuration refreshed.");
     } catch (error) {
+      setApiState("unavailable");
       notify(error.message || "Could not refresh runtime status.");
     } finally {
       setRefreshingRuntime(false);
