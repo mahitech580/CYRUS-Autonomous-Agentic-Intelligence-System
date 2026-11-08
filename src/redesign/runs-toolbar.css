@@ -1,0 +1,7 @@
+.list-toolbar { gap:9px; padding:12px; border:1px solid rgba(126,158,219,.16); border-radius:16px; background:rgba(11,20,39,.7); }
+.search-field, .filter-select-wrap { min-height:42px; border:1px solid rgba(125,157,216,.2); border-radius:11px; background:rgba(17,31,56,.8); color:#93a9ce; }
+.search-field:focus-within, .filter-select-wrap:focus-within { border-color:rgba(103,232,249,.5); box-shadow:0 0 0 3px rgba(103,232,249,.08); }
+.search-field input, .filter-select-wrap select { color:#e8f2ff; }
+.search-field input::placeholder { color:#7386a9; }
+.filter-select-wrap select option { background:#101a30; color:#e8f2ff; }
+.small-counter { color:#94b5e8; border:1px solid rgba(125,165,255,.2); background:rgba(84,118,186,.12); }
