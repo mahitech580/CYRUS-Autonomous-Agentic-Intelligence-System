@@ -1,0 +1,8 @@
+.integration-grid { gap:14px; }
+.integration-card { position:relative; overflow:hidden; border-color:rgba(126,158,219,.2); border-radius:17px; background:linear-gradient(150deg,rgba(19,32,59,.9),rgba(11,20,38,.97)); box-shadow:0 12px 34px rgba(0,0,0,.14); }
+.integration-card::after { content:""; position:absolute; right:-45px; bottom:-66px; width:140px; height:140px; border-radius:50%; background:radial-gradient(circle,rgba(105,128,246,.13),transparent 70%); pointer-events:none; }
+.integration-card h3 { color:#edf5ff; }
+.integration-card p { color:#a1b1cc; }
+.integration-group { color:#7f9dc9; }
+.integration-top .tag-soft { color:#aec3e7; border-color:rgba(126,158,219,.2); background:rgba(67,90,139,.14); }
+.integration-link { color:#78e8ff; }
