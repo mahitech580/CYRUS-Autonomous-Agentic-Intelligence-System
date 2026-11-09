@@ -17,7 +17,7 @@ _QUOTED_ASSIGNMENT = re.compile(
 _ASSIGNMENT = re.compile(
     r"(?i)\b((?:[A-Z0-9_]*_)?(?:api[_-]?key|access[_-]?key|database[_-]?url|"
     r"connection[_-]?string|client[_-]?secret|refresh[_-]?token|password|passwd|"
-    r"secret|token|authorization))(\s*[:=]\s*)(?:(?:Bearer|Basic)\s+)?[^\s,;\"']+"
+    r"secret|token|authorization))(\s*[:=]\s*)(?:(?:Bearer|Basic)\s+)?[^\s,;\"'&#]+"
 )
 _BEARER = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{4,}")
 _JWT = re.compile(

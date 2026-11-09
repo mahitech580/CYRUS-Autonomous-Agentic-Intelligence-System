@@ -70,7 +70,7 @@ def test_redacts_additional_payment_chat_package_and_cloud_tokens():
 def test_redacts_sensitive_url_query_parameter_variants_and_fragments():
     text = (
         "https://provider.example/callback?client_secret=query-secret&api-key=api-secret"
-        "#access_token=fragment-token&database_url=db-secret"
+        "#access_token=fragment-token&database_url=db-secret&display=kept"
     )
     result = redact_sensitive_text(text)
     for secret in ("query-secret", "api-secret", "fragment-token", "db-secret"):
@@ -79,3 +79,4 @@ def test_redacts_sensitive_url_query_parameter_variants_and_fragments():
     assert "api-key=[REDACTED]" in result
     assert "access_token=[REDACTED]" in result
     assert "database_url=[REDACTED]" in result
+    assert "display=kept" in result
