@@ -198,5 +198,5 @@ test("run helpers safely ignore malformed entries from an API payload", () => {
   const csv = buildRunsCsv([null, "invalid", ...sample]);
   assert.ok(csv.includes("RUN-001"));
   assert.ok(csv.includes("RUN-004"));
-  assert.equal(csv.split("\\r\\n").length, sample.length + 2);
+  assert.equal(csv.split("\r\n").length, sample.length + 2);
 });
