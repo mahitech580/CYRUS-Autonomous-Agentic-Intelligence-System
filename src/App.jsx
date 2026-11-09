@@ -85,7 +85,8 @@ function AgentLine({ agent, state = "registered" }) {
   return <div className="agent-line"><AgentAvatar agent={agent} small /><div className="agent-line-copy"><strong>{agent.name}</strong><span>{agent.role}</span></div><span className={"agent-state state-" + state}><i />{label}</span></div>;
 }
 function RunRow({ run, onOpen }) {
-  return <button className="run-row" onClick={() => onOpen(run)}><span className="run-id">{run.id}</span><span className="run-description"><strong>{run.goal}</strong><small>{run.kind || "Workflow"} <span>·</span> {run.agents || 4} agents <span>·</span> {run.time || "Just now"}</small></span><span className="run-progress-wrap"><span className="run-progress"><i style={{ width: (run.progress || 0) + "%" }} /></span><small>{run.progress || 0}%</small></span><StatusPill status={run.status} /><ArrowRight className="run-arrow" size={15} /></button>;
+  const progress = Math.max(0, Math.min(100, Number(run.progress) || 0));
+  return <button className="run-row" onClick={() => onOpen(run)}><span className="run-id">{run.id}</span><span className="run-description"><strong>{run.goal}</strong><small>{run.kind || "Workflow"} <span>·</span> {run.agents || 4} agents <span>·</span> {run.time || "Just now"}</small></span><span className="run-progress-wrap"><span className="run-progress" role="progressbar" aria-label={`Workflow ${run.id} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><i style={{ width: progress + "%" }} /></span><small>{progress}%</small></span><StatusPill status={run.status} /><ArrowRight className="run-arrow" size={15} /></button>;
 }
 
 export default function App() {

@@ -82,3 +82,11 @@ test("mobile navigation is hidden from keyboard users until opened and restores 
   assert.ok(app.includes('document.querySelector(".open-mobile")?.focus()'));
   assert.ok(styles.includes("visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s"));
 });
+
+
+test("run list progress indicators expose bounded accessible values", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('role="progressbar" aria-label={`Workflow ${run.id} progress`}'));
+  assert.ok(app.includes('const progress = Math.max(0, Math.min(100, Number(run.progress) || 0));'));
+  assert.ok(app.includes('aria-valuenow={progress}'));
+});
