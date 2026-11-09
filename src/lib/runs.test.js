@@ -171,3 +171,22 @@ test("run stage state distinguishes completed, active, failed and not-reached st
   assert.equal(getRunStageState({ status: "running", current_stage: "test" }, "test"), "active");
   assert.equal(getRunStageState(null, "plan"), "queued");
 });
+
+
+test("workflow search includes stage, approval, execution mode and failure context", () => {
+  const enriched = [
+    { id: "RUN-STAGE", goal: "Build feature", status: "running", current_stage: "architect", approval_status: "pending", execution_mode: "live-model" },
+    { id: "RUN-ERROR", goal: "Repair API", status: "failed", error: "Provider timeout during research" },
+  ];
+  assert.deepEqual(filterRuns(enriched, "architect").map((run) => run.id), ["RUN-STAGE"]);
+  assert.deepEqual(filterRuns(enriched, "pending").map((run) => run.id), ["RUN-STAGE"]);
+  assert.deepEqual(filterRuns(enriched, "live-model").map((run) => run.id), ["RUN-STAGE"]);
+  assert.deepEqual(filterRuns(enriched, "provider timeout").map((run) => run.id), ["RUN-ERROR"]);
+});
+
+test("run mapping preserves a real zero-agent count and normalizes numeric counts", () => {
+  assert.equal(mapRunRecord({ agent_count: 0 }).agents, 0);
+  assert.equal(mapRunRecord({ agent_count: "3.9" }).agents, 3);
+  assert.equal(mapRunRecord({ agent_count: null }).agents, 7);
+  assert.equal(mapRunRecord({ agent_count: "unknown" }).agents, 7);
+});

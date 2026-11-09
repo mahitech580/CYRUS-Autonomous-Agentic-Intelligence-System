@@ -7,8 +7,10 @@ export function filterRuns(runs, query = "", statusFilter = "all") {
   const items = Array.isArray(runs) ? runs : [];
   const needle = String(query || "").trim().toLowerCase();
   return items.filter((run) => {
-    const matchesSearch = !needle || [run.id, run.goal, run.status, run.kind]
-      .some((item) => String(item || "").toLowerCase().includes(needle));
+    const matchesSearch = !needle || [
+      run.id, run.goal, run.status, run.kind, run.current_stage,
+      run.approval_status, run.execution_mode, run.error,
+    ].some((item) => String(item || "").toLowerCase().includes(needle));
     const matchesStatus = statusFilter === "all"
       || (statusFilter === "completed"
         ? ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100
@@ -49,7 +51,9 @@ export function mapRunRecord(run) {
   return {
     ...run,
     time,
-    agents: run?.agent_count || 7,
+    agents: Number.isFinite(Number(run?.agent_count)) && run?.agent_count != null
+      ? Math.max(0, Math.floor(Number(run.agent_count)))
+      : 7,
     kind: run?.execution_mode === "live-model"
       ? "Live AI workflow"
       : run?.execution_mode || "Workflow",
