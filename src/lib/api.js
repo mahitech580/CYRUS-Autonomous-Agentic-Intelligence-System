@@ -52,6 +52,15 @@ export async function request(path, options = {}) {
     signal: externalSignal,
     ...fetchOptions
   } = options;
+  // Validate and normalize caller headers before allocating timers or abort listeners.
+  const headers = new Headers(fetchOptions.headers || {});
+  if (fetchOptions.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (key && !headers.has("Authorization")) {
+    headers.set("Authorization", "Bearer " + key);
+  }
+
   const controller = new AbortController();
   let timedOut = false;
   const onExternalAbort = () => controller.abort(externalSignal.reason);
@@ -66,13 +75,6 @@ export async function request(path, options = {}) {
     timedOut = true;
     controller.abort();
   }, timeout);
-  const headers = new Headers(fetchOptions.headers || {});
-  if (fetchOptions.body && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (key && !headers.has("Authorization")) {
-    headers.set("Authorization", "Bearer " + key);
-  }
 
   try {
     const response = await fetch(API_BASE + path, {

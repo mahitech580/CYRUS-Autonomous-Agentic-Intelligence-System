@@ -310,3 +310,19 @@ test("run history API helper sends explicit pagination parameters", async (t) =>
   await api.runs({ limit: 15, offset: 30 });
   assert.equal(capturedUrl, "http://localhost:8000/api/runs?limit=15&offset=30");
 });
+
+test("invalid request headers fail before allocating a network request", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+  };
+
+  await assert.rejects(
+    request("/api/health", { headers: [["invalid header name", "value"]] }),
+    TypeError,
+  );
+  assert.equal(fetchCalls, 0);
+});
