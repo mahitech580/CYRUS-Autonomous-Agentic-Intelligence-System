@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getRunStageState, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll } from "./runs.js";
+import { getRunStageState, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -207,4 +207,11 @@ test("artifact availability uses lightweight run summaries without requiring pay
   assert.equal(hasRunArtifacts({ stages: [{ id: "plan" }] }), true);
   assert.equal(hasRunArtifacts({ stage_count: "invalid", stages: [] }), false);
   assert.equal(hasRunArtifacts(null), false);
+});
+
+test("history pagination advances locally when the server cursor is null", () => {
+  assert.equal(getRunPageOffset({ next_offset: 30 }, 0, 30), 30);
+  assert.equal(getRunPageOffset({ next_offset: null }, 0, 4), 4);
+  assert.equal(getRunPageOffset({}, 30, 15), 45);
+  assert.equal(getRunPageOffset({ next_offset: "invalid" }, -4, -2), 0);
 });

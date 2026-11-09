@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, hasRunArtifacts } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, hasRunArtifacts, getRunPageOffset } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -183,10 +183,9 @@ export default function App() {
           if (alive && Array.isArray(data.items)) {
             const items = data.items.map(mapRunRecord);
             const total = Number(data.total);
-            const nextOffset = Number(data.next_offset);
             setRuns(items);
             setRunsTotal(Number.isFinite(total) ? Math.max(items.length, total) : items.length);
-            setRunsOffset(Number.isFinite(nextOffset) ? nextOffset : items.length);
+            setRunsOffset(getRunPageOffset(data, 0, items.length));
           }
         } catch (error) {
           if (![401, 503].includes(error.status)) notify(error.message || "Could not load workflow history.");
@@ -296,9 +295,8 @@ export default function App() {
         return [...current, ...items.filter((item) => !known.has(item.id))];
       });
       const total = Number(data.total);
-      const nextOffset = Number(data.next_offset);
-      if (Number.isFinite(total)) setRunsTotal(Math.max(items.length, total));
-      setRunsOffset(Number.isFinite(nextOffset) ? nextOffset : offset + items.length);
+      if (Number.isFinite(total)) setRunsTotal((current) => Math.max(current, total));
+      setRunsOffset(getRunPageOffset(data, offset, items.length));
       notify("Loaded " + items.length + " older workflow" + (items.length === 1 ? "." : "s."));
     } catch (error) {
       notify(error.message || "Could not load older workflows.");

@@ -144,6 +144,20 @@ export function getOrCreateRunRequestKey(holder, goal, createKey = () => {
 }
 
 
+/** Advance history pagination without treating a null terminal cursor as zero. */
+export function getRunPageOffset(response, currentOffset = 0, pageLength = 0) {
+  const nextOffset = response?.next_offset;
+  const parsedNext = Number(nextOffset);
+  if (nextOffset != null && Number.isFinite(parsedNext) && parsedNext >= 0) {
+    return Math.floor(parsedNext);
+  }
+  const offset = Number(currentOffset);
+  const count = Number(pageLength);
+  return Math.max(0, Math.floor(Number.isFinite(offset) ? offset : 0))
+    + Math.max(0, Math.floor(Number.isFinite(count) ? count : 0));
+}
+
+
 /** Resolve each pipeline stage from persisted artifacts, the active stage, and failure events. */
 export function getRunStageState(run, stageId) {
   const stages = Array.isArray(run?.stages) ? run.stages : [];
