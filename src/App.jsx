@@ -794,7 +794,13 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
   const events = Array.isArray(run.events) ? run.events : [];
   const [expandedStage, setExpandedStage] = useState(stages.length ? stages[stages.length - 1].id : "plan");
   const [note, setNote] = useState("");
-  const completedTokens = stages.reduce((sum, stage) => sum + (stage.usage?.input_tokens || 0) + (stage.usage?.output_tokens || 0), 0);
+  const completedTokens = stages.reduce((sum, stage) => {
+    const inputTokens = Number(stage?.usage?.input_tokens);
+    const outputTokens = Number(stage?.usage?.output_tokens);
+    return sum
+      + (Number.isFinite(inputTokens) ? Math.max(0, Math.floor(inputTokens)) : 0)
+      + (Number.isFinite(outputTokens) ? Math.max(0, Math.floor(outputTokens)) : 0);
+  }, 0);
   const progressValue = Math.max(0, Math.min(100, Number(run.progress) || 0));
   function exportReport() {
     const report = [

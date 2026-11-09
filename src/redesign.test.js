@@ -107,3 +107,12 @@ test("run drawer progress announces a human-readable completion value", async ()
   assert.ok(app.includes('aria-valuetext={`${progressValue}% complete`}'));
   assert.ok(app.includes('{run.agents ?? 4} agents'));
 });
+
+
+test("run drawer aggregates token usage as non-negative numeric counts", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes("const inputTokens = Number(stage?.usage?.input_tokens);"));
+  assert.ok(app.includes("const outputTokens = Number(stage?.usage?.output_tokens);"));
+  assert.ok(app.includes("Math.max(0, Math.floor(inputTokens))"));
+  assert.ok(app.includes("Math.max(0, Math.floor(outputTokens))"));
+});
