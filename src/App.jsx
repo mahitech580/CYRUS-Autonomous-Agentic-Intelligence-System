@@ -854,6 +854,7 @@ function formatEventTime(value) {
 function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
   const stages = Array.isArray(run.stages) ? run.stages : [];
   const events = Array.isArray(run.events) ? run.events : [];
+  const latestEvent = events.length ? events[events.length - 1] : null;
   const [expandedStage, setExpandedStage] = useState(stages.length ? stages[stages.length - 1].id : "plan");
   const initialStageSelection = useRef(stages.length > 0);
   const [note, setNote] = useState("");
@@ -920,7 +921,11 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
       </div>;
     })}</div>
     <div className="drawer-section-title event-heading">Execution event history <span>{events.length} recorded</span></div>
-    {events.length ? <div className="drawer-event-list" role="region" aria-live="polite" aria-relevant="additions text" aria-label="Execution event history">{events.slice().reverse().map((event, index) => {
+    {events.length ? <>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        Latest event: {latestEvent?.agent || "CYRUS"} — {latestEvent?.message || "Event recorded."}
+      </div>
+      <div className="drawer-event-list" role="region" aria-label="Execution event history">{events.slice().reverse().map((event, index) => {
       const eventStatus = String(event.status || "info").replace(/[^a-z0-9_-]/gi, "");
       return <article className="drawer-event" key={event.id || (event.at || "event") + "-" + index}>
         <span className={"event-marker event-marker-" + eventStatus} />
@@ -930,7 +935,8 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
           <time dateTime={event.at || undefined}>{formatEventTime(event.at)}</time>
         </div>
       </article>;
-    })}</div> : <div className="empty-state drawer-empty-events"><Activity size={18} /><span>No execution events have been recorded for this run.</span></div>}
+    })}</div>
+    </> : <div className="empty-state drawer-empty-events"><Activity size={18} /><span>No execution events have been recorded for this run.</span></div>}
     {run.status === "review" ? <div className="approval-panel"><div className="eyebrow">HUMAN REVIEW REQUIRED</div><strong>Approve the workflow artifacts?</strong><p>Approval records your decision only. It does not execute generated code, write to GitHub, or deploy a release.</p><label className="form-field"><span>Review note (optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={1000} placeholder="What did you verify?" /></label><div className="approval-actions"><button className="button-outline" disabled={busy} onClick={() => onApprove("reject", note)}>Reject artifacts</button><button className="button-primary" disabled={busy} onClick={() => onApprove("approve", note)}>{busy ? "Saving…" : "Approve artifacts"}<Check size={14} /></button></div></div> : null}
     {run.status === "failed" ? <button className="button-primary full-button" disabled={busy} onClick={onRetry}><RefreshCw size={14} /> Retry as new workflow</button> : null}
     {["queued", "running"].includes(run.status) ? <button className="button-outline full-button" disabled={busy} onClick={onCancel}>Cancel workflow <X size={14} /></button> : null}

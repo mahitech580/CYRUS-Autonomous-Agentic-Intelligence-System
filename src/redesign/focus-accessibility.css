@@ -7,3 +7,15 @@ button, .nav-item, .starter-brief-card, .run-row { touch-action:manipulation; }
   .nav-item, .button-outline, .panel-card, .agent-card, .integration-card, .deployment-resource-card { border-color:rgba(180,205,255,.55); }
   .hero-media-caption small, .starter-brief-card-copy span { color:#edf4ff; }
 }
+
+.sr-only {
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0;
+}

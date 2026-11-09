@@ -140,3 +140,12 @@ test("unauthorized workspace responses return the operator to settings", async (
   assert.ok(app.includes("setView(\"Settings\");"));
   assert.ok(app.includes("Workspace access key is missing or incorrect. Update it in Settings."));
 });
+
+test("run event history announces only the latest event to assistive technology", async () => {
+  const app = await read("../src/App.jsx");
+  const styles = await read("redesign/focus-accessibility.css");
+  assert.ok(app.includes('className="sr-only" role="status" aria-live="polite" aria-atomic="true"'));
+  assert.ok(app.includes('role="region" aria-label="Execution event history"'));
+  assert.ok(!app.includes('className="drawer-event-list" role="region" aria-live='));
+  assert.ok(styles.includes(".sr-only {"));
+});
