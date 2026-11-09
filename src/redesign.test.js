@@ -100,3 +100,10 @@ test("mobile navigation traps keyboard focus and locks background scrolling", as
   assert.ok(app.includes('event.shiftKey && (document.activeElement === first || outside)'));
   assert.ok(app.includes('document.body.style.overflow = previousOverflow;'));
 });
+
+
+test("run drawer progress announces a human-readable completion value", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('aria-valuetext={`${progressValue}% complete`}'));
+  assert.ok(app.includes('{run.agents ?? 4} agents'));
+});
