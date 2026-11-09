@@ -190,3 +190,13 @@ test("run mapping preserves a real zero-agent count and normalizes numeric count
   assert.equal(mapRunRecord({ agent_count: null }).agents, 7);
   assert.equal(mapRunRecord({ agent_count: "unknown" }).agents, 7);
 });
+
+
+test("run helpers safely ignore malformed entries from an API payload", () => {
+  const mixed = [null, undefined, "invalid", 42, ...sample];
+  assert.deepEqual(filterRuns(mixed, "secure").map((run) => run.id), ["RUN-001"]);
+  const csv = buildRunsCsv([null, "invalid", ...sample]);
+  assert.ok(csv.includes("RUN-001"));
+  assert.ok(csv.includes("RUN-004"));
+  assert.equal(csv.split("\\r\\n").length, sample.length + 2);
+});

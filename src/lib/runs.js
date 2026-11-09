@@ -4,7 +4,7 @@ const CSV_COLUMNS = [
 ];
 
 export function filterRuns(runs, query = "", statusFilter = "all") {
-  const items = Array.isArray(runs) ? runs : [];
+  const items = Array.isArray(runs) ? runs.filter((run) => run && typeof run === "object") : [];
   const needle = String(query || "").trim().toLowerCase();
   return items.filter((run) => {
     const matchesSearch = !needle || [
@@ -28,7 +28,7 @@ function csvCell(value) {
 }
 
 export function buildRunsCsv(runs) {
-  const items = Array.isArray(runs) ? runs : [];
+  const items = Array.isArray(runs) ? runs.filter((run) => run && typeof run === "object") : [];
   const lines = [
     CSV_COLUMNS.join(","),
     ...items.map((run) => CSV_COLUMNS.map((key) => csvCell(run[key])).join(",")),
