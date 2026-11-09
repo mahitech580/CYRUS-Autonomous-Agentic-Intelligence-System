@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getRunStageState, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll } from "./runs.js";
+import { getRunStageState, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -199,4 +199,12 @@ test("run helpers safely ignore malformed entries from an API payload", () => {
   assert.ok(csv.includes("RUN-001"));
   assert.ok(csv.includes("RUN-004"));
   assert.equal(csv.split("\r\n").length, sample.length + 2);
+});
+
+test("artifact availability uses lightweight run summaries without requiring payloads", () => {
+  assert.equal(hasRunArtifacts({ stage_count: 3 }), true);
+  assert.equal(hasRunArtifacts({ stage_count: 0, stages: [{ id: "plan" }] }), false);
+  assert.equal(hasRunArtifacts({ stages: [{ id: "plan" }] }), true);
+  assert.equal(hasRunArtifacts({ stage_count: "invalid", stages: [] }), false);
+  assert.equal(hasRunArtifacts(null), false);
 });

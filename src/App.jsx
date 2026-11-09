@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, hasRunArtifacts } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -672,7 +672,7 @@ function RunsView({ runs, query, setQuery, statusFilter, setStatusFilter, openRu
 }
 function ReviewView({ runs = [], openRun, notify }) {
   const pending = runs.filter((run) => run.status === "review");
-  const withArtifacts = runs.filter((run) => Array.isArray(run.stages) && run.stages.length > 0).slice(0, 8);
+  const withArtifacts = runs.filter(hasRunArtifacts).slice(0, 8);
   return <div className="view-stack subpage">
     <SectionTitle eyebrow="QUALITY GATES / HUMAN IN THE LOOP" title="Code review" detail="Review actual saved workflow output. Open a run to inspect every agent artifact and record a decision." action={<span className="tag-soft">{pending.length} awaiting decision</span>} />
     <section className="panel-card review-main">

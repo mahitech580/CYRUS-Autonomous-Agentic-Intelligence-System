@@ -74,6 +74,16 @@ export function mergeRunEvents(existing, incoming, replace = false) {
   return [...merged.values()].slice(-250);
 }
 
+ 
+/** Summary-safe check for saved artifacts; list responses intentionally omit payloads. */
+export function hasRunArtifacts(run) {
+  if (run?.stage_count != null) {
+    const count = Number(run.stage_count);
+    if (Number.isFinite(count)) return count > 0;
+  }
+  return Array.isArray(run?.stages) && run.stages.length > 0;
+}
+
 
 /** Keep a stable retry key per failed source run until the server acknowledges it. */
 export function getOrCreateRetryRequestKey(holder, runId, createKey = () => {
