@@ -533,6 +533,11 @@ export default function App() {
 }
 
 function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart, openRun, setView, notify, apiState, workspaceConfig, setQuery, setStatusFilter }) {
+  function loadStarter(brief) {
+    if (!brief?.goal) return;
+    setGoal(brief.goal);
+    document.getElementById("task-prompt")?.focus();
+  }
   const completed = allRuns.filter((run) => ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100).length;
   const active = allRuns.filter((run) => run.status === "running" || run.status === "queued").length;
   return <div className="view-stack">
@@ -592,9 +597,9 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
             : "Saved workflows exist, but none match the current search or status filter."}</span>
           <div className="empty-state-actions">
             {allRuns.length === 0
-              ? <button className="button-outline" onClick={() => canStart ? loadStarter(starterTasks[0]) : setView("Settings")}>{canStart ? "Write a task" : "Complete runtime setup"}<ArrowRight size={13} /></button>
+              ? <button className="button-outline" onClick={() => canStart ? loadStarter(starterBriefs[0]) : setView("Settings")}>{canStart ? "Write a task" : "Complete runtime setup"}<ArrowRight size={13} /></button>
               : <button className="button-outline" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Clear filters<RefreshCw size={13} /></button>}
-            {allRuns.length === 0 ? <button className="button-quiet" onClick={() => loadStarter(starterTasks[1])}>Try an AI project example <ArrowUpRight size={13} /></button> : null}
+            {allRuns.length === 0 ? <button className="button-quiet" onClick={() => loadStarter(starterBriefs[1])}>Try an AI project example <ArrowUpRight size={13} /></button> : null}
           </div>
         </div> : null}
       </section>

@@ -116,3 +116,11 @@ test("run drawer aggregates token usage as non-negative numeric counts", async (
   assert.ok(app.includes("Math.max(0, Math.floor(inputTokens))"));
   assert.ok(app.includes("Math.max(0, Math.floor(outputTokens))"));
 });
+
+test("overview empty-state actions use registered starter briefs", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes("function loadStarter(brief)"));
+  assert.ok(app.includes("loadStarter(starterBriefs[0])"));
+  assert.ok(app.includes("loadStarter(starterBriefs[1])"));
+  assert.ok(!app.includes("starterTasks["));
+});
