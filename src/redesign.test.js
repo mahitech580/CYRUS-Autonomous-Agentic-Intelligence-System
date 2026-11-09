@@ -90,3 +90,13 @@ test("run list progress indicators expose bounded accessible values", async () =
   assert.ok(app.includes('const progress = Math.max(0, Math.min(100, Number(run.progress) || 0));'));
   assert.ok(app.includes('aria-valuenow={progress}'));
 });
+
+
+test("mobile navigation traps keyboard focus and locks background scrolling", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('const previousOverflow = document.body.style.overflow;'));
+  assert.ok(app.includes('document.body.style.overflow = "hidden";'));
+  assert.ok(app.includes('if (event.key !== "Tab") return;'));
+  assert.ok(app.includes('event.shiftKey && (document.activeElement === first || outside)'));
+  assert.ok(app.includes('document.body.style.overflow = previousOverflow;'));
+});

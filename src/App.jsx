@@ -121,14 +121,39 @@ export default function App() {
       if (window.matchMedia("(max-width: 740px)").matches) {
         document.querySelector(".sidebar .primary-nav .nav-item")?.focus();
       }
-      const closeOnEscape = (event) => {
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      const handleNavigationKeys = (event) => {
         if (event.key === "Escape") {
           event.preventDefault();
           setMobileNav(false);
+          return;
+        }
+        if (event.key !== "Tab") return;
+        const sidebar = document.getElementById("workspace-sidebar");
+        const selector = 'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        const focusable = Array.from(sidebar?.querySelectorAll(selector) || [])
+          .filter((element) => element.getAttribute("aria-hidden") !== "true");
+        if (!focusable.length) {
+          event.preventDefault();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const outside = !sidebar?.contains(document.activeElement);
+        if (event.shiftKey && (document.activeElement === first || outside)) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || outside)) {
+          event.preventDefault();
+          first.focus();
         }
       };
-      document.addEventListener("keydown", closeOnEscape);
-      return () => document.removeEventListener("keydown", closeOnEscape);
+      document.addEventListener("keydown", handleNavigationKeys);
+      return () => {
+        document.body.style.overflow = previousOverflow;
+        document.removeEventListener("keydown", handleNavigationKeys);
+      };
     }
     if (mobileNavWasOpen.current) {
       mobileNavWasOpen.current = false;
