@@ -125,7 +125,10 @@ export const api = {
     return request("/api/config");
   },
   agents: () => request("/api/agents"),
-  runs: () => request("/api/runs"),
+  runs: ({ limit = 30, offset = 0 } = {}) => {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    return request("/api/runs?" + params.toString());
+  },
   getRun: (runId, options = {}) => request("/api/runs/" + encodeURIComponent(runId), options),
   getRunStatus: (runId, options = {}) => request("/api/runs/" + encodeURIComponent(runId) + "/status", options),
   runEvents: (runId, after, options = {}) => request("/api/runs/" + encodeURIComponent(runId) + "/events" + (after ? "?after=" + encodeURIComponent(after) : ""), options),

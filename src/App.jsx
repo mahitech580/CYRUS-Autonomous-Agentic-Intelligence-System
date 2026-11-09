@@ -36,7 +36,7 @@ const pipeline = [
   { title: "Review", sub: "Quality gates", icon: GitPullRequest, color: "pink" },
   { title: "Release", sub: "Ship safely", icon: Rocket, color: "green" },
 ];
-const starterRuns = [];
+const RUNS_PAGE_SIZE = 30;
 const starterBriefs = [
   {
     title: "Build a feature",
@@ -92,6 +92,9 @@ function RunRow({ run, onOpen }) {
 export default function App() {
   const [view, setView] = useState("Overview");
   const [runs, setRuns] = useState([]);
+  const [runsTotal, setRunsTotal] = useState(0);
+  const [runsOffset, setRunsOffset] = useState(0);
+  const [loadingMoreRuns, setLoadingMoreRuns] = useState(false);
   const [goal, setGoal] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -176,8 +179,15 @@ export default function App() {
           return;
         }
         try {
-          const data = await api.runs();
-          if (alive && Array.isArray(data.items)) setRuns(data.items.map(mapRunRecord));
+          const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset: 0 });
+          if (alive && Array.isArray(data.items)) {
+            const items = data.items.map(mapRunRecord);
+            const total = Number(data.total);
+            const nextOffset = Number(data.next_offset);
+            setRuns(items);
+            setRunsTotal(Number.isFinite(total) ? Math.max(items.length, total) : items.length);
+            setRunsOffset(Number.isFinite(nextOffset) ? nextOffset : items.length);
+          }
         } catch (error) {
           if (![401, 503].includes(error.status)) notify(error.message || "Could not load workflow history.");
         }
@@ -226,6 +236,8 @@ export default function App() {
       const created = mapRunRecord(result.item || result);
       loadedStageCount.current[created.id] = Array.isArray(created.stages) ? created.stages.length : 0;
       setRuns((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+      setRunsTotal((current) => current + 1);
+      setRunsOffset((current) => current + 1);
       setGoal("");
       setView("Runs & tasks");
       drawerReturnFocus.current = document.activeElement;
@@ -258,15 +270,41 @@ export default function App() {
     if (refreshingRuns) return;
     setRefreshingRuns(true);
     try {
-      const data = await api.runs();
+      const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset: 0 });
       const items = Array.isArray(data.items) ? data.items.map(mapRunRecord) : [];
+      const total = Number(data.total);
       setRuns(items);
-      notify("Refreshed " + items.length + " saved workflow" + (items.length === 1 ? "." : "s."));
+      setRunsTotal(Number.isFinite(total) ? Math.max(items.length, total) : items.length);
+      setRunsOffset(items.length);
+      notify("Refreshed the latest " + items.length + " of " + (Number.isFinite(total) ? total : items.length) + " saved workflows.");
     } catch (error) {
       notify(error.message || "Could not refresh workflow history.");
       if (error.status === 401) setView("Settings");
     } finally {
       setRefreshingRuns(false);
+    }
+  }
+  async function loadMoreRuns() {
+    if (loadingMoreRuns || runsOffset >= runsTotal) return;
+    const offset = runsOffset;
+    setLoadingMoreRuns(true);
+    try {
+      const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset });
+      const items = Array.isArray(data.items) ? data.items.map(mapRunRecord) : [];
+      setRuns((current) => {
+        const known = new Set(current.map((item) => item.id));
+        return [...current, ...items.filter((item) => !known.has(item.id))];
+      });
+      const total = Number(data.total);
+      const nextOffset = Number(data.next_offset);
+      if (Number.isFinite(total)) setRunsTotal(Math.max(items.length, total));
+      setRunsOffset(Number.isFinite(nextOffset) ? nextOffset : offset + items.length);
+      notify("Loaded " + items.length + " older workflow" + (items.length === 1 ? "." : "s."));
+    } catch (error) {
+      notify(error.message || "Could not load older workflows.");
+      if (error.status === 401) setView("Settings");
+    } finally {
+      setLoadingMoreRuns(false);
     }
   }
   async function refreshSelectedRun(runId, after, signal) {
@@ -341,6 +379,8 @@ export default function App() {
       const retried = mapRunRecord(response.item || response);
       loadedStageCount.current[retried.id] = Array.isArray(retried.stages) ? retried.stages.length : 0;
       setRuns((current) => [retried, ...current.filter((item) => item.id !== retried.id)]);
+      setRunsTotal((current) => current + 1);
+      setRunsOffset((current) => current + 1);
       setSelectedRun(retried);
       notify("Retry queued as " + retried.id + ". The original failed workflow was preserved.");
     } catch (error) {
@@ -487,7 +527,7 @@ export default function App() {
         <div className="workspace-switcher"><div className="workspace-glyph">C</div><div><strong>Cyrus workspace</strong><small>{workspaceConfig?.can_start_runs ? "Production runtime" : apiState === "connected" ? "Setup required" : "Connecting runtime"}</small></div><ChevronDown size={15} /></div>
         <div className="nav-label">WORKSPACE</div>
         <nav className="primary-nav" aria-label="Main navigation">
-          {navigation.map((item) => <button key={item.id} className={"nav-item" + (view === item.id ? " nav-active" : "")} aria-current={view === item.id ? "page" : undefined} onClick={() => { setView(item.id); setMobileNav(false); }}><item.icon size={17} strokeWidth={1.8} /><span>{item.id}</span>{item.id === "Runs & tasks" ? <span className="nav-count">{runs.length}</span> : null}</button>)}
+          {navigation.map((item) => <button key={item.id} className={"nav-item" + (view === item.id ? " nav-active" : "")} aria-current={view === item.id ? "page" : undefined} onClick={() => { setView(item.id); setMobileNav(false); }}><item.icon size={17} strokeWidth={1.8} /><span>{item.id}</span>{item.id === "Runs & tasks" ? <span className="nav-count">{runsTotal}</span> : null}</button>)}
         </nav>
         <div className="nav-label nav-label-spaced">SYSTEM</div>
         <button className={"nav-item" + (view === "Settings" ? " nav-active" : "")} aria-current={view === "Settings" ? "page" : undefined} onClick={() => { setView("Settings"); setMobileNav(false); }}><Settings2 size={17} /><span>Settings</span></button>
@@ -516,7 +556,7 @@ export default function App() {
             setQuery={setQuery} setStatusFilter={setStatusFilter}
           /> : null}
           {view === "Agent fleet" ? <FleetView notify={notify} apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
-          {view === "Runs & tasks" ? <RunsView runs={visibleRuns} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} refreshRuns={refreshRuns} refreshingRuns={refreshingRuns} notify={notify} /> : null}
+          {view === "Runs & tasks" ? <RunsView runs={visibleRuns} loadedRunCount={runs.length} totalRuns={runsTotal} hasMoreRuns={runsOffset < runsTotal} loadingMoreRuns={loadingMoreRuns} loadMoreRuns={loadMoreRuns} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} refreshRuns={refreshRuns} refreshingRuns={refreshingRuns} notify={notify} /> : null}
           {view === "Code review" ? <ReviewView runs={runs} openRun={openRun} notify={notify} /> : null}
           {view === "Deployments" ? <DeploymentsView apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
@@ -649,7 +689,7 @@ function FleetView({ notify, apiState, workspaceConfig }) {
     <div className="notice-strip"><ShieldCheck size={17} /><span><strong>Guardrail:</strong> agents prepare artifacts and recommendations; sensitive operations require explicit human approval.</span></div>
   </div>;
 }
-function RunsView({ runs, query, setQuery, statusFilter, setStatusFilter, openRun, goal, setGoal, startRun, isStarting, canStart, refreshRuns, refreshingRuns, notify }) {
+function RunsView({ runs, loadedRunCount, totalRuns, hasMoreRuns, loadingMoreRuns, loadMoreRuns, query, setQuery, statusFilter, setStatusFilter, openRun, goal, setGoal, startRun, isStarting, canStart, refreshRuns, refreshingRuns, notify }) {
   function exportRunsCsv() {
     const csv = buildRunsCsv(runs);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -664,10 +704,19 @@ function RunsView({ runs, query, setQuery, statusFilter, setStatusFilter, openRu
     notify("Exported " + runs.length + " visible workflow record" + (runs.length === 1 ? "." : "s."));
   }
 
-  return <div className="view-stack subpage"><SectionTitle eyebrow="EXECUTION CONTROL / RUN HISTORY" title="Runs & tasks" detail="Inspect orchestration state, progress, and review hand-offs." action={<span className="small-counter">{runs.length} VISIBLE RUNS</span>} />
+  return <div className="view-stack subpage"><SectionTitle eyebrow="EXECUTION CONTROL / RUN HISTORY" title="Runs & tasks" detail="Inspect orchestration state, progress, and review hand-offs." action={<span className="small-counter">{runs.length} MATCHING · {loadedRunCount}/{totalRuns} LOADED</span>} />
     <form className="task-composer compact-composer" onSubmit={startRun}><div className="composer-icon"><Sparkles size={16} /></div><input aria-label="New workflow goal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Describe a new engineering task…" /><button className="button-primary" disabled={!goal.trim() || isStarting || !canStart}>{isStarting ? "Starting…" : "New live run"}<ArrowRight size={14} /></button></form>{!canStart ? <div className="inline-help">Live runs require a configured model provider, protected workspace access, and persistent database. Open Settings for the exact missing requirements.</div> : null}
     <div className="list-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search workflows" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search runs, goals, or status…" /></div><label className="filter-select-wrap"><CircleDot size={13} /><select aria-label="Filter workflow status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option><option value="queued">Queued</option><option value="running">In progress</option><option value="review">Needs review</option><option value="approved">Approved</option><option value="completed">Completed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select><ChevronDown size={13} /></label><button className="button-outline" type="button" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Clear filters <X size={13} /></button><button className="button-outline" type="button" onClick={refreshRuns} disabled={refreshingRuns}><RefreshCw size={13} className={refreshingRuns ? "spin-icon" : ""} />{refreshingRuns ? "Refreshing" : "Refresh"}</button><button className="button-outline" type="button" onClick={exportRunsCsv} disabled={!runs.length}><Download size={13} /> Export CSV</button></div>
     <section className="panel-card"><div className="table-head"><span>RUN / GOAL</span><span>PROGRESS</span><span>STATUS</span><span /></div><div className="runs-table large-runs">{runs.map((run) => <RunRow key={run.id} run={run} onOpen={openRun} />)}</div>{runs.length === 0 ? <div className="empty-state"><Search size={22} /><strong>No matching runs</strong><span>Try a different search or clear the filters.</span></div> : null}</section>
+    <div className="runs-pagination" aria-live="polite">
+      <span>{hasMoreRuns
+        ? "Showing " + loadedRunCount + " of " + totalRuns + " saved workflows. Search and filters apply to loaded records."
+        : "All " + loadedRunCount + " saved workflows are loaded."}</span>
+      {hasMoreRuns ? <button className="button-outline" type="button" onClick={loadMoreRuns} disabled={loadingMoreRuns}>
+        <RefreshCw size={13} className={loadingMoreRuns ? "spin-icon" : ""} />
+        {loadingMoreRuns ? "Loading older runs" : "Load older runs"}
+      </button> : null}
+    </div>
   </div>;
 }
 function ReviewView({ runs = [], openRun, notify }) {

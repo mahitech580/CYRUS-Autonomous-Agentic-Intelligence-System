@@ -294,3 +294,19 @@ test("runtime snapshot stops before configuration when the health probe fails", 
   await assert.rejects(api.runtime(), (error) => error.status === 503);
   assert.deepEqual(calls, ["http://localhost:8000/api/health"]);
 });
+
+test("run history API helper sends explicit pagination parameters", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let capturedUrl = "";
+  globalThis.fetch = async (url) => {
+    capturedUrl = url;
+    return new Response(JSON.stringify({ items: [], total: 0, has_more: false }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  await api.runs({ limit: 15, offset: 30 });
+  assert.equal(capturedUrl, "http://localhost:8000/api/runs?limit=15&offset=30");
+});

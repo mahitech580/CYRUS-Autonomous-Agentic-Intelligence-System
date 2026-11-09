@@ -973,12 +973,27 @@ def list_agents() -> dict[str, Any]:
 @app.get("/api/runs", dependencies=[Depends(require_workspace_access)])
 def list_runs(
     limit: int = Query(default=30, ge=1, le=100),
+    offset: int = Query(default=0, ge=0, le=1000000),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    statement = select(WorkflowRun).order_by(WorkflowRun.created_at.desc(), WorkflowRun.id.desc()).limit(limit)
+    statement = (
+        select(WorkflowRun)
+        .order_by(WorkflowRun.created_at.desc(), WorkflowRun.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
     items = db.scalars(statement).all()
     total = db.scalar(select(func.count()).select_from(WorkflowRun)) or 0
-    return {"items": [as_run_summary(item) for item in items], "total": total}
+    next_offset = offset + len(items)
+    has_more = next_offset < total
+    return {
+        "items": [as_run_summary(item) for item in items],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": has_more,
+        "next_offset": next_offset if has_more else None,
+    }
 
 
 @app.post("/api/runs", status_code=202, dependencies=[Depends(require_workspace_access)])

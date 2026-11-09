@@ -8,3 +8,20 @@
 .run-progress { background:#1f3152; }
 .run-progress i { background:linear-gradient(90deg,#62dfff,#8da7ff,#b39aff); box-shadow:0 0 12px rgba(103,232,249,.2); }
 .run-arrow { color:#8ea6ce; }
+
+.runs-pagination {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:4px 2px 0;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.6;
+}
+.runs-pagination > span { max-width:64ch; }
+.runs-pagination .button-outline { flex-shrink:0; }
+@media (max-width:640px) {
+  .runs-pagination { align-items:stretch; flex-direction:column; }
+  .runs-pagination .button-outline { width:100%; justify-content:center; }
+}

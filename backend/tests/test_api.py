@@ -602,6 +602,45 @@ def test_run_list_total_counts_all_records_when_results_are_limited(client):
     assert len(body["items"]) == 2
     assert body["total"] == expected_total
 
+ 
+
+def test_run_list_supports_stable_offset_pages(client):
+    run_ids = [
+        "RUN-PAGE-A-" + main.uuid4().hex[:8].upper(),
+        "RUN-PAGE-B-" + main.uuid4().hex[:8].upper(),
+        "RUN-PAGE-C-" + main.uuid4().hex[:8].upper(),
+    ]
+    shared_timestamp = main.utcnow() + main.timedelta(days=3650)
+    with main.SessionLocal() as db:
+        for run_id in run_ids:
+            db.add(main.WorkflowRun(
+                id=run_id,
+                goal="Verify workflow history pagination",
+                status="completed",
+                progress=100,
+                created_at=shared_timestamp,
+                updated_at=shared_timestamp,
+                stages=[],
+                events=[],
+                execution_mode="live-model",
+                approval_status="approved",
+            ))
+        db.commit()
+
+    first = client.get("/api/runs?limit=2&offset=0")
+    second = client.get("/api/runs?limit=2&offset=2")
+    assert first.status_code == second.status_code == 200
+    first_body = first.json()
+    second_body = second.json()
+    expected = sorted(run_ids, reverse=True)
+    assert [item["id"] for item in first_body["items"]] == expected[:2]
+    assert [item["id"] for item in second_body["items"][:1]] == expected[2:]
+    assert not ({item["id"] for item in first_body["items"]} & {item["id"] for item in second_body["items"]})
+    assert first_body["total"] == second_body["total"]
+    assert first_body["has_more"] is True
+    assert first_body["next_offset"] == 2
+    assert second_body["offset"] == 2
+
 
 def test_run_list_omits_artifact_payloads_and_reports_detail_counts(client):
     run = main.WorkflowRun(
