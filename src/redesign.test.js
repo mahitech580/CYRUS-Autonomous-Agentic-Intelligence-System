@@ -124,3 +124,10 @@ test("overview empty-state actions use registered starter briefs", async () => {
   assert.ok(app.includes("loadStarter(starterBriefs[1])"));
   assert.ok(!app.includes("starterTasks["));
 });
+
+test("run drawer selects the latest saved stage after asynchronous detail loading", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes("const initialStageSelection = useRef(stages.length > 0);"));
+  assert.ok(app.includes("if (!initialStageSelection.current && stages.length > 0)"));
+  assert.ok(app.includes("setExpandedStage(stages[stages.length - 1]?.id || \"plan\")"));
+});

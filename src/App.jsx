@@ -845,7 +845,14 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
   const stages = Array.isArray(run.stages) ? run.stages : [];
   const events = Array.isArray(run.events) ? run.events : [];
   const [expandedStage, setExpandedStage] = useState(stages.length ? stages[stages.length - 1].id : "plan");
+  const initialStageSelection = useRef(stages.length > 0);
   const [note, setNote] = useState("");
+  useEffect(() => {
+    if (!initialStageSelection.current && stages.length > 0) {
+      setExpandedStage(stages[stages.length - 1]?.id || "plan");
+      initialStageSelection.current = true;
+    }
+  }, [stages.length]);
   const completedTokens = stages.reduce((sum, stage) => {
     const inputTokens = Number(stage?.usage?.input_tokens);
     const outputTokens = Number(stage?.usage?.output_tokens);
