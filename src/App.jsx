@@ -113,6 +113,30 @@ export default function App() {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
   }, []);
 
+  const mobileNavWasOpen = useRef(false);
+  useEffect(() => {
+    if (mobileNav) {
+      mobileNavWasOpen.current = true;
+      if (window.matchMedia("(max-width: 740px)").matches) {
+        document.querySelector(".sidebar .primary-nav .nav-item")?.focus();
+      }
+      const closeOnEscape = (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          setMobileNav(false);
+        }
+      };
+      document.addEventListener("keydown", closeOnEscape);
+      return () => document.removeEventListener("keydown", closeOnEscape);
+    }
+    if (mobileNavWasOpen.current) {
+      mobileNavWasOpen.current = false;
+      if (window.matchMedia("(max-width: 740px)").matches) {
+        document.querySelector(".open-mobile")?.focus();
+      }
+    }
+  }, [mobileNav]);
+
   useEffect(() => {
     let alive = true;
     async function loadWorkspace() {
@@ -428,7 +452,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <aside className={"sidebar" + (mobileNav ? " sidebar-open" : "")}>
+      <aside id="workspace-sidebar" aria-label="Workspace sidebar" className={"sidebar" + (mobileNav ? " sidebar-open" : "")}>
         <div className="brand-lockup">
           <div className="brand-mark"><span /><span /><span /></div>
           <div className="brand-type"><strong>CYRUS<span>_</span></strong><small>ENGINEERING OS</small></div>
@@ -455,7 +479,7 @@ export default function App() {
 
       <main className="main-panel">
         <header className="topbar">
-          <div className="topbar-left"><button className="icon-button open-mobile" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={19} /></button><span className="breadcrumb">Workspace</span><span className="breadcrumb-divider">/</span><strong>{view}</strong><span className="branch-chip"><GitBranch size={13} /> main</span></div>
+          <div className="topbar-left"><button className="icon-button open-mobile" onClick={() => setMobileNav(true)} aria-label="Open navigation" aria-expanded={mobileNav} aria-controls="workspace-sidebar"><Menu size={19} /></button><span className="breadcrumb">Workspace</span><span className="breadcrumb-divider">/</span><strong>{view}</strong><span className="branch-chip"><GitBranch size={13} /> main</span></div>
           <div className="topbar-actions"><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><button className="icon-button" title="Focus task prompt" aria-label="Focus task prompt" onClick={() => { setView("Overview"); window.setTimeout(() => document.getElementById("task-prompt")?.focus(), 0); }}><Command size={17} /></button><span className="top-avatar" role="img" aria-label="Workspace profile">M</span></div>
         </header>
 

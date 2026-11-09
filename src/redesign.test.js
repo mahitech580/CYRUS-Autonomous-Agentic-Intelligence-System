@@ -71,3 +71,14 @@ test("deployment readiness includes database reachability and durable worker cap
   assert.ok(app.includes('title: "Database connectivity"'));
   assert.ok(app.includes('title: "Execution worker"'));
 });
+
+
+test("mobile navigation is hidden from keyboard users until opened and restores focus", async () => {
+  const app = await read("../src/App.jsx");
+  const styles = await read("styles.css");
+  assert.ok(app.includes('id="workspace-sidebar" aria-label="Workspace sidebar"'));
+  assert.ok(app.includes('aria-expanded={mobileNav} aria-controls="workspace-sidebar"'));
+  assert.ok(app.includes('if (event.key === "Escape")'));
+  assert.ok(app.includes('document.querySelector(".open-mobile")?.focus()'));
+  assert.ok(styles.includes("visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s"));
+});
