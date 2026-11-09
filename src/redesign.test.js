@@ -62,3 +62,12 @@ test("navigation exposes the current page and the task prompt has a programmatic
   assert.ok(app.includes('id="task-prompt-label"'));
   assert.ok(app.includes('aria-labelledby="task-prompt-label"'));
 });
+
+
+test("deployment readiness includes database reachability and durable worker capacity", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('const databaseReachable = !!workspaceConfig?.database_reachable;'));
+  assert.ok(app.includes('const workerReady = !!workspaceConfig && (!workspaceConfig.worker_required || !!workspaceConfig.worker_ready);'));
+  assert.ok(app.includes('title: "Database connectivity"'));
+  assert.ok(app.includes('title: "Execution worker"'));
+});

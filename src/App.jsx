@@ -633,8 +633,10 @@ function ReviewView({ runs = [], openRun, notify }) {
 }
 function DeploymentsView({ apiState, workspaceConfig }) {
   const providerReady = !!workspaceConfig?.provider_configured;
+  const databaseReachable = !!workspaceConfig?.database_reachable;
   const storageReady = !!workspaceConfig?.persistent_storage;
   const accessReady = !!workspaceConfig && (!workspaceConfig.auth_required || !!workspaceConfig.access_control_configured);
+  const workerReady = !!workspaceConfig && (!workspaceConfig.worker_required || !!workspaceConfig.worker_ready);
   const targets = [
     { name: "CYRUS workspace", eyebrow: "FRONTEND · VERCEL", description: "Open the configured React workspace URL and verify the latest deployment and responsive operator console.", href: "https://cyrus-workspace-mahendra8.vercel.app", action: "Open workspace", icon: LayoutDashboard, state: "Configured URL · latest deploy unverified" },
     { name: "CYRUS API", eyebrow: "BACKEND · FASTAPI", description: "Inspect the documented API surface and use the health endpoint to test reachability.", href: "https://cyrus-api-mahendra8.vercel.app/docs", action: "Open API docs", icon: Terminal, state: apiState === "connected" ? "API reachable from this session" : "Reachability not confirmed" },
@@ -642,9 +644,11 @@ function DeploymentsView({ apiState, workspaceConfig }) {
   ];
   const gates = [
     { title: "Frontend and API", detail: "The workspace must reach the backend.", ready: apiState === "connected" },
+    { title: "Database connectivity", detail: "The API must be able to reach its configured database.", ready: databaseReachable },
     { title: "Model credentials", detail: "A valid provider key must be configured server-side.", ready: providerReady },
     { title: "Durable database", detail: "Production workflows need managed PostgreSQL or MySQL.", ready: storageReady },
     { title: "Workspace access", detail: "Production write/action routes must stay protected.", ready: accessReady },
+    { title: "Execution worker", detail: "A fresh worker lease is required when inline execution is disabled.", ready: workerReady },
   ];
   return <div className="view-stack subpage">
     <SectionTitle eyebrow="RELEASE ENGINEERING / DEPLOYED TARGETS" title="Deployments" detail="Inspect the actual workspace, API and CI resources. CYRUS never reports a release as complete merely because a card or checklist exists." action={<a className="button-outline external-button" href="https://vercel.com/mahendra8/cyrus-workspace" target="_blank" rel="noreferrer">Vercel project <ArrowUpRight size={14} /></a>} />
