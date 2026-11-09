@@ -176,6 +176,9 @@ export default function App() {
         setWorkspaceConfig(config);
         if (config.auth_required && !getAccessKey()) {
           setRuns([]);
+          setRunsTotal(0);
+          setRunsOffset(0);
+          redirectToSettingsOnUnauthorized({ status: 401 });
           return;
         }
         try {
@@ -188,7 +191,9 @@ export default function App() {
             setRunsOffset(getRunPageOffset(data, 0, items.length));
           }
         } catch (error) {
-          if (![401, 503].includes(error.status)) notify(error.message || "Could not load workflow history.");
+          if (!redirectToSettingsOnUnauthorized(error) && error.status !== 503) {
+            notify(error.message || "Could not load workflow history.");
+          }
         }
       } catch {
         if (alive) setApiState("unavailable");
@@ -207,6 +212,13 @@ export default function App() {
       setToast("");
       toastTimer.current = null;
     }, 3200);
+  }
+  function redirectToSettingsOnUnauthorized(error) {
+    if (error?.status !== 401) return false;
+    setSelectedRun(null);
+    setView("Settings");
+    notify("Workspace access key is missing or incorrect. Update it in Settings.");
+    return true;
   }
   async function startRun(event) {
     event?.preventDefault();
@@ -243,8 +255,7 @@ export default function App() {
       setSelectedRun(created);
       notify("Live AI workflow accepted. Follow the seven agent stages in run details.");
     } catch (error) {
-      notify(error.message || "Could not start the workflow.");
-      if (error.status === 401) setView("Settings");
+      if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not start the workflow.");
     } finally {
       setIsStarting(false);
     }
@@ -260,9 +271,10 @@ export default function App() {
       loadedStageCount.current[run.id] = Array.isArray(detail.stages) ? detail.stages.length : 0;
       setSelectedRun((current) => current?.id === run.id ? detail : current);
     } catch (error) {
-      setSelectedRun((current) => current?.id === run.id ? { ...current, detail_loading: false } : current);
-      notify(error.message || "Could not load workflow details.");
-      if (error.status === 401) setView("Settings");
+      if (!redirectToSettingsOnUnauthorized(error)) {
+        setSelectedRun((current) => current?.id === run.id ? { ...current, detail_loading: false } : current);
+        notify(error.message || "Could not load workflow details.");
+      }
     }
   }
   async function refreshRuns() {
@@ -277,8 +289,7 @@ export default function App() {
       setRunsOffset(items.length);
       notify("Refreshed the latest " + items.length + " of " + (Number.isFinite(total) ? total : items.length) + " saved workflows.");
     } catch (error) {
-      notify(error.message || "Could not refresh workflow history.");
-      if (error.status === 401) setView("Settings");
+      if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not refresh workflow history.");
     } finally {
       setRefreshingRuns(false);
     }
@@ -299,8 +310,7 @@ export default function App() {
       setRunsOffset(getRunPageOffset(data, offset, items.length));
       notify("Loaded " + items.length + " older workflow" + (items.length === 1 ? "." : "s."));
     } catch (error) {
-      notify(error.message || "Could not load older workflows.");
-      if (error.status === 401) setView("Settings");
+      if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not load older workflows.");
     } finally {
       setLoadingMoreRuns(false);
     }
@@ -313,7 +323,7 @@ export default function App() {
     const poll = settleRunPoll(statusResult, eventResult);
     if (!poll.statusOk) {
       const error = statusResult.status === "rejected" ? statusResult.reason : null;
-      if (error?.status === 401) notify("Workspace access key is missing or incorrect.");
+      if (error?.status === 401) redirectToSettingsOnUnauthorized(error);
       return { cursor: after || "", ok: false };
     }
 
@@ -336,7 +346,7 @@ export default function App() {
       }
     }
     if (eventResult.status === "rejected" && eventResult.reason?.status === 401) {
-      notify("Workspace access key is missing or incorrect.");
+      redirectToSettingsOnUnauthorized(eventResult.reason);
     }
     const incoming = Array.isArray(eventResponse?.items) ? eventResponse.items : [];
     const resetEvents = !!eventResponse?.cursor_expired;
@@ -361,7 +371,7 @@ export default function App() {
       setRuns((current) => current.map((item) => item.id === updated.id ? updated : item));
       notify(decision === "approve" ? "Approval recorded. No deployment was triggered." : "Workflow rejected.");
     } catch (error) {
-      notify(error.message || "Could not record the decision.");
+      if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not record the decision.");
     } finally {
       setActionBusy(false);
     }
@@ -382,7 +392,7 @@ export default function App() {
       setSelectedRun(retried);
       notify("Retry queued as " + retried.id + ". The original failed workflow was preserved.");
     } catch (error) {
-      notify(error.message || "Could not retry the failed workflow.");
+      if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not retry the failed workflow.");
     } finally {
       setActionBusy(false);
     }
@@ -397,7 +407,7 @@ export default function App() {
       setRuns((current) => current.map((item) => item.id === updated.id ? updated : item));
       notify("Cancellation recorded.");
     } catch (error) {
-      notify(error.message || "Could not cancel the workflow.");
+      if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not cancel the workflow.");
     } finally {
       setActionBusy(false);
     }

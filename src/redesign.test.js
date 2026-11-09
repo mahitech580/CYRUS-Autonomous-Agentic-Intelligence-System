@@ -131,3 +131,12 @@ test("run drawer selects the latest saved stage after asynchronous detail loadin
   assert.ok(app.includes("if (!initialStageSelection.current && stages.length > 0)"));
   assert.ok(app.includes("setExpandedStage(stages[stages.length - 1]?.id || \"plan\")"));
 });
+
+test("unauthorized workspace responses return the operator to settings", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes("function redirectToSettingsOnUnauthorized(error)"));
+  assert.ok(app.includes("if (error?.status !== 401) return false;"));
+  assert.ok(app.includes("setSelectedRun(null);"));
+  assert.ok(app.includes("setView(\"Settings\");"));
+  assert.ok(app.includes("Workspace access key is missing or incorrect. Update it in Settings."));
+});
