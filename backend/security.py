@@ -33,7 +33,7 @@ _PROVIDER_KEYS = re.compile(
 )
 _URL_CREDENTIALS = re.compile(r"(?i)((?:https?|postgres(?:ql)?|mysql(?:\+\w+)?|redis|mongodb(?:\+srv)?)://)[^/@\s:]+:[^/@\s]+@")
 _QUERY_SECRETS = re.compile(
-    r"(?i)([?&](?:api_key|access_token|refresh_token|token|secret|password)=)[^&#\s]+"
+    r"(?i)([?&#](?:api[-_]?key|access[-_]?key|refresh[-_]?token|client[-_]?secret|database[-_]?url|connection[-_]?string|authorization|password|passwd|secret|token|auth)=)[^&#\s]+"
 )
 
 
