@@ -7,3 +7,15 @@
 .agent-card p { color:#a2b1ca; }
 .agent-card-bottom { border-top-color:rgba(126,158,219,.15); }
 .agent-model { color:#788cac; }
+
+.agent-detail { margin-top:13px; padding-top:11px; border-top:1px solid rgba(126,158,219,.14); }
+.agent-detail summary { display:flex; align-items:center; justify-content:space-between; gap:10px; color:#b8c9e4; font-size:11px; font-weight:700; cursor:pointer; list-style:none; }
+.agent-detail summary::-webkit-details-marker { display:none; }
+.agent-detail summary::after { content:"+"; color:#7deaff; font:16px var(--mono); }
+.agent-detail[open] summary::after { content:"−"; }
+.agent-detail summary:focus-visible { outline:2px solid #79ecff; outline-offset:4px; border-radius:4px; }
+.agent-detail-stage { display:flex; justify-content:space-between; gap:12px; margin-top:12px; color:#8fa5c7; font:9px var(--mono); letter-spacing:.8px; }
+.agent-detail-stage strong { color:#b9eefe; font-weight:500; text-transform:uppercase; }
+.agent-detail ul { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 2px; padding:0; list-style:none; }
+.agent-detail li { padding:6px 8px; border:1px solid rgba(126,158,219,.18); border-radius:8px; color:#aabbd7; background:rgba(12,24,45,.62); font-size:10px; }
+.agent-detail-empty { display:block; margin-top:10px; color:#8fa1bf; font-size:10px; }

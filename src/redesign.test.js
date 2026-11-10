@@ -137,6 +137,17 @@ test("run drawer aggregates token usage as non-negative numeric counts", async (
   assert.ok(app.includes("Math.max(0, Math.floor(outputTokens))"));
 });
 
+test("agent fleet reads backend missions and exposes real capabilities without fake configuration actions", async () => {
+  const app = await read("../src/App.jsx");
+  const styles = await read("redesign/agent-cards.css");
+  assert.ok(app.includes("api.agents()"));
+  assert.ok(app.includes('className="agent-detail"'));
+  assert.ok(app.includes("agent.capabilities"));
+  assert.ok(app.includes("7 fixed pipeline roles"));
+  assert.ok(!app.includes("Configure agent"));
+  assert.ok(styles.includes(".agent-detail summary:focus-visible"));
+});
+
 test("overview empty-state actions use registered starter briefs", async () => {
   const app = await read("../src/App.jsx");
   assert.ok(app.includes("function loadStarter(brief)"));

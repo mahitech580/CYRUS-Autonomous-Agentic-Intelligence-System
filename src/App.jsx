@@ -705,11 +705,59 @@ function SetupCheck({ label, detail, state }) {
 function MetricCard({ label, value, change, icon: Icon, trend }) {
   return <div className="metric-card"><div className="metric-top"><span>{label}</span><span className={"metric-icon metric-" + trend}><Icon size={16} /></span></div><div className="metric-value">{value}</div><div className="metric-bottom"><span>{change}</span>{trend === "lime" ? <ArrowUpRight size={14} className="text-lime" /> : <ArrowDownRight size={14} />}</div></div>;
 }
-function FleetView({ notify, apiState, workspaceConfig }) {
-  return <div className="view-stack subpage"><SectionTitle eyebrow="AGENT REGISTRY / 07 SPECIALISTS" title="The agent fleet" detail="Small, opinionated roles coordinated through explicit hand-offs." action={<button className="button-primary" onClick={() => notify("Custom agents are defined through backend agent adapters.")}><Plus size={15} /> Configure agent</button>} />
+function FleetView({ apiState, workspaceConfig }) {
+  const [registry, setRegistry] = useState([]);
+  const [registryState, setRegistryState] = useState("waiting");
+  const [registryError, setRegistryError] = useState("");
+
+  useEffect(() => {
+    if (apiState !== "connected") {
+      setRegistryState(apiState === "checking" ? "waiting" : "fallback");
+      return undefined;
+    }
+    let active = true;
+    setRegistryState("loading");
+    setRegistryError("");
+    api.agents()
+      .then((response) => {
+        if (!active) return;
+        const items = Array.isArray(response.items) ? response.items : [];
+        if (!items.length) throw new Error("The backend returned an empty agent registry.");
+        setRegistry(items.map((agent) => {
+          const fallback = agents.find((item) => item.id === agent.id);
+          return {
+            ...fallback,
+            ...agent,
+            color: fallback?.color || "blue",
+            tag: fallback?.tag || String(agent.stage || "AGENT").toUpperCase(),
+          };
+        }));
+        setRegistryState("ready");
+      })
+      .catch((error) => {
+        if (!active) return;
+        setRegistryError(error?.message || "The backend agent registry is unavailable.");
+        setRegistryState("fallback");
+      });
+    return () => { active = false; };
+  }, [apiState]);
+
+  const visibleAgents = registryState === "ready" ? registry : agents;
+  return <div className="view-stack subpage"><SectionTitle eyebrow="AGENT REGISTRY / 07 SPECIALISTS" title="The agent fleet" detail="Inspect the seven backend-defined roles, their missions, and the capabilities assigned to each pipeline stage." action={<span className="tag-soft">7 fixed pipeline roles</span>} />
     <div className="fleet-banner"><div className="fleet-banner-icon"><Network size={22} /></div><div><strong>One system. Distinct responsibilities.</strong><p>Each agent gets a scoped job, a shared run context, and a clear hand-off contract. Human approval remains in the loop for release decisions.</p></div><div className="fleet-banner-status"><span className={"footer-pulse footer-pulse-" + (apiState === "connected" ? (workspaceConfig?.can_start_runs ? "ready" : "setup") : apiState)} />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "RUNTIME READY" : "SETUP REQUIRED") : apiState === "checking" ? "CHECKING API" : "API OFFLINE"}<small>WORKSPACE MODE</small></div></div>
-    <div className="agent-grid">{agents.map((agent, index) => <article className="agent-card" key={agent.id}><div className="agent-card-top"><AgentAvatar agent={agent} /><span className={"agent-tag tag-" + agent.color}>{agent.tag}</span><button className="icon-button" onClick={() => notify(agent.name + " is configured with the " + agent.role.toLowerCase() + " contract.")} aria-label={"Agent details for " + agent.name}><MoreHorizontal size={17} /></button></div><h3>{agent.name}</h3><div className="agent-role">{agent.role}</div><p>{agent.desc}</p><div className="agent-card-bottom"><span className="agent-state state-ready"><i /> Registered</span><span className="agent-model">CYRUS / {String(index + 1).padStart(2, "0")}</span></div></article>)}</div>
-    <div className="notice-strip"><ShieldCheck size={17} /><span><strong>Guardrail:</strong> agents prepare artifacts and recommendations; sensitive operations require explicit human approval.</span></div>
+    {registryState === "loading" ? <div className="inline-help" role="status">Loading agent definitions from the backend…</div> : null}
+    {registryState === "fallback" ? <div className="inline-help" role="status">{registryError || "Showing the built-in role reference until the backend registry is reachable."}</div> : null}
+    <div className="agent-grid">{visibleAgents.map((agent, index) => {
+      const capabilities = Array.isArray(agent.capabilities) ? agent.capabilities : [];
+      const mission = agent.mission || agent.desc || agent.role;
+      return <article className="agent-card" key={agent.id}>
+        <div className="agent-card-top"><AgentAvatar agent={agent} /><span className={"agent-tag tag-" + agent.color}>{agent.tag || agent.stage || "AGENT"}</span><span className="agent-model">FIXED STAGE</span></div>
+        <h3>{agent.name}</h3><div className="agent-role">{agent.role}</div><p>{mission}</p>
+        <details className="agent-detail"><summary>Role scope and capabilities</summary><div className="agent-detail-stage"><span>PIPELINE STAGE</span><strong>{agent.stage || agent.id}</strong></div>{capabilities.length ? <ul>{capabilities.map((capability) => <li key={capability}>{capability}</li>)}</ul> : <span className="agent-detail-empty">Capability details are not available in the local role map.</span>}</details>
+        <div className="agent-card-bottom"><span className="agent-state state-ready"><i /> Registered</span><span className="agent-model">CYRUS / {String(index + 1).padStart(2, "0")}</span></div>
+      </article>;
+    })}</div>
+    <div className="notice-strip"><ShieldCheck size={17} /><span><strong>Guardrail:</strong> agents prepare artifacts and recommendations; sensitive operations require explicit human approval. Role configuration is fixed in the backend and is not editable from this view.</span></div>
   </div>;
 }
 function RunsView({ runs, loadedRunCount, totalRuns, hasMoreRuns, loadingMoreRuns, loadMoreRuns, query, setQuery, statusFilter, setStatusFilter, openRun, goal, setGoal, startRun, isStarting, canStart, refreshRuns, refreshingRuns, notify }) {
