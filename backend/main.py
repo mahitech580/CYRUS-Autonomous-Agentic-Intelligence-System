@@ -974,16 +974,26 @@ def list_agents() -> dict[str, Any]:
 def list_runs(
     limit: int = Query(default=30, ge=1, le=100),
     offset: int = Query(default=0, ge=0, le=1000000),
+    status: str | None = Query(
+        default=None,
+        pattern="^(queued|running|review|approved|completed|failed|cancelled)$",
+    ),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
+    statement = select(WorkflowRun)
+    count_statement = select(func.count()).select_from(WorkflowRun)
+    if status is not None:
+        status_filter = WorkflowRun.status == status
+        statement = statement.where(status_filter)
+        count_statement = count_statement.where(status_filter)
     statement = (
-        select(WorkflowRun)
+        statement
         .order_by(WorkflowRun.created_at.desc(), WorkflowRun.id.desc())
         .offset(offset)
         .limit(limit)
     )
     items = db.scalars(statement).all()
-    total = db.scalar(select(func.count()).select_from(WorkflowRun)) or 0
+    total = db.scalar(count_statement) or 0
     next_offset = offset + len(items)
     has_more = next_offset < total
     return {

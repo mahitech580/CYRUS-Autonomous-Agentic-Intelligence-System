@@ -642,6 +642,54 @@ def test_run_list_supports_stable_offset_pages(client):
     assert second_body["offset"] == 2
 
 
+def test_run_list_filters_status_and_counts_only_matching_records(client):
+    review_ids = [
+        "RUN-REVIEW-FILTER-" + main.uuid4().hex[:8].upper(),
+        "RUN-REVIEW-FILTER-" + main.uuid4().hex[:8].upper(),
+    ]
+    failed_id = "RUN-FAILED-FILTER-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        existing_reviews = db.query(main.WorkflowRun).filter(main.WorkflowRun.status == "review").count()
+        for run_id in review_ids:
+            db.add(main.WorkflowRun(
+                id=run_id,
+                goal="Keep the review queue scoped to pending decisions",
+                status="review",
+                progress=100,
+                stages=[],
+                events=[],
+                execution_mode="live-model",
+                approval_status="pending",
+            ))
+        db.add(main.WorkflowRun(
+            id=failed_id,
+            goal="Keep failed workflows out of the review queue",
+            status="failed",
+            progress=40,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+
+    first = client.get("/api/runs?status=review&limit=1&offset=0")
+    second = client.get("/api/runs?status=review&limit=1&offset=1")
+    assert first.status_code == second.status_code == 200
+    first_body = first.json()
+    second_body = second.json()
+    assert first_body["total"] == second_body["total"] == existing_reviews + 2
+    assert len(first_body["items"]) == len(second_body["items"]) == 1
+    assert all(item["status"] == "review" for item in first_body["items"] + second_body["items"])
+    assert first_body["has_more"] is True
+    assert first_body["next_offset"] == 1
+    assert second_body["has_more"] is True or second_body["next_offset"] is None
+    assert failed_id not in str(first_body) + str(second_body)
+
+    invalid = client.get("/api/runs?status=unknown")
+    assert invalid.status_code == 422
+
+
 def test_run_list_omits_artifact_payloads_and_reports_detail_counts(client):
     run = main.WorkflowRun(
         id="RUN-SUMMARY-" + main.uuid4().hex[:8].upper(),
