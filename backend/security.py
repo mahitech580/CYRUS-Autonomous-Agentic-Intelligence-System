@@ -37,7 +37,7 @@ _QUERY_SECRETS = re.compile(
 )
 
 _PEM_PRIVATE_KEY = re.compile(
-    r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\\s\\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----",
+    r"(?s)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----",
     re.IGNORECASE,
 )
 

@@ -41,15 +41,15 @@ def test_redacts_basic_authorization_and_standalone_jwt_tokens():
 
 def test_redacts_private_key_assignments_and_multiline_pem_blocks():
     pem = (
-        "-----BEGIN OPENSSH PRIVATE KEY-----\\n"
-        "private-key-material-that-must-not-persist\\n"
+        "-----BEGIN OPENSSH PRIVATE KEY-----\n"
+        "private-key-material-that-must-not-persist\n"
         "-----END OPENSSH PRIVATE KEY-----"
     )
     text = (
         "private_key=raw-private-value "
         "SIGNING_KEY=signing-secret "
         "ENCRYPTION_KEY=encryption-secret "
-        "AWS_SECRET_ACCESS_KEY=aws-secret-value\\n"
+        "AWS_SECRET_ACCESS_KEY=aws-secret-value\n"
         + pem
     )
     result = redact_sensitive_text(text)
