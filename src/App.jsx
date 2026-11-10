@@ -77,7 +77,7 @@ function MiniBars({ runs = [] }) {
   if (!items.length) return <div className="chart-placeholder"><Activity size={17} /><span>Workflow telemetry will appear after the first run.</span></div>;
   return <div className="mini-bars" role="img" aria-label="Completion progress for recent workflows">{items.map((run, i) => {
     const value = Math.max(0, Math.min(100, Number(run.progress) || 0));
-    return <i key={run.id || i} style={{ height: Math.max(5, value) + "%" }} title={(run.id || "Workflow") + ": " + value + "%"} />;
+    return <i key={run.id || i} style={{ height: value + "%" }} title={(run.id || "Workflow") + ": " + value + "%"} />;
   })}</div>;
 }
 function AgentLine({ agent, state = "registered" }) {
@@ -636,7 +636,7 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
     </section> : null}
     <div className="metrics-grid">
       <MetricCard label="WORKFLOWS RUN" value={String(allRuns.length).padStart(2, "0")} change="Across this workspace" icon={Workflow} trend="neutral" />
-      <MetricCard label="ACTIVE EXECUTIONS" value={String(active).padStart(2, "0")} change={active ? "Agents are processing tasks" : "No active execution"} icon={Activity} trend="lime" />
+      <MetricCard label="ACTIVE / QUEUED" value={String(active).padStart(2, "0")} change={active ? "Queued or running workflows" : "No queued or running workflows"} icon={Activity} trend="lime" />
       <MetricCard label="COMPLETED RUNS" value={String(completed).padStart(2, "0")} change="Review artifacts before release" icon={CheckCircle2} trend="blue" />
       <MetricCard label="AGENT FLEET" value="07" change="Specialists · staged pipeline" icon={Bot} trend="violet" />
     </div>

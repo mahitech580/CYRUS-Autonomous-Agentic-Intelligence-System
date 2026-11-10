@@ -36,6 +36,14 @@ test("responsive and motion preferences remain in the visual system", async () =
   }
 });
 
+test("overview activity visuals do not invent minimum progress for zero-percent runs", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes("style={{ height: value + \"%\" }}"));
+  assert.ok(app.includes('label="ACTIVE / QUEUED"'));
+  assert.ok(app.includes("Queued or running workflows"));
+  assert.ok(!app.includes("Math.max(5, value)"));
+});
+
 test("GitHub integration is described as a source link, not an agent write connection", async () => {
   const app = await read("../src/App.jsx");
   assert.ok(app.includes('status: "Public source link"'));
