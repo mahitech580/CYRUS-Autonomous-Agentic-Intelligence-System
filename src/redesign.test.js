@@ -82,6 +82,17 @@ test("deployment readiness includes database reachability and durable worker cap
 });
 
 
+test("overview readiness separates database reachability from durable storage", async () => {
+  const app = await read("../src/App.jsx");
+  const styles = await read("redesign/readiness.css");
+  assert.ok(app.includes('label="Database connectivity"'));
+  assert.ok(app.includes('workspaceConfig?.database_reachable'));
+  assert.ok(app.includes('/ 6 checks'));
+  assert.ok(app.includes("Restore database connectivity"));
+  assert.ok(app.includes("Start the supervised CYRUS worker"));
+  assert.ok(styles.includes("grid-template-columns:repeat(3,minmax(0,1fr))"));
+});
+
 test("mobile navigation is hidden from keyboard users until opened and restores focus", async () => {
   const app = await read("../src/App.jsx");
   const styles = await read("styles.css");
