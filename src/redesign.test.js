@@ -36,6 +36,15 @@ test("responsive and motion preferences remain in the visual system", async () =
   }
 });
 
+test("mobile photographic backdrop scrolls with the page and fonts use swap", async () => {
+  const html = await read("../index.html");
+  const backdrop = await read("redesign/environment-backdrop.css");
+  assert.ok(html.includes("fonts.googleapis.com/css2"));
+  assert.ok(html.includes("&display=swap"));
+  assert.ok(backdrop.includes("@media (max-width: 900px)"));
+  assert.ok(backdrop.includes("background-attachment:scroll"));
+});
+
 test("photographic references stay on Unsplash and carry accessible context", async () => {
   const app = await read("../src/App.jsx");
   const imageCount = app.split("https://images.unsplash.com/").length - 1;
