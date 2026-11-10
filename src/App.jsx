@@ -107,6 +107,7 @@ export default function App() {
   const [workspaceConfig, setWorkspaceConfig] = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [refreshingRuns, setRefreshingRuns] = useState(false);
+  const [reviewRefreshToken, setReviewRefreshToken] = useState(0);
   const toastTimer = useRef(null);
   const drawerReturnFocus = useRef(null);
   const loadedStageCount = useRef({});
@@ -369,6 +370,7 @@ export default function App() {
       const updated = mapRunRecord(response.item);
       setSelectedRun(updated);
       setRuns((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setReviewRefreshToken((current) => current + 1);
       notify(decision === "approve" ? "Approval recorded. No deployment was triggered." : "Workflow rejected.");
     } catch (error) {
       if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not record the decision.");
@@ -565,7 +567,7 @@ export default function App() {
           /> : null}
           {view === "Agent fleet" ? <FleetView notify={notify} apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Runs & tasks" ? <RunsView runs={visibleRuns} loadedRunCount={runs.length} totalRuns={runsTotal} hasMoreRuns={runsOffset < runsTotal} loadingMoreRuns={loadingMoreRuns} loadMoreRuns={loadMoreRuns} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} refreshRuns={refreshRuns} refreshingRuns={refreshingRuns} notify={notify} /> : null}
-          {view === "Code review" ? <ReviewView runs={runs} openRun={openRun} notify={notify} /> : null}
+          {view === "Code review" ? <ReviewView runs={runs} openRun={openRun} apiState={apiState} onUnauthorized={redirectToSettingsOnUnauthorized} refreshToken={reviewRefreshToken} /> : null}
           {view === "Deployments" ? <DeploymentsView apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
           {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} setWorkspaceConfig={setWorkspaceConfig} setApiState={setApiState} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
@@ -727,14 +729,83 @@ function RunsView({ runs, loadedRunCount, totalRuns, hasMoreRuns, loadingMoreRun
     </div>
   </div>;
 }
-function ReviewView({ runs = [], openRun, notify }) {
-  const pending = runs.filter((run) => run.status === "review");
+function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken }) {
+  const [pendingRuns, setPendingRuns] = useState([]);
+  const [pendingTotal, setPendingTotal] = useState(0);
+  const [pendingOffset, setPendingOffset] = useState(0);
+  const [pendingLoading, setPendingLoading] = useState(true);
+  const [loadingMorePending, setLoadingMorePending] = useState(false);
+  const [pendingError, setPendingError] = useState("");
+  const [pendingRefresh, setPendingRefresh] = useState(0);
   const withArtifacts = runs.filter(hasRunArtifacts).slice(0, 8);
+
+  useEffect(() => {
+    if (apiState !== "connected") {
+      setPendingRuns([]);
+      setPendingTotal(0);
+      setPendingOffset(0);
+      setPendingLoading(apiState === "checking");
+      setPendingError(apiState === "unavailable" ? "The CYRUS API is unavailable. Reconnect it to load pending reviews." : "");
+      return undefined;
+    }
+    const controller = new AbortController();
+    let active = true;
+    setPendingLoading(true);
+    setPendingError("");
+    api.runs({ limit: RUNS_PAGE_SIZE, offset: 0, status: "review", signal: controller.signal })
+      .then((data) => {
+        if (!active) return;
+        const items = Array.isArray(data.items) ? data.items.map(mapRunRecord) : [];
+        const total = Number(data.total);
+        setPendingRuns(items);
+        setPendingTotal(Number.isFinite(total) ? Math.max(items.length, total) : items.length);
+        setPendingOffset(getRunPageOffset(data, 0, items.length));
+      })
+      .catch((error) => {
+        if (!active || error?.name === "AbortError") return;
+        if (error?.status === 401) onUnauthorized?.(error);
+        else setPendingError(error?.message || "Could not load pending reviews.");
+      })
+      .finally(() => {
+        if (active) setPendingLoading(false);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [apiState, refreshToken, pendingRefresh]);
+
+  async function loadMorePending() {
+    if (loadingMorePending || pendingOffset >= pendingTotal) return;
+    const offset = pendingOffset;
+    setLoadingMorePending(true);
+    try {
+      const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset, status: "review" });
+      const items = Array.isArray(data.items) ? data.items.map(mapRunRecord) : [];
+      setPendingRuns((current) => {
+        const known = new Set(current.map((run) => run.id));
+        return [...current, ...items.filter((run) => !known.has(run.id))];
+      });
+      const total = Number(data.total);
+      if (Number.isFinite(total)) setPendingTotal(Math.max(items.length, total));
+      setPendingOffset(getRunPageOffset(data, offset, items.length));
+    } catch (error) {
+      if (error?.status === 401) onUnauthorized?.(error);
+      else setPendingError(error?.message || "Could not load older pending reviews.");
+    } finally {
+      setLoadingMorePending(false);
+    }
+  }
+
   return <div className="view-stack subpage">
-    <SectionTitle eyebrow="QUALITY GATES / HUMAN IN THE LOOP" title="Code review" detail="Review actual saved workflow output. Open a run to inspect every agent artifact and record a decision." action={<span className="tag-soft">{pending.length} awaiting decision</span>} />
+    <SectionTitle eyebrow="QUALITY GATES / HUMAN IN THE LOOP" title="Code review" detail="Review actual saved workflow output. Open a run to inspect every agent artifact and record a decision." action={<div className="review-queue-actions"><span className="tag-soft">{pendingTotal} awaiting decision</span><button className="button-outline" type="button" onClick={() => setPendingRefresh((current) => current + 1)} disabled={pendingLoading}><RefreshCw size={13} className={pendingLoading ? "spin-icon" : ""} />Refresh queue</button></div>} />
     <section className="panel-card review-main">
-      <div className="panel-heading"><div><div className="eyebrow">PENDING APPROVALS</div><h2>Needs your review</h2><p>Only persisted workflows with a pending review state appear here.</p></div><span className={pending.length ? "status-pill status-review" : "tag-soft"}>{pending.length ? "Action required" : "All clear"}</span></div>
-      {pending.length ? <div className="runs-table">{pending.map((run) => <RunRow run={run} key={run.id} onOpen={openRun} />)}</div> : <div className="empty-state"><ShieldCheck size={25} /><strong>No pending reviews</strong><span>Completed real workflows will appear here when they reach the human approval gate.</span></div>}
+      <div className="panel-heading"><div><div className="eyebrow">PENDING APPROVALS</div><h2>Needs your review</h2><p>The count and pages below come from every saved run in the backend, not only the latest dashboard page.</p></div><span className={pendingTotal ? "status-pill status-review" : "tag-soft"}>{pendingTotal ? "Action required" : "All clear"}</span></div>
+      {pendingLoading ? <div className="empty-state" role="status"><RefreshCw size={19} className="spin-icon" /><strong>Loading review queue</strong><span>Checking all saved workflows for pending decisions.</span></div>
+        : pendingError ? <div className="empty-state" role="alert"><ShieldCheck size={22} /><strong>Review queue unavailable</strong><span>{pendingError}</span><button className="button-outline" type="button" onClick={() => setPendingRefresh((current) => current + 1)}>Try again</button></div>
+        : pendingRuns.length ? <div className="runs-table">{pendingRuns.map((run) => <RunRow run={run} key={run.id} onOpen={openRun} />)}</div>
+        : <div className="empty-state"><ShieldCheck size={25} /><strong>No pending reviews</strong><span>Every saved workflow has been reviewed, or no workflow has reached the human approval gate yet.</span></div>}
+      {!pendingLoading && !pendingError && pendingOffset < pendingTotal ? <div className="review-pagination" aria-live="polite"><span>Showing {pendingRuns.length} of {pendingTotal} pending decisions.</span><button className="button-outline" type="button" onClick={loadMorePending} disabled={loadingMorePending}><RefreshCw size={13} className={loadingMorePending ? "spin-icon" : ""} />{loadingMorePending ? "Loading older reviews" : "Load more pending reviews"}</button></div> : null}
     </section>
     <section className="panel-card review-main">
       <div className="panel-heading"><div><div className="eyebrow">SAVED OUTPUTS</div><h2>Recent workflow artifacts</h2><p>Open a saved run to read its planning, research, architecture, code proposal, tests, review and release notes.</p></div></div>

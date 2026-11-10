@@ -64,6 +64,15 @@ test("navigation exposes the current page and the task prompt has a programmatic
 });
 
 
+test("review queue uses the complete server-side pending-review filter and pagination", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('status: "review", signal: controller.signal'));
+  assert.ok(app.includes("pendingTotal"));
+  assert.ok(app.includes("Load more pending reviews"));
+  assert.ok(app.includes("The count and pages below come from every saved run in the backend"));
+  assert.ok(app.includes("setReviewRefreshToken((current) => current + 1)"));
+});
+
 test("deployment readiness includes database reachability and durable worker capacity", async () => {
   const app = await read("../src/App.jsx");
   assert.ok(app.includes('const databaseReachable = !!workspaceConfig?.database_reachable;'));
