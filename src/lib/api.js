@@ -127,9 +127,10 @@ export const api = {
     return request("/api/config");
   },
   agents: () => request("/api/agents"),
-  runs: ({ limit = 30, offset = 0 } = {}) => {
+  runs: ({ limit = 30, offset = 0, status, signal } = {}) => {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-    return request("/api/runs?" + params.toString());
+    if (status) params.set("status", String(status));
+    return request("/api/runs?" + params.toString(), { signal });
   },
   getRun: (runId, options = {}) => request("/api/runs/" + encodeURIComponent(runId), options),
   getRunStatus: (runId, options = {}) => request("/api/runs/" + encodeURIComponent(runId) + "/status", options),

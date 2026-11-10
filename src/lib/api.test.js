@@ -311,6 +311,24 @@ test("run history API helper sends explicit pagination parameters", async (t) =>
   assert.equal(capturedUrl, "http://localhost:8000/api/runs?limit=15&offset=30");
 });
 
+test("run history API helper supports status filters and abortable requests", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const controller = new AbortController();
+  let captured;
+  globalThis.fetch = async (url, options) => {
+    captured = { url, options };
+    return new Response(JSON.stringify({ items: [], total: 0, has_more: false }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  await api.runs({ limit: 15, offset: 30, status: "review", signal: controller.signal });
+  assert.equal(captured.url, "http://localhost:8000/api/runs?limit=15&offset=30&status=review");
+  assert.equal(captured.options.signal, controller.signal);
+});
+
 test("invalid request headers fail before allocating a network request", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
