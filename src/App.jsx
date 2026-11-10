@@ -914,7 +914,7 @@ function EnvironmentCard({ name, slug, state, description, accent, onAction }) {
 }
 function IntegrationsView({ notify }) {
   const integrations = [
-    { icon: Code2, name: "GitHub", group: "Source control", desc: "Main branch, source files and automated build/test checks.", status: "Repository", color: "plain", href: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System" },
+    { icon: Code2, name: "GitHub", group: "Source control", desc: "Browse the public main branch and CI history. Agent workflows do not write commits, branches or pull requests to GitHub.", status: "Public source link", color: "plain", href: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System" },
     { icon: Database, name: "PostgreSQL", group: "Relational database", desc: "Use managed PostgreSQL with SQLAlchemy for durable workflow and artifact records.", status: "Adapter supported", color: "blue", href: "https://supabase.com/docs/guides/database/connecting-to-postgres" },
     { icon: Database, name: "MySQL", group: "Relational database", desc: "Alternative SQLAlchemy dialect for a managed production database.", status: "Adapter supported", color: "orange", href: "https://docs.sqlalchemy.org/en/20/dialects/mysql.html" },
     { icon: Cpu, name: "AI model provider", group: "AI runtime", desc: "Server-side OpenAI Responses API integration with an OpenAI-compatible base URL option.", status: "Server adapter", color: "violet", href: "https://platform.openai.com/docs/api-reference/responses" },

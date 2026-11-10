@@ -36,6 +36,12 @@ test("responsive and motion preferences remain in the visual system", async () =
   }
 });
 
+test("GitHub integration is described as a source link, not an agent write connection", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('status: "Public source link"'));
+  assert.ok(app.includes("Agent workflows do not write commits, branches or pull requests to GitHub."));
+});
+
 test("mobile photographic backdrop scrolls with the page and fonts use swap", async () => {
   const html = await read("../index.html");
   const backdrop = await read("redesign/environment-backdrop.css");
