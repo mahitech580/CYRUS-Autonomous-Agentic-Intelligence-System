@@ -168,3 +168,11 @@ export function getRunStageState(run, stageId) {
   if (run?.current_stage === stageId && ["queued", "running"].includes(run?.status)) return "active";
   return "queued";
 }
+
+
+/** Put a newly accepted workflow first without duplicating an idempotent replay. */
+export function prependRunRecord(items, incoming) {
+  const current = Array.isArray(items) ? items : [];
+  if (!incoming || typeof incoming !== "object" || !incoming.id) return current;
+  return [incoming, ...current.filter((run) => run?.id !== incoming.id)];
+}

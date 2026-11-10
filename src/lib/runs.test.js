@@ -158,6 +158,16 @@ test("workflow creation reuses an idempotency key after an ambiguous request fai
 });
 
 
+test("run insertion replaces an idempotent replay without duplicating history", async () => {
+  const { prependRunRecord } = await import("./runs.js");
+  const current = [{ id: "RUN-1", goal: "Old summary" }, { id: "RUN-2" }];
+  const replay = { id: "RUN-1", goal: "Updated summary" };
+  const merged = prependRunRecord(current, replay);
+  assert.deepEqual(merged, [replay, current[1]]);
+  assert.equal(merged.filter((run) => run.id === "RUN-1").length, 1);
+  assert.deepEqual(prependRunRecord(current, null), current);
+});
+
 test("run stage state distinguishes completed, active, failed and not-reached stages", () => {
   const run = {
     status: "failed",

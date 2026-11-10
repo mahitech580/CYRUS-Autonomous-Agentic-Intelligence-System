@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, hasRunArtifacts, getRunPageOffset } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, hasRunArtifacts, getRunPageOffset, prependRunRecord } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -253,9 +253,12 @@ export default function App() {
       createRunRequest.current = null;
       const created = mapRunRecord(result.item || result);
       loadedStageCount.current[created.id] = Array.isArray(created.stages) ? created.stages.length : 0;
-      setRuns((current) => [created, ...current.filter((item) => item.id !== created.id)]);
-      setRunsTotal((current) => current + 1);
-      setRunsOffset((current) => current + 1);
+      const alreadyLoaded = runs.some((item) => item?.id === created.id);
+      setRuns((current) => prependRunRecord(current, created));
+      if (!alreadyLoaded) {
+        setRunsTotal((current) => current + 1);
+        setRunsOffset((current) => current + 1);
+      }
       setGoal("");
       setView("Runs & tasks");
       drawerReturnFocus.current = document.activeElement;
@@ -394,9 +397,12 @@ export default function App() {
       retryRunRequests.current.delete(sourceId);
       const retried = mapRunRecord(response.item || response);
       loadedStageCount.current[retried.id] = Array.isArray(retried.stages) ? retried.stages.length : 0;
-      setRuns((current) => [retried, ...current.filter((item) => item.id !== retried.id)]);
-      setRunsTotal((current) => current + 1);
-      setRunsOffset((current) => current + 1);
+      const alreadyLoaded = runs.some((item) => item?.id === retried.id);
+      setRuns((current) => prependRunRecord(current, retried));
+      if (!alreadyLoaded) {
+        setRunsTotal((current) => current + 1);
+        setRunsOffset((current) => current + 1);
+      }
       setSelectedRun(retried);
       notify("Retry queued as " + retried.id + ". The original failed workflow was preserved.");
     } catch (error) {
