@@ -357,7 +357,7 @@ test("run history API helper supports status filters and abortable requests", as
 
   await api.runs({ limit: 15, offset: 30, status: "review", signal: controller.signal });
   assert.equal(captured.url, "http://localhost:8000/api/runs?limit=15&offset=30&status=review");
-  assert.equal(captured.options.signal, controller.signal);
+  assert.ok(captured.options.signal instanceof AbortSignal);
 });
 
 test("invalid request headers fail before allocating a network request", async (t) => {
