@@ -137,6 +137,14 @@ test("run drawer aggregates token usage as non-negative numeric counts", async (
   assert.ok(app.includes("Math.max(0, Math.floor(outputTokens))"));
 });
 
+test("settings reports when browser session storage cannot save the access key", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes("function saveWorkspaceAccessKey()"));
+  assert.ok(app.includes("if (!setAccessKey(accessKey))"));
+  assert.ok(app.includes('role="alert">{accessKeyError}'));
+  assert.ok(app.includes("Allow session storage, then try again."));
+});
+
 test("agent fleet reads backend missions and exposes real capabilities without fake configuration actions", async () => {
   const app = await read("../src/App.jsx");
   const styles = await read("redesign/agent-cards.css");

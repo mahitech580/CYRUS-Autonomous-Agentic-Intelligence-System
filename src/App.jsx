@@ -929,6 +929,16 @@ function IntegrationsView({ notify }) {
 function SettingsView({ apiState, workspaceConfig, setWorkspaceConfig, setApiState, settingsOpen, setSettingsOpen, notify }) {
   const [accessKey, setAccessKeyState] = useState(getAccessKey());
   const [refreshingRuntime, setRefreshingRuntime] = useState(false);
+  const [accessKeyError, setAccessKeyError] = useState("");
+
+  function saveWorkspaceAccessKey() {
+    if (!setAccessKey(accessKey)) {
+      setAccessKeyError("This browser could not save the key for this session. Allow session storage, then try again.");
+      return;
+    }
+    setAccessKeyError("");
+    window.location.reload();
+  }
 
   async function refreshRuntime() {
     if (refreshingRuntime) return;
@@ -970,7 +980,8 @@ function SettingsView({ apiState, workspaceConfig, setWorkspaceConfig, setApiSta
           <div><span>LIVE WEB RESEARCH</span><code>{workspaceConfig?.web_search_enabled ? "Enabled for Scout" : "Not enabled"}</code></div>
         </div>
         <label className="form-field access-key-field"><span>Workspace access key (stored for this browser session only)</span><input type="password" autoComplete="current-password" value={accessKey} onChange={(e) => setAccessKeyState(e.target.value)} placeholder="Paste the server's CYRUS_ACCESS_KEY" /></label>
-        <button className="button-primary full-button" onClick={() => { setAccessKey(accessKey); window.location.reload(); }}>Save access key and reconnect <ArrowRight size={13} /></button>
+        {accessKeyError ? <div className="inline-help" role="alert">{accessKeyError}</div> : null}
+        <button className="button-primary full-button" onClick={saveWorkspaceAccessKey}>Save access key and reconnect <ArrowRight size={13} /></button>
         <button className="button-outline full-button" onClick={() => { setSettingsOpen(!settingsOpen); notify(settingsOpen ? "Runtime details hidden." : "Runtime details expanded."); }}>{settingsOpen ? "Hide runtime details" : "Show runtime details"}<ArrowRight size={13} /></button>
         {settingsOpen ? <div className="runtime-details"><div><span>FRONTEND</span><code>React + Vite</code></div><div><span>API</span><code>FastAPI · configured URL</code></div><div><span>LOCAL PERSISTENCE</span><code>SQLite for development</code></div><div><span>PRODUCTION PERSISTENCE</span><code>Managed PostgreSQL / MySQL</code></div><div><span>MODEL API</span><code>OpenAI Responses API compatible</code></div></div> : null}
       </section>

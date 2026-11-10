@@ -11,12 +11,14 @@ export function getAccessKey() {
 
 export function setAccessKey(value) {
   try {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return false;
     const clean = String(value || "").trim();
     if (clean) window.sessionStorage.setItem(KEY_NAME, clean);
     else window.sessionStorage.removeItem(KEY_NAME);
+    return (window.sessionStorage.getItem(KEY_NAME) || "") === clean;
   } catch {
-    // Browser storage may be disabled; the current page can still use a fresh session.
+    // Browser storage may be disabled; callers must not reload as if the key was saved.
+    return false;
   }
 }
 

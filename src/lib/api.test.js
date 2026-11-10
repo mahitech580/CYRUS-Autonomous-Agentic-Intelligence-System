@@ -1,6 +1,37 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { api, request } from "./api.js";
+import { api, getAccessKey, request, setAccessKey } from "./api.js";
+
+test("access key storage verifies trimmed writes and clears", async (t) => {
+  const originalWindow = globalThis.window;
+  const values = new Map();
+  globalThis.window = {
+    sessionStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, String(value)),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  t.after(() => {
+    if (originalWindow === undefined) delete globalThis.window;
+    else globalThis.window = originalWindow;
+  });
+
+  assert.equal(setAccessKey("  session-secret  "), true);
+  assert.equal(getAccessKey(), "session-secret");
+  assert.equal(setAccessKey("   "), true);
+  assert.equal(getAccessKey(), "");
+});
+
+test("access key storage reports blocked browser storage instead of claiming success", async (t) => {
+  const originalWindow = globalThis.window;
+  globalThis.window = { sessionStorage: { setItem() { throw new Error("blocked"); } } };
+  t.after(() => {
+    if (originalWindow === undefined) delete globalThis.window;
+    else globalThis.window = originalWindow;
+  });
+  assert.equal(setAccessKey("session-secret"), false);
+});
 
 test("API requests disable caching and parse JSON responses", async (t) => {
   const originalFetch = globalThis.fetch;
