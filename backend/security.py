@@ -6,7 +6,7 @@ import re
 
 _QUOTED_ASSIGNMENT = re.compile(
     r"""(?ix)
-    (?P<prefix>["']?(?:[A-Z0-9_]*_)?(?:api[_-]?key|access[_-]?key|database[_-]?url|
+    (?P<prefix>["']?(?:[A-Z0-9_]*_)?(?:api[_-]?key|access[_-]?key|private[_-]?key|signing[_-]?key|encryption[_-]?key|database[_-]?url|
     connection[_-]?string|client[_-]?secret|refresh[_-]?token|password|passwd|
     secret|token|authorization)["']?\s*[:=]\s*)
     (?P<quote>["']).*?(?P=quote)
@@ -15,7 +15,7 @@ _QUOTED_ASSIGNMENT = re.compile(
 
 
 _ASSIGNMENT = re.compile(
-    r"(?i)\b((?:[A-Z0-9_]*_)?(?:api[_-]?key|access[_-]?key|database[_-]?url|"
+    r"(?i)\b((?:[A-Z0-9_]*_)?(?:api[_-]?key|access[_-]?key|private[_-]?key|signing[_-]?key|encryption[_-]?key|database[_-]?url|"
     r"connection[_-]?string|client[_-]?secret|refresh[_-]?token|password|passwd|"
     r"secret|token|authorization))(\s*[:=]\s*)(?:(?:Bearer|Basic)\s+)?[^\s,;\"'&#]+"
 )
@@ -36,6 +36,11 @@ _QUERY_SECRETS = re.compile(
     r"(?i)([?&#](?:api[-_]?key|access[-_]?key|refresh[-_]?token|client[-_]?secret|database[-_]?url|connection[-_]?string|authorization|password|passwd|secret|token|auth)=)[^&#\s]+"
 )
 
+_PEM_PRIVATE_KEY = re.compile(
+    r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\\s\\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----",
+    re.IGNORECASE,
+)
+
 
 def redact_sensitive_text(value: object, *, max_length: int = 1800) -> str:
     """Mask common credentials before text is written to run records or logs.
@@ -44,6 +49,7 @@ def redact_sensitive_text(value: object, *, max_length: int = 1800) -> str:
     keep provider credentials out of prompts and user-visible artifacts.
     """
     text = str(value or "")
+    text = _PEM_PRIVATE_KEY.sub("[REDACTED_PRIVATE_KEY]", text)
     text = _QUOTED_ASSIGNMENT.sub(
         lambda match: f"{match.group('prefix')}{match.group('quote')}[REDACTED]{match.group('quote')}",
         text,

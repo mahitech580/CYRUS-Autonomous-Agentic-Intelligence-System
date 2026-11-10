@@ -39,6 +39,34 @@ def test_redacts_basic_authorization_and_standalone_jwt_tokens():
     assert "api.example.com" in redact_sensitive_text("api.example.com")
 
 
+def test_redacts_private_key_assignments_and_multiline_pem_blocks():
+    pem = (
+        "-----BEGIN OPENSSH PRIVATE KEY-----\\n"
+        "private-key-material-that-must-not-persist\\n"
+        "-----END OPENSSH PRIVATE KEY-----"
+    )
+    text = (
+        "private_key=raw-private-value "
+        "SIGNING_KEY=signing-secret "
+        "ENCRYPTION_KEY=encryption-secret "
+        "AWS_SECRET_ACCESS_KEY=aws-secret-value\\n"
+        + pem
+    )
+    result = redact_sensitive_text(text)
+    for secret in (
+        "raw-private-value",
+        "signing-secret",
+        "encryption-secret",
+        "aws-secret-value",
+        "private-key-material-that-must-not-persist",
+    ):
+        assert secret not in result
+    assert "private_key=[REDACTED]" in result
+    assert "SIGNING_KEY=[REDACTED]" in result
+    assert "ENCRYPTION_KEY=[REDACTED]" in result
+    assert "[REDACTED_PRIVATE_KEY]" in result
+
+
 def test_preserves_normal_text_and_respects_output_limit():
     assert redact_sensitive_text("ordinary workflow failure") == "ordinary workflow failure"
     assert redact_sensitive_text("abcdef", max_length=3) == "abc"
