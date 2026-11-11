@@ -108,3 +108,17 @@ def test_redacts_sensitive_url_query_parameter_variants_and_fragments():
     assert "access_token=[REDACTED]" in result
     assert "database_url=[REDACTED]" in result
     assert "display=kept" in result
+
+
+def test_redacts_hugging_face_gitlab_slack_webhook_and_sendgrid_tokens():
+    tokens = [
+        "hf_abcdefghijklmnopqrstuvwxyz123456",
+        "glpat-abcdefghijklmnopqrstuvwx",
+        "xapp-1-1234567890abcdef",
+        "whsec_123456789012345678901234",
+        "SG.abcdefghijklmnopqrstuvwx.abcdefghijklmnopqrstuvwxyz123456",
+    ]
+    result = redact_sensitive_text(" ".join(tokens))
+    for token in tokens:
+        assert token not in result
+    assert result.count("[REDACTED_KEY]") == len(tokens)
