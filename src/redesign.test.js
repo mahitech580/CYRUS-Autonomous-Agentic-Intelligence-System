@@ -236,3 +236,12 @@ test("pending review refresh waits for an in-flight older-page request", async (
   assert.ok(app.includes("if (pendingLoading || loadingMorePending || pendingOffset >= pendingTotal) return;"));
   assert.ok(app.includes("disabled={pendingLoading || loadingMorePending}"));
 });
+
+
+test("workspace subpages expose a primary heading without changing panel heading hierarchy", async () => {
+  const app = await read("../src/App.jsx");
+  const styles = await read("styles.css");
+  assert.ok(app.includes("<h1>{title}</h1>"));
+  assert.ok(styles.includes(".section-title :is(h1,h2)"));
+  assert.ok(styles.includes(".panel-heading h2"));
+});

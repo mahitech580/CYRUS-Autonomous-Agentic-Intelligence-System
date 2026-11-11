@@ -70,7 +70,7 @@ function AgentAvatar({ agent, small = false }) {
   return <span className={"agent-avatar tone-" + agent.color + (small ? " avatar-small" : "")}><Icon size={small ? 14 : 17} strokeWidth={1.8} /></span>;
 }
 function SectionTitle({ eyebrow, title, detail, action }) {
-  return <div className="section-title"><div><div className="eyebrow">{eyebrow}</div><h2>{title}</h2>{detail ? <p>{detail}</p> : null}</div>{action}</div>;
+  return <div className="section-title"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1>{detail ? <p>{detail}</p> : null}</div>{action}</div>;
 }
 function MiniBars({ runs = [] }) {
   const items = runs.slice(0, 12).reverse();
