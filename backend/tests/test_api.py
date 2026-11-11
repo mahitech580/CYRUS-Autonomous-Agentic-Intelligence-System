@@ -708,6 +708,45 @@ def test_run_list_filters_status_and_counts_only_matching_records(client):
     assert invalid.status_code == 422
 
 
+def test_run_list_returns_workspace_metrics_even_when_history_is_filtered(client):
+    before_all = client.get("/api/runs").json()["stats"]
+    before_review = client.get("/api/runs?status=review").json()["total"]
+    records = [
+        ("queued", 0),
+        ("review", 100),
+        ("failed", 40),
+    ]
+    created_ids = []
+    with main.SessionLocal() as db:
+        for status, progress in records:
+            run_id = "RUN-METRICS-" + main.uuid4().hex[:10].upper()
+            created_ids.append(run_id)
+            db.add(main.WorkflowRun(
+                id=run_id,
+                goal="Verify workspace-wide workflow metrics",
+                status=status,
+                progress=progress,
+                stages=[],
+                events=[],
+                execution_mode="live-model",
+                approval_status="pending",
+            ))
+        db.commit()
+        progress_values = db.query(main.WorkflowRun.progress).all()
+        expected_average = round(sum(value[0] for value in progress_values) / len(progress_values), 1)
+
+    filtered = client.get("/api/runs?status=review&limit=100")
+    assert filtered.status_code == 200
+    body = filtered.json()
+    assert body["total"] == before_review + 1
+    assert body["stats"]["total"] == before_all["total"] + 3
+    assert body["stats"]["active"] == before_all["active"] + 1
+    assert body["stats"]["completed"] == before_all["completed"] + 1
+    assert body["stats"]["average_progress"] == expected_average
+    assert all(item["status"] == "review" for item in body["items"])
+    assert created_ids[0] not in {item["id"] for item in body["items"]}
+
+
 def test_run_list_omits_artifact_payloads_and_reports_detail_counts(client):
     run = main.WorkflowRun(
         id="RUN-SUMMARY-" + main.uuid4().hex[:8].upper(),

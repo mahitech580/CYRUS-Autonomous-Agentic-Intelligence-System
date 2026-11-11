@@ -24,7 +24,7 @@ import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, Index, JSON, String, and_, create_engine, delete, func, inspect, or_, select, text, update
+from sqlalchemy import DateTime, Index, JSON, String, and_, case, create_engine, delete, func, inspect, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -1001,6 +1001,26 @@ def list_runs(
     )
     items = db.scalars(statement).all()
     total = db.scalar(count_statement) or 0
+    aggregate = db.execute(
+        select(
+            func.count(WorkflowRun.id),
+            func.sum(case((WorkflowRun.status.in_({"queued", "running"}), 1), else_=0)),
+            func.sum(case((
+                and_(
+                    WorkflowRun.status.in_({"completed", "review", "approved"}),
+                    WorkflowRun.progress >= 100,
+                ),
+                1,
+            ), else_=0)),
+            func.avg(WorkflowRun.progress),
+        )
+    ).one()
+    stats = {
+        "total": int(aggregate[0] or 0),
+        "active": int(aggregate[1] or 0),
+        "completed": int(aggregate[2] or 0),
+        "average_progress": round(float(aggregate[3] or 0), 1),
+    }
     next_offset = offset + len(items)
     has_more = next_offset < total
     return {
@@ -1010,6 +1030,7 @@ def list_runs(
         "offset": offset,
         "has_more": has_more,
         "next_offset": next_offset if has_more else None,
+        "stats": stats,
     }
 
 
