@@ -8,7 +8,7 @@ The CI workflow is defined in `.github/workflows/ci.yml`.
 
 - Frontend build and Node test suite: Node.js 24 on `ubuntu-latest`.
 - Backend tests and container checks: Python 3.12 on `ubuntu-latest`.
-- The workflow has read-only repository permissions and runs on pushes to `main` (and on external pull-request events).
+- Checkout credentials are not persisted after either job because the workflow performs no Git writes. The workflow has read-only repository permissions and runs on pushes to `main` (and on external pull-request events).
 
 ## Immutable action pins
 
@@ -18,7 +18,7 @@ The workflow pins each third-party action to a full commit SHA instead of a muta
 |---|---|---|---|
 | `actions/checkout` | `v7.0.1` | `3d3c42e5aac5ba805825da76410c181273ba90b1` | Verified |
 | `actions/setup-node` | `v7.1.0` | `949feb2413d6458794dcd2491c4babbbce0c15c1` | Verified |
-| `actions/setup-python` | `v7` | `6d4fd22b20465ccc0f7354476588e8df7c9ca0e0` | Verified |
+| `actions/setup-python` | `v7.1.0` | `6d4fd22b20465ccc0f7354476588e8df7c9ca0e0` | Verified |
 
 The pins above were resolved from the upstream GitHub repository's `commits/v7` references on 11 November 2026. GitHub's commit API reported `verification.verified=true` and `reason=valid` for each pinned commit.
 
