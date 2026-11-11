@@ -375,3 +375,26 @@ test("invalid request headers fail before allocating a network request", async (
   );
   assert.equal(fetchCalls, 0);
 });
+
+
+test("API requests attach fresh safe correlation IDs and preserve explicit IDs", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const requestIds = [];
+  globalThis.fetch = async (_url, options) => {
+    requestIds.push(options.headers.get("x-request-id"));
+    return new Response(JSON.stringify({ status: "ok" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  await request("/api/health");
+  await request("/api/config");
+  await request("/api/agents", { headers: { "X-Request-ID": "operator-trace-42" } });
+
+  assert.match(requestIds[0], /^[A-Za-z0-9._-]{1,64}$/);
+  assert.match(requestIds[1], /^[A-Za-z0-9._-]{1,64}$/);
+  assert.notEqual(requestIds[0], requestIds[1]);
+  assert.equal(requestIds[2], "operator-trace-42");
+});

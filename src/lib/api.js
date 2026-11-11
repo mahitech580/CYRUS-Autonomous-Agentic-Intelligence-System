@@ -1,6 +1,11 @@
 const API_BASE = (import.meta.env?.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
 const KEY_NAME = "cyrus_access_key";
 
+function createRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "cyrus-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+}
+
 export function getAccessKey() {
   try {
     return typeof window === "undefined" ? "" : window.sessionStorage.getItem(KEY_NAME) || "";
@@ -56,6 +61,7 @@ export async function request(path, options = {}) {
   } = options;
   // Validate and normalize caller headers before allocating timers or abort listeners.
   const headers = new Headers(fetchOptions.headers || {});
+  if (!headers.has("X-Request-ID")) headers.set("X-Request-ID", createRequestId());
   if (fetchOptions.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
