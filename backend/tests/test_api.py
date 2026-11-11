@@ -372,7 +372,7 @@ def test_retry_failed_workflow_creates_a_new_attempt_and_preserves_original(clie
 
     scheduled = []
     monkeypatch.setattr(main, "execute_workflow", lambda run_id: scheduled.append(run_id))
-    response = client.post(f"/api/runs/{source_id}/retry")
+    response = client.post(f"/api/runs/{source_id}/retry", headers={"Idempotency-Key": "worker-retry-queue-123"})
 
     assert response.status_code == 202
     retried = response.json()["item"]
@@ -511,7 +511,7 @@ def test_production_ephemeral_sqlite_is_rejected(client, monkeypatch):
     response = client.post(
         "/api/runs",
         json={"goal": "Build a secure profile API"},
-        headers={"Authorization": "Bearer private-test-key"},
+        headers={"Authorization": "Bearer private-test-key", "Idempotency-Key": "production-sqlite-123"},
     )
     assert response.status_code == 503
     assert "Persistent storage is not configured" in response.json()["detail"]
@@ -1000,7 +1000,7 @@ def test_create_run_uses_the_durable_queue_when_external_worker_is_required(clie
     scheduled = []
     monkeypatch.setattr(main, "execute_workflow", scheduled.append)
 
-    response = client.post("/api/runs", json={"goal": "Queue this workflow for the durable worker"})
+    response = client.post("/api/runs", json={"goal": "Queue this workflow for the durable worker"}, headers={"Idempotency-Key": "worker-create-queue-123"})
 
     assert response.status_code == 202
     assert response.json()["item"]["status"] == "queued"
@@ -1016,7 +1016,7 @@ def test_create_run_rejects_external_worker_mode_without_a_fresh_heartbeat(clien
     monkeypatch.setattr(main, "database_is_durable", lambda: True)
     main.remove_worker_heartbeat("worker-create-missing-test")
 
-    response = client.post("/api/runs", json={"goal": "Require a live durable execution worker"})
+    response = client.post("/api/runs", json={"goal": "Require a live durable execution worker"}, headers={"Idempotency-Key": "worker-create-missing-123"})
 
     assert response.status_code == 503
     assert "execution worker" in response.json()["detail"].lower()
