@@ -1025,6 +1025,8 @@ def create_run(
         raise HTTPException(status_code=422, detail="Describe the engineering outcome in at least 8 characters.")
 
     request_key = idempotency_key.strip() if idempotency_key is not None else None
+    if external_worker_required() and request_key is None:
+        raise HTTPException(status_code=400, detail="Idempotency-Key is required when durable worker execution is enabled.")
     if request_key is not None:
         if not re.fullmatch(r"[A-Za-z0-9._:-]{8,128}", request_key):
             raise HTTPException(status_code=400, detail="Idempotency-Key must contain 8–128 safe ASCII characters.")
@@ -1221,6 +1223,8 @@ def retry_run(
         raise HTTPException(status_code=409, detail="Only failed workflows can be retried.")
 
     request_key = idempotency_key.strip() if idempotency_key is not None else None
+    if external_worker_required() and request_key is None:
+        raise HTTPException(status_code=400, detail="Idempotency-Key is required when durable worker execution is enabled.")
     storage_key = None
     if request_key is not None:
         if not re.fullmatch(r"[A-Za-z0-9._:-]{8,128}", request_key):

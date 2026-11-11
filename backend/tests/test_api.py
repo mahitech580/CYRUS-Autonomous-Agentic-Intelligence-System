@@ -1137,3 +1137,39 @@ def test_workflow_failure_event_identifies_the_stage_and_agent(client, monkeypat
         assert failed_event["stage"] == "research"
         assert failed_event["agent"] == "Scout"
         assert failed_event["message"] == "Research provider temporarily unavailable"
+
+
+def test_durable_worker_mode_requires_idempotency_keys_for_billable_attempts(client, monkeypatch):
+    monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-provider-key")
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    monkeypatch.setattr(main, "worker_is_ready", lambda: True)
+
+    goal = "Create a protected workflow with an idempotent request"
+    missing_key = client.post("/api/runs", json={"goal": goal})
+    assert missing_key.status_code == 400
+    assert "Idempotency-Key" in missing_key.json()["detail"]
+
+    accepted = client.post(
+        "/api/runs",
+        json={"goal": goal},
+        headers={"Idempotency-Key": "cyrus-run-key-123"},
+    )
+    assert accepted.status_code == 202
+    source_id = accepted.json()["item"]["id"]
+    with main.SessionLocal() as db:
+        source = db.get(main.WorkflowRun, source_id)
+        source.status = "failed"
+        db.commit()
+
+    missing_retry_key = client.post(f"/api/runs/{source_id}/retry")
+    assert missing_retry_key.status_code == 400
+    assert "Idempotency-Key" in missing_retry_key.json()["detail"]
+
+    retried = client.post(
+        f"/api/runs/{source_id}/retry",
+        headers={"Idempotency-Key": "cyrus-retry-key-123"},
+    )
+    assert retried.status_code == 202
+    assert retried.json()["item"]["id"] != source_id
