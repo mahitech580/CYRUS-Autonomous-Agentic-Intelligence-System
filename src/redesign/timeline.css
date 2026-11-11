@@ -11,3 +11,7 @@
 .timeline-active { color:#071829; border-color:#7deaff; background:#7deaff; box-shadow:0 0 16px rgba(103,232,249,.28); }
 .timeline-failed { color:#2b1119; border-color:#fb8fa8; background:#fb8fa8; box-shadow:0 0 16px rgba(251,143,168,.22); }
 .artifact-output pre { border:1px solid rgba(126,158,219,.17); border-radius:11px; background:rgba(5,12,26,.7); color:#c9d9f2; }
+
+.timeline-duration { color:#8dc9e3; font:9px var(--mono); white-space:nowrap; }
+.timeline-duration-running { color:#86eaff; }
+.timeline-duration-failed, .timeline-duration-interrupted { color:#ff9fb1; }

@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, hasRunArtifacts, getRunPageOffset, prependRunRecord } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, prependRunRecord } from "./lib/runs.js";
 
 const navigation = [
   { id: "Overview", icon: LayoutDashboard },
@@ -1016,6 +1016,17 @@ function formatEventTime(value) {
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString();
 }
 
+function formatDurationMs(value) {
+  const milliseconds = Number(value);
+  if (!Number.isFinite(milliseconds)) return "—";
+  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+  if (seconds < 60) return seconds + "s";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + "m " + (seconds % 60) + "s";
+  const hours = Math.floor(minutes / 60);
+  return hours + "h " + (minutes % 60) + "m";
+}
+
 function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
   const stages = Array.isArray(run.stages) ? run.stages : [];
   const events = Array.isArray(run.events) ? run.events : [];
@@ -1078,9 +1089,14 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
       const active = stageState === "active";
       const complete = stageState === "completed";
       const failed = stageState === "failed";
+      const timing = getRunStageTiming(run, stageId);
+      const timingLabel = timing?.status === "running" ? "Running"
+        : timing?.status === "failed" ? "Failed after"
+          : timing?.status === "interrupted" ? "Interrupted after"
+            : "Completed in";
       return <div className="timeline-item" key={step.title}>
         <span className={"timeline-dot" + (complete ? " timeline-done" : active ? " timeline-active" : failed ? " timeline-failed" : "")}>{complete ? <Check size={11} /> : active ? <Activity size={11} /> : failed ? <X size={11} /> : index + 1}</span>
-        <div className="timeline-stage"><button className="timeline-stage-button" onClick={() => setExpandedStage(expandedStage === stageId ? "" : stageId)}><strong>{step.title} <span>{stage?.agent || step.title}</span></strong><small>{complete ? "Real model output saved" : active ? "Waiting for provider response" : failed ? "Failed at this stage" : run.status === "failed" ? "Not reached" : "Queued"}</small></button>
+        <div className="timeline-stage"><button className="timeline-stage-button" onClick={() => setExpandedStage(expandedStage === stageId ? "" : stageId)}><strong>{step.title} <span>{stage?.agent || step.title}</span></strong><small>{complete ? "Real model output saved" : active ? "Waiting for provider response" : failed ? "Failed at this stage" : run.status === "failed" ? "Not reached" : "Queued"}{timing ? <span className={"timeline-duration timeline-duration-" + timing.status}> · {timingLabel} {formatDurationMs(timing.durationMs)}</span> : null}</small></button>
           {expandedStage === stageId && stage ? <div className="artifact-output"><div className="artifact-label">MODEL OUTPUT</div><pre>{stage.output || stage.summary || "No output available."}</pre></div> : null}
         </div>
       </div>;
