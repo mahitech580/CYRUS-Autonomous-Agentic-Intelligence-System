@@ -585,7 +585,7 @@ export default function App() {
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
           {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} setWorkspaceConfig={setWorkspaceConfig} setApiState={setApiState} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
         </div>
-        <footer className="app-footer"><span><span className={"footer-pulse footer-pulse-" + (apiState === "connected" ? (workspaceConfig?.can_start_runs ? "ready" : "setup") : apiState)} /> {apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Runtime ready" : "Setup required") : apiState === "checking" ? "Checking runtime" : "API unavailable"}</span><span>CYRUS Workspace <b>0.2.2</b></span><span>Built for deliberate shipping <Zap size={12} /></span></footer>
+        <footer className="app-footer"><span><span className={"footer-pulse footer-pulse-" + (apiState === "connected" ? (workspaceConfig?.can_start_runs ? "ready" : "setup") : apiState)} /> {apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Runtime ready" : "Setup required") : apiState === "checking" ? "Checking runtime" : "API unavailable"}</span><span>CYRUS Workspace <b>0.2.3</b></span><span>Built for deliberate shipping <Zap size={12} /></span></footer>
       </main>
 
       {mobileNav ? <button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation overlay" /> : null}
@@ -607,7 +607,7 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
     <div className="welcome-line"><div><div className="eyebrow"><span className="eyebrow-square" /> AUTONOMOUS ENGINEERING WORKSPACE <span className="eyebrow-slash">/ 001</span></div><h1>Build the future.<br /><em>One agent at a time.</em></h1><p className="hero-copy">A coordinated team for the messy middle of software engineering — from first idea to verified release.</p></div><figure className="hero-media">
       <img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1600&q=85" alt="Rows of illuminated server racks in a modern data center" fetchPriority="high" decoding="async" />
       <div className="hero-media-shade" aria-hidden="true" />
-      <div className="hero-media-top"><span><i /> WORKFLOW VISUAL / 07 STAGES</span><span className="hero-media-code">CYRUS · 0.2.2</span></div>
+      <div className="hero-media-top"><span><i /> WORKFLOW VISUAL / 07 STAGES</span><span className="hero-media-code">CYRUS · 0.2.3</span></div>
       <figcaption className="hero-media-caption"><span className="hero-media-icon"><Sparkles size={19} /></span><span><strong>One coordinated agent mesh</strong><small>Plan · Research · Architect · Build · Verify · Review · Release</small></span><span className={"hero-media-state " + (workspaceConfig?.can_start_runs ? "is-ready" : "is-staged")}>{workspaceConfig?.can_start_runs ? "RUNTIME READY" : apiState === "connected" ? "SETUP REQUIRED" : "CONNECTING"}</span></figcaption>
       <a className="hero-media-credit" href="https://unsplash.com/license" target="_blank" rel="noreferrer">Visual source · Unsplash</a>
     </figure></div>

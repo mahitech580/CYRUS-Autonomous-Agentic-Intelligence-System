@@ -245,3 +245,14 @@ test("workspace subpages expose a primary heading without changing panel heading
   assert.ok(styles.includes(".section-title :is(h1,h2)"));
   assert.ok(styles.includes(".panel-heading h2"));
 });
+
+
+test("frontend package, workspace chrome and API share one release version", async () => {
+  const metadata = JSON.parse(await read("../package.json"));
+  const backend = await read("../backend/main.py");
+  const app = await read("../src/App.jsx");
+  assert.equal(metadata.version, "0.2.3");
+  assert.ok(backend.includes('APP_VERSION = "0.2.3"'));
+  assert.ok(app.includes("CYRUS Workspace <b>0.2.3</b>"));
+  assert.ok(app.includes("CYRUS · 0.2.3"));
+});

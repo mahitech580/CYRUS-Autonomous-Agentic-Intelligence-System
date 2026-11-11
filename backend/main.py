@@ -35,7 +35,7 @@ except ImportError:  # Support direct `main` imports used by the Vercel runtime.
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger("cyrus")
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.2.3"
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./cyrus.db")
 CONNECT_ARGS = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=CONNECT_ARGS, pool_pre_ping=True)
