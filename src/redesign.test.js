@@ -119,7 +119,8 @@ test("overview readiness separates database reachability from durable storage", 
 test("mobile navigation is hidden from keyboard users until opened and restores focus", async () => {
   const app = await read("../src/App.jsx");
   const styles = await read("styles.css");
-  assert.ok(app.includes('id="workspace-sidebar" aria-label="Workspace sidebar"'));
+  assert.ok(app.includes('id="workspace-sidebar" role={mobileViewport && mobileNav ? "dialog" : undefined} aria-modal={mobileViewport && mobileNav ? "true" : undefined} aria-label="Workspace navigation"'));
+  assert.ok(app.includes('sidebar?.toggleAttribute("inert", sidebarInert);'));
   assert.ok(app.includes('aria-expanded={mobileNav} aria-controls="workspace-sidebar"'));
   assert.ok(app.includes('if (event.key === "Escape")'));
   assert.ok(app.includes('document.querySelector(".open-mobile")?.focus()'));
