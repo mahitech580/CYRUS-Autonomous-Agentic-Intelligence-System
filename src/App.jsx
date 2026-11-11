@@ -93,6 +93,7 @@ export default function App() {
   const [view, setView] = useState("Overview");
   const [runs, setRuns] = useState([]);
   const [runsTotal, setRunsTotal] = useState(0);
+  const [runStats, setRunStats] = useState(null);
   const [runsOffset, setRunsOffset] = useState(0);
   const [loadingMoreRuns, setLoadingMoreRuns] = useState(false);
   const [goal, setGoal] = useState("");
@@ -179,6 +180,7 @@ export default function App() {
           setRuns([]);
           setRunsTotal(0);
           setRunsOffset(0);
+          setRunStats(null);
           redirectToSettingsOnUnauthorized({ status: 401 });
           return;
         }
@@ -190,6 +192,7 @@ export default function App() {
             setRuns(items);
             setRunsTotal(Number.isFinite(total) ? Math.max(items.length, total) : items.length);
             setRunsOffset(getRunPageOffset(data, 0, items.length));
+            setRunStats(data.stats && typeof data.stats === "object" ? data.stats : null);
           }
         } catch (error) {
           if (!redirectToSettingsOnUnauthorized(error) && error.status !== 503) {
@@ -297,6 +300,7 @@ export default function App() {
       setRuns(items);
       setRunsTotal(Number.isFinite(total) ? Math.max(items.length, total) : items.length);
       setRunsOffset(items.length);
+      setRunStats(data.stats && typeof data.stats === "object" ? data.stats : null);
       notify("Refreshed the latest " + items.length + " of " + (Number.isFinite(total) ? total : items.length) + " saved workflows.");
     } catch (error) {
       if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not refresh workflow history.");
@@ -575,7 +579,7 @@ export default function App() {
         <div className="page-content" id="main-content" tabIndex={-1}>
           {view === "Overview" ? <Overview
             runs={visibleRuns} allRuns={runs} goal={goal} setGoal={setGoal} startRun={startRun}
-            isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} openRun={openRun} setView={setView} notify={notify} apiState={apiState} workspaceConfig={workspaceConfig}
+            isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} openRun={openRun} setView={setView} notify={notify} apiState={apiState} workspaceConfig={workspaceConfig} runStats={runStats}
             setQuery={setQuery} setStatusFilter={setStatusFilter}
           /> : null}
           {view === "Agent fleet" ? <FleetView notify={notify} apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
@@ -595,14 +599,26 @@ export default function App() {
   );
 }
 
-function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart, openRun, setView, notify, apiState, workspaceConfig, setQuery, setStatusFilter }) {
+function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart, openRun, setView, notify, apiState, workspaceConfig, runStats, setQuery, setStatusFilter }) {
   function loadStarter(brief) {
     if (!brief?.goal) return;
     setGoal(brief.goal);
     document.getElementById("task-prompt")?.focus();
   }
-  const completed = allRuns.filter((run) => ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100).length;
-  const active = allRuns.filter((run) => run.status === "running" || run.status === "queued").length;
+  const completed = Number.isFinite(Number(runStats?.completed))
+    ? Math.max(0, Math.floor(Number(runStats.completed)))
+    : allRuns.filter((run) => ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100).length;
+  const active = Number.isFinite(Number(runStats?.active))
+    ? Math.max(0, Math.floor(Number(runStats.active)))
+    : allRuns.filter((run) => run.status === "running" || run.status === "queued").length;
+  const totalWorkflows = Number.isFinite(Number(runStats?.total))
+    ? Math.max(0, Math.floor(Number(runStats.total)))
+    : allRuns.length;
+  const averageCompletion = runStats?.average_progress != null && Number.isFinite(Number(runStats.average_progress))
+    ? Math.max(0, Math.min(100, Number(runStats.average_progress)))
+    : allRuns.length
+      ? allRuns.reduce((sum, item) => sum + (Number(item.progress) || 0), 0) / allRuns.length
+      : 0;
   return <div className="view-stack">
     <div className="welcome-line"><div><div className="eyebrow"><span className="eyebrow-square" /> AUTONOMOUS ENGINEERING WORKSPACE <span className="eyebrow-slash">/ 001</span></div><h1>Build the future.<br /><em>One agent at a time.</em></h1><p className="hero-copy">A coordinated team for the messy middle of software engineering — from first idea to verified release.</p></div><figure className="hero-media">
       <img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1600&q=85" alt="Rows of illuminated server racks in a modern data center" fetchPriority="high" decoding="async" />
@@ -636,7 +652,7 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
       <div className="setup-checklist-footer"><span><ShieldCheck size={14} /> Secrets remain on the server; the browser never receives provider credentials.</span><button type="button" className="button-quiet" onClick={() => setView("Settings")}>Open runtime settings <ArrowRight size={14} /></button></div>
     </section> : null}
     <div className="metrics-grid">
-      <MetricCard label="WORKFLOWS RUN" value={String(allRuns.length).padStart(2, "0")} change="Across this workspace" icon={Workflow} trend="neutral" />
+      <MetricCard label="WORKFLOWS RUN" value={String(totalWorkflows).padStart(2, "0")} change="Across this workspace" icon={Workflow} trend="neutral" />
       <MetricCard label="ACTIVE / QUEUED" value={String(active).padStart(2, "0")} change={active ? "Queued or running workflows" : "No queued or running workflows"} icon={Activity} trend="lime" />
       <MetricCard label="COMPLETED RUNS" value={String(completed).padStart(2, "0")} change="Review artifacts before release" icon={CheckCircle2} trend="blue" />
       <MetricCard label="AGENT FLEET" value="07" change="Specialists · staged pipeline" icon={Bot} trend="violet" />
@@ -674,7 +690,7 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
       </section>
     </div>
     <div className="section-divider"><span>OBSERVABILITY</span><span className="divider-line" /><span className="section-index">03 / 03</span></div>
-    <section className="observability-panel"><div className="observability-copy"><div className="eyebrow">WORKSPACE SIGNAL</div><h2>Momentum, in context.</h2><p>Workflow counts and completion values below are derived from saved run records. No synthetic usage statistics are shown.</p><div className="signal-key"><span><i className="signal-green" /> Run progress</span><span><i className="signal-blue" /> Persisted runs</span></div></div><div className="observability-chart"><div className="chart-summary"><div><span>SAVED WORKFLOWS</span><strong>{String(allRuns.length).padStart(2, "0")}</strong></div><div><span>AVERAGE COMPLETION</span><strong>{allRuns.length ? Math.round(allRuns.reduce((sum, item) => sum + (Number(item.progress) || 0), 0) / allRuns.length) : 0}<small>%</small></strong></div></div><MiniBars runs={allRuns} /><div className="chart-axis"><span>OLDEST</span><span>RECENT</span></div></div></section>
+    <section className="observability-panel"><div className="observability-copy"><div className="eyebrow">WORKSPACE SIGNAL</div><h2>Momentum, in context.</h2><p>Workspace totals and completion are API-wide aggregates. The activity strip uses the latest loaded run records only; no synthetic usage statistics are shown.</p><div className="signal-key"><span><i className="signal-green" /> Run progress</span><span><i className="signal-blue" /> Persisted runs</span></div></div><div className="observability-chart"><div className="chart-summary"><div><span>SAVED WORKFLOWS</span><strong>{String(totalWorkflows).padStart(2, "0")}</strong></div><div><span>AVERAGE COMPLETION</span><strong>{Math.round(averageCompletion)}<small>%</small></strong></div></div><MiniBars runs={allRuns} /><div className="chart-axis"><span>OLDEST</span><span>RECENT</span></div></div></section>
   </div>;
 }
 

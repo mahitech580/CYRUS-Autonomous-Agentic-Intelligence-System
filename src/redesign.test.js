@@ -265,3 +265,14 @@ test("a failed older-review page keeps the already loaded approval queue visible
   assert.ok(app.includes("pendingMoreError ? \"Retry loading older reviews\" : \"Load more pending reviews\""));
   assert.ok(app.includes('<span className="inline-help" role="alert">{pendingMoreError}</span>'));
 });
+
+
+test("overview metrics use API-wide aggregates instead of only the first history page", async () => {
+  const app = await read("../src/App.jsx");
+  const backend = await read("../backend/main.py");
+  assert.ok(app.includes("runStats={runStats}"));
+  assert.ok(app.includes("const totalWorkflows = Number.isFinite(Number(runStats?.total))"));
+  assert.ok(app.includes("const averageCompletion = runStats?.average_progress"));
+  assert.ok(backend.includes('"stats": stats'));
+  assert.ok(backend.includes('"average_progress": round(float(aggregate[3] or 0), 1)'));
+});
