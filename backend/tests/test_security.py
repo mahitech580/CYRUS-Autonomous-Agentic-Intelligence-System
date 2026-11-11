@@ -84,14 +84,14 @@ def test_redacts_quoted_json_and_yaml_secret_values():
 def test_redacts_additional_payment_chat_package_and_cloud_tokens():
     text = " ".join([
         "sk_live_1234567890abcdef", "rk_test_1234567890abcdef",
-        "xoxb-1234567890-abcdefghijkl", "npm_123456789012345678901234",
+        "xoxb-1234567890-abcdefghijkl", "xoxc-1234567890-abcdefghijkl", "xoxd-1234567890-abcdefghijkl", "npm_123456789012345678901234",
         "pypi-123456789012345678901234", "AIza12345678901234567890123456789012",
         "ASIA1234567890ABCDEF",
     ])
     result = redact_sensitive_text(text)
     for token in text.split():
         assert token not in result
-    assert result.count("[REDACTED_KEY]") == 7
+    assert result.count("[REDACTED_KEY]") == 9
 
 
 
