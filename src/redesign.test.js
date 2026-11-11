@@ -256,3 +256,12 @@ test("frontend package, workspace chrome and API share one release version", asy
   assert.ok(app.includes("CYRUS Workspace <b>0.2.3</b>"));
   assert.ok(app.includes("CYRUS · 0.2.3"));
 });
+
+
+test("a failed older-review page keeps the already loaded approval queue visible", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes("const [pendingMoreError, setPendingMoreError] = useState(\"\");"));
+  assert.ok(app.includes("else setPendingMoreError(error?.message || \"Could not load older pending reviews.\");"));
+  assert.ok(app.includes("pendingMoreError ? \"Retry loading older reviews\" : \"Load more pending reviews\""));
+  assert.ok(app.includes('<span className="inline-help" role="alert">{pendingMoreError}</span>'));
+});

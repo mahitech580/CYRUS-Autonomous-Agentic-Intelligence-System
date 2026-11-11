@@ -798,6 +798,7 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
   const [pendingLoading, setPendingLoading] = useState(true);
   const [loadingMorePending, setLoadingMorePending] = useState(false);
   const [pendingError, setPendingError] = useState("");
+  const [pendingMoreError, setPendingMoreError] = useState("");
   const [pendingRefresh, setPendingRefresh] = useState(0);
   const withArtifacts = runs.filter(hasRunArtifacts).slice(0, 8);
 
@@ -808,12 +809,14 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
       setPendingOffset(0);
       setPendingLoading(apiState === "checking");
       setPendingError(apiState === "unavailable" ? "The CYRUS API is unavailable. Reconnect it to load pending reviews." : "");
+      setPendingMoreError("");
       return undefined;
     }
     const controller = new AbortController();
     let active = true;
     setPendingLoading(true);
     setPendingError("");
+    setPendingMoreError("");
     api.runs({ limit: RUNS_PAGE_SIZE, offset: 0, status: "review", signal: controller.signal })
       .then((data) => {
         if (!active) return;
@@ -843,6 +846,7 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
     setLoadingMorePending(true);
     try {
       const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset, status: "review" });
+      setPendingMoreError("");
       const items = Array.isArray(data.items) ? data.items.map(mapRunRecord) : [];
       setPendingRuns((current) => {
         const known = new Set(current.map((run) => run.id));
@@ -853,7 +857,7 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
       setPendingOffset(getRunPageOffset(data, offset, items.length));
     } catch (error) {
       if (error?.status === 401) onUnauthorized?.(error);
-      else setPendingError(error?.message || "Could not load older pending reviews.");
+      else setPendingMoreError(error?.message || "Could not load older pending reviews.");
     } finally {
       setLoadingMorePending(false);
     }
@@ -867,7 +871,7 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
         : pendingError ? <div className="empty-state" role="alert"><ShieldCheck size={22} /><strong>Review queue unavailable</strong><span>{pendingError}</span><button className="button-outline" type="button" onClick={() => setPendingRefresh((current) => current + 1)}>Try again</button></div>
         : pendingRuns.length ? <div className="runs-table">{pendingRuns.map((run) => <RunRow run={run} key={run.id} onOpen={openRun} />)}</div>
         : <div className="empty-state"><ShieldCheck size={25} /><strong>No pending reviews</strong><span>Every saved workflow has been reviewed, or no workflow has reached the human approval gate yet.</span></div>}
-      {!pendingLoading && !pendingError && pendingOffset < pendingTotal ? <div className="review-pagination" aria-live="polite"><span>Showing {pendingRuns.length} of {pendingTotal} pending decisions.</span><button className="button-outline" type="button" onClick={loadMorePending} disabled={loadingMorePending}><RefreshCw size={13} className={loadingMorePending ? "spin-icon" : ""} />{loadingMorePending ? "Loading older reviews" : "Load more pending reviews"}</button></div> : null}
+      {!pendingLoading && !pendingError && pendingOffset < pendingTotal ? <div className="review-pagination" aria-live="polite"><span>Showing {pendingRuns.length} of {pendingTotal} pending decisions.</span>{pendingMoreError ? <span className="inline-help" role="alert">{pendingMoreError}</span> : null}<button className="button-outline" type="button" onClick={loadMorePending} disabled={loadingMorePending}><RefreshCw size={13} className={loadingMorePending ? "spin-icon" : ""} />{loadingMorePending ? "Loading older reviews" : pendingMoreError ? "Retry loading older reviews" : "Load more pending reviews"}</button></div> : null}
     </section>
     <section className="panel-card review-main">
       <div className="panel-heading"><div><div className="eyebrow">SAVED OUTPUTS</div><h2>Recent workflow artifacts</h2><p>Open a saved run to read its planning, research, architecture, code proposal, tests, review and release notes.</p></div></div>
