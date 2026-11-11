@@ -170,6 +170,44 @@ export function getRunStageState(run, stageId) {
 }
 
 
+
+/** Derive stage elapsed time from persisted start and terminal events. */
+export function getRunStageTiming(run, stageId, now = Date.now()) {
+  const events = Array.isArray(run?.events) ? run.events : [];
+  let startedAt = null;
+  let endedAt = null;
+  let terminalStatus = null;
+  for (const event of events) {
+    if (event?.stage !== stageId) continue;
+    const timestamp = Date.parse(event.at);
+    if (!Number.isFinite(timestamp)) continue;
+    if (event.status === "started") {
+      startedAt = timestamp;
+      endedAt = null;
+      terminalStatus = null;
+      continue;
+    }
+    if (startedAt !== null && timestamp >= startedAt && ["completed", "failed"].includes(event.status)) {
+      endedAt = timestamp;
+      terminalStatus = event.status;
+    }
+  }
+  if (startedAt === null) return null;
+  if (endedAt === null && ["failed", "cancelled"].includes(run?.status)) {
+    const updatedAt = Date.parse(run?.updated_at);
+    if (Number.isFinite(updatedAt) && updatedAt >= startedAt) {
+      endedAt = updatedAt;
+      terminalStatus = "interrupted";
+    }
+  }
+  const fallbackNow = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+  const end = endedAt ?? fallbackNow;
+  return {
+    status: terminalStatus || "running",
+    durationMs: Math.max(0, end - startedAt),
+  };
+}
+
 /** Put a newly accepted workflow first without duplicating an idempotent replay. */
 export function prependRunRecord(items, incoming) {
   const current = Array.isArray(items) ? items : [];

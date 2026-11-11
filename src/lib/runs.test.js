@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getRunStageState, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll } from "./runs.js";
+import { getRunStageState, getRunStageTiming, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -224,4 +224,34 @@ test("history pagination advances locally when the server cursor is null", () =>
   assert.equal(getRunPageOffset({ next_offset: null }, 0, 4), 4);
   assert.equal(getRunPageOffset({}, 30, 15), 45);
   assert.equal(getRunPageOffset({ next_offset: "invalid" }, -4, -2), 0);
+});
+
+
+test("stage timing uses persisted start and terminal events and handles interrupted work", () => {
+  const run = {
+    status: "review",
+    events: [
+      { stage: "plan", status: "started", at: "2026-11-11T10:00:00.000Z" },
+      { stage: "plan", status: "completed", at: "2026-11-11T10:00:02.500Z" },
+      { stage: "research", status: "started", at: "2026-11-11T10:00:03.000Z" },
+      { stage: "research", status: "failed", at: "2026-11-11T10:00:07.000Z" },
+    ],
+  };
+  assert.deepEqual(getRunStageTiming(run, "plan", 0), { status: "completed", durationMs: 2500 });
+  assert.deepEqual(getRunStageTiming(run, "research", 0), { status: "failed", durationMs: 4000 });
+  const active = {
+    status: "running",
+    events: [{ stage: "build", status: "started", at: "2026-11-11T10:00:00.000Z" }],
+  };
+  assert.deepEqual(getRunStageTiming(active, "build", Date.parse("2026-11-11T10:00:09.000Z")), {
+    status: "running",
+    durationMs: 9000,
+  });
+  const interrupted = {
+    status: "cancelled",
+    updated_at: "2026-11-11T10:00:05.000Z",
+    events: [{ stage: "test", status: "started", at: "2026-11-11T10:00:00.000Z" }],
+  };
+  assert.deepEqual(getRunStageTiming(interrupted, "test", 0), { status: "interrupted", durationMs: 5000 });
+  assert.equal(getRunStageTiming(run, "release", 0), null);
 });
