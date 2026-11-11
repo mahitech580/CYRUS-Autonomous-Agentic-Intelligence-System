@@ -211,3 +211,13 @@ test("run event history announces only the latest event to assistive technology"
   assert.ok(!app.includes('className="drawer-event-list" role="region" aria-live='));
   assert.ok(styles.includes(".sr-only {"));
 });
+
+
+test("keyboard users can skip workspace navigation and focus the main content", async () => {
+  const app = await read("../src/App.jsx");
+  const styles = await read("redesign/focus-accessibility.css");
+  assert.ok(app.includes('className="skip-link" href="#main-content"'));
+  assert.ok(app.includes('className="page-content" id="main-content" tabIndex={-1}'));
+  assert.ok(styles.includes(".skip-link:focus"));
+  assert.ok(styles.includes("@media (prefers-reduced-motion: reduce)"));
+});

@@ -540,6 +540,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to workspace content</a>
       <aside id="workspace-sidebar" aria-label="Workspace sidebar" className={"sidebar" + (mobileNav ? " sidebar-open" : "")}>
         <div className="brand-lockup">
           <div className="brand-mark"><span /><span /><span /></div>
@@ -571,7 +572,7 @@ export default function App() {
           <div className="topbar-actions"><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><button className="icon-button" title="Focus task prompt" aria-label="Focus task prompt" onClick={() => { setView("Overview"); window.setTimeout(() => document.getElementById("task-prompt")?.focus(), 0); }}><Command size={17} /></button><span className="top-avatar" role="img" aria-label="Workspace profile">M</span></div>
         </header>
 
-        <div className="page-content">
+        <div className="page-content" id="main-content" tabIndex={-1}>
           {view === "Overview" ? <Overview
             runs={visibleRuns} allRuns={runs} goal={goal} setGoal={setGoal} startRun={startRun}
             isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} openRun={openRun} setView={setView} notify={notify} apiState={apiState} workspaceConfig={workspaceConfig}
