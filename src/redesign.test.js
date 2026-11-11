@@ -283,7 +283,7 @@ test("run timeline displays measured stage durations from persisted events", asy
   const styles = await read("redesign/timeline.css");
   assert.ok(app.includes("getRunStageTiming(run, stageId)"));
   assert.ok(app.includes("formatDurationMs(timing.durationMs)"));
-  assert.ok(app.includes("timeline-duration-" + timing.status));
+  assert.ok(app.includes('timeline-duration-" + timing.status'));
   assert.ok(styles.includes(".timeline-duration-running"));
   assert.ok(styles.includes(".timeline-duration-failed"));
 });
