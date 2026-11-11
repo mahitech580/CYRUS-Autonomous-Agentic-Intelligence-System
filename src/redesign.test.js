@@ -221,3 +221,18 @@ test("keyboard users can skip workspace navigation and focus the main content", 
   assert.ok(styles.includes(".skip-link:focus"));
   assert.ok(styles.includes("@media (prefers-reduced-motion: reduce)"));
 });
+
+
+test("workflow history refresh and pagination requests cannot overlap", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes("if (refreshingRuns || loadingMoreRuns) return;"));
+  assert.ok(app.includes("if (loadingMoreRuns || refreshingRuns || runsOffset >= runsTotal) return;"));
+  assert.ok(app.includes("disabled={loadingMoreRuns || refreshingRuns}"));
+  assert.ok(app.includes("disabled={refreshingRuns || loadingMoreRuns}"));
+});
+
+test("pending review refresh waits for an in-flight older-page request", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes("if (pendingLoading || loadingMorePending || pendingOffset >= pendingTotal) return;"));
+  assert.ok(app.includes("disabled={pendingLoading || loadingMorePending}"));
+});

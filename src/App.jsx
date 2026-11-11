@@ -288,7 +288,7 @@ export default function App() {
     }
   }
   async function refreshRuns() {
-    if (refreshingRuns) return;
+    if (refreshingRuns || loadingMoreRuns) return;
     setRefreshingRuns(true);
     try {
       const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset: 0 });
@@ -305,7 +305,7 @@ export default function App() {
     }
   }
   async function loadMoreRuns() {
-    if (loadingMoreRuns || runsOffset >= runsTotal) return;
+    if (loadingMoreRuns || refreshingRuns || runsOffset >= runsTotal) return;
     const offset = runsOffset;
     setLoadingMoreRuns(true);
     try {
@@ -778,13 +778,13 @@ function RunsView({ runs, loadedRunCount, totalRuns, hasMoreRuns, loadingMoreRun
 
   return <div className="view-stack subpage"><SectionTitle eyebrow="EXECUTION CONTROL / RUN HISTORY" title="Runs & tasks" detail="Inspect orchestration state, progress, and review hand-offs." action={<span className="small-counter">{runs.length} MATCHING · {loadedRunCount}/{totalRuns} LOADED</span>} />
     <form className="task-composer compact-composer" onSubmit={startRun}><div className="composer-icon"><Sparkles size={16} /></div><input aria-label="New workflow goal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Describe a new engineering task…" /><button className="button-primary" disabled={!goal.trim() || isStarting || !canStart}>{isStarting ? "Starting…" : "New live run"}<ArrowRight size={14} /></button></form>{!canStart ? <div className="inline-help">Live runs require a configured model provider, protected workspace access, and persistent database. Open Settings for the exact missing requirements.</div> : null}
-    <div className="list-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search workflows" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search runs, goals, or status…" /></div><label className="filter-select-wrap"><CircleDot size={13} /><select aria-label="Filter workflow status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option><option value="queued">Queued</option><option value="running">In progress</option><option value="review">Needs review</option><option value="approved">Approved</option><option value="completed">Completed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select><ChevronDown size={13} /></label><button className="button-outline" type="button" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Clear filters <X size={13} /></button><button className="button-outline" type="button" onClick={refreshRuns} disabled={refreshingRuns}><RefreshCw size={13} className={refreshingRuns ? "spin-icon" : ""} />{refreshingRuns ? "Refreshing" : "Refresh"}</button><button className="button-outline" type="button" onClick={exportRunsCsv} disabled={!runs.length}><Download size={13} /> Export CSV</button></div>
+    <div className="list-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search workflows" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search runs, goals, or status…" /></div><label className="filter-select-wrap"><CircleDot size={13} /><select aria-label="Filter workflow status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option><option value="queued">Queued</option><option value="running">In progress</option><option value="review">Needs review</option><option value="approved">Approved</option><option value="completed">Completed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select><ChevronDown size={13} /></label><button className="button-outline" type="button" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Clear filters <X size={13} /></button><button className="button-outline" type="button" onClick={refreshRuns} disabled={refreshingRuns || loadingMoreRuns}><RefreshCw size={13} className={refreshingRuns ? "spin-icon" : ""} />{refreshingRuns ? "Refreshing" : "Refresh"}</button><button className="button-outline" type="button" onClick={exportRunsCsv} disabled={!runs.length}><Download size={13} /> Export CSV</button></div>
     <section className="panel-card"><div className="table-head"><span>RUN / GOAL</span><span>PROGRESS</span><span>STATUS</span><span /></div><div className="runs-table large-runs">{runs.map((run) => <RunRow key={run.id} run={run} onOpen={openRun} />)}</div>{runs.length === 0 ? <div className="empty-state"><Search size={22} /><strong>No matching runs</strong><span>Try a different search or clear the filters.</span></div> : null}</section>
     <div className="runs-pagination" aria-live="polite">
       <span>{hasMoreRuns
         ? "Showing " + loadedRunCount + " of " + totalRuns + " saved workflows. Search and filters apply to loaded records."
         : "All " + loadedRunCount + " saved workflows are loaded."}</span>
-      {hasMoreRuns ? <button className="button-outline" type="button" onClick={loadMoreRuns} disabled={loadingMoreRuns}>
+      {hasMoreRuns ? <button className="button-outline" type="button" onClick={loadMoreRuns} disabled={loadingMoreRuns || refreshingRuns}>
         <RefreshCw size={13} className={loadingMoreRuns ? "spin-icon" : ""} />
         {loadingMoreRuns ? "Loading older runs" : "Load older runs"}
       </button> : null}
@@ -838,7 +838,7 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
   }, [apiState, refreshToken, pendingRefresh]);
 
   async function loadMorePending() {
-    if (loadingMorePending || pendingOffset >= pendingTotal) return;
+    if (pendingLoading || loadingMorePending || pendingOffset >= pendingTotal) return;
     const offset = pendingOffset;
     setLoadingMorePending(true);
     try {
@@ -860,7 +860,7 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
   }
 
   return <div className="view-stack subpage">
-    <SectionTitle eyebrow="QUALITY GATES / HUMAN IN THE LOOP" title="Code review" detail="Review actual saved workflow output. Open a run to inspect every agent artifact and record a decision." action={<div className="review-queue-actions"><span className="tag-soft">{pendingTotal} awaiting decision</span><button className="button-outline" type="button" onClick={() => setPendingRefresh((current) => current + 1)} disabled={pendingLoading}><RefreshCw size={13} className={pendingLoading ? "spin-icon" : ""} />Refresh queue</button></div>} />
+    <SectionTitle eyebrow="QUALITY GATES / HUMAN IN THE LOOP" title="Code review" detail="Review actual saved workflow output. Open a run to inspect every agent artifact and record a decision." action={<div className="review-queue-actions"><span className="tag-soft">{pendingTotal} awaiting decision</span><button className="button-outline" type="button" onClick={() => setPendingRefresh((current) => current + 1)} disabled={pendingLoading || loadingMorePending}><RefreshCw size={13} className={pendingLoading ? "spin-icon" : ""} />Refresh queue</button></div>} />
     <section className="panel-card review-main">
       <div className="panel-heading"><div><div className="eyebrow">PENDING APPROVALS</div><h2>Needs your review</h2><p>The count and pages below come from every saved run in the backend, not only the latest dashboard page.</p></div><span className={pendingTotal ? "status-pill status-review" : "tag-soft"}>{pendingTotal ? "Action required" : "All clear"}</span></div>
       {pendingLoading ? <div className="empty-state" role="status"><RefreshCw size={19} className="spin-icon" /><strong>Loading review queue</strong><span>Checking all saved workflows for pending decisions.</span></div>
