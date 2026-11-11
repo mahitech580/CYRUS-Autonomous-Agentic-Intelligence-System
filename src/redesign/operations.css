@@ -5,3 +5,11 @@
 .chart-summary strong { color:#f2f7ff; }
 .chart-summary span, .chart-axis { color:#869bbc; }
 .mini-bars i { background:linear-gradient(180deg,#7cecff,#8b9eff 70%,#ad93f7); box-shadow:0 0 12px rgba(103,232,249,.13); }
+
+.fleet-queue-strip { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:15px 0 13px; padding:12px 13px; border:1px solid rgba(126,158,219,.16); border-radius:13px; background:rgba(7,16,33,.58); }
+.fleet-queue-strip > div { display:grid; gap:5px; min-width:0; }
+.fleet-queue-strip span { color:#7f95b8; font:8px var(--mono); letter-spacing:1px; }
+.fleet-queue-strip strong { color:#d9e9ff; font:19px var(--mono); }
+.fleet-queue-strip strong.queue-orphaned { color:#ffadbb; }
+.fleet-queue-strip .fleet-queue-unavailable { grid-column:1/-1; color:#879bbd; font-size:10px; line-height:1.6; letter-spacing:0; }
+@media (max-width:640px) { .fleet-queue-strip { gap:7px; padding:10px; } .fleet-queue-strip strong { font-size:17px; } }

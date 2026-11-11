@@ -310,3 +310,15 @@ test("mobile navigation and run details keep background surfaces inert", async (
   assert.ok(app.includes("}, [mobileViewport, mobileNav, selectedRun?.id]);"));
   assert.ok(app.includes("window.requestAnimationFrame(() => {"));
 });
+
+
+test("overview fleet status displays only API-backed queue pressure", async () => {
+  const app = await read("../src/App.jsx");
+  const styles = await read("redesign/operations.css");
+  assert.ok(app.includes('const queueSnapshotAvailable = apiState === "connected"'));
+  assert.ok(app.includes('aria-label="Persisted workflow queue snapshot"'));
+  assert.ok(app.includes("{workspaceConfig.queued_workflows}"));
+  assert.ok(app.includes("{workspaceConfig.running_workflows}"));
+  assert.ok(app.includes('{workspaceConfig.orphaned_workflows ?? "—"}'));
+  assert.ok(styles.includes(".fleet-queue-strip"));
+});

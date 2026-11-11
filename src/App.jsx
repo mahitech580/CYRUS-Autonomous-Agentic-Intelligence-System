@@ -649,6 +649,9 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
     : allRuns.length
       ? allRuns.reduce((sum, item) => sum + (Number(item.progress) || 0), 0) / allRuns.length
       : 0;
+  const queueSnapshotAvailable = apiState === "connected"
+    && workspaceConfig?.queued_workflows != null
+    && workspaceConfig?.running_workflows != null;
   return <div className="view-stack">
     <div className="welcome-line"><div><div className="eyebrow"><span className="eyebrow-square" /> AUTONOMOUS ENGINEERING WORKSPACE <span className="eyebrow-slash">/ 001</span></div><h1>Build the future.<br /><em>One agent at a time.</em></h1><p className="hero-copy">A coordinated team for the messy middle of software engineering — from first idea to verified release.</p></div><figure className="hero-media">
       <img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1600&q=85" alt="Rows of illuminated server racks in a modern data center" fetchPriority="high" decoding="async" />
@@ -715,6 +718,13 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
       </section>
       <section className="panel-card fleet-panel"><div className="panel-heading"><div><div className="eyebrow">AGENT TELEMETRY</div><h2>Fleet status</h2></div><button className="icon-button" onClick={() => setView("Agent fleet")} title="Open fleet"><ArrowUpRight size={16} /></button></div>
         <div className="fleet-summary"><div><span className="summary-number">07</span><span className="summary-label">Registered roles</span></div><div><span className="summary-number text-lime">07</span><span className="summary-label">Pipeline stages</span></div><div><span className="summary-number text-blue">{apiState !== "connected" ? "OFF" : workspaceConfig?.can_start_runs ? "READY" : "SETUP"}</span><span className="summary-label">Runtime</span></div></div>
+        <div className="fleet-queue-strip" aria-label="Persisted workflow queue snapshot">
+          {queueSnapshotAvailable ? <>
+            <div><span>QUEUED</span><strong>{workspaceConfig.queued_workflows}</strong></div>
+            <div><span>RUNNING</span><strong>{workspaceConfig.running_workflows}</strong></div>
+            <div><span>ORPHANED</span><strong className={workspaceConfig.orphaned_workflows ? "queue-orphaned" : ""}>{workspaceConfig.orphaned_workflows ?? "—"}</strong></div>
+          </> : <span className="fleet-queue-unavailable">Queue telemetry is unavailable until the API returns a database snapshot.</span>}
+        </div>
         <div className="agent-list">{agents.slice(0, 4).map((agent) => <AgentLine agent={agent} state="registered" key={agent.id} />)}</div>
         <button className="button-outline full-button" onClick={() => setView("Agent fleet")}>Open agent registry <ArrowRight size={14} /></button>
       </section>
