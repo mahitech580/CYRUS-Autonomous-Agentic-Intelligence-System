@@ -1085,6 +1085,7 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
   const stages = Array.isArray(run.stages) ? run.stages : [];
   const events = Array.isArray(run.events) ? run.events : [];
   const latestEvent = events.length ? events[events.length - 1] : null;
+  const eventsAtRetentionLimit = events.length >= 250;
   const [expandedStage, setExpandedStage] = useState(stages.length ? stages[stages.length - 1].id : "plan");
   const initialStageSelection = useRef(stages.length > 0);
   const [note, setNote] = useState("");
@@ -1155,7 +1156,8 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
         </div>
       </div>;
     })}</div>
-    <div className="drawer-section-title event-heading">Execution event history <span>{events.length} recorded</span></div>
+    <div className="drawer-section-title event-heading">Execution event history <span>{eventsAtRetentionLimit ? "Latest 250 retained" : events.length + " recorded"}</span></div>
+    {eventsAtRetentionLimit ? <p className="drawer-event-retention" role="note">Showing the most recent 250 events retained by the API. Older event records are not available.</p> : null}
     {events.length ? <>
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         Latest event: {latestEvent?.agent || "CYRUS"} — {latestEvent?.message || "Event recorded."}

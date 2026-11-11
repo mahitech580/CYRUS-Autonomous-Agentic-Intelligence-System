@@ -322,3 +322,13 @@ test("overview fleet status displays only API-backed queue pressure", async () =
   assert.ok(app.includes('{workspaceConfig.orphaned_workflows ?? "—"}'));
   assert.ok(styles.includes(".fleet-queue-strip"));
 });
+
+
+test("run details disclose when the API event history reaches its retention limit", async () => {
+  const app = await read("../src/App.jsx");
+  const styles = await read("redesign/events.css");
+  assert.ok(app.includes("const eventsAtRetentionLimit = events.length >= 250;"));
+  assert.ok(app.includes('eventsAtRetentionLimit ? "Latest 250 retained"'));
+  assert.ok(app.includes("Older event records are not available."));
+  assert.ok(styles.includes(".drawer-event-retention"));
+});
