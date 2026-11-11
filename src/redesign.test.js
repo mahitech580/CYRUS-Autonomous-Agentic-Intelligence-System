@@ -298,3 +298,15 @@ test("review pagination aborts stale pages when the queue refreshes or unmounts"
   assert.ok(review.includes('if (error?.name === "AbortError") return;'));
   assert.ok(review.includes("pendingPageController.current === controller"));
 });
+
+
+test("mobile navigation and run details keep background surfaces inert", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('role={mobileViewport && mobileNav ? "dialog" : undefined}'));
+  assert.ok(app.includes('aria-modal={mobileViewport && mobileNav ? "true" : undefined}'));
+  assert.ok(app.includes('sidebar?.toggleAttribute("inert", sidebarInert);'));
+  assert.ok(app.includes('main?.toggleAttribute("inert", mainInert);'));
+  assert.ok(app.includes("const drawerOpen = !!selectedRun?.id;"));
+  assert.ok(app.includes("}, [mobileViewport, mobileNav, selectedRun?.id]);"));
+  assert.ok(app.includes("window.requestAnimationFrame(() => {"));
+});

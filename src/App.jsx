@@ -102,6 +102,7 @@ export default function App() {
   const [isStarting, setIsStarting] = useState(false);
   const [apiState, setApiState] = useState("checking");
   const [mobileNav, setMobileNav] = useState(false);
+  const [mobileViewport, setMobileViewport] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 740px)").matches);
   const [selectedRun, setSelectedRun] = useState(null);
   const [toast, setToast] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -119,13 +120,40 @@ export default function App() {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
   }, []);
 
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 740px)");
+    const updateViewport = () => {
+      setMobileViewport(media.matches);
+      if (!media.matches) setMobileNav(false);
+    };
+    updateViewport();
+    if (media.addEventListener) media.addEventListener("change", updateViewport);
+    else media.addListener(updateViewport);
+    return () => {
+      if (media.removeEventListener) media.removeEventListener("change", updateViewport);
+      else media.removeListener(updateViewport);
+    };
+  }, []);
+
+  useEffect(() => {
+    const sidebar = document.getElementById("workspace-sidebar");
+    const main = document.querySelector(".main-panel");
+    const drawerOpen = !!selectedRun?.id;
+    const sidebarInert = drawerOpen || (mobileViewport && !mobileNav);
+    const mainInert = drawerOpen || (mobileViewport && mobileNav);
+    sidebar?.toggleAttribute("inert", sidebarInert);
+    main?.toggleAttribute("inert", mainInert);
+    if (sidebarInert) sidebar?.setAttribute("aria-hidden", "true");
+    else sidebar?.removeAttribute("aria-hidden");
+    if (mainInert) main?.setAttribute("aria-hidden", "true");
+    else main?.removeAttribute("aria-hidden");
+  }, [mobileViewport, mobileNav, selectedRun?.id]);
+
   const mobileNavWasOpen = useRef(false);
   useEffect(() => {
-    if (mobileNav) {
+    if (mobileNav && mobileViewport) {
       mobileNavWasOpen.current = true;
-      if (window.matchMedia("(max-width: 740px)").matches) {
-        document.querySelector(".sidebar .primary-nav .nav-item")?.focus();
-      }
+      document.querySelector(".sidebar .primary-nav .nav-item")?.focus();
       const previousOverflow = document.body.style.overflow;
       document.body.style.overflow = "hidden";
       const handleNavigationKeys = (event) => {
@@ -162,11 +190,9 @@ export default function App() {
     }
     if (mobileNavWasOpen.current) {
       mobileNavWasOpen.current = false;
-      if (window.matchMedia("(max-width: 740px)").matches) {
-        document.querySelector(".open-mobile")?.focus();
-      }
+      if (mobileViewport) document.querySelector(".open-mobile")?.focus();
     }
-  }, [mobileNav]);
+  }, [mobileNav, mobileViewport]);
 
   useEffect(() => {
     let alive = true;
@@ -538,14 +564,18 @@ export default function App() {
       document.removeEventListener("keydown", handleDrawerKeys);
       const previous = drawerReturnFocus.current;
       drawerReturnFocus.current = null;
-      if (previous?.isConnected) previous.focus();
+      if (previous?.isConnected) {
+        window.requestAnimationFrame(() => {
+          if (previous.isConnected) previous.focus();
+        });
+      }
     };
   }, [selectedRun?.id]);
 
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to workspace content</a>
-      <aside id="workspace-sidebar" aria-label="Workspace sidebar" className={"sidebar" + (mobileNav ? " sidebar-open" : "")}>
+      <aside id="workspace-sidebar" role={mobileViewport && mobileNav ? "dialog" : undefined} aria-modal={mobileViewport && mobileNav ? "true" : undefined} aria-label="Workspace navigation" className={"sidebar" + (mobileNav ? " sidebar-open" : "")}>
         <div className="brand-lockup">
           <div className="brand-mark"><span /><span /><span /></div>
           <div className="brand-type"><strong>CYRUS<span>_</span></strong><small>ENGINEERING OS</small></div>
