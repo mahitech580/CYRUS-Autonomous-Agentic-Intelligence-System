@@ -154,7 +154,14 @@ def provider_ready() -> bool:
 
 
 def provider_model() -> str:
-    return os.getenv("CYRUS_MODEL", "gpt-6-luna")
+    """Return a non-empty, trimmed model ID for provider requests and readiness UI."""
+    configured = os.getenv("CYRUS_MODEL", "").strip()
+    return configured or "gpt-6-luna"
+
+
+def web_search_enabled() -> bool:
+    """Normalize the optional research-tool toggle consistently across the API."""
+    return os.getenv("CYRUS_ENABLE_WEB_SEARCH", "false").strip().lower() in {"1", "true", "yes"}
 
 
 def provider_name() -> str:
@@ -530,7 +537,7 @@ def complete_agent(agent: str, role: str, instruction: str, goal: str, context: 
             "max_output_tokens": bounded_int_setting("CYRUS_MAX_OUTPUT_TOKENS", 1200, 256, 3000),
             "store": False,
         }
-        if agent == "Scout" and os.getenv("CYRUS_ENABLE_WEB_SEARCH", "false").lower() in {"1", "true", "yes"}:
+        if agent == "Scout" and web_search_enabled():
             request_body["tools"] = [{"type": "web_search"}]
             request_body["tool_choice"] = "auto"
         retries = provider_retry_count()
@@ -922,7 +929,7 @@ def config() -> dict[str, Any]:
         "storage_warning": None if durable else "A persistent PostgreSQL/MySQL database is required for production runs.",
         "auth_required": access_control_required,
         "access_control_configured": access_control_configured,
-        "web_search_enabled": os.getenv("CYRUS_ENABLE_WEB_SEARCH", "false").lower() in {"1", "true", "yes"},
+        "web_search_enabled": web_search_enabled(),
         "execution_mode": "live-model" if ready else "not-configured",
         "worker_required": worker_required,
         "worker_ready": worker_ready,

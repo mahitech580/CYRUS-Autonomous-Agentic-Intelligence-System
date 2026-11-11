@@ -63,6 +63,24 @@ def test_provider_rejects_non_object_payload_and_tolerates_invalid_usage(monkeyp
     assert response_id is None
 
 
+def test_provider_model_uses_a_trimmed_override_and_safe_default(monkeypatch):
+    monkeypatch.delenv("CYRUS_MODEL", raising=False)
+    assert main.provider_model() == "gpt-6-luna"
+
+    monkeypatch.setenv("CYRUS_MODEL", "   ")
+    assert main.provider_model() == "gpt-6-luna"
+
+    monkeypatch.setenv("CYRUS_MODEL", "  custom-model-v2  ")
+    assert main.provider_model() == "custom-model-v2"
+
+
+def test_web_search_toggle_normalizes_whitespace_and_case(monkeypatch):
+    monkeypatch.setenv("CYRUS_ENABLE_WEB_SEARCH", " TRUE ")
+    assert main.web_search_enabled() is True
+    monkeypatch.setenv("CYRUS_ENABLE_WEB_SEARCH", " false ")
+    assert main.web_search_enabled() is False
+
+
 def test_runtime_numeric_settings_are_bounded_and_invalid_values_fall_back(monkeypatch):
     monkeypatch.setenv("CYRUS_PROVIDER_RETRIES", "99")
     monkeypatch.setenv("CYRUS_MAX_OUTPUT_TOKENS", "invalid")
