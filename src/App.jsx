@@ -816,9 +816,13 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
   const [pendingError, setPendingError] = useState("");
   const [pendingMoreError, setPendingMoreError] = useState("");
   const [pendingRefresh, setPendingRefresh] = useState(0);
+  const pendingPageController = useRef(null);
   const withArtifacts = runs.filter(hasRunArtifacts).slice(0, 8);
 
   useEffect(() => {
+    pendingPageController.current?.abort();
+    pendingPageController.current = null;
+    setLoadingMorePending(false);
     if (apiState !== "connected") {
       setPendingRuns([]);
       setPendingTotal(0);
@@ -853,15 +857,21 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
     return () => {
       active = false;
       controller.abort();
+      pendingPageController.current?.abort();
+      pendingPageController.current = null;
     };
   }, [apiState, refreshToken, pendingRefresh]);
 
   async function loadMorePending() {
     if (pendingLoading || loadingMorePending || pendingOffset >= pendingTotal) return;
     const offset = pendingOffset;
+    const controller = new AbortController();
+    pendingPageController.current?.abort();
+    pendingPageController.current = controller;
     setLoadingMorePending(true);
     try {
-      const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset, status: "review" });
+      const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset, status: "review", signal: controller.signal });
+      if (controller.signal.aborted) return;
       setPendingMoreError("");
       const items = Array.isArray(data.items) ? data.items.map(mapRunRecord) : [];
       setPendingRuns((current) => {
@@ -872,10 +882,14 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
       if (Number.isFinite(total)) setPendingTotal(Math.max(items.length, total));
       setPendingOffset(getRunPageOffset(data, offset, items.length));
     } catch (error) {
+      if (error?.name === "AbortError") return;
       if (error?.status === 401) onUnauthorized?.(error);
       else setPendingMoreError(error?.message || "Could not load older pending reviews.");
     } finally {
-      setLoadingMorePending(false);
+      if (pendingPageController.current === controller) {
+        pendingPageController.current = null;
+        setLoadingMorePending(false);
+      }
     }
   }
 

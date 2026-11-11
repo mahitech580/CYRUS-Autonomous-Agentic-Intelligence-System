@@ -287,3 +287,14 @@ test("run timeline displays measured stage durations from persisted events", asy
   assert.ok(styles.includes(".timeline-duration-running"));
   assert.ok(styles.includes(".timeline-duration-failed"));
 });
+
+
+test("review pagination aborts stale pages when the queue refreshes or unmounts", async () => {
+  const app = await read("../src/App.jsx");
+  const review = app.slice(app.indexOf("function ReviewView("), app.indexOf("function DeploymentsView("));
+  assert.ok(review.includes("const pendingPageController = useRef(null);"));
+  assert.ok(review.includes("pendingPageController.current?.abort();"));
+  assert.ok(review.includes("signal: controller.signal"));
+  assert.ok(review.includes('if (error?.name === "AbortError") return;'));
+  assert.ok(review.includes("pendingPageController.current === controller"));
+});
