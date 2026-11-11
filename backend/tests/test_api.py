@@ -372,7 +372,7 @@ def test_retry_failed_workflow_creates_a_new_attempt_and_preserves_original(clie
 
     scheduled = []
     monkeypatch.setattr(main, "execute_workflow", lambda run_id: scheduled.append(run_id))
-    response = client.post(f"/api/runs/{source_id}/retry", headers={"Idempotency-Key": "worker-retry-queue-123"})
+    response = client.post(f"/api/runs/{source_id}/retry")
 
     assert response.status_code == 202
     retried = response.json()["item"]
@@ -1095,7 +1095,7 @@ def test_retry_uses_the_durable_queue_when_external_worker_is_required(client, m
     scheduled = []
     monkeypatch.setattr(main, "execute_workflow", scheduled.append)
 
-    response = client.post(f"/api/runs/{source_id}/retry")
+    response = client.post(f"/api/runs/{source_id}/retry", headers={"Idempotency-Key": "worker-retry-queue-123"})
 
     assert response.status_code == 202
     assert response.json()["item"]["status"] == "queued"
