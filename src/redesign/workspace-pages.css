@@ -73,3 +73,6 @@
 .workspace-audit-record-meta{display:grid;justify-items:start;gap:5px;min-width:0}
 .workspace-audit-record-meta .status-pill{font-size:8px}
 @media(max-width:740px){.workspace-audit-record{grid-template-columns:minmax(0,1fr) 16px;gap:8px}.workspace-audit-record-main strong{white-space:normal}.workspace-audit-record-meta{grid-column:1;grid-row:2;display:flex;flex-wrap:wrap;align-items:center;gap:7px}.workspace-audit-record>svg{grid-column:2;grid-row:1}}
+
+.workspace-ci-step-state{flex:0 0 auto;padding:5px 7px;border:1px solid rgba(126,158,219,.2);border-radius:7px;color:#9fb3d5;background:rgba(22,37,64,.5);font:8px var(--mono);letter-spacing:.45px;text-transform:uppercase}
+@media(max-width:740px){.workspace-ci-step-state{margin-left:auto}}

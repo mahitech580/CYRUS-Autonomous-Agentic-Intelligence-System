@@ -367,6 +367,19 @@ test("operational subpages use distinct icon-led, image-backed page headings", a
 });
 
 
+test("CI page lists configured jobs without implying that they passed", async () => {
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  const styles = await read("redesign/workspace-pages.css");
+  const start = pages.indexOf('if(route.kind==="ci")');
+  const end = pages.indexOf("\\n return null;", start);
+  const ci = pages.slice(start, end);
+  assert.ok(ci.includes('className="workspace-ci-step-state">Configured</span>'));
+  assert.ok(ci.includes("not current pass/fail results"));
+  assert.ok(!ci.includes("CheckCircle2"));
+  assert.ok(styles.includes(".workspace-ci-step-state"));
+});
+
+
 test("secondary workspace pages use unfiltered loaded records, not run-list search results", async () => {
   const app = await read("../src/App.jsx");
   assert.ok(app.includes('<WorkspacePage route={currentRoute} runs={runs} runsTotal={runsTotal}'));
