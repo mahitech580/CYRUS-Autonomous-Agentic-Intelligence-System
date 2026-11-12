@@ -210,9 +210,11 @@ export default function App() {
         }
         if (event.key !== "Tab") return;
         const sidebar = document.getElementById("workspace-sidebar");
-        const selector = 'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        const selector = 'summary:not([tabindex="-1"]), button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
         const focusable = Array.from(sidebar?.querySelectorAll(selector) || [])
-          .filter((element) => element.getAttribute("aria-hidden") !== "true");
+          .filter((element) => element.getAttribute("aria-hidden") !== "true"
+            && !element.closest("[hidden], [inert]")
+            && (!element.closest("details:not([open])") || element.matches("summary")));
         if (!focusable.length) {
           event.preventDefault();
           return;

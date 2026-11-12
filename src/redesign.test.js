@@ -159,6 +159,14 @@ test("run list progress indicators expose bounded accessible values", async () =
 });
 
 
+test("mobile navigation focus trap includes disclosure summaries and excludes collapsed links", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('summary:not([tabindex="-1"]), button:not([disabled])'));
+  assert.ok(app.includes('!element.closest("[hidden], [inert]")'));
+  assert.ok(app.includes('!element.closest("details:not([open])") || element.matches("summary")'));
+});
+
+
 test("mobile navigation traps keyboard focus and locks background scrolling", async () => {
   const app = await read("../src/App.jsx");
   assert.ok(app.includes('const previousOverflow = document.body.style.overflow;'));
