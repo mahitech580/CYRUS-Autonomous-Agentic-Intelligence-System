@@ -369,16 +369,18 @@ test("secondary workspace pages use a route-aware shared renderer", async () => 
 
 test("workspace cards use registered hash routes and safe external resource links", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
-  assert.ok(pages.includes("getWorkspaceHref(item.href || \"overview\")"));
+  assert.match(pages, /getWorkspaceHref\\s*\\(\\s*item\\.href\\s*\\|\\|\\s*"overview"\\s*\\)/);
   assert.ok(pages.includes('target={external?"_blank":undefined}'));
+  assert.ok(pages.includes('rel={external?"noreferrer":undefined}'));
   assert.ok(pages.includes("onSelectTemplate(item)"));
 });
 
 test("secondary operations views preserve honest runtime and safety boundaries", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
-  assert.ok(pages.includes("workspaceConfig?.queued_workflows"));
-  assert.ok(pages.includes("workspaceConfig?.worker_ready"));
+  assert.ok(pages.includes("config?.queued_workflows"));
+  assert.ok(pages.includes("config?.worker_ready"));
   assert.ok(pages.includes("Cost is not estimated"));
   assert.ok(pages.includes("agent workflows do not write commits, branches or pull requests"));
-  assert.ok(pages.includes("does not execute generated code"));
+  assert.ok(pages.includes("Generated code is not executed"));
+  assert.ok(pages.includes("Approval does not deploy"));
 });
