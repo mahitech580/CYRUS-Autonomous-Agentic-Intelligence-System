@@ -469,8 +469,9 @@ test("workspace cards use registered hash routes and safe external resource link
 
 test("secondary operations views preserve honest runtime and safety boundaries", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
-  assert.ok(pages.includes("config?.queued_workflows"));
-  assert.ok(pages.includes("config?.worker_ready"));
+  assert.ok(pages.includes("snapshotAvailable&&config.queued_workflows!=null&&config.running_workflows!=null"));
+  assert.ok(pages.includes("snapshotAvailable&&!!config.worker_ready"));
+  assert.ok(pages.includes('workerStatus=!snapshotAvailable?"Worker status unknown"'));
   assert.ok(pages.includes("Cost is not estimated"));
   assert.ok(pages.includes("agent workflows do not write commits, branches or pull requests"));
   assert.ok(pages.includes("Generated code is not executed"));
