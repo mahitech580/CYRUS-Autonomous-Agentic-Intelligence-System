@@ -57,10 +57,15 @@ test("rejected workflow decisions remain visible in run and review history", asy
 });
 
 
-test("GitHub integration is described as a source link, not an agent write connection", async () => {
+test("GitHub source links and runtime integrations are not mislabeled as connected services", async () => {
   const app = await read("../src/App.jsx");
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
   assert.ok(app.includes('status: "Public source link"'));
   assert.ok(app.includes("Agent workflows do not write commits, branches or pull requests to GitHub."));
+  assert.ok(pages.includes('github:{value:"Public source link only",ok:false'));
+  assert.ok(pages.includes('route.integration==="github"?"SOURCE REFERENCE"'));
+  assert.ok(pages.includes("No GitHub API or app connection is configured"));
+  assert.ok(pages.includes('value:!snapshotAvailable?"Runtime status unavailable"'));
 });
 
 test("mobile photographic backdrop scrolls with the page and fonts use swap", async () => {
@@ -371,7 +376,7 @@ test("CI page lists configured jobs without implying that they passed", async ()
   const pages = await read("../src/workspace/WorkspacePage.jsx");
   const styles = await read("redesign/workspace-pages.css");
   const start = pages.indexOf('if(route.kind==="ci")');
-  const end = pages.indexOf("\\n return null;", start);
+  const end = pages.indexOf(" return null;", start);
   const ci = pages.slice(start, end);
   assert.ok(ci.includes('className="workspace-ci-step-state">Configured</span>'));
   assert.ok(ci.includes("not current pass/fail results"));
