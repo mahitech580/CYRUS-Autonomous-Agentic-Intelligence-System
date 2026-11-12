@@ -78,6 +78,23 @@ function PolicyPanel(){
  const policies=[["Generated code is not executed","Agent code and patches are saved as reviewable artifacts."],["GitHub is not written by agent runs","No automatic commit, branch or pull-request operation is connected."],["Approval does not deploy","A human decision updates the review record; release deployment is separate."],["Secrets stay server-side","Provider credentials and database URLs are not included in browser responses."],["Worker readiness is explicit","A queued workflow is not treated as running until the configured worker holds a lease."]];
  return <div className="workspace-policy-list">{policies.map(([title,description],index)=><article className="workspace-policy-row" key={title}><span className="workspace-policy-index">{String(index+1).padStart(2,"0")}</span><div><strong>{title}</strong><p>{description}</p></div><span className="tag-soft">ENFORCED BOUNDARY</span></article>)}</div>;
 }
+function AuditRecord({run,onOpen}){
+ const decision=run.approval_status==="approved"?"Approved":run.approval_status==="rejected"?"Rejected":run.status==="review"?"Awaiting review":"No review decision";
+ const count=Number(run.event_count);
+ const eventSummary=Number.isFinite(count)?Math.max(0,Math.floor(count))+" retained events":"Event count unavailable";
+ const stage=run.current_stage?"Stage: "+run.current_stage:"No active stage";
+ return <button type="button" className="workspace-audit-record" onClick={()=>onOpen(run)}>
+  <span className="workspace-audit-record-main"><span className="workspace-run-id">{run.id}</span><strong>{run.goal||"Untitled workflow"}</strong><small>{run.time||"Time not available"} · {stage}</small></span>
+  <span className="workspace-audit-record-meta"><span className={"status-pill status-"+run.status}><i className="status-dot"/>{statusText[run.status]||"Unknown"}</span><small>{decision}</small><small>{eventSummary}</small></span>
+  <ArrowRight size={15} className="workspace-run-arrow"/>
+ </button>;
+}
+function AuditPanel({runs,openRun}){
+ return <section className="workspace-page-section workspace-audit-panel">
+  <div className="workspace-page-section-heading"><div><div className="eyebrow">PERSISTED WORKFLOW RECORDS</div><h2>Latest saved activity</h2><p>These rows come from loaded API summaries. Open a record to inspect its saved artifacts and retained event history.</p></div></div>
+  {runs.length?<div className="workspace-audit-list">{runs.map((run)=><AuditRecord key={run.id} run={run} onOpen={openRun}/>)}</div>:<div className="workspace-empty"><FileCode2 size={24}/><strong>No workflow records loaded</strong><span>Refresh the run history to inspect persisted workflow decisions.</span><a className="button-outline" href={getWorkspaceHref("runs")}>Open runs & tasks <ArrowRight size={13}/></a></div>}
+ </section>;
+}
 function AppearancePanel(){
  const values=[["Midnight","#070b18"],["Panel","#0d1528"],["Electric cyan","#67e8f9"],["Periwinkle","#7da5ff"],["Violet","#b69cff"],["Mint","#62f2d2"]];
  return <div className="workspace-appearance-panel"><div className="workspace-swatch-grid">{values.map(([name,color])=><div className="workspace-swatch" key={name}><span style={{background:color}}/><div><strong>{name}</strong><code>{color}</code></div></div>)}</div><div className="notice-strip"><Sparkles size={16}/><span>The current theme is consistent across the workspace. A saved theme editor is not implemented; this page documents the active tokens only.</span></div></div>;
@@ -90,7 +107,8 @@ function PageBody({route,runs,config,apiState,agents,openRun,onSelectTemplate}){
  if(route.kind==="integration")return <IntegrationPanel route={route} config={config} apiState={apiState}/>;
  if(route.kind==="queue")return <QueuePanel config={config} apiState={apiState}/>;
  if(route.kind==="usage")return <UsagePanel runs={runs}/>;
- if(["governance","policies","audit"].includes(route.kind))return <PolicyPanel/>;
+ if(route.kind==="audit")return <AuditPanel runs={runs} openRun={openRun}/>;
+ if(["governance","policies"].includes(route.kind))return <PolicyPanel/>;
  if(["runtime","access"].includes(route.kind))return <RuntimePanel config={config} apiState={apiState}/>;
  if(route.kind==="appearance")return <AppearancePanel/>;
  if(route.kind==="deployment")return <div className="workspace-deployment-note"><div className="workspace-runtime-banner"><span className="runtime-signal"/><div><strong>Verify this deployment with the provider</strong><small>A configured URL does not prove that the latest deployment is ready or live.</small></div></div><a className="button-outline" href={route.target==="api"?"https://vercel.com/mahendra8/cyrus-api":"https://vercel.com/mahendra8/cyrus-workspace"} target="_blank" rel="noreferrer">Open Vercel project <ArrowUpRight size={13}/></a><a className="button-outline" href={route.target==="api"?"https://cyrus-api-mahendra8.vercel.app/docs":"https://cyrus-workspace-mahendra8.vercel.app"} target="_blank" rel="noreferrer">Open configured URL <ArrowUpRight size={13}/></a></div>;

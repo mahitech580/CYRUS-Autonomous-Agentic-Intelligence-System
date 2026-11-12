@@ -367,6 +367,20 @@ test("operational subpages use distinct icon-led, image-backed page headings", a
 });
 
 
+test("workflow audit uses persisted run summaries and opens full run evidence", async () => {
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  const data = await read("../src/workspace/page-data.js");
+  const styles = await read("redesign/workspace-pages.css");
+  assert.ok(pages.includes("function AuditPanel({runs,openRun})"));
+  assert.ok(pages.includes("run.event_count"));
+  assert.ok(pages.includes("run.approval_status"));
+  assert.ok(pages.includes('if(route.kind==="audit")return <AuditPanel'));
+  assert.ok(pages.includes('onClick={()=>onOpen(run)}'));
+  assert.ok(data.includes("retained event counts"));
+  assert.ok(styles.includes(".workspace-audit-record:focus-visible"));
+});
+
+
 test("secondary workspace pages use a route-aware shared renderer", async () => {
   const app = await read("../src/App.jsx");
   const pages = await read("../src/workspace/WorkspacePage.jsx");

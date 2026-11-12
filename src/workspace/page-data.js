@@ -616,7 +616,7 @@ export const WORKSPACE_PAGE_CONTENT = Object.freeze({
   "governance-audit": {
     "eyebrow": "GOVERNANCE / WORKFLOW EVIDENCE",
     "title": "Workflow audit log",
-    "description": "This view summarizes persisted workflow records and included event payloads. It is not a separate identity, credential-access or administrative audit service.",
+    "description": "Inspect the latest saved workflow decisions and retained event counts. Open a run to review its bounded event timeline; this is not a separate identity, credential-access or administrative audit service.",
     "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=85",
     "sections": [
       {
