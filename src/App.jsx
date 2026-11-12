@@ -67,8 +67,15 @@ function AgentAvatar({ agent, small = false }) {
   const Icon = agent.id === "tester" ? ShieldCheck : agent.id === "coder" ? Code2 : agent.id === "release" ? Rocket : agent.id === "architect" ? Network : agent.id === "researcher" ? Search : agent.id === "reviewer" ? GitPullRequest : Command;
   return <span className={"agent-avatar tone-" + agent.color + (small ? " avatar-small" : "")}><Icon size={small ? 14 : 17} strokeWidth={1.8} /></span>;
 }
-function SectionTitle({ eyebrow, title, detail, action }) {
-  return <div className="section-title"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1>{detail ? <p>{detail}</p> : null}</div>{action}</div>;
+function SectionTitle({ eyebrow, title, detail, action, icon: Icon = Activity, visual }) {
+  return <div className="section-title page-heading">
+    <div className="page-heading-copy">
+      <span className="page-heading-icon" aria-hidden="true"><Icon size={21} strokeWidth={1.8} /></span>
+      <div className="page-heading-text"><div className="eyebrow">{eyebrow}</div><h1>{title}</h1>{detail ? <p>{detail}</p> : null}</div>
+    </div>
+    {visual ? <figure className="page-heading-visual" aria-hidden="true"><img src={visual} alt="" loading="lazy" decoding="async" /><span className="page-heading-visual-shade" /></figure> : null}
+    {action ? <div className="page-heading-actions">{action}</div> : null}
+  </div>;
 }
 function MiniBars({ runs = [] }) {
   const items = runs.slice(0, 12).reverse();
@@ -833,7 +840,7 @@ function FleetView({ apiState, workspaceConfig }) {
   }, [apiState]);
 
   const visibleAgents = registryState === "ready" ? registry : agents;
-  return <div className="view-stack subpage"><SectionTitle eyebrow="AGENT REGISTRY / 07 SPECIALISTS" title="The agent fleet" detail="Inspect the seven backend-defined roles, their missions, and the capabilities assigned to each pipeline stage." action={<span className="tag-soft">7 fixed pipeline roles</span>} />
+  return <div className="view-stack subpage"><SectionTitle icon={Bot} visual="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1100&q=80" eyebrow="AGENT REGISTRY / 07 SPECIALISTS" title="The agent fleet" detail="Inspect the seven backend-defined roles, their missions, and the capabilities assigned to each pipeline stage." action={<span className="tag-soft">7 fixed pipeline roles</span>} />
     <div className="fleet-banner"><div className="fleet-banner-icon"><Network size={22} /></div><div><strong>One system. Distinct responsibilities.</strong><p>Each agent gets a scoped job, a shared run context, and a clear hand-off contract. Human approval remains in the loop for release decisions.</p></div><div className="fleet-banner-status"><span className={"footer-pulse footer-pulse-" + (apiState === "connected" ? (workspaceConfig?.can_start_runs ? "ready" : "setup") : apiState)} />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "RUNTIME READY" : "SETUP REQUIRED") : apiState === "checking" ? "CHECKING API" : "API OFFLINE"}<small>WORKSPACE MODE</small></div></div>
     {registryState === "loading" ? <div className="inline-help" role="status">Loading agent definitions from the backend…</div> : null}
     {registryState === "fallback" ? <div className="inline-help" role="status">{registryError || "Showing the built-in role reference until the backend registry is reachable."}</div> : null}
@@ -865,7 +872,7 @@ function RunsView({ runs, loadedRunCount, totalRuns, hasMoreRuns, loadingMoreRun
     notify("Exported " + runs.length + " visible workflow record" + (runs.length === 1 ? "." : "s."));
   }
 
-  return <div className="view-stack subpage"><SectionTitle eyebrow="EXECUTION CONTROL / RUN HISTORY" title="Runs & tasks" detail="Inspect orchestration state, progress, and review hand-offs." action={<span className="small-counter">{runs.length} MATCHING · {loadedRunCount}/{totalRuns} LOADED</span>} />
+  return <div className="view-stack subpage"><SectionTitle icon={Workflow} visual="https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1100&q=80" eyebrow="EXECUTION CONTROL / RUN HISTORY" title="Runs & tasks" detail="Inspect orchestration state, progress, and review hand-offs." action={<span className="small-counter">{runs.length} MATCHING · {loadedRunCount}/{totalRuns} LOADED</span>} />
     <form id="new-task" className="task-composer compact-composer" onSubmit={startRun}><div className="composer-icon"><Sparkles size={16} /></div><input id="new-task-input" aria-label="New workflow goal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Describe a new engineering task…" /><button className="button-primary" disabled={!goal.trim() || isStarting || !canStart}>{isStarting ? "Starting…" : "New live run"}<ArrowRight size={14} /></button></form>{!canStart ? <div className="inline-help">Live runs require a configured model provider, protected workspace access, and persistent database. Open Settings for the exact missing requirements.</div> : null}
     <div className="list-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search workflows" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search runs, goals, or status…" /></div><label className="filter-select-wrap"><CircleDot size={13} /><select aria-label="Filter workflow status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option><option value="queued">Queued</option><option value="running">In progress</option><option value="review">Needs review</option><option value="approved">Approved</option><option value="completed">Completed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select><ChevronDown size={13} /></label><button className="button-outline" type="button" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Clear filters <X size={13} /></button><button className="button-outline" type="button" onClick={refreshRuns} disabled={refreshingRuns || loadingMoreRuns}><RefreshCw size={13} className={refreshingRuns ? "spin-icon" : ""} />{refreshingRuns ? "Refreshing" : "Refresh"}</button><button className="button-outline" type="button" onClick={exportRunsCsv} disabled={!runs.length}><Download size={13} /> Export CSV</button></div>
     <section className="panel-card"><div className="table-head"><span>RUN / GOAL</span><span>PROGRESS</span><span>STATUS</span><span /></div><div className="runs-table large-runs">{runs.map((run) => <RunRow key={run.id} run={run} onOpen={openRun} />)}</div>{runs.length === 0 ? <div className="empty-state"><Search size={22} /><strong>No matching runs</strong><span>Try a different search or clear the filters.</span></div> : null}</section>
@@ -967,7 +974,7 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
   }
 
   return <div className="view-stack subpage">
-    <SectionTitle eyebrow="QUALITY GATES / HUMAN IN THE LOOP" title="Code review" detail="Review actual saved workflow output. Open a run to inspect every agent artifact and record a decision." action={<div className="review-queue-actions"><span className="tag-soft">{pendingTotal} awaiting decision</span><button className="button-outline" type="button" onClick={() => setPendingRefresh((current) => current + 1)} disabled={pendingLoading || loadingMorePending}><RefreshCw size={13} className={pendingLoading ? "spin-icon" : ""} />Refresh queue</button></div>} />
+    <SectionTitle icon={GitPullRequest} visual="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1100&q=80" eyebrow="QUALITY GATES / HUMAN IN THE LOOP" title="Code review" detail="Review actual saved workflow output. Open a run to inspect every agent artifact and record a decision." action={<div className="review-queue-actions"><span className="tag-soft">{pendingTotal} awaiting decision</span><button className="button-outline" type="button" onClick={() => setPendingRefresh((current) => current + 1)} disabled={pendingLoading || loadingMorePending}><RefreshCw size={13} className={pendingLoading ? "spin-icon" : ""} />Refresh queue</button></div>} />
     <section className="panel-card review-main">
       <div className="panel-heading"><div><div className="eyebrow">PENDING APPROVALS</div><h2>Needs your review</h2><p>The count and pages below come from every saved run in the backend, not only the latest dashboard page.</p></div><span className={pendingTotal ? "status-pill status-review" : "tag-soft"}>{pendingTotal ? "Action required" : "All clear"}</span></div>
       {pendingLoading ? <div className="empty-state" role="status"><RefreshCw size={19} className="spin-icon" /><strong>Loading review queue</strong><span>Checking all saved workflows for pending decisions.</span></div>
@@ -1003,7 +1010,7 @@ function DeploymentsView({ apiState, workspaceConfig }) {
     { title: "Execution worker", detail: "A fresh worker lease is required when inline execution is disabled.", ready: workerReady },
   ];
   return <div className="view-stack subpage">
-    <SectionTitle eyebrow="RELEASE ENGINEERING / DEPLOYED TARGETS" title="Deployments" detail="Inspect the actual workspace, API and CI resources. CYRUS never reports a release as complete merely because a card or checklist exists." action={<a className="button-outline external-button" href="https://vercel.com/mahendra8/cyrus-workspace" target="_blank" rel="noreferrer">Vercel project <ArrowUpRight size={14} /></a>} />
+    <SectionTitle icon={Rocket} visual="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1100&q=80" eyebrow="RELEASE ENGINEERING / DEPLOYED TARGETS" title="Deployments" detail="Inspect the actual workspace, API and CI resources. CYRUS never reports a release as complete merely because a card or checklist exists." action={<a className="button-outline external-button" href="https://vercel.com/mahendra8/cyrus-workspace" target="_blank" rel="noreferrer">Vercel project <ArrowUpRight size={14} /></a>} />
     <div className="deployment-resource-grid">{targets.map((target) => <article className="deployment-resource-card" key={target.name}>
       <div className="deployment-resource-top"><span className="deployment-resource-icon"><target.icon size={18} /></span><span className="deployment-eyebrow">{target.eyebrow}</span></div>
       <h3>{target.name}</h3><p>{target.description}</p><div className="deployment-resource-state"><i className={target.name === "CYRUS API" && apiState === "connected" ? "deployment-live-dot" : ""} />{target.state}</div>
@@ -1029,7 +1036,7 @@ function IntegrationsView({ notify }) {
     { icon: Radio, name: "Live event stream", group: "Observability", desc: "Current workflow details poll the API; a dedicated server-sent event stream is not connected.", status: "Not connected", color: "green", href: "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events" },
     { icon: Workflow, name: "CI pipeline", group: "Build and test", desc: "GitHub Actions builds the frontend and runs the backend test suite on push.", status: "GitHub Actions", color: "cyan", href: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions" },
   ];
-  return <div className="view-stack subpage"><SectionTitle eyebrow="CONNECTORS / RUNTIME CAPABILITIES" title="Integrations" detail="Follow real provider documentation and deployment controls. An integration marked supported describes code capability, not a connected account." action={<a className="button-primary external-button" href="https://vercel.com/mahendra8/cyrus-api/settings/environment-variables" target="_blank" rel="noreferrer">Configure runtime <ArrowUpRight size={14} /></a>} />
+  return <div className="view-stack subpage"><SectionTitle icon={Boxes} visual="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1100&q=80" eyebrow="CONNECTORS / RUNTIME CAPABILITIES" title="Integrations" detail="Follow real provider documentation and deployment controls. An integration marked supported describes code capability, not a connected account." action={<a className="button-primary external-button" href="https://vercel.com/mahendra8/cyrus-api/settings/environment-variables" target="_blank" rel="noreferrer">Configure runtime <ArrowUpRight size={14} /></a>} />
     <div className="integration-grid">{integrations.map((item) => <article className="integration-card" key={item.name}><div className="integration-top"><span className={"integration-icon integration-" + item.color}><item.icon size={18} /></span><span className="tag-soft">{item.status}</span></div><div className="integration-group">{item.group}</div><h3>{item.name}</h3><p>{item.desc}</p><a className="integration-link" href={item.href} target="_blank" rel="noreferrer">Open resource <ArrowUpRight size={13} /></a></article>)}</div>
     <div className="notice-strip"><Database size={17} /><span><strong>Credential safety:</strong> configure provider keys, access keys and database URLs through server-side environment variables. Never commit secrets or send them to the browser.</span></div>
   </div>;
@@ -1064,7 +1071,7 @@ function SettingsView({ apiState, workspaceConfig, setWorkspaceConfig, setApiSta
     }
   }
 
-  return <div className="view-stack subpage"><SectionTitle eyebrow="WORKSPACE CONTROL / RUNTIME CONFIGURATION" title="Settings" detail="Inspect live dependencies and connect the server-side services needed to run real agent workflows." />
+  return <div className="view-stack subpage"><SectionTitle icon={Settings2} visual="https://images.unsplash.com/photo-1663160055679-7b7fecb4468f?auto=format&fit=crop&w=1100&q=75" eyebrow="WORKSPACE CONTROL / RUNTIME CONFIGURATION" title="Settings" detail="Inspect live dependencies and connect the server-side services needed to run real agent workflows." />
     <div className="settings-layout">
       <section className="panel-card settings-card"><div className="panel-heading"><div><div className="eyebrow">SAFETY POLICY</div><h2>Execution boundaries</h2></div><ShieldCheck size={18} /></div>
         <div className="setting-row"><div><strong>Human review gate</strong><p>Every completed workflow pauses for a recorded approval decision. Approval does not deploy.</p></div><span className="tag-soft">ENFORCED</span></div>

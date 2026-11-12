@@ -333,3 +333,17 @@ test("run details disclose when the API event history reaches its retention limi
   assert.ok(app.includes("Older event records are not available."));
   assert.ok(styles.includes(".drawer-event-retention"));
 });
+
+
+test("operational subpages use distinct icon-led, image-backed page headings", async () => {
+  const app = await read("../src/App.jsx");
+  const pageStyles = await read("redesign/page-headers.css");
+  const visualReferences = await read("../docs/visual-system-and-image-references.md");
+  for (const icon of ["icon={Bot}", "icon={Workflow}", "icon={GitPullRequest}", "icon={Rocket}", "icon={Boxes}", "icon={Settings2}"]) {
+    assert.ok(app.includes(icon), `missing page heading icon: ${icon}`);
+  }
+  assert.ok(app.includes('className="page-heading-visual" aria-hidden="true"><img'));
+  assert.ok(app.includes('alt="" loading="lazy" decoding="async"'));
+  assert.ok(pageStyles.includes("@media (max-width: 740px)"));
+  assert.ok(visualReferences.includes("https://unsplash.com/license"));
+});

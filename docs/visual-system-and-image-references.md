@@ -41,3 +41,10 @@ The existing frontend research notes remain the source for deeper product/intera
 - [Frontend reference audit](./FRONTEND_REFERENCE_AUDIT.md)
 
 Projects studied include [OpenHands](https://github.com/OpenHands/OpenHands), [Dify](https://github.com/langgenius/dify), [Flowise](https://github.com/FlowiseAI/Flowise), [Langflow](https://github.com/langflow-ai/langflow), [Langfuse](https://github.com/langfuse/langfuse), [n8n](https://github.com/n8n-io/n8n) and [Temporal UI](https://github.com/temporalio/ui). These are used as interaction references only.
+
+
+## Page navigation and operational page headers
+
+The workspace sidebar now uses ordinary anchor destinations for Overview, Agent fleet, Runs & tasks, Code review, Deployments, Integrations, and Settings. The destinations are shareable hash routes (for example, `#/agents` and `#/review`) so the same static build works on Vercel and GitHub Pages without requiring a server-side rewrite. Browser back/forward navigation stays synchronized with the active page, and the top-bar New task link opens the run composer directly.
+
+Operational pages use a consistent icon-led masthead with low-contrast photographic context. The mastheads reuse the five Unsplash sources already listed above; no unlicensed assets or copied product screenshots were added. Header photos are decorative, use empty alternative text, lazy loading, and a gradient fallback. Readiness, run state, approvals, and deployment claims continue to come from the API rather than the imagery.
