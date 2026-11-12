@@ -671,7 +671,7 @@ export default function App() {
           {view === "Deployments" ? <DeploymentsView apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
           {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} setWorkspaceConfig={setWorkspaceConfig} setApiState={setApiState} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
-          {view === "Workspace" ? <WorkspacePage route={currentRoute} runs={visibleRuns} runsTotal={runsTotal} runStats={runStats} workspaceConfig={workspaceConfig} apiState={apiState} agents={agents} openRun={openRun} onSelectTemplate={(template) => { setGoal(template.goal); setView("runs", { focusTask: true }); }} /> : null}
+          {view === "Workspace" ? <WorkspacePage route={currentRoute} runs={runs} runsTotal={runsTotal} runStats={runStats} workspaceConfig={workspaceConfig} apiState={apiState} agents={agents} openRun={openRun} onSelectTemplate={(template) => { setGoal(template.goal); setView("runs", { focusTask: true }); }} /> : null}
         </div>
         <footer className="app-footer"><span><span className={"footer-pulse footer-pulse-" + (apiState === "connected" ? (workspaceConfig?.can_start_runs ? "ready" : "setup") : apiState)} /> {apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Runtime ready" : "Setup required") : apiState === "checking" ? "Checking runtime" : "API unavailable"}</span><span>CYRUS Workspace <b>0.2.3</b></span><span>Built for deliberate shipping <Zap size={12} /></span></footer>
       </main>

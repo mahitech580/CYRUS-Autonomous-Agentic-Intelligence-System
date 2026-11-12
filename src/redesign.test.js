@@ -367,6 +367,13 @@ test("operational subpages use distinct icon-led, image-backed page headings", a
 });
 
 
+test("secondary workspace pages use unfiltered loaded records, not run-list search results", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('<WorkspacePage route={currentRoute} runs={runs} runsTotal={runsTotal}'));
+  assert.ok(!app.includes('<WorkspacePage route={currentRoute} runs={visibleRuns}'));
+});
+
+
 test("workflow audit uses persisted run summaries and opens full run evidence", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
   const data = await read("../src/workspace/page-data.js");
