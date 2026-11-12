@@ -23,6 +23,16 @@ test("completed filter includes fully finished review and approved runs, not par
   assert.deepEqual(filterRuns(sample, "", "completed").map((run) => run.id), ["RUN-001", "RUN-004"]);
 });
 
+test("rejected decisions are filterable without being counted as completed", () => {
+  const decisions = [
+    { id: "RUN-APPROVED", status: "approved", approval_status: "approved", progress: 100 },
+    { id: "RUN-REJECTED", status: "rejected", approval_status: "rejected", progress: 100 },
+  ];
+  assert.deepEqual(filterRuns(decisions, "", "rejected").map((run) => run.id), ["RUN-REJECTED"]);
+  assert.deepEqual(filterRuns(decisions, "", "completed").map((run) => run.id), ["RUN-APPROVED"]);
+});
+
+
 test("combined search and status filters apply both constraints", () => {
   assert.deepEqual(filterRuns(sample, "approve", "approved").map((run) => run.id), ["RUN-004"]);
   assert.deepEqual(filterRuns(sample, "login", "failed"), []);

@@ -983,7 +983,7 @@ def list_runs(
     offset: int = Query(default=0, ge=0, le=1000000),
     status: str | None = Query(
         default=None,
-        pattern="^(queued|running|review|approved|completed|failed|cancelled)$",
+        pattern="^(queued|running|review|approved|rejected|completed|failed|cancelled)$",
     ),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:

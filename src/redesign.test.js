@@ -44,6 +44,19 @@ test("overview activity visuals do not invent minimum progress for zero-percent 
   assert.ok(!app.includes("Math.max(5, value)"));
 });
 
+test("rejected workflow decisions remain visible in run and review history", async () => {
+  const app = await read("../src/App.jsx");
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  const backend = await read("../backend/main.py");
+  assert.ok(app.includes('<option value="rejected">Rejected</option>'));
+  assert.ok(app.includes('rejected: "Rejected"'));
+  assert.ok(pages.includes('rejected:"Rejected"'));
+  assert.ok(pages.includes('["completed","approved","rejected","failed","cancelled"]'));
+  assert.ok(pages.includes('["approved","rejected"].includes(run.approval_status)'));
+  assert.ok(backend.includes('pattern="^(queued|running|review|approved|rejected|completed|failed|cancelled)$"'));
+});
+
+
 test("GitHub integration is described as a source link, not an agent write connection", async () => {
   const app = await read("../src/App.jsx");
   assert.ok(app.includes('status: "Public source link"'));

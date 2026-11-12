@@ -666,6 +666,7 @@ def test_run_list_filters_status_and_counts_only_matching_records(client):
         "RUN-REVIEW-FILTER-" + main.uuid4().hex[:8].upper(),
     ]
     failed_id = "RUN-FAILED-FILTER-" + main.uuid4().hex[:8].upper()
+    rejected_id = "RUN-REJECTED-FILTER-" + main.uuid4().hex[:8].upper()
     with main.SessionLocal() as db:
         existing_reviews = db.query(main.WorkflowRun).filter(main.WorkflowRun.status == "review").count()
         for run_id in review_ids:
@@ -689,6 +690,16 @@ def test_run_list_filters_status_and_counts_only_matching_records(client):
             execution_mode="live-model",
             approval_status="pending",
         ))
+        db.add(main.WorkflowRun(
+            id=rejected_id,
+            goal="Preserve rejected review decisions in workflow history",
+            status="rejected",
+            progress=100,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            approval_status="rejected",
+        ))
         db.commit()
 
     first = client.get("/api/runs?status=review&limit=1&offset=0")
@@ -703,6 +714,12 @@ def test_run_list_filters_status_and_counts_only_matching_records(client):
     assert first_body["next_offset"] == 1
     assert second_body["has_more"] is True or second_body["next_offset"] is None
     assert failed_id not in str(first_body) + str(second_body)
+
+    rejected = client.get("/api/runs?status=rejected&limit=10")
+    assert rejected.status_code == 200
+    rejected_body = rejected.json()
+    assert rejected_id in {item["id"] for item in rejected_body["items"]}
+    assert all(item["status"] == "rejected" for item in rejected_body["items"])
 
     invalid = client.get("/api/runs?status=unknown")
     assert invalid.status_code == 422
