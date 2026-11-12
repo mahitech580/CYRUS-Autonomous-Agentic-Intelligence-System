@@ -9,21 +9,17 @@ import {
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
 import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, prependRunRecord } from "./lib/runs.js";
-import { getRouteIntent, getViewFromHash, getWorkspaceHref } from "./lib/routes.js";
+import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
+import WorkspacePage from "./workspace/WorkspacePage.jsx";
 
-const navigationGroups = [
-  { label: "WORKSPACE", items: [{ id: "Overview", icon: LayoutDashboard }, { id: "Agent fleet", icon: Bot }] },
-  { label: "OPERATIONS", items: [{ id: "Runs & tasks", icon: Workflow }, { id: "Code review", icon: GitPullRequest }] },
-  { label: "PLATFORM", items: [{ id: "Deployments", icon: Rocket }, { id: "Integrations", icon: Boxes }] },
-];
 const agents = [
-  { id: "planner", name: "Atlas", role: "Planning agent", desc: "Breaks goals into executable milestones.", color: "violet", tag: "PLAN" },
-  { id: "researcher", name: "Scout", role: "Research agent", desc: "Maps context, docs, risks and dependencies.", color: "blue", tag: "RESEARCH" },
-  { id: "architect", name: "Forma", role: "Architecture agent", desc: "Defines boundaries, contracts and data flow.", color: "cyan", tag: "DESIGN" },
-  { id: "coder", name: "Forge", role: "Coding agent", desc: "Builds implementation tasks from approved plans.", color: "lime", tag: "BUILD" },
-  { id: "tester", name: "Sentinel", role: "QA agent", desc: "Checks acceptance criteria and regression risk.", color: "orange", tag: "TEST" },
-  { id: "reviewer", name: "Lens", role: "Review agent", desc: "Audits quality, security and maintainability.", color: "pink", tag: "REVIEW" },
-  { id: "release", name: "Orbit", role: "Release agent", desc: "Prepares release notes and deployment gates.", color: "green", tag: "SHIP" },
+  { id: "planner", name: "Atlas", role: "Planning agent", desc: "Breaks goals into executable milestones.", mission: "Turn an outcome into milestones, constraints, and acceptance criteria.", capabilities: ["task decomposition", "acceptance criteria", "dependency mapping"], color: "violet", tag: "PLAN" },
+  { id: "researcher", name: "Scout", role: "Research agent", desc: "Maps context, docs, risks and dependencies.", mission: "Gather context, identify unknowns and produce a research plan grounded in available evidence.", capabilities: ["source review", "technical research", "risk inventory"], color: "blue", tag: "RESEARCH" },
+  { id: "architect", name: "Forma", role: "Architecture agent", desc: "Defines boundaries, contracts and data flow.", mission: "Define service boundaries, data contracts, and implementation choices.", capabilities: ["API design", "data modelling", "technical decisions"], color: "cyan", tag: "DESIGN" },
+  { id: "coder", name: "Forge", role: "Coding agent", desc: "Builds implementation tasks from approved plans.", mission: "Produce concrete implementation artifacts and proposed file patches for human review.", capabilities: ["implementation plans", "code generation", "patch proposals"], color: "lime", tag: "BUILD" },
+  { id: "tester", name: "Sentinel", role: "QA agent", desc: "Checks acceptance criteria and regression risk.", mission: "Create tests and quality checks tied to the requested behavior.", capabilities: ["test planning", "regression checks", "edge cases"], color: "orange", tag: "TEST" },
+  { id: "reviewer", name: "Lens", role: "Review agent", desc: "Audits quality, security and maintainability.", mission: "Critique the proposed design and implementation for correctness, maintainability, and security.", capabilities: ["code review", "security checklist", "quality gates"], color: "pink", tag: "REVIEW" },
+  { id: "release", name: "Orbit", role: "Release agent", desc: "Prepares release notes and deployment gates.", mission: "Prepare release notes, rollout checks, and a rollback plan; never deploy without an explicit adapter and approval.", capabilities: ["release notes", "deployment checklist", "rollback planning"], color: "green", tag: "SHIP" },
 ];
 const pipeline = [
   { title: "Plan", sub: "Scope & acceptance", icon: Command, color: "violet" },
@@ -58,6 +54,13 @@ const starterBriefs = [
     goal: "Perform a release-readiness review for a full-stack application. Check architecture, API contracts, input validation, authentication, data handling, error states, test coverage, observability, and deployment risks. Prioritize findings by severity and provide remediation steps and a release checklist. Do not mark unexecuted tests as passing."
   },
 ];
+const navigationIconMap = {
+  LayoutDashboard, Sparkles, Bot, Command, Search, Network, Code2, ShieldCheck,
+  GitPullRequest, Rocket, Workflow, Activity, Timer, FileCode2, CheckCircle2,
+  Terminal, GitBranch, Boxes, Cpu, Globe2, Database, Radio, CircleDot,
+  LockKeyhole, Settings2, Braces,
+};
+
 const statusLabel = { completed: "Completed", approved: "Approved", running: "In progress", review: "Needs review", queued: "Queued", failed: "Failed", cancelled: "Cancelled" };
 
 function StatusPill({ status }) {
@@ -95,10 +98,14 @@ function RunRow({ run, onOpen }) {
 }
 
 export default function App() {
-  const [view, setViewState] = useState(() => getViewFromHash(window.location.hash) || "Overview");
-  const setView = (nextView, options = {}) => {
-    setViewState(nextView);
-    const href = getWorkspaceHref(nextView, options);
+  const [currentRoute, setCurrentRoute] = useState(() => getWorkspaceRoute(window.location.hash) || getWorkspaceRoute("overview"));
+  const [view, setViewState] = useState(currentRoute.view);
+  const setView = (target, options = {}) => {
+    const route = getWorkspaceRoute(target);
+    if (!route) return;
+    setCurrentRoute(route);
+    setViewState(route.view);
+    const href = getWorkspaceHref(route.id, options);
     if (window.location.hash !== href) window.location.hash = href;
   };
   const [runs, setRuns] = useState([]);
@@ -132,12 +139,13 @@ export default function App() {
 
   useEffect(() => {
     const syncRoute = () => {
-      const nextView = getViewFromHash(window.location.hash);
-      if (!nextView) return;
-      setViewState(nextView);
+      const route = getWorkspaceRoute(window.location.hash);
+      if (!route) return;
+      setCurrentRoute(route);
+      setViewState(route.view);
 
       const intent = getRouteIntent(window.location.hash);
-      if (nextView === "Runs & tasks" && intent.get("focus") === "task") {
+      if (route.id === "runs" && intent.get("focus") === "task") {
         window.requestAnimationFrame(() => {
           const form = document.getElementById("new-task");
           const field = document.getElementById("new-task-input");
@@ -620,14 +628,19 @@ export default function App() {
           <button className="icon-button close-mobile" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X size={17} /></button>
         </div>
         <a className="workspace-switcher" href={getWorkspaceHref("Overview")} aria-label="Open workspace overview"><div className="workspace-glyph">C</div><div><strong>Cyrus workspace</strong><small>{workspaceConfig?.can_start_runs ? "Production runtime" : apiState === "connected" ? "Setup required" : "Connecting runtime"}</small></div><ArrowUpRight size={14} /></a>
-        {navigationGroups.map((group) => <section className="nav-group" key={group.label}>
-          <div className="nav-label">{group.label}</div>
-          <nav className="primary-nav" aria-label={group.label.toLowerCase() + " navigation"}>
-            {group.items.map((item) => <a key={item.id} href={getWorkspaceHref(item.id)} className={"nav-item" + (view === item.id ? " nav-active" : "")} aria-current={view === item.id ? "page" : undefined} onClick={() => setMobileNav(false)}><item.icon size={17} strokeWidth={1.8} /><span>{item.id}</span>{item.id === "Runs & tasks" ? <span className="nav-count">{runsTotal}</span> : null}</a>)}
-          </nav>
-        </section>)}
-        <div className="nav-label nav-label-spaced">PREFERENCES</div>
-        <a className={"nav-item" + (view === "Settings" ? " nav-active" : "")} href={getWorkspaceHref("Settings")} aria-current={view === "Settings" ? "page" : undefined} onClick={() => setMobileNav(false)}><Settings2 size={17} /><span>Settings</span></a>
+        <nav className="workspace-navigation" aria-label="Workspace pages">
+          {WORKSPACE_NAV_GROUPS.map((group) => <details className="nav-folder" key={group.id} open={group.routes.some((item) => item.id === currentRoute.id)}>
+            <summary className="nav-folder-summary"><span>{group.label}</span><ChevronDown size={14} aria-hidden="true" /></summary>
+            <div className="nav-folder-links">
+              {group.routes.map((item) => {
+                const Icon = navigationIconMap[item.icon] || Activity;
+                return <a key={item.id} href={getWorkspaceHref(item.id)} className={"nav-item" + (currentRoute.id === item.id ? " nav-active" : "")} aria-current={currentRoute.id === item.id ? "page" : undefined} onClick={() => setMobileNav(false)}>
+                  <Icon size={16} strokeWidth={1.8} /><span>{item.label}</span>{item.id === "runs" ? <span className="nav-count">{runsTotal}</span> : null}
+                </a>;
+              })}
+            </div>
+          </details>)}
+        </nav>
         <div className="sidebar-spacer" />
         <section className="capacity-card sidebar-status-card" aria-label="Workspace readiness">
           <div className="capacity-heading"><span>WORKSPACE STATUS</span><CircleDot size={13} /></div>
@@ -642,7 +655,7 @@ export default function App() {
 
       <main className="main-panel">
         <header className="topbar">
-          <div className="topbar-left"><button className="icon-button open-mobile" onClick={() => setMobileNav(true)} aria-label="Open navigation" aria-expanded={mobileNav} aria-controls="workspace-sidebar"><Menu size={19} /></button><a className="breadcrumb breadcrumb-link" href={getWorkspaceHref("Overview")}>Workspace</a><span className="breadcrumb-divider">/</span><strong>{view}</strong><span className="branch-chip"><GitBranch size={13} /> main</span></div>
+          <div className="topbar-left"><button className="icon-button open-mobile" onClick={() => setMobileNav(true)} aria-label="Open navigation" aria-expanded={mobileNav} aria-controls="workspace-sidebar"><Menu size={19} /></button><a className="breadcrumb breadcrumb-link" href={getWorkspaceHref("Overview")}>Workspace</a><span className="breadcrumb-divider">/</span><strong>{currentRoute.label}</strong><span className="branch-chip"><GitBranch size={13} /> main</span></div>
           <div className="topbar-actions"><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><a className="button-primary topbar-create" href={getWorkspaceHref("Runs & tasks", { focusTask: true })} onClick={() => setMobileNav(false)}><Plus size={15} /><span>New task</span></a><span className="top-avatar" role="img" aria-label="Workspace profile">M</span></div>
         </header>
 
@@ -658,6 +671,7 @@ export default function App() {
           {view === "Deployments" ? <DeploymentsView apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
           {view === "Settings" ? <SettingsView apiState={apiState} workspaceConfig={workspaceConfig} setWorkspaceConfig={setWorkspaceConfig} setApiState={setApiState} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} notify={notify} /> : null}
+          {view === "Workspace" ? <WorkspacePage route={currentRoute} runs={visibleRuns} runsTotal={runsTotal} runStats={runStats} workspaceConfig={workspaceConfig} apiState={apiState} agents={agents} openRun={openRun} onSelectTemplate={(template) => { setGoal(template.goal); setView("runs", { focusTask: true }); }} /> : null}
         </div>
         <footer className="app-footer"><span><span className={"footer-pulse footer-pulse-" + (apiState === "connected" ? (workspaceConfig?.can_start_runs ? "ready" : "setup") : apiState)} /> {apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Runtime ready" : "Setup required") : apiState === "checking" ? "Checking runtime" : "API unavailable"}</span><span>CYRUS Workspace <b>0.2.3</b></span><span>Built for deliberate shipping <Zap size={12} /></span></footer>
       </main>

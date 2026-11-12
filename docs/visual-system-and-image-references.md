@@ -48,3 +48,45 @@ Projects studied include [OpenHands](https://github.com/OpenHands/OpenHands), [D
 The workspace sidebar now uses ordinary anchor destinations for Overview, Agent fleet, Runs & tasks, Code review, Deployments, Integrations, and Settings. The destinations are shareable hash routes (for example, `#/agents` and `#/review`) so the same static build works on Vercel and GitHub Pages without requiring a server-side rewrite. Browser back/forward navigation stays synchronized with the active page, and the top-bar New task link opens the run composer directly.
 
 Operational pages use a consistent icon-led masthead with low-contrast photographic context. The mastheads reuse the five Unsplash sources already listed above; no unlicensed assets or copied product screenshots were added. Header photos are decorative, use empty alternative text, lazy loading, and a gradient fallback. Readiness, run state, approvals, and deployment claims continue to come from the API rather than the imagery.
+
+
+## Multi-page workspace information architecture
+
+Updated: 12 November 2026
+
+The workspace exposes 36 direct hash destinations in nine navigation groups. Hash routes preserve static GitHub Pages hosting and support shareable destinations, browser back/forward and direct page entry. Native anchors handle page navigation; grouped navigation uses native disclosure controls rather than application-menu roles.
+
+| Group | Pages |
+|---|---|
+| Workspace | Overview, Launchpad |
+| Agents | Agent fleet, Atlas, Scout, Forma, Forge, Sentinel, Lens, Orbit |
+| Execution | Runs & tasks, Active runs, Run history, Prompt library |
+| Quality | Code review, Review history |
+| Delivery | Deployments, Workspace app, API service, CI pipeline |
+| Integrations | Integrations, AI provider, Web research, GitHub source, Database |
+| Observability | Observability, Activity stream, Queue monitor, Usage & tokens |
+| Governance | Governance, Safety policies, Workflow audit log |
+| Settings | Settings, Runtime health, Workspace access, Appearance |
+
+### Page and data boundaries
+
+- Existing root views keep their API-backed React components.
+- Agent profiles describe the seven fixed backend roles; they are not editable because the current API has no role-edit operation.
+- Active/history/review views filter currently loaded API records and link to the paginated run list.
+- Queue, provider, database, access and worker signals come from the runtime endpoint. Unknown values remain unknown.
+- Usage shows token counts only when saved stage usage exists; no dollar cost is estimated without pricing and complete data.
+- Workflow audit is labelled as a workflow-record summary, not an identity or credential audit service.
+- CI links to actual workflow history and does not show fabricated live check states.
+- Selecting a task brief only prefills the existing composer. It never starts a run automatically.
+- Approval is a recorded human decision; generated code is not executed, GitHub is not written by agents, and approval does not deploy.
+
+### Research references
+
+- [React Router route configuration](https://reactrouter.com/start/data/routing) and [Link component](https://reactrouter.com/main/api/components/Link) — route objects, nested destinations and ordinary link semantics. CYRUS retains hash routing for static hosting.
+- [Dify workflows](https://dify.ai/workflows) — inspectable execution paths and human review checkpoints.
+- [Agno agentic platform starter](https://github.com/bruceherve/agno-agentic-platform-starter) — practical groupings for sessions, metrics, approvals, schedules, traces and settings.
+- [Temporal agent harness](https://github.com/temporal-community/temporal-agent-harness) — durable execution, approval pauses and workflow observability.
+- [W3C disclosure navigation example](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/) — native disclosure controls combined with ordinary navigation links.
+- [web.dev navigation guidance](https://web.dev/articles/website-navigation) — semantic landmarks and predictable navigation behavior.
+
+The page mastheads reuse the documented Unsplash image sources above. Images are decorative, use empty alternative text and lazy loading, and sit over a gradient fallback; route meaning and live state remain text and API-derived.

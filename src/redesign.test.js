@@ -78,10 +78,15 @@ test("deployment cards do not imply an unverified Vercel deployment is live", as
 });
 
 
-test("navigation exposes the current page and the task prompt has a programmatic label", async () => {
+test("navigation exposes all route groups and current page with native anchors", async () => {
   const app = await read("../src/App.jsx");
-  assert.ok(app.includes('aria-current={view === item.id ? "page" : undefined}'));
-  assert.ok(app.includes('aria-current={view === "Settings" ? "page" : undefined}'));
+  const styles = await read("redesign/workspace-pages.css");
+  assert.ok(app.includes("WORKSPACE_NAV_GROUPS.map"));
+  assert.ok(app.includes('aria-label="Workspace pages"'));
+  assert.ok(app.includes('aria-current={currentRoute.id === item.id ? "page" : undefined}'));
+  assert.ok(app.includes('href={getWorkspaceHref(item.id)}'));
+  assert.ok(styles.includes(".workspace-navigation"));
+  assert.ok(styles.includes("overflow-y:auto"));
   assert.ok(app.includes('id="task-prompt-label"'));
   assert.ok(app.includes('aria-labelledby="task-prompt-label"'));
 });
@@ -346,4 +351,34 @@ test("operational subpages use distinct icon-led, image-backed page headings", a
   assert.ok(app.includes('alt="" loading="lazy" decoding="async"'));
   assert.ok(pageStyles.includes("@media (max-width: 740px)"));
   assert.ok(visualReferences.includes("https://unsplash.com/license"));
+});
+
+
+test("secondary workspace pages use a route-aware shared renderer", async () => {
+  const app = await read("../src/App.jsx");
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  const styles = await read("redesign/workspace-pages.css");
+  assert.ok(app.includes('<WorkspacePage route={currentRoute}'));
+  assert.ok(pages.includes("WORKSPACE_PAGE_CONTENT[route.id]"));
+  assert.ok(pages.includes('alt="" loading="lazy" decoding="async"'));
+  assert.ok(pages.includes("AgentPanel"));
+  assert.ok(pages.includes("RunList"));
+  assert.ok(styles.includes("@media(max-width:740px)"));
+  assert.ok(styles.includes("@media(prefers-reduced-motion:reduce)"));
+});
+
+test("workspace cards use registered hash routes and safe external resource links", async () => {
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  assert.ok(pages.includes("getWorkspaceHref(item.href || \"overview\")"));
+  assert.ok(pages.includes('target={external?"_blank":undefined}'));
+  assert.ok(pages.includes("onSelectTemplate(item)"));
+});
+
+test("secondary operations views preserve honest runtime and safety boundaries", async () => {
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  assert.ok(pages.includes("workspaceConfig?.queued_workflows"));
+  assert.ok(pages.includes("workspaceConfig?.worker_ready"));
+  assert.ok(pages.includes("Cost is not estimated"));
+  assert.ok(pages.includes("agent workflows do not write commits, branches or pull requests"));
+  assert.ok(pages.includes("does not execute generated code"));
 });
