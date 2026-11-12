@@ -372,6 +372,15 @@ test("operational subpages use distinct icon-led, image-backed page headings", a
 });
 
 
+test("runtime and queue pages do not display stale configuration as current readiness", async () => {
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  assert.ok(pages.includes('!snapshotAvailable?"Unknown"'));
+  assert.ok(pages.includes('workerStatus=!snapshotAvailable?"Worker status unknown"'));
+  assert.ok(pages.includes('const workerReady=snapshotAvailable&&!!config.worker_ready'));
+  assert.ok(pages.includes("Runtime checks are unknown until a fresh API snapshot is available."));
+});
+
+
 test("CI page lists configured jobs without implying that they passed", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
   const styles = await read("redesign/workspace-pages.css");

@@ -41,21 +41,25 @@ function RunList({runs,route,openRun}){
  return <section className="workspace-page-section"><div className="workspace-page-section-heading"><div><div className="eyebrow">SAVED RUN RECORDS</div><h2>{isActive?"Queued and running workflows":"Closed workflow records"}</h2><p>Only records currently loaded from the API are listed here. Use Runs & tasks for search, CSV export and pagination.</p></div><a className="button-quiet" href={getWorkspaceHref("runs")}>Open full history <ArrowRight size={13}/></a></div>{rows.length?<div className="workspace-run-list">{rows.map((run)=><RunRecord key={run.id} run={run} onOpen={openRun}/>)}</div>:<div className="workspace-empty"><Workflow size={24}/><strong>{isActive?"No active workflows in the loaded records":"No closed workflows in the loaded records"}</strong><span>Empty results are not replaced with sample runs. Open the main run list to refresh and paginate saved records.</span><a className="button-outline" href={getWorkspaceHref("runs")}>Open runs & tasks <ArrowRight size={13}/></a></div>}</section>;
 }
 function RuntimePanel({config,apiState}){
- const ready=apiState==="connected"&&!!config?.can_start_runs;
+ const snapshotAvailable=apiState==="connected"&&!!config;
+ const ready=snapshotAvailable&&!!config.can_start_runs;
  const checks=[
-  ["API connection",apiState==="connected"],
-  ["Workspace access",!!config&&(!config.auth_required||!!config.access_control_configured)],
-  ["AI provider",!!config?.provider_configured],
-  ["Database connection",!!config?.database_reachable],
-  ["Persistent storage",!!config?.persistent_storage],
-  ["Execution worker",!!config&&(!config.worker_required||!!config.worker_ready)]
+  ["API connection",apiState==="connected"?"Ready":apiState==="checking"?"Checking":"Unavailable"],
+  ["Workspace access",!snapshotAvailable?"Unknown":!config.auth_required||!!config.access_control_configured?"Ready":"Needs attention"],
+  ["AI provider",!snapshotAvailable?"Unknown":config.provider_configured?"Ready":"Needs attention"],
+  ["Database connection",!snapshotAvailable?"Unknown":config.database_reachable?"Ready":"Needs attention"],
+  ["Persistent storage",!snapshotAvailable?"Unknown":config.persistent_storage?"Ready":"Needs attention"],
+  ["Execution worker",!snapshotAvailable?"Unknown":!config.worker_required||!!config.worker_ready?"Ready":"Needs attention"]
  ];
- return <div className="workspace-runtime-list"><div className="workspace-runtime-banner"><span className={ready?"runtime-signal runtime-signal-ready":"runtime-signal"}/><div><strong>{ready?"Ready to start live workflows":apiState==="connected"?"Runtime setup required":"API connection not confirmed"}</strong><small>{ready?"The API currently reports every launch gate as ready.":"Resolve each server-side prerequisite before submitting a real task."}</small></div></div>{checks.map(([label,ok])=><div className="workspace-runtime-check" key={label}><span className={ok?"check-indicator check-ok":"check-indicator"}>{ok?<CheckCircle2 size={15}/>:<CircleDot size={15}/>}</span><strong>{label}</strong><span>{ok?"Ready":apiState==="connected"?"Needs attention":"Unknown"}</span></div>)}</div>;
+ return <div className="workspace-runtime-list"><div className="workspace-runtime-banner"><span className={ready?"runtime-signal runtime-signal-ready":"runtime-signal"}/><div><strong>{ready?"Ready to start live workflows":apiState==="connected"?"Runtime setup required":apiState==="checking"?"Checking runtime dependencies":"API connection not confirmed"}</strong><small>{ready?"The API currently reports every launch gate as ready.":snapshotAvailable?"Resolve each server-side prerequisite before submitting a real task.":"Runtime checks are unknown until a fresh API snapshot is available."}</small></div></div>{checks.map(([label,state])=><div className="workspace-runtime-check" key={label}><span className={state==="Ready"?"check-indicator check-ok":"check-indicator"}>{state==="Ready"?<CheckCircle2 size={15}/>:<CircleDot size={15}/>}</span><strong>{label}</strong><span>{state}</span></div>)}</div>;
 }
 function QueuePanel({config,apiState}){
- const available=apiState==="connected"&&config?.queued_workflows!=null&&config?.running_workflows!=null;
- const values=[["Queued",available?config.queued_workflows:"—"],["Running",available?config.running_workflows:"—"],["Orphaned",available?(config.orphaned_workflows??"—"):"—"],["Workers available",apiState==="connected"?(config?.available_workers??"—"):"—"]];
- return <div className="workspace-queue-panel"><div className="workspace-queue-grid">{values.map(([label,value])=><div className="workspace-queue-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="workspace-runtime-banner"><span className={config?.worker_ready?"runtime-signal runtime-signal-ready":"runtime-signal"}/><div><strong>{config?.worker_ready?"Worker heartbeat is fresh":config?.worker_required?"No fresh worker heartbeat":"External worker not required"}</strong><small>{available?"Queue snapshot returned by the runtime API.":"Queue totals remain unknown until the API returns a database snapshot."}</small></div></div><a className="button-outline" href={getWorkspaceHref("runs-active")}>Inspect active run records <ArrowRight size={13}/></a></div>;
+ const snapshotAvailable=apiState==="connected"&&!!config;
+ const available=snapshotAvailable&&config.queued_workflows!=null&&config.running_workflows!=null;
+ const workerReady=snapshotAvailable&&!!config.worker_ready;
+ const workerStatus=!snapshotAvailable?"Worker status unknown":workerReady?"Worker heartbeat is fresh":config.worker_required?"No fresh worker heartbeat":"External worker not required";
+ const values=[["Queued",available?config.queued_workflows:"—"],["Running",available?config.running_workflows:"—"],["Orphaned",available?(config.orphaned_workflows??"—"):"—"],["Workers available",snapshotAvailable?(config.available_workers??"—"):"—"]];
+ return <div className="workspace-queue-panel"><div className="workspace-queue-grid">{values.map(([label,value])=><div className="workspace-queue-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="workspace-runtime-banner"><span className={workerReady?"runtime-signal runtime-signal-ready":"runtime-signal"}/><div><strong>{workerStatus}</strong><small>{available?"Queue snapshot returned by the runtime API.":"Queue and worker state remain unknown until the API returns a fresh database snapshot."}</small></div></div><a className="button-outline" href={getWorkspaceHref("runs-active")}>Inspect active run records <ArrowRight size={13}/></a></div>;
 }
 function IntegrationPanel({route,config,apiState}){
  const snapshotAvailable=apiState==="connected"&&!!config;
