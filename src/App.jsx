@@ -9,14 +9,12 @@ import {
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
 import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, prependRunRecord } from "./lib/runs.js";
+import { getRouteIntent, getViewFromHash, getWorkspaceHref } from "./lib/routes.js";
 
-const navigation = [
-  { id: "Overview", icon: LayoutDashboard },
-  { id: "Agent fleet", icon: Bot },
-  { id: "Runs & tasks", icon: Workflow },
-  { id: "Code review", icon: GitPullRequest },
-  { id: "Deployments", icon: Rocket },
-  { id: "Integrations", icon: Boxes },
+const navigationGroups = [
+  { label: "WORKSPACE", items: [{ id: "Overview", icon: LayoutDashboard }, { id: "Agent fleet", icon: Bot }] },
+  { label: "OPERATIONS", items: [{ id: "Runs & tasks", icon: Workflow }, { id: "Code review", icon: GitPullRequest }] },
+  { label: "PLATFORM", items: [{ id: "Deployments", icon: Rocket }, { id: "Integrations", icon: Boxes }] },
 ];
 const agents = [
   { id: "planner", name: "Atlas", role: "Planning agent", desc: "Breaks goals into executable milestones.", color: "violet", tag: "PLAN" },
@@ -90,7 +88,12 @@ function RunRow({ run, onOpen }) {
 }
 
 export default function App() {
-  const [view, setView] = useState("Overview");
+  const [view, setViewState] = useState(() => getViewFromHash(window.location.hash) || "Overview");
+  const setView = (nextView, options = {}) => {
+    setViewState(nextView);
+    const href = getWorkspaceHref(nextView, options);
+    if (window.location.hash !== href) window.location.hash = href;
+  };
   const [runs, setRuns] = useState([]);
   const [runsTotal, setRunsTotal] = useState(0);
   const [runStats, setRunStats] = useState(null);
@@ -118,6 +121,34 @@ export default function App() {
 
   useEffect(() => () => {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
+  }, []);
+
+  useEffect(() => {
+    const syncRoute = () => {
+      const nextView = getViewFromHash(window.location.hash);
+      if (!nextView) return;
+      setViewState(nextView);
+
+      const intent = getRouteIntent(window.location.hash);
+      if (nextView === "Runs & tasks" && intent.get("focus") === "task") {
+        window.requestAnimationFrame(() => {
+          const form = document.getElementById("new-task");
+          const field = document.getElementById("new-task-input");
+          form?.scrollIntoView({
+            behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+            block: "center",
+          });
+          field?.focus({ preventScroll: true });
+        });
+      }
+    };
+
+    if (!window.location.hash) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search + getWorkspaceHref("Overview"));
+    }
+    syncRoute();
+    window.addEventListener("hashchange", syncRoute);
+    return () => window.removeEventListener("hashchange", syncRoute);
   }, []);
 
   useEffect(() => {
@@ -581,19 +612,21 @@ export default function App() {
           <div className="brand-type"><strong>CYRUS<span>_</span></strong><small>ENGINEERING OS</small></div>
           <button className="icon-button close-mobile" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X size={17} /></button>
         </div>
-        <div className="workspace-switcher"><div className="workspace-glyph">C</div><div><strong>Cyrus workspace</strong><small>{workspaceConfig?.can_start_runs ? "Production runtime" : apiState === "connected" ? "Setup required" : "Connecting runtime"}</small></div><ChevronDown size={15} /></div>
-        <div className="nav-label">WORKSPACE</div>
-        <nav className="primary-nav" aria-label="Main navigation">
-          {navigation.map((item) => <button key={item.id} className={"nav-item" + (view === item.id ? " nav-active" : "")} aria-current={view === item.id ? "page" : undefined} onClick={() => { setView(item.id); setMobileNav(false); }}><item.icon size={17} strokeWidth={1.8} /><span>{item.id}</span>{item.id === "Runs & tasks" ? <span className="nav-count">{runsTotal}</span> : null}</button>)}
-        </nav>
-        <div className="nav-label nav-label-spaced">SYSTEM</div>
-        <button className={"nav-item" + (view === "Settings" ? " nav-active" : "")} aria-current={view === "Settings" ? "page" : undefined} onClick={() => { setView("Settings"); setMobileNav(false); }}><Settings2 size={17} /><span>Settings</span></button>
+        <a className="workspace-switcher" href={getWorkspaceHref("Overview")} aria-label="Open workspace overview"><div className="workspace-glyph">C</div><div><strong>Cyrus workspace</strong><small>{workspaceConfig?.can_start_runs ? "Production runtime" : apiState === "connected" ? "Setup required" : "Connecting runtime"}</small></div><ArrowUpRight size={14} /></a>
+        {navigationGroups.map((group) => <section className="nav-group" key={group.label}>
+          <div className="nav-label">{group.label}</div>
+          <nav className="primary-nav" aria-label={group.label.toLowerCase() + " navigation"}>
+            {group.items.map((item) => <a key={item.id} href={getWorkspaceHref(item.id)} className={"nav-item" + (view === item.id ? " nav-active" : "")} aria-current={view === item.id ? "page" : undefined} onClick={() => setMobileNav(false)}><item.icon size={17} strokeWidth={1.8} /><span>{item.id}</span>{item.id === "Runs & tasks" ? <span className="nav-count">{runsTotal}</span> : null}</a>)}
+          </nav>
+        </section>)}
+        <div className="nav-label nav-label-spaced">PREFERENCES</div>
+        <a className={"nav-item" + (view === "Settings" ? " nav-active" : "")} href={getWorkspaceHref("Settings")} aria-current={view === "Settings" ? "page" : undefined} onClick={() => setMobileNav(false)}><Settings2 size={17} /><span>Settings</span></a>
         <div className="sidebar-spacer" />
         <section className="capacity-card sidebar-status-card" aria-label="Workspace readiness">
           <div className="capacity-heading"><span>WORKSPACE STATUS</span><CircleDot size={13} /></div>
           <div className="sidebar-status-value">{workspaceConfig?.can_start_runs ? "Ready to run" : apiState === "connected" ? "Setup required" : apiState === "checking" ? "Checking…" : "API offline"}</div>
           <p>{workspaceConfig?.can_start_runs ? "Live workflow launch is enabled." : apiState === "connected" ? "Finish the server configuration to unlock live workflows." : "Reconnect the API to inspect runtime readiness."}</p>
-          <button className="sidebar-status-action" onClick={() => setView(workspaceConfig?.can_start_runs ? "Deployments" : "Settings")}>{workspaceConfig?.can_start_runs ? "View deployments" : "Complete setup"} <ArrowRight size={13} /></button>
+          <a className="sidebar-status-action" href={getWorkspaceHref(workspaceConfig?.can_start_runs ? "Deployments" : "Settings")} onClick={() => setMobileNav(false)}>{workspaceConfig?.can_start_runs ? "View deployments" : "Complete setup"} <ArrowRight size={13} /></a>
         </section>
         <div className="profile-row">
           <div className="profile-avatar">M</div><div className="profile-copy"><strong>Workspace owner</strong><small>Workspace environment</small></div><MoreHorizontal size={18} />
@@ -602,8 +635,8 @@ export default function App() {
 
       <main className="main-panel">
         <header className="topbar">
-          <div className="topbar-left"><button className="icon-button open-mobile" onClick={() => setMobileNav(true)} aria-label="Open navigation" aria-expanded={mobileNav} aria-controls="workspace-sidebar"><Menu size={19} /></button><span className="breadcrumb">Workspace</span><span className="breadcrumb-divider">/</span><strong>{view}</strong><span className="branch-chip"><GitBranch size={13} /> main</span></div>
-          <div className="topbar-actions"><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><button className="icon-button" title="Focus task prompt" aria-label="Focus task prompt" onClick={() => { setView("Overview"); window.setTimeout(() => document.getElementById("task-prompt")?.focus(), 0); }}><Command size={17} /></button><span className="top-avatar" role="img" aria-label="Workspace profile">M</span></div>
+          <div className="topbar-left"><button className="icon-button open-mobile" onClick={() => setMobileNav(true)} aria-label="Open navigation" aria-expanded={mobileNav} aria-controls="workspace-sidebar"><Menu size={19} /></button><a className="breadcrumb breadcrumb-link" href={getWorkspaceHref("Overview")}>Workspace</a><span className="breadcrumb-divider">/</span><strong>{view}</strong><span className="branch-chip"><GitBranch size={13} /> main</span></div>
+          <div className="topbar-actions"><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><a className="button-primary topbar-create" href={getWorkspaceHref("Runs & tasks", { focusTask: true })} onClick={() => setMobileNav(false)}><Plus size={15} /><span>New task</span></a><span className="top-avatar" role="img" aria-label="Workspace profile">M</span></div>
         </header>
 
         <div className="page-content" id="main-content" tabIndex={-1}>
@@ -833,7 +866,7 @@ function RunsView({ runs, loadedRunCount, totalRuns, hasMoreRuns, loadingMoreRun
   }
 
   return <div className="view-stack subpage"><SectionTitle eyebrow="EXECUTION CONTROL / RUN HISTORY" title="Runs & tasks" detail="Inspect orchestration state, progress, and review hand-offs." action={<span className="small-counter">{runs.length} MATCHING · {loadedRunCount}/{totalRuns} LOADED</span>} />
-    <form className="task-composer compact-composer" onSubmit={startRun}><div className="composer-icon"><Sparkles size={16} /></div><input aria-label="New workflow goal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Describe a new engineering task…" /><button className="button-primary" disabled={!goal.trim() || isStarting || !canStart}>{isStarting ? "Starting…" : "New live run"}<ArrowRight size={14} /></button></form>{!canStart ? <div className="inline-help">Live runs require a configured model provider, protected workspace access, and persistent database. Open Settings for the exact missing requirements.</div> : null}
+    <form id="new-task" className="task-composer compact-composer" onSubmit={startRun}><div className="composer-icon"><Sparkles size={16} /></div><input id="new-task-input" aria-label="New workflow goal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Describe a new engineering task…" /><button className="button-primary" disabled={!goal.trim() || isStarting || !canStart}>{isStarting ? "Starting…" : "New live run"}<ArrowRight size={14} /></button></form>{!canStart ? <div className="inline-help">Live runs require a configured model provider, protected workspace access, and persistent database. Open Settings for the exact missing requirements.</div> : null}
     <div className="list-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search workflows" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search runs, goals, or status…" /></div><label className="filter-select-wrap"><CircleDot size={13} /><select aria-label="Filter workflow status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option><option value="queued">Queued</option><option value="running">In progress</option><option value="review">Needs review</option><option value="approved">Approved</option><option value="completed">Completed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select><ChevronDown size={13} /></label><button className="button-outline" type="button" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Clear filters <X size={13} /></button><button className="button-outline" type="button" onClick={refreshRuns} disabled={refreshingRuns || loadingMoreRuns}><RefreshCw size={13} className={refreshingRuns ? "spin-icon" : ""} />{refreshingRuns ? "Refreshing" : "Refresh"}</button><button className="button-outline" type="button" onClick={exportRunsCsv} disabled={!runs.length}><Download size={13} /> Export CSV</button></div>
     <section className="panel-card"><div className="table-head"><span>RUN / GOAL</span><span>PROGRESS</span><span>STATUS</span><span /></div><div className="runs-table large-runs">{runs.map((run) => <RunRow key={run.id} run={run} onOpen={openRun} />)}</div>{runs.length === 0 ? <div className="empty-state"><Search size={22} /><strong>No matching runs</strong><span>Try a different search or clear the filters.</span></div> : null}</section>
     <div className="runs-pagination" aria-live="polite">
