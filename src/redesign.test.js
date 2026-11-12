@@ -380,6 +380,17 @@ test("operational subpages use distinct icon-led, image-backed page headings", a
 });
 
 
+test("usage view can load run details before summarizing real provider token metadata", async () => {
+  const app = await read("../src/App.jsx");
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  const runs = await read("../src/lib/runs.js");
+  assert.ok(app.includes('setRuns((current) => current.map((item) => item.id === run.id ? { ...item, ...detail } : item))'));
+  assert.ok(pages.includes("summarizeRunUsage(runs)"));
+  assert.ok(pages.includes("onClick={()=>openRun(run)}"));
+  assert.ok(runs.includes("export function summarizeRunUsage(runs)"));
+});
+
+
 test("runtime and queue pages do not display stale configuration as current readiness", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
   assert.ok(pages.includes('!snapshotAvailable?"Unknown"'));

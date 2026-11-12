@@ -209,6 +209,41 @@ export function getRunStageTiming(run, stageId, now = Date.now()) {
 }
 
 /** Put a newly accepted workflow first without duplicating an idempotent replay. */
+/** Aggregate only finite, non-negative token counts from run details already loaded in memory. */
+export function summarizeRunUsage(runs) {
+  const items = Array.isArray(runs) ? runs.filter((run) => run && typeof run === "object") : [];
+  const detailedRuns = items.filter((run) => Array.isArray(run.stages) && run.stages.length > 0);
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let stageUsageCount = 0;
+  let hasUsage = false;
+
+  for (const run of detailedRuns) {
+    for (const stage of run.stages) {
+      const usage = stage?.usage;
+      if (!usage || typeof usage !== "object") continue;
+      let stageHasUsage = false;
+      const input = usage.input_tokens == null ? null : Number(usage.input_tokens);
+      const output = usage.output_tokens == null ? null : Number(usage.output_tokens);
+      if (input !== null && Number.isFinite(input) && input >= 0) {
+        inputTokens += Math.floor(input);
+        stageHasUsage = true;
+      }
+      if (output !== null && Number.isFinite(output) && output >= 0) {
+        outputTokens += Math.floor(output);
+        stageHasUsage = true;
+      }
+      if (stageHasUsage) {
+        stageUsageCount += 1;
+        hasUsage = true;
+      }
+    }
+  }
+
+  return { inputTokens, outputTokens, detailedRunCount: detailedRuns.length, stageUsageCount, hasUsage };
+}
+
+
 export function prependRunRecord(items, incoming) {
   const current = Array.isArray(items) ? items : [];
   if (!incoming || typeof incoming !== "object" || !incoming.id) return current;

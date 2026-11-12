@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getRunStageState, getRunStageTiming, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll } from "./runs.js";
+import { getRunStageState, getRunStageTiming, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -203,6 +203,26 @@ test("workflow search includes stage, approval, execution mode and failure conte
   assert.deepEqual(filterRuns(enriched, "live-model").map((run) => run.id), ["RUN-STAGE"]);
   assert.deepEqual(filterRuns(enriched, "provider timeout").map((run) => run.id), ["RUN-ERROR"]);
 });
+
+test("token summaries use only loaded details and reject invalid or negative counts", () => {
+  const summary = summarizeRunUsage([
+    { id: "RUN-SUMMARY", stage_count: 7 },
+    { id: "RUN-DETAIL", stages: [
+      { usage: { input_tokens: 12.8, output_tokens: 4 } },
+      { usage: { input_tokens: -3, output_tokens: "9" } },
+      { usage: { input_tokens: Infinity, output_tokens: "NaN" } },
+    ] },
+  ]);
+  assert.deepEqual(summary, {
+    inputTokens: 12,
+    outputTokens: 13,
+    detailedRunCount: 1,
+    stageUsageCount: 2,
+    hasUsage: true,
+  });
+  assert.equal(summarizeRunUsage([{ stage_count: 4 }]).hasUsage, false);
+});
+
 
 test("run mapping preserves a real zero-agent count and normalizes numeric counts", () => {
   assert.equal(mapRunRecord({ agent_count: 0 }).agents, 0);

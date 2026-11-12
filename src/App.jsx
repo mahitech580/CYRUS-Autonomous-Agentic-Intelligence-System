@@ -357,6 +357,7 @@ export default function App() {
       const detail = mapRunRecord(response.item || response);
       loadedStageCount.current[run.id] = Array.isArray(detail.stages) ? detail.stages.length : 0;
       setSelectedRun((current) => current?.id === run.id ? detail : current);
+      setRuns((current) => current.map((item) => item.id === run.id ? { ...item, ...detail } : item));
     } catch (error) {
       if (!redirectToSettingsOnUnauthorized(error)) {
         setSelectedRun((current) => current?.id === run.id ? { ...current, detail_loading: false } : current);

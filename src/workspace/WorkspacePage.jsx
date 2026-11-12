@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
+import { summarizeRunUsage } from "../lib/runs.js";
 
 const iconMap={Activity,Bot,Braces,CheckCircle2,CircleDot,Clock3,Code2,Database,FileCode2,GitBranch,Globe2,LockKeyhole,Network,Radio,Rocket,ShieldCheck,Sparkles,Terminal,Workflow};
 const iconFor=(name)=>iconMap[name]||Activity;
@@ -72,12 +73,15 @@ function IntegrationPanel({route,config,apiState}){
  const state=states[route.integration]||{value:"Status unavailable",ok:false,detail:"No integration status is available for this destination."};
  return <div className="workspace-integration-panel"><div className="workspace-integration-status"><span className={state.ok&&apiState==="connected"?"integration-signal integration-signal-ok":"integration-signal"}/><div><div className="eyebrow">{route.integration==="github"?"SOURCE REFERENCE":"CURRENT RUNTIME SNAPSHOT"}</div><h2>{state.value}</h2><p>{state.detail}</p></div></div>{route.integration==="database"?<div className="workspace-runtime-check"><strong>Durable production storage</strong><span>{apiState!=="connected"?"Unknown":config?.persistent_storage?(config.database_dialect||"Configured"):"Managed PostgreSQL / MySQL required"}</span></div>:null}{route.integration==="models"?<div className="workspace-runtime-check"><strong>Configured model</strong><span>{apiState==="connected"?(config?.model||"Not reported"):"Unknown"}</span></div>:null}{route.integration==="github"?<div className="notice-strip"><LockKeyhole size={16}/><span>GitHub is a read-only source link. Agent-generated patches remain reviewable artifacts and are not pushed.</span></div>:null}</div>;
 }
-function UsagePanel({runs}){
- const stages=runs.flatMap((run)=>Array.isArray(run.stages)?run.stages:[]);
- const input=stages.reduce((n,stage)=>n+Math.max(0,Number(stage?.usage?.input_tokens)||0),0);
- const output=stages.reduce((n,stage)=>n+Math.max(0,Number(stage?.usage?.output_tokens)||0),0);
- const found=stages.some((stage)=>stage?.usage&&(stage.usage.input_tokens!=null||stage.usage.output_tokens!=null));
- return <div className="workspace-usage-panel"><div className="workspace-usage-numbers"><div><span>INPUT TOKENS IN LOADED DETAILS</span><strong>{found?input.toLocaleString():"Not available"}</strong></div><div><span>OUTPUT TOKENS IN LOADED DETAILS</span><strong>{found?output.toLocaleString():"Not available"}</strong></div></div><div className="notice-strip"><Activity size={16}/><span>{found?"Totals cover stage usage payloads present in loaded run details.":"The run-list endpoint does not include token usage. Open a detailed run with provider usage metadata to inspect counts."} Cost is not estimated because model pricing and complete usage data are not exposed.</span></div></div>;
+function UsagePanel({runs,openRun}){
+ const usage=summarizeRunUsage(runs);
+ const candidates=runs.filter((run)=>Number(run?.stage_count)>0&&!(Array.isArray(run?.stages)&&run.stages.length>0)).slice(0,3);
+ const message=usage.hasUsage
+  ?"Totals cover "+usage.stageUsageCount+" stages across "+usage.detailedRunCount+" run details opened in this workspace."
+  :usage.detailedRunCount
+   ?"Opened run details do not include provider token usage metadata."
+   :"The run list returns lightweight summaries. Open a saved run below to load its stage details before reviewing token counts.";
+ return <div className="workspace-usage-panel"><div className="workspace-usage-numbers"><div><span>INPUT TOKENS IN OPENED DETAILS</span><strong>{usage.hasUsage?usage.inputTokens.toLocaleString():"Not available"}</strong></div><div><span>OUTPUT TOKENS IN OPENED DETAILS</span><strong>{usage.hasUsage?usage.outputTokens.toLocaleString():"Not available"}</strong></div></div><div className="notice-strip"><Activity size={16}/><span>{message} Cost is not estimated because model pricing and complete usage data are not exposed.</span></div>{!usage.hasUsage&&candidates.length?<div className="workspace-usage-run-list"><div className="eyebrow">LOAD SAVED RUN DETAILS</div>{candidates.map((run)=><button type="button" className="workspace-usage-run" key={run.id} onClick={()=>openRun(run)}><span><strong>{run.id}</strong><small>{run.goal||"Untitled workflow"}</small></span><ArrowRight size={14}/></button>)}</div>:null}</div>;
 }
 function PolicyPanel(){
  const policies=[["Generated code is not executed","Agent code and patches are saved as reviewable artifacts."],["GitHub is not written by agent runs","No automatic commit, branch or pull-request operation is connected."],["Approval does not deploy","A human decision updates the review record; release deployment is separate."],["Secrets stay server-side","Provider credentials and database URLs are not included in browser responses."],["Worker readiness is explicit","A queued workflow is not treated as running until the configured worker holds a lease."]];
@@ -111,7 +115,7 @@ function PageBody({route,runs,config,apiState,agents,openRun,onSelectTemplate}){
  if(route.kind==="review-history")return <RunList route={{filter:"history"}} runs={runs.filter((run)=>["approved","rejected"].includes(run.approval_status)||["approved","rejected"].includes(run.status))} openRun={openRun}/>;
  if(route.kind==="integration")return <IntegrationPanel route={route} config={config} apiState={apiState}/>;
  if(route.kind==="queue")return <QueuePanel config={config} apiState={apiState}/>;
- if(route.kind==="usage")return <UsagePanel runs={runs}/>;
+ if(route.kind==="usage")return <UsagePanel runs={runs} openRun={openRun}/>;
  if(route.kind==="audit")return <AuditPanel runs={runs} openRun={openRun}/>;
  if(["governance","policies"].includes(route.kind))return <PolicyPanel/>;
  if(["runtime","access"].includes(route.kind))return <RuntimePanel config={config} apiState={apiState}/>;

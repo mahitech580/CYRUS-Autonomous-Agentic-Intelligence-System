@@ -539,7 +539,7 @@ export const WORKSPACE_PAGE_CONTENT = Object.freeze({
   "observability-usage": {
     "eyebrow": "OBSERVABILITY / MODEL USAGE",
     "title": "Usage & tokens",
-    "description": "Token counts can be derived only from saved stage usage payloads. CYRUS does not estimate dollar cost without a configured price sheet and complete usage records.",
+    "description": "The run list returns lightweight summaries; open a saved run to load its stage usage before reviewing token counts. CYRUS does not estimate dollar cost without a configured price sheet and complete usage records.",
     "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=85",
     "sections": [
       {

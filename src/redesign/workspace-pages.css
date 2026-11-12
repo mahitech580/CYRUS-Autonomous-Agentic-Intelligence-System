@@ -76,3 +76,13 @@
 
 .workspace-ci-step-state{flex:0 0 auto;padding:5px 7px;border:1px solid rgba(126,158,219,.2);border-radius:7px;color:#9fb3d5;background:rgba(22,37,64,.5);font:8px var(--mono);letter-spacing:.45px;text-transform:uppercase}
 @media(max-width:740px){.workspace-ci-step-state{margin-left:auto}}
+
+.workspace-usage-run-list{display:grid;gap:7px}
+.workspace-usage-run-list>.eyebrow{color:#8da7d1}
+.workspace-usage-run{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:10px 12px;border:1px solid rgba(126,158,219,.15);border-radius:10px;text-align:left;color:inherit;background:rgba(11,24,45,.56)}
+.workspace-usage-run:hover{border-color:rgba(103,232,249,.3);background:rgba(23,46,78,.6)}
+.workspace-usage-run:focus-visible{outline:2px solid #79ecff;outline-offset:3px}
+.workspace-usage-run>span{display:grid;gap:4px;min-width:0}
+.workspace-usage-run strong{color:#e5efff;font:9px var(--mono)}
+.workspace-usage-run small{overflow:hidden;color:#9cacc6;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.workspace-usage-run>svg{flex:0 0 auto;color:#8da7d1}
