@@ -380,6 +380,18 @@ test("operational subpages use distinct icon-led, image-backed page headings", a
 });
 
 
+test("activity and observability pages include both active and terminal workflow records", async () => {
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  const data = await read("../src/workspace/page-data.js");
+  assert.ok(pages.includes('const isAll=route.filter==="all"'));
+  assert.ok(pages.includes('isAll?runs:'));
+  assert.ok(pages.includes('route.kind==="activity"||route.kind==="observability"?"all":"history"'));
+  assert.ok(pages.includes('isAll?"Latest saved workflow records"'));
+  assert.ok(data.includes("approved and rejected workflow decisions"));
+  assert.ok(data.includes("queued, running and terminal workflow records"));
+});
+
+
 test("usage view can load run details before summarizing real provider token metadata", async () => {
   const app = await read("../src/App.jsx");
   const pages = await read("../src/workspace/WorkspacePage.jsx");

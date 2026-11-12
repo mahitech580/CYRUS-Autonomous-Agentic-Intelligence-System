@@ -38,8 +38,10 @@ function AgentPanel({route,agents}){
 }
 function RunList({runs,route,openRun}){
  const isActive=route.filter==="active";
- const rows=isActive?runs.filter((run)=>["queued","running"].includes(run.status)):runs.filter((run)=>["completed","approved","rejected","failed","cancelled"].includes(run.status));
- return <section className="workspace-page-section"><div className="workspace-page-section-heading"><div><div className="eyebrow">SAVED RUN RECORDS</div><h2>{isActive?"Queued and running workflows":"Closed workflow records"}</h2><p>Only records currently loaded from the API are listed here. Use Runs & tasks for search, CSV export and pagination.</p></div><a className="button-quiet" href={getWorkspaceHref("runs")}>Open full history <ArrowRight size={13}/></a></div>{rows.length?<div className="workspace-run-list">{rows.map((run)=><RunRecord key={run.id} run={run} onOpen={openRun}/>)}</div>:<div className="workspace-empty"><Workflow size={24}/><strong>{isActive?"No active workflows in the loaded records":"No closed workflows in the loaded records"}</strong><span>Empty results are not replaced with sample runs. Open the main run list to refresh and paginate saved records.</span><a className="button-outline" href={getWorkspaceHref("runs")}>Open runs & tasks <ArrowRight size={13}/></a></div>}</section>;
+ const isAll=route.filter==="all";
+ const rows=isActive?runs.filter((run)=>["queued","running"].includes(run.status)):isAll?runs:runs.filter((run)=>["completed","approved","rejected","failed","cancelled"].includes(run.status));
+ const heading=isActive?"Queued and running workflows":isAll?"Latest saved workflow records":"Closed workflow records";
+ return <section className="workspace-page-section"><div className="workspace-page-section-heading"><div><div className="eyebrow">SAVED RUN RECORDS</div><h2>{heading}</h2><p>Only records currently loaded from the API are listed here. Use Runs & tasks for search, CSV export and pagination.</p></div><a className="button-quiet" href={getWorkspaceHref("runs")}>Open full history <ArrowRight size={13}/></a></div>{rows.length?<div className="workspace-run-list">{rows.map((run)=><RunRecord key={run.id} run={run} onOpen={openRun}/>)}</div>:<div className="workspace-empty"><Workflow size={24}/><strong>{isActive?"No active workflows in the loaded records":isAll?"No workflow records are loaded":"No closed workflows in the loaded records"}</strong><span>Empty results are not replaced with sample runs. Open the main run list to refresh and paginate saved records.</span><a className="button-outline" href={getWorkspaceHref("runs")}>Open runs & tasks <ArrowRight size={13}/></a></div>}</section>;
 }
 function RuntimePanel({config,apiState}){
  const snapshotAvailable=apiState==="connected"&&!!config;
@@ -111,7 +113,7 @@ function AppearancePanel(){
 function PageBody({route,runs,config,apiState,agents,openRun,onSelectTemplate}){
  if(route.kind==="launchpad"||route.kind==="prompt-library")return <TemplateGrid onSelectTemplate={onSelectTemplate}/>;
  if(route.kind==="agent")return <AgentPanel route={route} agents={agents}/>;
- if(route.kind==="run-list"||route.kind==="activity"||route.kind==="observability")return <RunList route={route.kind==="run-list"?route:{filter:"history"}} runs={runs} openRun={openRun}/>;
+ if(route.kind==="run-list"||route.kind==="activity"||route.kind==="observability")return <RunList route={route.kind==="run-list"?route:{filter:route.kind==="activity"||route.kind==="observability"?"all":"history"}} runs={runs} openRun={openRun}/>;
  if(route.kind==="review-history")return <RunList route={{filter:"history"}} runs={runs.filter((run)=>["approved","rejected"].includes(run.approval_status)||["approved","rejected"].includes(run.status))} openRun={openRun}/>;
  if(route.kind==="integration")return <IntegrationPanel route={route} config={config} apiState={apiState}/>;
  if(route.kind==="queue")return <QueuePanel config={config} apiState={apiState}/>;

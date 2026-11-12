@@ -168,7 +168,7 @@ export const WORKSPACE_PAGE_CONTENT = Object.freeze({
   "review-history": {
     "eyebrow": "QUALITY / DECISION RECORDS",
     "title": "Review history",
-    "description": "See approved workflow records. Reviewer notes and complete artifacts remain attached to each saved run and can be inspected in its detail drawer.",
+    "description": "See approved and rejected workflow decisions. Reviewer notes and complete artifacts remain attached to each saved run and can be inspected in its detail drawer.",
     "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=85",
     "sections": [
       {
@@ -491,7 +491,7 @@ export const WORKSPACE_PAGE_CONTENT = Object.freeze({
   "observability-activity": {
     "eyebrow": "OBSERVABILITY / EVENT CONTEXT",
     "title": "Activity stream",
-    "description": "See the latest saved workflow records returned by the API. Open a run to inspect retained event history and stage artifacts; summaries are not presented as a full trace.",
+    "description": "Inspect the latest queued, running and terminal workflow records returned by the API. Open a run to review retained event history and stage artifacts; summaries are not presented as a full trace.",
     "image": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1600&q=80",
     "sections": [
       {
