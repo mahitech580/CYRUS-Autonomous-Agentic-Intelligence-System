@@ -369,7 +369,7 @@ test("secondary workspace pages use a route-aware shared renderer", async () => 
 
 test("workspace cards use registered hash routes and safe external resource links", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
-  assert.match(pages, /getWorkspaceHref\\s*\\(\\s*item\\.href\\s*\\|\\|\\s*"overview"\\s*\\)/);
+  assert.ok(pages.includes('getWorkspaceHref(item.href||"overview")'));
   assert.ok(pages.includes('target={external?"_blank":undefined}'));
   assert.ok(pages.includes('rel={external?"noreferrer":undefined}'));
   assert.ok(pages.includes("onSelectTemplate(item)"));
