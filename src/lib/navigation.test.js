@@ -22,6 +22,23 @@ test("page search matches full hash paths and navigation groups", () => {
   ]);
 });
 
+test("multi-term search matches words across labels, groups and route paths", () => {
+  assert.deepEqual(filterWorkspaceRoutes("active execution", WORKSPACE_ROUTES).map((route) => route.id), ["runs-active"]);
+  assert.deepEqual(filterWorkspaceRoutes("workflow governance audit", WORKSPACE_ROUTES).map((route) => route.id), ["governance-audit"]);
+  assert.deepEqual(filterWorkspaceRoutes("github integrations", WORKSPACE_ROUTES).map((route) => route.id), ["integration-github"]);
+});
+
+test("search normalizes accents and punctuation consistently", () => {
+  assert.deepEqual(filterWorkspaceRoutes("cafe", [{ id: "cafe-page", label: "Café" }]).map((route) => route.id), ["cafe-page"]);
+  assert.deepEqual(filterWorkspaceRoutes("///", [{ id: "overview" }]).map((route) => route.id), ["overview"]);
+});
+
+test("malformed route entries are ignored without breaking page search", () => {
+  const routes = [null, "invalid", { id: "overview", label: "Overview" }];
+  assert.deepEqual(filterWorkspaceRoutes("overview", routes).map((route) => route.id), ["overview"]);
+  assert.deepEqual(filterWorkspaceRoutes("", null), []);
+});
+
 test("unmatched page searches return an honest empty result", () => {
   assert.deepEqual(filterWorkspaceRoutes("not-a-real-destination", WORKSPACE_ROUTES), []);
 });
