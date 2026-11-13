@@ -477,3 +477,27 @@ test("secondary operations views preserve honest runtime and safety boundaries",
   assert.ok(pages.includes("Generated code is not executed"));
   assert.ok(pages.includes("Approval does not deploy"));
 });
+
+test("workspace command palette is available from the keyboard and top bar", async () => {
+  const app = await read("../src/App.jsx");
+  const menu = await read("WorkspaceCommandMenu.jsx");
+  const styles = await read("redesign/command-menu.css");
+  const imports = await read("redesign.css");
+  assert.ok(app.includes('aria-keyshortcuts="Control+K Meta+K"'));
+  assert.ok(app.includes('event.key.toLowerCase() === "k"'));
+  assert.ok(app.includes("<WorkspaceCommandMenu open={commandOpen}"));
+  assert.ok(menu.includes("dialog.showModal()"));
+  assert.ok(menu.includes('role="combobox"'));
+  assert.ok(menu.includes('role="listbox"'));
+  assert.ok(menu.includes('role="option"'));
+  assert.ok(menu.includes('event.key === "ArrowDown"'));
+  assert.ok(menu.includes('event.key === "ArrowUp"'));
+  assert.ok(menu.includes('event.key === "Enter"'));
+  assert.ok(menu.includes("onCancel="));
+  assert.ok(menu.includes("WORKSPACE_ROUTES"));
+  assert.ok(styles.includes("::backdrop"));
+  assert.ok(styles.includes(":focus-visible"));
+  assert.ok(styles.includes("@media (max-width: 640px)"));
+  assert.ok(styles.includes("prefers-reduced-motion: reduce"));
+  assert.ok(imports.includes('@import "./redesign/command-menu.css";'));
+});

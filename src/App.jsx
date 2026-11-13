@@ -11,6 +11,7 @@ import { api, getAccessKey, setAccessKey } from "./lib/api.js";
 import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, prependRunRecord } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
+import WorkspaceCommandMenu from "./WorkspaceCommandMenu.jsx";
 
 const agents = [
   { id: "planner", name: "Atlas", role: "Planning agent", desc: "Breaks goals into executable milestones.", mission: "Turn an outcome into milestones, constraints, and acceptance criteria.", capabilities: ["task decomposition", "acceptance criteria", "dependency mapping"], color: "violet", tag: "PLAN" },
@@ -119,6 +120,7 @@ export default function App() {
   const [isStarting, setIsStarting] = useState(false);
   const [apiState, setApiState] = useState("checking");
   const [mobileNav, setMobileNav] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const [mobileViewport, setMobileViewport] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 740px)").matches);
   const [selectedRun, setSelectedRun] = useState(null);
   const [toast, setToast] = useState("");
@@ -136,6 +138,18 @@ export default function App() {
   useEffect(() => () => {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
   }, []);
+
+  useEffect(() => {
+    if (mobileNav || selectedRun?.id) return undefined;
+    const handleWorkspaceShortcut = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !event.altKey) {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleWorkspaceShortcut);
+    return () => window.removeEventListener("keydown", handleWorkspaceShortcut);
+  }, [mobileNav, selectedRun?.id]);
 
   useEffect(() => {
     const syncRoute = () => {
@@ -659,7 +673,7 @@ export default function App() {
       <main className="main-panel">
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button open-mobile" onClick={() => setMobileNav(true)} aria-label="Open navigation" aria-expanded={mobileNav} aria-controls="workspace-sidebar"><Menu size={19} /></button><a className="breadcrumb breadcrumb-link" href={getWorkspaceHref("Overview")}>Workspace</a><span className="breadcrumb-divider">/</span><strong>{currentRoute.label}</strong><span className="branch-chip"><GitBranch size={13} /> main</span></div>
-          <div className="topbar-actions"><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><a className="button-primary topbar-create" href={getWorkspaceHref("Runs & tasks", { focusTask: true })} onClick={() => setMobileNav(false)}><Plus size={15} /><span>New task</span></a><span className="top-avatar" role="img" aria-label="Workspace profile">M</span></div>
+          <div className="topbar-actions"><button type="button" className="topbar-command-trigger" onClick={() => setCommandOpen(true)} aria-label="Search workspace pages" aria-keyshortcuts="Control+K Meta+K" title="Search pages · Ctrl K"><Search size={14} /><span>Jump to page</span><kbd>Ctrl K</kbd></button><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><a className="button-primary topbar-create" href={getWorkspaceHref("Runs & tasks", { focusTask: true })} onClick={() => setMobileNav(false)}><Plus size={15} /><span>New task</span></a><span className="top-avatar" role="img" aria-label="Workspace profile">M</span></div>
         </header>
 
         <div className="page-content" id="main-content" tabIndex={-1}>
@@ -679,6 +693,7 @@ export default function App() {
         <footer className="app-footer"><span><span className={"footer-pulse footer-pulse-" + (apiState === "connected" ? (workspaceConfig?.can_start_runs ? "ready" : "setup") : apiState)} /> {apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Runtime ready" : "Setup required") : apiState === "checking" ? "Checking runtime" : "API unavailable"}</span><span>CYRUS Workspace <b>0.2.3</b></span><span>Built for deliberate shipping <Zap size={12} /></span></footer>
       </main>
 
+      <WorkspaceCommandMenu open={commandOpen} onClose={() => setCommandOpen(false)} currentRouteId={currentRoute.id} onNavigate={(routeId) => { setMobileNav(false); setView(routeId); }} />
       {mobileNav ? <button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation overlay" /> : null}
       {toast ? <div className="toast" role="status" aria-live="polite" aria-atomic="true"><CheckCircle2 size={17} /><span>{toast}</span><button onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div> : null}
       {selectedRun ? <RunDrawer key={selectedRun.id} run={selectedRun} onClose={() => setSelectedRun(null)} onApprove={decideRun} onCancel={cancelSelectedRun} onRetry={retrySelectedRun} busy={actionBusy} /> : null}

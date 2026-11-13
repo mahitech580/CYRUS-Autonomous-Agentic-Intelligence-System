@@ -1,6 +1,6 @@
 # CYRUS visual system and image references
 
-Last updated: 8 November 2026
+Last updated: 13 November 2026
 
 This note records the visual direction and externally hosted image sources used by the React workspace. The implementation is original CYRUS UI code; references inform information hierarchy and interaction patterns rather than supplying copied components or branding.
 
@@ -90,3 +90,9 @@ The workspace exposes 36 direct hash destinations in nine navigation groups. Has
 - [web.dev navigation guidance](https://web.dev/articles/website-navigation) — semantic landmarks and predictable navigation behavior.
 
 The page mastheads reuse the documented Unsplash image sources above. Images are decorative, use empty alternative text and lazy loading, and sit over a gradient fallback; route meaning and live state remain text and API-derived.
+
+## Keyboard page switcher
+
+The 36 registered hash destinations are searchable from the top bar or with **Ctrl+K / Cmd+K**. Search matches page labels, route paths, navigation groups, route IDs and view names. Arrow keys move the active result, Enter opens it, and Escape or the visible close control dismisses the dialog. Selecting a result uses the existing hash route, so direct links and browser history keep their current behavior; the switcher does not start a workflow or call the API.
+
+The switcher uses the native modal `<dialog>` opened with `showModal()` so the browser manages the modal layer, background inertness, initial focus and return focus. The input is labelled as a combobox and controls a listbox of real registered destinations. The implementation follows the [MDN dialog element guidance](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog) and the [WAI-ARIA APG Dialog (Modal) Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/). It includes an explicit close button, visible keyboard hints, an empty-result state, narrow-screen layout and reduced-motion handling.
