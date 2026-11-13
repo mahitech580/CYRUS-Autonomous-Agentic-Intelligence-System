@@ -78,7 +78,7 @@ function SectionTitle({ eyebrow, title, detail, action, icon: Icon = Activity, v
       <span className="page-heading-icon" aria-hidden="true"><Icon size={21} strokeWidth={1.8} /></span>
       <div className="page-heading-text"><div className="eyebrow">{eyebrow}</div><h1>{title}</h1>{detail ? <p>{detail}</p> : null}</div>
     </div>
-    {visual ? <figure className="page-heading-visual" aria-hidden="true"><img src={visual} alt="" loading="lazy" decoding="async" /><span className="page-heading-visual-shade" /></figure> : null}
+    {visual ? <figure className="page-heading-visual" aria-hidden="true"><img src={visual} alt="" loading="eager" fetchPriority="high" decoding="async" /><span className="page-heading-visual-shade" /></figure> : null}
     {action ? <div className="page-heading-actions">{action}</div> : null}
   </div>;
 }

@@ -374,7 +374,8 @@ test("operational subpages use distinct icon-led, image-backed page headings", a
     assert.ok(app.includes(icon), `missing page heading icon: ${icon}`);
   }
   assert.ok(app.includes('className="page-heading-visual" aria-hidden="true"><img'));
-  assert.ok(app.includes('alt="" loading="lazy" decoding="async"'));
+  assert.ok(app.includes('alt="" loading="eager" fetchPriority="high" decoding="async"'));
+  assert.ok(app.includes('src={brief.image} alt="" loading="lazy" decoding="async"'));
   assert.ok(pageStyles.includes("@media (max-width: 740px)"));
   assert.ok(visualReferences.includes("https://unsplash.com/license"));
 });
@@ -452,7 +453,7 @@ test("secondary workspace pages use a route-aware shared renderer", async () => 
   const styles = await read("redesign/workspace-pages.css");
   assert.ok(app.includes('<WorkspacePage route={currentRoute}'));
   assert.ok(pages.includes("WORKSPACE_PAGE_CONTENT[route.id]"));
-  assert.ok(pages.includes('alt="" loading="lazy" decoding="async"'));
+  assert.ok(pages.includes('alt="" loading="eager" fetchPriority="high" decoding="async"'));
   assert.ok(pages.includes("AgentPanel"));
   assert.ok(pages.includes("RunList"));
   assert.ok(styles.includes("@media(max-width:740px)"));

@@ -47,7 +47,7 @@ Projects studied include [OpenHands](https://github.com/OpenHands/OpenHands), [D
 
 The workspace sidebar now uses ordinary anchor destinations for Overview, Agent fleet, Runs & tasks, Code review, Deployments, Integrations, and Settings. The destinations are shareable hash routes (for example, `#/agents` and `#/review`) so the same static build works on Vercel and GitHub Pages without requiring a server-side rewrite. Browser back/forward navigation stays synchronized with the active page, and the top-bar New task link opens the run composer directly.
 
-Operational pages use a consistent icon-led masthead with low-contrast photographic context. The mastheads reuse the five Unsplash sources already listed above; no unlicensed assets or copied product screenshots were added. Header photos are decorative, use empty alternative text, lazy loading, and a gradient fallback. Readiness, run state, approvals, and deployment claims continue to come from the API rather than the imagery.
+Operational pages use a consistent icon-led masthead with low-contrast photographic context. The mastheads reuse the five Unsplash sources already listed above; no unlicensed assets or copied product screenshots were added. Header photos are decorative, use empty alternative text, eager loading and high fetch priority because they sit above the fold, with a gradient fallback. Below-the-fold task-card images remain lazy-loaded. Readiness, run state, approvals, and deployment claims continue to come from the API rather than the imagery.
 
 
 ## Multi-page workspace information architecture
@@ -89,7 +89,7 @@ The workspace exposes 36 direct hash destinations in nine navigation groups. Has
 - [W3C disclosure navigation example](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/) — native disclosure controls combined with ordinary navigation links.
 - [web.dev navigation guidance](https://web.dev/articles/website-navigation) — semantic landmarks and predictable navigation behavior.
 
-The page mastheads reuse the documented Unsplash image sources above. Images are decorative, use empty alternative text and lazy loading, and sit over a gradient fallback; route meaning and live state remain text and API-derived.
+The page mastheads reuse the documented Unsplash image sources above. Their decorative images use empty alternative text, eager loading and high fetch priority to avoid delaying the visible page heading; a gradient remains visible if an image fails. Below-the-fold task-card imagery stays lazy-loaded. Route meaning and live state remain text and API-derived.
 
 ## Keyboard page switcher
 
