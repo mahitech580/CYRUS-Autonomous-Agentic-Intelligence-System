@@ -26,3 +26,17 @@ export function filterWorkspaceRoutes(query, routes = []) {
     return terms.every((term) => searchable.includes(term));
   });
 }
+
+export function shouldOpenWorkspaceCommand(event) {
+  if (!event || event.defaultPrevented || event.repeat) return false;
+  if (String(event.key || "").toLowerCase() !== "k") return false;
+  if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return false;
+
+  const target = event.target;
+  if (target?.isContentEditable) return false;
+  const tagName = String(target?.tagName || "").toLowerCase();
+  if (["input", "textarea", "select"].includes(tagName)) return false;
+  if (typeof target?.closest === "function"
+    && target.closest("[contenteditable='true'], [role='textbox']")) return false;
+  return true;
+}

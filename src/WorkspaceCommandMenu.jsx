@@ -72,7 +72,7 @@ export default function WorkspaceCommandMenu({ open, onClose, onNavigate, curren
         <span className="cyrus-command-mark" aria-hidden="true"><Command size={18} /></span>
         <div className="cyrus-command-heading">
           <h2 id="cyrus-command-title">Jump to a page</h2>
-          <p id="cyrus-command-description">Search all 36 workspace destinations by name, group or route.</p>
+          <p id="cyrus-command-description">Search all {WORKSPACE_ROUTES.length} workspace destinations by name, group or route.</p>
         </div>
         <button type="button" className="cyrus-command-close" onClick={closeMenu} aria-label="Close page search">
           <X size={17} />
@@ -105,7 +105,7 @@ export default function WorkspaceCommandMenu({ open, onClose, onNavigate, curren
 
       <div className="cyrus-command-results-heading">
         <span>WORKSPACE DESTINATIONS</span>
-        <span>{results.length} {results.length === 1 ? "page" : "pages"}</span>
+        <span aria-live="polite" aria-atomic="true">{results.length} {results.length === 1 ? "page" : "pages"}</span>
       </div>
       <div id="cyrus-command-results" className="cyrus-command-results" role="listbox" aria-label="Workspace pages">
         {results.length ? results.map((route, index) => (

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WORKSPACE_ROUTES } from "./routes.js";
-import { filterWorkspaceRoutes } from "./navigation.js";
+import { filterWorkspaceRoutes, shouldOpenWorkspaceCommand } from "./navigation.js";
 
 test("an empty page-switcher query exposes all registered destinations", () => {
   assert.equal(filterWorkspaceRoutes("", WORKSPACE_ROUTES).length, 36);
@@ -41,4 +41,26 @@ test("malformed route entries are ignored without breaking page search", () => {
 
 test("unmatched page searches return an honest empty result", () => {
   assert.deepEqual(filterWorkspaceRoutes("not-a-real-destination", WORKSPACE_ROUTES), []);
+});
+
+test("global page shortcut accepts Ctrl/Cmd+K without extra modifiers", () => {
+  assert.equal(shouldOpenWorkspaceCommand({ key: "k", ctrlKey: true }), true);
+  assert.equal(shouldOpenWorkspaceCommand({ key: "K", metaKey: true }), true);
+  assert.equal(shouldOpenWorkspaceCommand({ key: "k", ctrlKey: true, altKey: true }), false);
+  assert.equal(shouldOpenWorkspaceCommand({ key: "k", ctrlKey: true, shiftKey: true }), false);
+  assert.equal(shouldOpenWorkspaceCommand({ key: "j", ctrlKey: true }), false);
+});
+
+test("global page shortcut does not steal keystrokes from editable controls", () => {
+  for (const tagName of ["INPUT", "TEXTAREA", "SELECT"]) {
+    assert.equal(shouldOpenWorkspaceCommand({ key: "k", ctrlKey: true, target: { tagName } }), false);
+  }
+  assert.equal(shouldOpenWorkspaceCommand({ key: "k", ctrlKey: true, target: { isContentEditable: true } }), false);
+  assert.equal(shouldOpenWorkspaceCommand({
+    key: "k",
+    ctrlKey: true,
+    target: { closest: (selector) => selector.includes("contenteditable") ? {} : null },
+  }), false);
+  assert.equal(shouldOpenWorkspaceCommand({ key: "k", ctrlKey: true, target: { tagName: "BODY" } }), true);
+  assert.equal(shouldOpenWorkspaceCommand({ key: "k", ctrlKey: true, repeat: true }), false);
 });

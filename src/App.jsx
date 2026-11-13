@@ -10,6 +10,7 @@ import {
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
 import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, prependRunRecord } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
+import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
 import WorkspaceCommandMenu from "./WorkspaceCommandMenu.jsx";
 
@@ -142,7 +143,7 @@ export default function App() {
   useEffect(() => {
     if (mobileNav || selectedRun?.id) return undefined;
     const handleWorkspaceShortcut = (event) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !event.altKey) {
+      if (shouldOpenWorkspaceCommand(event)) {
         event.preventDefault();
         setCommandOpen(true);
       }
@@ -673,7 +674,7 @@ export default function App() {
       <main className="main-panel">
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button open-mobile" onClick={() => setMobileNav(true)} aria-label="Open navigation" aria-expanded={mobileNav} aria-controls="workspace-sidebar"><Menu size={19} /></button><a className="breadcrumb breadcrumb-link" href={getWorkspaceHref("Overview")}>Workspace</a><span className="breadcrumb-divider">/</span><strong>{currentRoute.label}</strong><span className="branch-chip"><GitBranch size={13} /> main</span></div>
-          <div className="topbar-actions"><button type="button" className="topbar-command-trigger" onClick={() => setCommandOpen(true)} aria-label="Search workspace pages" aria-keyshortcuts="Control+K Meta+K" title="Search pages · Ctrl K"><Search size={14} /><span>Jump to page</span><kbd>Ctrl K</kbd></button><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><a className="button-primary topbar-create" href={getWorkspaceHref("Runs & tasks", { focusTask: true })} onClick={() => setMobileNav(false)}><Plus size={15} /><span>New task</span></a><span className="top-avatar" role="img" aria-label="Workspace profile">M</span></div>
+          <div className="topbar-actions"><button type="button" className="topbar-command-trigger" onClick={() => setCommandOpen(true)} aria-label="Search workspace pages" aria-keyshortcuts="Control+K Meta+K" title="Search pages · Ctrl or Command K"><Search size={14} /><span>Jump to page</span><kbd>Ctrl/⌘ K</kbd></button><div className={"connection-pill connection-" + (apiState === "connected" && workspaceConfig?.can_start_runs ? "connected" : apiState === "checking" ? "checking" : "demo")}><i />{apiState === "connected" ? (workspaceConfig?.can_start_runs ? "Live AI ready" : "Setup required") : apiState === "checking" ? "Checking API" : "API offline"}</div><a className="button-primary topbar-create" href={getWorkspaceHref("Runs & tasks", { focusTask: true })} onClick={() => setMobileNav(false)}><Plus size={15} /><span>New task</span></a><span className="top-avatar" role="img" aria-label="Workspace profile">M</span></div>
         </header>
 
         <div className="page-content" id="main-content" tabIndex={-1}>

@@ -484,7 +484,12 @@ test("workspace command palette is available from the keyboard and top bar", asy
   const styles = await read("redesign/command-menu.css");
   const imports = await read("redesign.css");
   assert.ok(app.includes('aria-keyshortcuts="Control+K Meta+K"'));
-  assert.ok(app.includes('event.key.toLowerCase() === "k"'));
+  assert.ok(app.includes("shouldOpenWorkspaceCommand(event)"));
+  const navigation = await read("lib/navigation.js");
+  const navigationTests = await read("lib/navigation.test.js");
+  assert.ok(navigation.includes("target?.isContentEditable"));
+  assert.ok(navigation.includes('["input", "textarea", "select"]'));
+  assert.ok(navigationTests.includes("does not steal keystrokes from editable controls"));
   assert.ok(app.includes("<WorkspaceCommandMenu open={commandOpen}"));
   assert.ok(menu.includes("dialog.showModal()"));
   assert.ok(menu.includes('role="combobox"'));
@@ -494,7 +499,8 @@ test("workspace command palette is available from the keyboard and top bar", asy
   assert.ok(menu.includes('event.key === "ArrowUp"'));
   assert.ok(menu.includes('event.key === "Enter"'));
   assert.ok(menu.includes("onCancel="));
-  assert.ok(menu.includes("WORKSPACE_ROUTES"));
+  assert.ok(menu.includes("WORKSPACE_ROUTES.length"));
+  assert.ok(menu.includes('aria-live="polite"'));
   assert.ok(styles.includes("::backdrop"));
   assert.ok(styles.includes(":focus-visible"));
   assert.ok(styles.includes("@media (max-width: 640px)"));
