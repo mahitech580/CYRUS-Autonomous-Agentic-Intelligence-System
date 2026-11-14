@@ -310,6 +310,46 @@ test("runtime snapshot verifies API health before returning configuration", asyn
   ]);
 });
 
+test("runtime snapshot keeps API liveness while marking protected configuration as unavailable", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    calls.push(url);
+    if (url.endsWith("/api/health")) {
+      return new Response(JSON.stringify({
+        service: "cyrus-api",
+        version: "0.2.3",
+        status: "ok",
+        database: "reachable",
+        persistent_storage: true,
+        provider_configured: true,
+        worker_required: true,
+        worker_ready: true,
+        mode: "live-model",
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ detail: "Workspace access key required." }), {
+      status: 401,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  const snapshot = await api.runtime();
+  assert.equal(snapshot.runtime_access_denied, true);
+  assert.equal(snapshot.auth_required, true);
+  assert.equal(snapshot.access_control_configured, false);
+  assert.equal(snapshot.provider_configured, true);
+  assert.equal(snapshot.database_reachable, true);
+  assert.equal(snapshot.worker_ready, true);
+  assert.equal(snapshot.queued_workflows, null);
+  assert.equal(snapshot.can_start_runs, false);
+  assert.deepEqual(calls, [
+    "http://localhost:8000/api/health",
+    "http://localhost:8000/api/config",
+  ]);
+});
+
 test("runtime snapshot stops before configuration when the health probe fails", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });

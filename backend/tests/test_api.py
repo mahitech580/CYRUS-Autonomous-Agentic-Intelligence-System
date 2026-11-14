@@ -134,6 +134,26 @@ def test_health_contract(client):
     assert "persistent_storage" in body
 
 
+def test_runtime_configuration_requires_workspace_access_and_public_health_omits_queue_details(client, monkeypatch):
+    monkeypatch.setenv("CYRUS_ACCESS_KEY", "private-test-key")
+
+    health = client.get("/api/health")
+    assert health.status_code == 200
+    health_body = health.json()
+    assert health_body["service"] == "cyrus-api"
+    assert "provider_configured" in health_body
+    assert "persistent_storage" in health_body
+    for field in ("queued_workflows", "running_workflows", "orphaned_workflows"):
+        assert field not in health_body
+
+    assert client.get("/api/config").status_code == 401
+    authorized = client.get("/api/config", headers={"Authorization": "Bearer private-test-key"})
+    assert authorized.status_code == 200
+    assert "available_workers" in authorized.json()
+
+
+
+
 
 def test_health_distinguishes_database_liveness_from_run_readiness(client, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -169,7 +189,8 @@ def test_agent_registry_has_seven_roles(client):
     assert body["items"][0]["id"] == "planner"
 
 
-def test_config_does_not_expose_secrets(client):
+def test_config_does_not_expose_secrets(client, monkeypatch):
+    monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)
     response = client.get("/api/config")
     assert response.status_code == 200
     body = response.json()

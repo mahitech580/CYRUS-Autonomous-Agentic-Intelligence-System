@@ -1095,7 +1095,9 @@ function SettingsView({ apiState, workspaceConfig, setWorkspaceConfig, setApiSta
       const config = await api.runtime();
       setWorkspaceConfig(config);
       setApiState("connected");
-      notify("API connection and runtime configuration refreshed.");
+      notify(config.runtime_access_denied
+        ? "The API is reachable, but runtime details require a valid workspace access key."
+        : "API connection and runtime configuration refreshed.");
     } catch (error) {
       setApiState("unavailable");
       notify(error.message || "Could not refresh runtime status.");
@@ -1114,7 +1116,7 @@ function SettingsView({ apiState, workspaceConfig, setWorkspaceConfig, setApiSta
         <a className="settings-link" href="https://vercel.com/mahendra8/cyrus-api/settings/environment-variables" target="_blank" rel="noreferrer">Open API environment settings <ArrowUpRight size={13} /></a>
       </section>
       <section className="panel-card settings-card"><div className="panel-heading"><div><div className="eyebrow">RUNTIME</div><h2>Connection status</h2></div><button className="button-outline" type="button" onClick={refreshRuntime} disabled={refreshingRuntime}><RefreshCw size={13} className={refreshingRuntime ? "spin-icon" : ""} />{refreshingRuntime ? "Refreshing" : "Refresh status"}</button></div>
-        <div className="runtime-status"><span className={"runtime-status-icon " + (apiState === "connected" ? "runtime-good" : "runtime-demo")}><Radio size={18} /></span><div><strong>{apiState === "connected" ? "CYRUS API reachable" : "CYRUS API unavailable"}</strong><p>{apiState === "connected" ? "Provider and storage readiness are reported separately below." : "Check the API deployment and VITE_API_BASE_URL."}</p></div></div>
+        <div className="runtime-status"><span className={"runtime-status-icon " + (apiState === "connected" ? "runtime-good" : "runtime-demo")}><Radio size={18} /></span><div><strong>{workspaceConfig?.runtime_access_denied ? "Workspace access key required" : apiState === "connected" ? "CYRUS API reachable" : "CYRUS API unavailable"}</strong><p>{workspaceConfig?.runtime_access_denied ? "The API is reachable, but detailed runtime configuration is protected. Enter a valid workspace access key below." : apiState === "connected" ? "Provider and storage readiness are reported separately below." : "Check the API deployment and VITE_API_BASE_URL."}</p></div></div>
         <div className="runtime-details runtime-checks">
           <div><span>MODEL PROVIDER</span><code>{workspaceConfig?.provider_configured ? (workspaceConfig.model || "Configured") : "OPENAI_API_KEY missing"}</code></div>
           <div><span>DATABASE CONNECTION</span><code>{workspaceConfig?.database_reachable == null ? "Unavailable" : workspaceConfig.database_reachable ? "Reachable" : "Unreachable"}</code></div>

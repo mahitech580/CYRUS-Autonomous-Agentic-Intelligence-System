@@ -906,7 +906,7 @@ def root() -> dict[str, str]:
     return {"name": "CYRUS Engineering API", "version": APP_VERSION, "docs": "/docs", "health": "/api/health"}
 
 
-@app.get("/api/config")
+@app.get("/api/config", dependencies=[Depends(require_workspace_access)])
 def config() -> dict[str, Any]:
     database_ok = database_is_reachable()
     durable = database_is_durable()
@@ -952,7 +952,6 @@ def health() -> dict[str, Any]:
     access_configured = bool(os.getenv("CYRUS_ACCESS_KEY", "").strip()) or not bool(os.getenv("VERCEL"))
     worker_required = external_worker_required()
     worker_ready = worker_is_ready()
-    queue = workflow_queue_snapshot()
     ready_for_runs = database_ok and durable and ready and access_configured and worker_ready
     return {
         "status": "ok" if database_ok else "degraded",
@@ -964,9 +963,6 @@ def health() -> dict[str, Any]:
         "ready_for_runs": ready_for_runs,
         "worker_required": worker_required,
         "worker_ready": worker_ready,
-        "queued_workflows": queue["queued_workflows"] if queue else None,
-        "running_workflows": queue["running_workflows"] if queue else None,
-        "orphaned_workflows": queue["orphaned_workflows"] if queue else None,
         "timestamp": utcnow().isoformat(),
         "mode": "live-model" if ready else "not-configured",
     }

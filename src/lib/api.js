@@ -131,8 +131,35 @@ export const api = {
   health: () => request("/api/health"),
   config: () => request("/api/config"),
   runtime: async () => {
-    await request("/api/health");
-    return request("/api/config");
+    const health = await request("/api/health");
+    try {
+      return await request("/api/config");
+    } catch (error) {
+      if (error?.status !== 401) throw error;
+      // Health stays public for uptime probes; detailed queue and provider
+      // configuration remains behind the workspace access key.
+      return {
+        service: health?.service || "cyrus-api",
+        version: health?.version,
+        provider_configured: !!health?.provider_configured,
+        persistent_storage: !!health?.persistent_storage,
+        database_reachable: health?.database === "reachable",
+        auth_required: true,
+        access_control_configured: false,
+        worker_required: !!health?.worker_required,
+        worker_ready: !!health?.worker_ready,
+        execution_mode: health?.mode || "unknown",
+        can_start_runs: false,
+        runtime_access_denied: true,
+        queued_workflows: null,
+        running_workflows: null,
+        oldest_queued_seconds: null,
+        available_workers: null,
+        active_workers: null,
+        orphaned_workflows: null,
+        oldest_queued_at: null,
+      };
+    }
   },
   agents: () => request("/api/agents"),
   runs: ({ limit = 30, offset = 0, status, signal } = {}) => {
