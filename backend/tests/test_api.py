@@ -134,6 +134,14 @@ def test_health_contract(client):
     assert "persistent_storage" in body
 
 
+def test_config_rejects_unconfigured_production_access_control(client, monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)
+    response = client.get("/api/config")
+    assert response.status_code == 503
+    assert "CYRUS_ACCESS_KEY" in response.json()["detail"]
+
+
 def test_runtime_configuration_requires_workspace_access_and_public_health_omits_queue_details(client, monkeypatch):
     monkeypatch.setenv("CYRUS_ACCESS_KEY", "private-test-key")
 

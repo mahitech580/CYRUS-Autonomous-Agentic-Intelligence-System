@@ -135,7 +135,9 @@ export const api = {
     try {
       return await request("/api/config");
     } catch (error) {
-      if (error?.status !== 401) throw error;
+      const accessControlMissing = error?.status === 503
+        && /workspace access control is not configured/i.test(error.message || "");
+      if (error?.status !== 401 && !accessControlMissing) throw error;
       // Health stays public for uptime probes; detailed queue and provider
       // configuration remains behind the workspace access key.
       return {
@@ -150,7 +152,8 @@ export const api = {
         worker_ready: !!health?.worker_ready,
         execution_mode: health?.mode || "unknown",
         can_start_runs: false,
-        runtime_access_denied: true,
+        runtime_access_denied: error?.status === 401,
+        runtime_configuration_missing: accessControlMissing,
         queued_workflows: null,
         running_workflows: null,
         oldest_queued_seconds: null,

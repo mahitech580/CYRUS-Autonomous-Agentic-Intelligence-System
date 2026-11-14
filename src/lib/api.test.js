@@ -350,6 +350,35 @@ test("runtime snapshot keeps API liveness while marking protected configuration 
   ]);
 });
 
+test("runtime snapshot explains missing production access configuration without reporting API outage", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async (url) => {
+    if (url.endsWith("/api/health")) {
+      return new Response(JSON.stringify({
+        service: "cyrus-api",
+        status: "ok",
+        database: "reachable",
+        persistent_storage: true,
+        provider_configured: true,
+        worker_required: true,
+        worker_ready: true,
+        mode: "live-model",
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({
+      detail: "Workspace access control is not configured. Add CYRUS_ACCESS_KEY to the server environment.",
+    }), { status: 503, headers: { "content-type": "application/json" } });
+  };
+
+  const snapshot = await api.runtime();
+  assert.equal(snapshot.runtime_configuration_missing, true);
+  assert.equal(snapshot.runtime_access_denied, false);
+  assert.equal(snapshot.auth_required, true);
+  assert.equal(snapshot.access_control_configured, false);
+  assert.equal(snapshot.can_start_runs, false);
+});
+
 test("runtime snapshot stops before configuration when the health probe fails", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
