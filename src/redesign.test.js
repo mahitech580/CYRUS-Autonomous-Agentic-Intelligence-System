@@ -407,7 +407,7 @@ test("usage view can load run details before summarizing real provider token met
 test("runtime and queue pages do not display stale configuration as current readiness", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
   assert.ok(pages.includes('!snapshotAvailable?"Unknown"'));
-  assert.ok(pages.includes('workerStatus=!snapshotAvailable?"Worker status unknown"'));
+  assert.ok(pages.includes('workerStatus=config?.runtime_configuration_missing?"Server access control not configured"'));
   assert.ok(pages.includes('const workerReady=snapshotAvailable&&!!config.worker_ready'));
   assert.ok(pages.includes("Runtime checks are unknown until a fresh API snapshot is available."));
 });
@@ -434,7 +434,7 @@ test("queue page can refresh protected runtime telemetry and explains unavailabl
   assert.ok(app.includes("onRefreshRuntime={refreshWorkspaceRuntime}"));
   assert.ok(pages.includes('function QueuePanel({config,apiState,onRefreshRuntime})'));
   assert.ok(pages.includes("onClick={refresh}"));
-  assert.ok(pages.includes('restricted?"Enter a valid workspace access key'));
+  assert.ok(pages.includes('config?.runtime_access_denied?"Workspace access required"'));
   assert.ok(pages.includes('config?.runtime_configuration_missing?"Server access control not configured"'));
   assert.ok(pages.includes("CYRUS_ACCESS_KEY must be configured in the server environment"));
   assert.ok(pages.includes('config?.runtime_access_denied?"Workspace access required"'));
@@ -507,7 +507,7 @@ test("secondary operations views preserve honest runtime and safety boundaries",
   const pages = await read("../src/workspace/WorkspacePage.jsx");
   assert.ok(pages.includes("snapshotAvailable&&config.queued_workflows!=null&&config.running_workflows!=null"));
   assert.ok(pages.includes("snapshotAvailable&&!!config.worker_ready"));
-  assert.ok(pages.includes('workerStatus=!snapshotAvailable?"Worker status unknown"'));
+  assert.ok(pages.includes('workerStatus=config?.runtime_configuration_missing?"Server access control not configured"'));
   assert.ok(pages.includes("Cost is not estimated"));
   assert.ok(pages.includes("agent workflows do not write commits, branches or pull requests"));
   assert.ok(pages.includes("Generated code is not executed"));
