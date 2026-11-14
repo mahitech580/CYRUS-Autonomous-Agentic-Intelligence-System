@@ -435,6 +435,9 @@ test("queue page can refresh protected runtime telemetry and explains unavailabl
   assert.ok(pages.includes('function QueuePanel({config,apiState,onRefreshRuntime})'));
   assert.ok(pages.includes("onClick={refresh}"));
   assert.ok(pages.includes('restricted?"Enter a valid workspace access key'));
+  assert.ok(pages.includes('config?.runtime_configuration_missing?"Server access control not configured"'));
+  assert.ok(pages.includes("CYRUS_ACCESS_KEY must be configured in the server environment"));
+  assert.ok(pages.includes('config?.runtime_access_denied?"Workspace access required"'));
   assert.ok(pages.includes("Queue and worker counts are from the latest runtime snapshot."));
   assert.ok(pages.includes('role="alert"'));
   const settingsStart = app.indexOf("function SettingsView");

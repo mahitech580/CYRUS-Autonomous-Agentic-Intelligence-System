@@ -63,7 +63,7 @@ function QueuePanel({config,apiState,onRefreshRuntime}){
  const snapshotAvailable=apiState==="connected"&&!!config&&!restricted;
  const available=snapshotAvailable&&config.queued_workflows!=null&&config.running_workflows!=null;
  const workerReady=snapshotAvailable&&!!config.worker_ready;
- const workerStatus=restricted?"Workspace access required":!snapshotAvailable?"Worker status unknown":workerReady?"Worker heartbeat is fresh":config.worker_required?"No fresh worker heartbeat":"External worker not required";
+ const workerStatus=config?.runtime_configuration_missing?"Server access control not configured":config?.runtime_access_denied?"Workspace access required":!snapshotAvailable?"Worker status unknown":workerReady?"Worker heartbeat is fresh":config.worker_required?"No fresh worker heartbeat":"External worker not required";
  const values=[["Queued",available?config.queued_workflows:"—"],["Running",available?config.running_workflows:"—"],["Orphaned",available?(config.orphaned_workflows??"—"):"—"],["Workers available",snapshotAvailable?(config.available_workers??"—"):"—"]];
  async function refresh(){
   if(refreshing||typeof onRefreshRuntime!=="function")return;
@@ -73,18 +73,20 @@ function QueuePanel({config,apiState,onRefreshRuntime}){
   catch(error){setRefreshError(error?.message||"Could not refresh queue telemetry.");}
   finally{setRefreshing(false);}
  }
- const detail=restricted
-  ?"Enter a valid workspace access key to inspect queue and worker capacity."
-  :available
-   ?"Queue and worker counts are from the latest runtime snapshot."
-   :"Queue and worker state remain unknown until the API returns a fresh database snapshot.";
+ const detail=config?.runtime_configuration_missing
+  ?"CYRUS_ACCESS_KEY must be configured in the server environment before queue telemetry is available."
+  :config?.runtime_access_denied
+   ?"Enter a valid workspace access key to inspect queue and worker capacity."
+   :available
+    ?"Queue and worker counts are from the latest runtime snapshot."
+    :"Queue and worker state remain unknown until the API returns a fresh database snapshot.";
  return <div className="workspace-queue-panel"><div className="workspace-queue-toolbar"><span className="eyebrow">LIVE RUNTIME SNAPSHOT</span><button className="button-outline" type="button" onClick={refresh} disabled={refreshing||typeof onRefreshRuntime!=="function"}><RefreshCw size={13} className={refreshing?"spin-icon":""}/>{refreshing?"Refreshing":"Refresh snapshot"}</button></div><div className="workspace-queue-grid">{values.map(([label,value])=><div className="workspace-queue-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="workspace-runtime-banner"><span className={workerReady?"runtime-signal runtime-signal-ready":"runtime-signal"}/><div><strong>{workerStatus}</strong><small>{detail}</small></div></div>{refreshError?<p className="inline-help" role="alert">{refreshError}</p>:null}<a className="button-outline" href={getWorkspaceHref("runs-active")}>Inspect active run records <ArrowRight size={13}/></a></div>;
 }
 function IntegrationPanel({route,config,apiState}){
  const snapshotAvailable=apiState==="connected"&&!!config;
  const states={
   models:{value:!snapshotAvailable?"Runtime status unavailable":config.provider_configured?(config.model||"Configured on server"):"Not configured",ok:snapshotAvailable&&!!config?.provider_configured,detail:"The API checks provider readiness without returning the credential."},
-  research:{value:!snapshotAvailable?"Runtime status unavailable":config.web_search_enabled?"Enabled for Scout":"Not enabled",ok:snapshotAvailable&&!!config?.web_search_enabled,detail:"A runtime feature flag is not evidence of a connected browser or MCP service."},
+  research:{value:config?.runtime_configuration_missing?"Server access control not configured":config?.runtime_access_denied?"Workspace access required":!snapshotAvailable?"Runtime status unavailable":config.web_search_enabled?"Enabled for Scout":"Not enabled",ok:snapshotAvailable&&!config?.runtime_access_denied&&!config?.runtime_configuration_missing&&!!config?.web_search_enabled,detail:config?.runtime_configuration_missing?"Configure CYRUS_ACCESS_KEY on the API before inspecting this protected runtime flag.":config?.runtime_access_denied?"Enter a valid workspace access key to inspect this runtime flag.":"A runtime feature flag is not evidence of a connected browser or MCP service."},
   github:{value:"Public source link only",ok:false,detail:"No GitHub API or app connection is configured in this workspace. Open the public repository and Actions pages; agent workflows do not write commits, branches or pull requests."},
   database:{value:!snapshotAvailable?"Runtime status unavailable":config.database_reachable?"Reachable":"Not reachable",ok:snapshotAvailable&&!!config?.database_reachable,detail:"Database reachability and durable production storage are separate checks."}
  };
