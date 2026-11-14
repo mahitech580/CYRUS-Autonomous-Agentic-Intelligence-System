@@ -6,15 +6,15 @@ const CSV_COLUMNS = [
 function normalizeRunSearchValue(value) {
   return String(value ?? "")
     .normalize("NFKD")
-    .replace(/\\p{M}/gu, "")
+    .replace(/\p{M}/gu, "")
     .toLowerCase()
-    .replace(/[^\\p{L}\\p{N}]+/gu, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
 
 export function filterRuns(runs, query = "", statusFilter = "all") {
   const items = Array.isArray(runs) ? runs.filter((run) => run && typeof run === "object") : [];
-  const terms = normalizeRunSearchValue(query).split(/\\s+/).filter(Boolean);
+  const terms = normalizeRunSearchValue(query).split(/\s+/).filter(Boolean);
   return items.filter((run) => {
     const searchable = normalizeRunSearchValue([
       run.id, run.goal, run.status, run.kind, run.current_stage,
