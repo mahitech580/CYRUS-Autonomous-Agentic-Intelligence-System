@@ -38,6 +38,22 @@ test("combined search and status filters apply both constraints", () => {
   assert.deepEqual(filterRuns(sample, "login", "failed"), []);
 });
 
+test("multi-term search combines goal, stage, decision and status metadata", () => {
+  const records = [
+    { id: "RUN-SEARCH-1", goal: "Build a Café dashboard", status: "failed", current_stage: "research", approval_status: "rejected" },
+    { id: "RUN-SEARCH-2", goal: "Build a reporting API", status: "running", current_stage: "code", approval_status: "pending" },
+  ];
+  assert.deepEqual(filterRuns(records, "cafe failed").map((run) => run.id), ["RUN-SEARCH-1"]);
+  assert.deepEqual(filterRuns(records, "research rejected").map((run) => run.id), ["RUN-SEARCH-1"]);
+  assert.deepEqual(filterRuns(records, "reporting running").map((run) => run.id), ["RUN-SEARCH-2"]);
+});
+
+test("run search normalizes punctuation and ignores malformed records", () => {
+  const records = [null, "invalid", { id: "RUN-SEARCH-3", goal: "Secure API / review" }];
+  assert.deepEqual(filterRuns(records, "secure/api").map((run) => run.id), ["RUN-SEARCH-3"]);
+  assert.deepEqual(filterRuns(records, "///"), [{ id: "RUN-SEARCH-3", goal: "Secure API / review" }]);
+});
+
 test("CSV export quotes commas, quotes and newlines and emits spreadsheet-friendly UTF-8", () => {
   const csv = buildRunsCsv([{ id: "RUN-005", goal: 'Build "auth", v2\nnow', status: "review", progress: 100 }]);
   assert.ok(csv.startsWith("\uFEFF"));

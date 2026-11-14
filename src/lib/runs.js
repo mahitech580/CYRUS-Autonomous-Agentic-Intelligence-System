@@ -3,14 +3,24 @@ const CSV_COLUMNS = [
   "execution_mode", "current_stage", "approval_status",
 ];
 
+function normalizeRunSearchValue(value) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/\\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^\\p{L}\\p{N}]+/gu, " ")
+    .trim();
+}
+
 export function filterRuns(runs, query = "", statusFilter = "all") {
   const items = Array.isArray(runs) ? runs.filter((run) => run && typeof run === "object") : [];
-  const needle = String(query || "").trim().toLowerCase();
+  const terms = normalizeRunSearchValue(query).split(/\\s+/).filter(Boolean);
   return items.filter((run) => {
-    const matchesSearch = !needle || [
+    const searchable = normalizeRunSearchValue([
       run.id, run.goal, run.status, run.kind, run.current_stage,
       run.approval_status, run.execution_mode, run.error,
-    ].some((item) => String(item || "").toLowerCase().includes(needle));
+    ].filter((value) => typeof value === "string" || typeof value === "number").join(" "));
+    const matchesSearch = !terms.length || terms.every((term) => searchable.includes(term));
     const matchesStatus = statusFilter === "all"
       || (statusFilter === "completed"
         ? ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100
