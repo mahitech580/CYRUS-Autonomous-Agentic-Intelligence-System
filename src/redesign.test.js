@@ -413,6 +413,20 @@ test("runtime and queue pages do not display stale configuration as current read
 });
 
 
+test("settings does not infer zero worker capacity or disabled research from protected runtime metadata", async () => {
+  const app = await read("../src/App.jsx");
+  const start = app.indexOf("function SettingsView");
+  const end = app.indexOf("function formatEventTime", start);
+  const settings = app.slice(start, end);
+  assert.ok(settings.includes("runtimeConfigRestricted"));
+  assert.ok(settings.includes("Worker ready · capacity unknown"));
+  assert.ok(settings.includes('workspaceConfig?.web_search_enabled == null ? "Unknown"'));
+  assert.ok(settings.includes('runtimeConfigRestricted ? "Access required"'));
+  assert.ok(settings.includes('apiState === "connected" && !runtimeConfigRestricted'));
+  assert.ok(!settings.includes("workspaceConfig?.available_workers ?? 0"));
+});
+
+
 test("CI page lists configured jobs without implying that they passed", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
   const styles = await read("redesign/workspace-pages.css");
