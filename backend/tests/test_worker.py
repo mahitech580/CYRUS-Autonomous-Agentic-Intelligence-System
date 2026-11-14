@@ -72,7 +72,7 @@ def test_config_disables_launch_when_external_worker_is_missing(client, monkeypa
     monkeypatch.setattr(main, "database_is_durable", lambda: True)
     main.remove_worker_heartbeat("worker-config-test")
 
-    response = client.get("/api/config")
+    response = client.get("/api/config", headers={"Authorization": "Bearer test-access-key"})
 
     assert response.status_code == 200
     assert response.json()["worker_required"] is True
@@ -646,7 +646,10 @@ def test_queue_snapshot_reports_orphaned_leases_without_private_run_data(client)
         assert orphan_worker not in str(snapshot)
         assert "private" not in str(snapshot)
         assert client.get("/api/config").json()["orphaned_workflows"] == snapshot["orphaned_workflows"]
-        assert client.get("/api/health").json()["orphaned_workflows"] == snapshot["orphaned_workflows"]
+        public_health = client.get("/api/health").json()
+        assert "orphaned_workflows" not in public_health
+        assert "queued_workflows" not in public_health
+        assert "running_workflows" not in public_health
     finally:
         with main.SessionLocal() as db:
             for run_id in (orphan_id, live_id):
