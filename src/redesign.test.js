@@ -427,6 +427,19 @@ test("settings does not infer zero worker capacity or disabled research from pro
 });
 
 
+test("queue page can refresh protected runtime telemetry and explains unavailable snapshots", async () => {
+  const app = await read("../src/App.jsx");
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  assert.ok(app.includes("async function refreshWorkspaceRuntime()"));
+  assert.ok(app.includes("onRefreshRuntime={refreshWorkspaceRuntime}"));
+  assert.ok(pages.includes('function QueuePanel({config,apiState,onRefreshRuntime})'));
+  assert.ok(pages.includes("onClick={refresh}"));
+  assert.ok(pages.includes('restricted?"Enter a valid workspace access key'));
+  assert.ok(pages.includes("Queue and worker counts are from the latest runtime snapshot."));
+  assert.ok(pages.includes('role="alert"'));
+});
+
+
 test("CI page lists configured jobs without implying that they passed", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
   const styles = await read("redesign/workspace-pages.css");

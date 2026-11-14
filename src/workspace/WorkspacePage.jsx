@@ -2,7 +2,7 @@ import React from "react";
 import {
  Activity, ArrowRight, ArrowUpRight, Bot, Braces, CheckCircle2, CircleDot,
  Clock3, Code2, Database, FileCode2, GitBranch, Globe2, LockKeyhole,
- Network, Radio, Rocket, ShieldCheck, Sparkles, Terminal, Workflow
+ Network, Radio, RefreshCw, Rocket, ShieldCheck, Sparkles, Terminal, Workflow
 } from "lucide-react";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
@@ -56,13 +56,29 @@ function RuntimePanel({config,apiState}){
  ];
  return <div className="workspace-runtime-list"><div className="workspace-runtime-banner"><span className={ready?"runtime-signal runtime-signal-ready":"runtime-signal"}/><div><strong>{ready?"Ready to start live workflows":apiState==="connected"?"Runtime setup required":apiState==="checking"?"Checking runtime dependencies":"API connection not confirmed"}</strong><small>{ready?"The API currently reports every launch gate as ready.":snapshotAvailable?"Resolve each server-side prerequisite before submitting a real task.":"Runtime checks are unknown until a fresh API snapshot is available."}</small></div></div>{checks.map(([label,state])=><div className="workspace-runtime-check" key={label}><span className={state==="Ready"?"check-indicator check-ok":"check-indicator"}>{state==="Ready"?<CheckCircle2 size={15}/>:<CircleDot size={15}/>}</span><strong>{label}</strong><span>{state}</span></div>)}</div>;
 }
-function QueuePanel({config,apiState}){
- const snapshotAvailable=apiState==="connected"&&!!config;
+function QueuePanel({config,apiState,onRefreshRuntime}){
+ const [refreshing,setRefreshing]=React.useState(false);
+ const [refreshError,setRefreshError]=React.useState("");
+ const restricted=!!(config?.runtime_access_denied||config?.runtime_configuration_missing);
+ const snapshotAvailable=apiState==="connected"&&!!config&&!restricted;
  const available=snapshotAvailable&&config.queued_workflows!=null&&config.running_workflows!=null;
  const workerReady=snapshotAvailable&&!!config.worker_ready;
- const workerStatus=!snapshotAvailable?"Worker status unknown":workerReady?"Worker heartbeat is fresh":config.worker_required?"No fresh worker heartbeat":"External worker not required";
+ const workerStatus=restricted?"Workspace access required":!snapshotAvailable?"Worker status unknown":workerReady?"Worker heartbeat is fresh":config.worker_required?"No fresh worker heartbeat":"External worker not required";
  const values=[["Queued",available?config.queued_workflows:"—"],["Running",available?config.running_workflows:"—"],["Orphaned",available?(config.orphaned_workflows??"—"):"—"],["Workers available",snapshotAvailable?(config.available_workers??"—"):"—"]];
- return <div className="workspace-queue-panel"><div className="workspace-queue-grid">{values.map(([label,value])=><div className="workspace-queue-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="workspace-runtime-banner"><span className={workerReady?"runtime-signal runtime-signal-ready":"runtime-signal"}/><div><strong>{workerStatus}</strong><small>{available?"Queue snapshot returned by the runtime API.":"Queue and worker state remain unknown until the API returns a fresh database snapshot."}</small></div></div><a className="button-outline" href={getWorkspaceHref("runs-active")}>Inspect active run records <ArrowRight size={13}/></a></div>;
+ async function refresh(){
+  if(refreshing||typeof onRefreshRuntime!=="function")return;
+  setRefreshing(true);
+  setRefreshError("");
+  try{await onRefreshRuntime();}
+  catch(error){setRefreshError(error?.message||"Could not refresh queue telemetry.");}
+  finally{setRefreshing(false);}
+ }
+ const detail=restricted
+  ?"Enter a valid workspace access key to inspect queue and worker capacity."
+  :available
+   ?"Queue and worker counts are from the latest runtime snapshot."
+   :"Queue and worker state remain unknown until the API returns a fresh database snapshot.";
+ return <div className="workspace-queue-panel"><div className="workspace-queue-toolbar"><span className="eyebrow">LIVE RUNTIME SNAPSHOT</span><button className="button-outline" type="button" onClick={refresh} disabled={refreshing||typeof onRefreshRuntime!=="function"}><RefreshCw size={13} className={refreshing?"spin-icon":""}/>{refreshing?"Refreshing":"Refresh snapshot"}</button></div><div className="workspace-queue-grid">{values.map(([label,value])=><div className="workspace-queue-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="workspace-runtime-banner"><span className={workerReady?"runtime-signal runtime-signal-ready":"runtime-signal"}/><div><strong>{workerStatus}</strong><small>{detail}</small></div></div>{refreshError?<p className="inline-help" role="alert">{refreshError}</p>:null}<a className="button-outline" href={getWorkspaceHref("runs-active")}>Inspect active run records <ArrowRight size={13}/></a></div>;
 }
 function IntegrationPanel({route,config,apiState}){
  const snapshotAvailable=apiState==="connected"&&!!config;
@@ -110,13 +126,13 @@ function AppearancePanel(){
  const values=[["Midnight","#070b18"],["Panel","#0d1528"],["Electric cyan","#67e8f9"],["Periwinkle","#7da5ff"],["Violet","#b69cff"],["Mint","#62f2d2"]];
  return <div className="workspace-appearance-panel"><div className="workspace-swatch-grid">{values.map(([name,color])=><div className="workspace-swatch" key={name}><span style={{background:color}}/><div><strong>{name}</strong><code>{color}</code></div></div>)}</div><div className="notice-strip"><Sparkles size={16}/><span>The current theme is consistent across the workspace. A saved theme editor is not implemented; this page documents the active tokens only.</span></div></div>;
 }
-function PageBody({route,runs,config,apiState,agents,openRun,onSelectTemplate}){
+function PageBody({route,runs,config,apiState,agents,openRun,onSelectTemplate,onRefreshRuntime}){
  if(route.kind==="launchpad"||route.kind==="prompt-library")return <TemplateGrid onSelectTemplate={onSelectTemplate}/>;
  if(route.kind==="agent")return <AgentPanel route={route} agents={agents}/>;
  if(route.kind==="run-list"||route.kind==="activity"||route.kind==="observability")return <RunList route={route.kind==="run-list"?route:{filter:route.kind==="activity"||route.kind==="observability"?"all":"history"}} runs={runs} openRun={openRun}/>;
  if(route.kind==="review-history")return <RunList route={{filter:"history"}} runs={runs.filter((run)=>["approved","rejected"].includes(run.approval_status)||["approved","rejected"].includes(run.status))} openRun={openRun}/>;
  if(route.kind==="integration")return <IntegrationPanel route={route} config={config} apiState={apiState}/>;
- if(route.kind==="queue")return <QueuePanel config={config} apiState={apiState}/>;
+ if(route.kind==="queue")return <QueuePanel config={config} apiState={apiState} onRefreshRuntime={onRefreshRuntime}/>;
  if(route.kind==="usage")return <UsagePanel runs={runs} openRun={openRun}/>;
  if(route.kind==="audit")return <AuditPanel runs={runs} openRun={openRun}/>;
  if(["governance","policies"].includes(route.kind))return <PolicyPanel/>;
@@ -135,7 +151,7 @@ function PageBody({route,runs,config,apiState,agents,openRun,onSelectTemplate}){
 function PageSection({section}){
  return <section className="workspace-page-section"><div className="workspace-page-section-heading"><div><div className="eyebrow">WORKSPACE GUIDE</div><h2>{section.title}</h2><p>{section.description}</p></div></div><div className="workspace-destination-grid">{section.cards.map((item)=><DestinationCard key={item.title} item={item}/>)}</div></section>;
 }
-export default function WorkspacePage({route,runs=[],runsTotal=0,runStats,workspaceConfig,apiState,agents=[],openRun,onSelectTemplate}){
+export default function WorkspacePage({route,runs=[],runsTotal=0,runStats,workspaceConfig,apiState,agents=[],openRun,onSelectTemplate,onRefreshRuntime}){
  const content=WORKSPACE_PAGE_CONTENT[route.id];
  const Icon=iconFor(route.icon);
  const agent=agents.find((item)=>item.id===route.agentId);
@@ -159,7 +175,7 @@ export default function WorkspacePage({route,runs=[],runsTotal=0,runStats,worksp
  return <div className="view-stack subpage workspace-page">
   <section className="workspace-page-hero"><img src={image} alt="" loading="eager" fetchPriority="high" decoding="async"/><div className="workspace-page-hero-shade"/><div className="workspace-page-hero-copy"><div className="eyebrow"><span className="eyebrow-square"/> {eyebrow}</div><span className="workspace-page-icon"><Icon size={23}/></span><h1>{title}</h1><p>{desc}</p><div className="workspace-page-breadcrumb"><a href={getWorkspaceHref("overview")}>Workspace</a><span>/</span><span>{route.group}</span><span>/</span><strong>{route.label}</strong></div></div><div className="workspace-page-hero-actions"><a className="button-primary" href={getWorkspaceHref("runs",{focusTask:true})}><Sparkles size={14}/> New task</a><a className="button-outline" href={getWorkspaceHref("overview")}>Overview <ArrowUpRight size={13}/></a></div></section>
   <div className="workspace-page-metrics">{stats.map((metric)=><Metric key={metric.label} {...metric}/>)}</div>
-  <div className="workspace-page-layout"><main className="workspace-page-main"><section className="panel-card workspace-page-primary"><div className="workspace-page-primary-heading"><div><div className="eyebrow">{route.group.toUpperCase()} / {route.kind.toUpperCase()}</div><h2>{route.kind==="agent"?"Role scope and hand-off":"Workspace view"}</h2><p>{route.kind==="agent"?"Inspect the specialist's mission and artifact contribution.":"This destination combines current workspace evidence with direct paths to the next useful action."}</p></div><Icon size={19}/></div><PageBody route={route} runs={runs} config={workspaceConfig} apiState={apiState} agents={agents} openRun={openRun} onSelectTemplate={onSelectTemplate}/></section>{content?.sections?.map((section)=><PageSection key={section.title} section={section}/>)}</main>
+  <div className="workspace-page-layout"><main className="workspace-page-main"><section className="panel-card workspace-page-primary"><div className="workspace-page-primary-heading"><div><div className="eyebrow">{route.group.toUpperCase()} / {route.kind.toUpperCase()}</div><h2>{route.kind==="agent"?"Role scope and hand-off":"Workspace view"}</h2><p>{route.kind==="agent"?"Inspect the specialist's mission and artifact contribution.":"This destination combines current workspace evidence with direct paths to the next useful action."}</p></div><Icon size={19}/></div><PageBody route={route} runs={runs} config={workspaceConfig} apiState={apiState} agents={agents} openRun={openRun} onSelectTemplate={onSelectTemplate} onRefreshRuntime={onRefreshRuntime}/></section>{content?.sections?.map((section)=><PageSection key={section.title} section={section}/>)}</main>
    <aside className="workspace-page-rail"><section className="panel-card workspace-page-rail-card"><div className="eyebrow">NEXT DESTINATIONS</div><h2>Keep moving</h2><p>Open a related page without returning to the dashboard.</p>{related.map((item)=><DestinationCard key={item.title} item={item}/>)}</section><section className="panel-card workspace-page-rail-card"><div className="eyebrow">RUNTIME READINESS</div><h2>{workspaceConfig?.can_start_runs?"Ready to launch":apiState==="connected"?"Setup required":"Connection unknown"}</h2><p>{workspaceConfig?.can_start_runs?"The API currently reports that workflow launch is enabled.":"Check provider, database, access and worker requirements before starting live work."}</p><a className="button-outline full-button" href={getWorkspaceHref("settings-runtime")}>Inspect runtime <ArrowRight size={13}/></a></section></aside>
   </div>
  </div>;
