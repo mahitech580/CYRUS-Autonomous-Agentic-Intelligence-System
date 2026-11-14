@@ -437,6 +437,11 @@ test("queue page can refresh protected runtime telemetry and explains unavailabl
   assert.ok(pages.includes('restricted?"Enter a valid workspace access key'));
   assert.ok(pages.includes("Queue and worker counts are from the latest runtime snapshot."));
   assert.ok(pages.includes('role="alert"'));
+  const settingsStart = app.indexOf("function SettingsView");
+  const settingsEnd = app.indexOf("function formatEventTime", settingsStart);
+  assert.ok(!app.slice(settingsStart, settingsEnd).includes('setApiState("unavailable")'));
+  const styles = await read("redesign/workspace-pages.css");
+  assert.ok(styles.includes(".workspace-queue-toolbar"));
 });
 
 

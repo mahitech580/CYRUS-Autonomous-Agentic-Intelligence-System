@@ -1111,7 +1111,6 @@ function SettingsView({ apiState, workspaceConfig, onRefreshRuntime, settingsOpe
           ? "The API is reachable, but CYRUS_ACCESS_KEY must be configured on the server."
           : "API connection and runtime configuration refreshed.");
     } catch (error) {
-      setApiState("unavailable");
       notify(error.message || "Could not refresh runtime status.");
     } finally {
       setRefreshingRuntime(false);
