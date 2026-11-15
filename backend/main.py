@@ -1141,10 +1141,16 @@ def get_run_events(
     run = db.get(WorkflowRun, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Workflow run not found.")
-    available = list(run.events or [])
+    raw_events = run.events if isinstance(run.events, list) else []
+    # Only identified event objects can participate in cursor pagination. A
+    # malformed legacy JSON entry must not turn a status poll into an API 500.
+    available = [
+        event for event in raw_events
+        if isinstance(event, dict) and isinstance(event.get("id"), str) and event["id"]
+    ]
     cursor_expired = False
     if after:
-        indices = [i for i, event in enumerate(available) if event.get("id") == after]
+        indices = [i for i, event in enumerate(available) if event["id"] == after]
         if indices:
             available = available[indices[-1] + 1:]
         else:
@@ -1161,7 +1167,7 @@ def get_run_events(
     return {
         "items": page,
         # total describes the retained event window, not just this page.
-        "total": len(run.events or []),
+        "total": len(available),
         "next_after": next_after,
         "has_more": has_more,
         "cursor_expired": cursor_expired,

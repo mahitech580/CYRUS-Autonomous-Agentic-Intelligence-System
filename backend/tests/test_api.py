@@ -1304,3 +1304,38 @@ def test_create_idempotency_namespace_cannot_replay_a_retry_record(client, monke
         retry_record = db.get(main.WorkflowRun, retry_record_id)
         assert created.idempotency_key == main.create_idempotency_storage_key(retry_storage_key)
         assert retry_record.idempotency_key == retry_storage_key
+
+
+
+def test_event_endpoint_skips_malformed_legacy_entries_without_breaking_cursors(client):
+    run_id = "RUN-EVENT-MALFORMED-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=run_id,
+            goal="Keep event pagination available when legacy JSON contains malformed entries",
+            status="running",
+            progress=20,
+            stages=[],
+            events=[
+                None,
+                "legacy string event",
+                {"id": "event-valid-1", "message": "first valid event"},
+                {"id": "", "message": "missing event identity"},
+                {"id": "event-valid-2", "message": "second valid event"},
+            ],
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+
+    page = client.get(f"/api/runs/{run_id}/events?after=event-valid-1&limit=2")
+    assert page.status_code == 200
+    assert page.json()["total"] == 2
+    assert [item["id"] for item in page.json()["items"]] == ["event-valid-2"]
+    assert page.json()["cursor_expired"] is False
+
+    reset = client.get(f"/api/runs/{run_id}/events?after=expired-event&limit=2")
+    assert reset.status_code == 200
+    assert reset.json()["total"] == 2
+    assert [item["id"] for item in reset.json()["items"]] == ["event-valid-1", "event-valid-2"]
+    assert reset.json()["cursor_expired"] is True
