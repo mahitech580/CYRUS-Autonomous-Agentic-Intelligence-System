@@ -552,7 +552,7 @@ test("queue refresh announces successful snapshots to assistive technology", asy
   const styles = await read("redesign/workspace-pages.css");
   assert.ok(pages.includes('role="status" aria-live="polite"'));
   assert.ok(pages.includes('setRefreshMessage("Queue snapshot refreshed.")'));
-  assert.ok(pages.includes("setRefreshMessage("")"));
+  assert.ok(pages.includes('setRefreshMessage("")'));
   assert.ok(styles.includes(".workspace-sr-only"));
   assert.ok(styles.includes("clip:rect(0,0,0,0)"));
 });
