@@ -35,7 +35,7 @@ test("task library contains six distinct engineering briefs", () => {
 
 
 test("task brief filtering matches every search term and respects category filters", () => {
-  assert.deepEqual(filterTaskTemplates(TASK_TEMPLATES, "security review").map((item) => item.id), ["security"]);
+  assert.deepEqual(filterTaskTemplates(TASK_TEMPLATES, "security boundaries").map((item) => item.id), ["security"]);
   assert.deepEqual(filterTaskTemplates(TASK_TEMPLATES, "rollback").map((item) => item.id).sort(), ["data", "incident"]);
   assert.deepEqual(filterTaskTemplates(TASK_TEMPLATES, "", "Reliability").map((item) => item.id), ["incident"]);
   assert.deepEqual(filterTaskTemplates(TASK_TEMPLATES, "no matching brief"), []);
