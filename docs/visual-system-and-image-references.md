@@ -96,3 +96,17 @@ The page mastheads reuse the documented Unsplash image sources above. Their deco
 The 36 registered hash destinations are searchable from the top bar or with **Ctrl+K / Cmd+K**. Search matches all query terms across page labels, route paths, navigation groups, route IDs and view names, with case, accent and punctuation normalization. The global shortcut does not intercept typing in inputs, textareas, selects or editable regions, and ignores extra modifiers and key-repeat events. Arrow keys move the active result, Enter opens it, and Escape or the visible close control dismisses the dialog. Selecting a result uses the existing hash route, so direct links and browser history keep their current behavior; the switcher does not start a workflow or call the API.
 
 The switcher uses the native modal `<dialog>` opened with `showModal()` so the browser manages the modal layer, background inertness, initial focus and return focus. The input is labelled as a combobox and controls a listbox of real registered destinations. The implementation follows the [MDN dialog element guidance](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog) and the [WAI-ARIA APG Dialog (Modal) Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/). It includes an explicit close button, visible keyboard hints, an empty-result state, narrow-screen layout and reduced-motion handling.
+
+
+## Route-specific page experiences
+
+Updated: 15 November 2026
+
+The secondary workspace routes now separate discovery, operational evidence, governance summaries and access configuration rather than reusing the same primary panel for related URLs:
+
+- **Launchpad vs. Prompt library:** Launchpad keeps the compact starter collection. Prompt library adds multi-term search across title, category, detail and brief text, plus category filters. Choosing a brief only prefills the existing composer; it does not create a run.
+- **Observability vs. Activity stream:** Observability summarizes API-provided workflow aggregates and the status distribution of the records currently loaded in the browser. The distribution is explicitly scoped to that loaded page. Queue values remain unknown unless the protected runtime snapshot returns them. Activity stream remains a record-oriented view.
+- **Governance vs. Safety policies:** Governance summarizes review decisions from loaded records and explains current execution, approval, repository-write and deployment boundaries. Safety policies remains the detailed policy list. Counts are not represented as full-database totals.
+- **Runtime health vs. Workspace access:** Runtime health retains the dependency checklist. Workspace access presents only the server-reported access-control state and links to Settings. It never reads or displays a credential and explicitly states that the current API does not expose per-user RBAC.
+
+These pages use existing route IDs, API payloads and design tokens. No new backend capability, integration status, worker metric, audit source or deployment action is implied.

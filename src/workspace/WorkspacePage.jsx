@@ -2,10 +2,10 @@ import React from "react";
 import {
  Activity, ArrowRight, ArrowUpRight, Bot, Braces, CheckCircle2, CircleDot,
  Clock3, Code2, Database, FileCode2, GitBranch, Globe2, LockKeyhole,
- Network, Radio, RefreshCw, Rocket, ShieldCheck, Sparkles, Terminal, Workflow
+ Network, Radio, RefreshCw, Rocket, Search, ShieldCheck, Sparkles, Terminal, Workflow
 } from "lucide-react";
 import { getWorkspaceHref } from "../lib/routes.js";
-import { TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
+import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
 import { summarizeRunUsage } from "../lib/runs.js";
 
 const iconMap={Activity,Bot,Braces,CheckCircle2,CircleDot,Clock3,Code2,Database,FileCode2,GitBranch,Globe2,LockKeyhole,Network,Radio,Rocket,ShieldCheck,Sparkles,Terminal,Workflow};
@@ -128,17 +128,149 @@ function AppearancePanel(){
  const values=[["Midnight","#070b18"],["Panel","#0d1528"],["Electric cyan","#67e8f9"],["Periwinkle","#7da5ff"],["Violet","#b69cff"],["Mint","#62f2d2"]];
  return <div className="workspace-appearance-panel"><div className="workspace-swatch-grid">{values.map(([name,color])=><div className="workspace-swatch" key={name}><span style={{background:color}}/><div><strong>{name}</strong><code>{color}</code></div></div>)}</div><div className="notice-strip"><Sparkles size={16}/><span>The current theme is consistent across the workspace. A saved theme editor is not implemented; this page documents the active tokens only.</span></div></div>;
 }
-function PageBody({route,runs,config,apiState,agents,openRun,onSelectTemplate,onRefreshRuntime}){
- if(route.kind==="launchpad"||route.kind==="prompt-library")return <TemplateGrid onSelectTemplate={onSelectTemplate}/>;
+
+function PromptLibraryPanel({onSelectTemplate}){
+ const [query,setQuery]=React.useState("");
+ const [category,setCategory]=React.useState("All");
+ const categories=["All",...Array.from(new Set(TASK_TEMPLATES.map((item)=>item.category)))];
+ const filtered=filterTaskTemplates(TASK_TEMPLATES,query,category);
+ const templateIcons=[Code2,Activity,Braces,ShieldCheck,Database,Rocket];
+ return <section className="workspace-prompt-library">
+  <div className="workspace-prompt-toolbar">
+   <label className="workspace-prompt-search"><Search size={16} aria-hidden="true"/><input type="search" value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="Search title, category, capability or goal" aria-label="Search engineering briefs"/></label>
+   <span className="workspace-prompt-count" aria-live="polite">{filtered.length} of {TASK_TEMPLATES.length} briefs</span>
+  </div>
+  <div className="workspace-prompt-categories" role="group" aria-label="Filter briefs by category">
+   {categories.map((item)=><button key={item} type="button" className={"workspace-prompt-category"+(category===item?" is-active":"")} aria-pressed={category===item} onClick={()=>setCategory(item)}>{item}</button>)}
+  </div>
+  {filtered.length?<div className="workspace-prompt-grid">{filtered.map((item)=>{const index=TASK_TEMPLATES.indexOf(item);const Icon=templateIcons[index]||Sparkles;return <article className="workspace-template-card workspace-prompt-card" key={item.id}><span className="workspace-template-icon"><Icon size={19}/></span><span className="workspace-template-category">{item.category}</span><h3>{item.title}</h3><p>{item.detail}</p><button type="button" className="button-outline full-button" onClick={()=>onSelectTemplate(item)}>Use this brief <ArrowRight size={13}/></button></article>;})}</div>:<div className="workspace-empty workspace-prompt-empty"><FileCode2 size={24}/><strong>No briefs match these filters</strong><span>Try another term or clear the current category and search.</span><button type="button" className="button-outline" onClick={()=>{setQuery("");setCategory("All");}}>Clear filters</button></div>}
+  <p className="workspace-prompt-note">Selecting a brief only prefills the task composer. Review and edit it before creating a workflow; nothing starts automatically.</p>
+ </section>;
+}
+
+function ObservabilityPanel({runs,config,apiState}){
+ const statusMeta=[["queued","Queued"],["running","Running"],["review","Needs review"],["completed","Completed"],["approved","Approved"],["rejected","Rejected"],["failed","Failed"],["cancelled","Cancelled"]];
+ const distribution=statusMeta.map(([status,label])=>({status,label,count:runs.filter((run)=>run.status===status).length})).filter((item)=>item.count>0);
+ const knownCount=distribution.reduce((sum,item)=>sum+item.count,0);
+ const unknownCount=Math.max(0,runs.length-knownCount);
+ if(unknownCount)distribution.push({status:"unknown",label:"Other / unknown",count:unknownCount});
+ const restricted=!!(config?.runtime_access_denied||config?.runtime_configuration_missing);
+ const queueAvailable=apiState==="connected"&&!!config&&!restricted&&config.queued_workflows!=null&&config.running_workflows!=null;
+ const runtimeTitle=apiState!=="connected"?"API connection unavailable":config?.runtime_configuration_missing?"Server access control not configured":config?.runtime_access_denied?"Workspace access required":queueAvailable?"Queue snapshot available":"Queue telemetry unavailable";
+ const runtimeDetail=queueAvailable
+  ?"The queue and running counts below come from the latest protected runtime snapshot."
+  :config?.runtime_configuration_missing
+   ?"Configure server-side workspace access before inspecting protected queue telemetry."
+   :config?.runtime_access_denied
+    ?"A valid workspace access key is required to inspect protected queue telemetry."
+    :"Queue counts remain unknown until the API returns an accessible runtime snapshot.";
+ return <div className="workspace-observability-panel">
+  <div className="workspace-observability-grid">
+   <section className="workspace-observability-card">
+    <div className="workspace-observability-heading"><div><div className="eyebrow">LOADED API RECORDS</div><h3>Workflow status distribution</h3></div><span>{runs.length} records</span></div>
+    {runs.length?<div className="workspace-observability-bar" role="img" aria-label={"Status distribution across "+runs.length+" loaded workflow records"}>{distribution.map((item)=><span key={item.status} className={"workspace-observability-segment status-"+item.status} style={{width:((item.count/runs.length)*100)+"%"}} title={item.label+": "+item.count}/>)}</div>:<div className="workspace-empty workspace-observability-empty"><Activity size={22}/><strong>No workflow records loaded</strong><span>The distribution will appear after the API returns saved workflow summaries.</span><a className="button-outline" href={getWorkspaceHref("runs")}>Open run history <ArrowRight size={13}/></a></div>}
+    {distribution.length?<ul className="workspace-observability-legend">{distribution.map((item)=><li key={item.status}><span className={"workspace-observability-dot status-"+item.status}/><span>{item.label}</span><strong>{item.count}</strong></li>)}</ul>:null}
+    <p className="workspace-observability-footnote">This breakdown covers only the records currently loaded in the browser. The headline totals above are separate API aggregates.</p>
+   </section>
+   <section className="workspace-observability-card">
+    <div className="eyebrow">PROTECTED RUNTIME TELEMETRY</div><h3>{runtimeTitle}</h3><p>{runtimeDetail}</p>
+    <div className="workspace-observability-runtime-row"><span>Queued workflows</span><strong>{queueAvailable?config.queued_workflows:"Unknown"}</strong></div>
+    <div className="workspace-observability-runtime-row"><span>Running workflows</span><strong>{queueAvailable?config.running_workflows:"Unknown"}</strong></div>
+    <a className="button-outline full-button" href={getWorkspaceHref("observability-queue")}>Open queue monitor <ArrowRight size={13}/></a>
+   </section>
+  </div>
+  <div className="workspace-destination-grid">
+   <DestinationCard item={{title:"Activity stream",description:"Inspect recent saved workflow records.",href:"observability-activity",icon:"Radio"}}/>
+   <DestinationCard item={{title:"Usage & tokens",description:"Review token usage only when stage details provide it.",href:"observability-usage",icon:"Braces"}}/>
+   <DestinationCard item={{title:"Run history",description:"Search, filter, paginate and export saved runs.",href:"runs",icon:"Workflow"}}/>
+  </div>
+ </div>;
+}
+
+function GovernancePanel({runs,runStats,apiState,config}){
+ const evidenceAvailable=apiState==="connected"&&!!runStats;
+ const pending=runs.filter((run)=>run.status==="review").length;
+ const approved=runs.filter((run)=>run.approval_status==="approved"||run.status==="approved").length;
+ const rejected=runs.filter((run)=>run.approval_status==="rejected"||run.status==="rejected").length;
+ const accessState=workspaceAccessLabel(config,apiState);
+ const controls=[
+  ["Generated code","Reviewable artifacts","The API stores generated patches for inspection; it does not execute them."],
+  ["Human approval","Recorded decision","Approval or rejection updates a workflow record and does not authorize deployment."],
+  ["Repository writes","Not connected","Agent runs do not create GitHub commits, branches or pull requests."],
+  ["Release deployment","Separate operator action","The current workflow API does not expose a deployment action."]
+ ];
+ return <div className="workspace-governance-panel">
+  <div className="workspace-governance-metrics">
+   <article><span>Pending review</span><strong>{evidenceAvailable?pending:"—"}</strong><small>Loaded workflow records</small></article>
+   <article><span>Approved</span><strong>{evidenceAvailable?approved:"—"}</strong><small>Loaded workflow records</small></article>
+   <article><span>Rejected</span><strong>{evidenceAvailable?rejected:"—"}</strong><small>Loaded workflow records</small></article>
+   <article><span>Workspace access</span><strong>{accessState}</strong><small>Current runtime snapshot</small></article>
+  </div>
+  <section className="workspace-governance-controls">
+   <div className="workspace-page-section-heading"><div><div className="eyebrow">AUTHORITY BOUNDARIES</div><h3>What the workspace can and cannot do</h3><p>These boundaries describe the current API surface, not a claim of enterprise RBAC or an external audit service.</p></div></div>
+   {controls.map(([title,state,detail],index)=><article className="workspace-governance-control" key={title}><span>{String(index+1).padStart(2,"0")}</span><div><strong>{title}</strong><p>{detail}</p></div><small>{state}</small></article>)}
+  </section>
+  <div className="workspace-destination-grid">
+   <DestinationCard item={{title:"Safety policies",description:"Read the detailed execution, repository and release constraints.",href:"governance-policies",icon:"LockKeyhole"}}/>
+   <DestinationCard item={{title:"Workflow audit log",description:"Inspect retained events and recorded decisions for saved runs.",href:"governance-audit",icon:"FileCode2"}}/>
+   <DestinationCard item={{title:"Review queue",description:"Open artifacts and record an explicit human decision.",href:"review",icon:"ShieldCheck"}}/>
+   <DestinationCard item={{title:"Workspace access",description:"Inspect server-side access configuration without exposing a key.",href:"settings-access",icon:"LockKeyhole"}}/>
+  </div>
+ </div>;
+}
+
+function workspaceAccessLabel(config,apiState){
+ if(apiState!=="connected"||!config)return "Unknown";
+ if(config.runtime_configuration_missing)return "Not configured";
+ if(config.runtime_access_denied)return "Access denied";
+ if(config.auth_required)return config.access_control_configured?"Protected":"Configuration unknown";
+ return "Not required";
+}
+
+function AccessPanel({config,apiState}){
+ const snapshotAvailable=apiState==="connected"&&!!config;
+ const status=workspaceAccessLabel(config,apiState);
+ const gate=snapshotAvailable
+  ?config.runtime_configuration_missing?"Not configured":config.auth_required?(config.access_control_configured?"Configured":"Not confirmed"):"Not required"
+  :"Unknown";
+ const request=snapshotAvailable
+  ?config.runtime_access_denied?"Access denied":config.auth_required?"Authorized runtime snapshot":"No key required"
+  :"Unknown";
+ const detail=!snapshotAvailable
+  ?"Access state is unknown until the API returns a runtime configuration response."
+  :config.runtime_configuration_missing
+   ?"The API reports that server-side workspace access control is not configured. Do not treat a browser-only key prompt as a security boundary."
+   :config.runtime_access_denied
+    ?"The current request was not authorized. Enter the workspace key in Settings if you have been issued one; the value is never displayed here."
+    :config.auth_required
+     ?"The API reports a protected workspace. This is a shared workspace access key, not per-user role-based access control."
+     :"The API reports that a workspace key is not required for this deployment.";
+ return <div className="workspace-access-panel">
+  <div className="workspace-access-banner"><span className="workspace-access-icon"><LockKeyhole size={20}/></span><div><div className="eyebrow">SERVER-REPORTED ACCESS STATE</div><h3>{status}</h3><p>{detail}</p></div></div>
+  <div className="workspace-access-rows">
+   {[["Server-side access gate",gate],["Current runtime request",request],["Credential value","Never returned to the browser"],["Permission model","No per-user RBAC endpoint is exposed"]].map(([label,value])=><div className="workspace-access-row" key={label}><span>{label}</span><strong>{value}</strong></div>)}
+  </div>
+  <div className="notice-strip"><LockKeyhole size={16}/><span>Never paste credentials into a task prompt or share them in screenshots. This page intentionally does not read or display the stored key.</span></div>
+  <div className="workspace-access-actions"><a className="button-primary" href={getWorkspaceHref("settings")}>Open access settings <ArrowRight size={13}/></a><a className="button-outline" href={getWorkspaceHref("settings-runtime")}>Review runtime health <ArrowRight size={13}/></a></div>
+ </div>;
+}
+
+function PageBody({route,runs,runStats,config,apiState,agents,openRun,onSelectTemplate,onRefreshRuntime}){
+ if(route.kind==="launchpad")return <TemplateGrid onSelectTemplate={onSelectTemplate}/>;
+ if(route.kind==="prompt-library")return <PromptLibraryPanel onSelectTemplate={onSelectTemplate}/>;
  if(route.kind==="agent")return <AgentPanel route={route} agents={agents}/>;
- if(route.kind==="run-list"||route.kind==="activity"||route.kind==="observability")return <RunList route={route.kind==="run-list"?route:{filter:route.kind==="activity"||route.kind==="observability"?"all":"history"}} runs={runs} openRun={openRun}/>;
+ if(route.kind==="run-list")return <RunList route={route} runs={runs} openRun={openRun}/>;
+ if(route.kind==="activity")return <RunList route={{filter:"all"}} runs={runs} openRun={openRun}/>;
+ if(route.kind==="observability")return <ObservabilityPanel runs={runs} config={config} apiState={apiState}/>;
  if(route.kind==="review-history")return <RunList route={{filter:"history"}} runs={runs.filter((run)=>["approved","rejected"].includes(run.approval_status)||["approved","rejected"].includes(run.status))} openRun={openRun}/>;
  if(route.kind==="integration")return <IntegrationPanel route={route} config={config} apiState={apiState}/>;
  if(route.kind==="queue")return <QueuePanel config={config} apiState={apiState} onRefreshRuntime={onRefreshRuntime}/>;
  if(route.kind==="usage")return <UsagePanel runs={runs} openRun={openRun}/>;
  if(route.kind==="audit")return <AuditPanel runs={runs} openRun={openRun}/>;
- if(["governance","policies"].includes(route.kind))return <PolicyPanel/>;
- if(["runtime","access"].includes(route.kind))return <RuntimePanel config={config} apiState={apiState}/>;
+ if(route.kind==="governance")return <GovernancePanel runs={runs} runStats={runStats} apiState={apiState} config={config}/>;
+ if(route.kind==="policies")return <PolicyPanel/>;
+ if(route.kind==="runtime")return <RuntimePanel config={config} apiState={apiState}/>;
+ if(route.kind==="access")return <AccessPanel config={config} apiState={apiState}/>;
  if(route.kind==="appearance")return <AppearancePanel/>;
  if(route.kind==="deployment")return <div className="workspace-deployment-note"><div className="workspace-runtime-banner"><span className="runtime-signal"/><div><strong>Verify this deployment with the provider</strong><small>A configured URL does not prove that the latest deployment is ready or live.</small></div></div><a className="button-outline" href={route.target==="api"?"https://vercel.com/mahendra8/cyrus-api":"https://vercel.com/mahendra8/cyrus-workspace"} target="_blank" rel="noreferrer">Open Vercel project <ArrowUpRight size={13}/></a><a className="button-outline" href={route.target==="api"?"https://cyrus-api-mahendra8.vercel.app/docs":"https://cyrus-workspace-mahendra8.vercel.app"} target="_blank" rel="noreferrer">Open configured URL <ArrowUpRight size={13}/></a></div>;
  if(route.kind==="ci")return <div className="workspace-ci-panel" aria-label="Configured CI checks">
@@ -162,7 +294,20 @@ export default function WorkspacePage({route,runs=[],runsTotal=0,runStats,worksp
  const total=Number.isFinite(Number(runStats?.total))?Number(runStats.total):runsTotal;
  const pending=runs.filter((run)=>run.status==="review").length;
  const failed=runs.filter((run)=>run.status==="failed").length;
- const stats=route.kind==="agent"
+ const approved=runs.filter((run)=>run.approval_status==="approved"||run.status==="approved").length;
+ const rejected=runs.filter((run)=>run.approval_status==="rejected"||run.status==="rejected").length;
+ const accessLabel=workspaceAccessLabel(workspaceConfig,apiState);
+ const averageProgress=runStats&&runStats.average_progress!=null&&Number.isFinite(Number(runStats.average_progress))?Number(runStats.average_progress).toFixed(1)+"%":"—";
+ const promptCategoryCount=new Set(TASK_TEMPLATES.map((item)=>item.category)).size;
+ const stats=route.kind==="observability"
+  ?[{label:"Total workflows",value:total,note:"API aggregate",icon:Workflow,tone:"blue"},{label:"Active / queued",value:active,note:"API aggregate",icon:Activity,tone:"cyan"},{label:"Completed",value:completed,note:"API aggregate",icon:CheckCircle2,tone:"mint"},{label:"Average progress",value:averageProgress,note:"API aggregate",icon:Radio,tone:"violet"}]
+  :route.kind==="prompt-library"
+   ?[{label:"Reusable briefs",value:TASK_TEMPLATES.length,note:"Curated engineering briefs",icon:FileCode2,tone:"blue"},{label:"Categories",value:promptCategoryCount,note:"Distinct brief categories",icon:Database,tone:"violet"},{label:"Search",value:"Multi-term",note:"Title, category and goal",icon:Search,tone:"cyan"},{label:"Execution",value:"Prefill only",note:"No automatic workflow start",icon:ShieldCheck,tone:"mint"}]
+   :route.kind==="governance"
+    ?[{label:"Pending review",value:runStats?pending:"—",note:"Loaded records only",icon:Clock3,tone:"violet"},{label:"Approved",value:runStats?approved:"—",note:"Loaded records only",icon:CheckCircle2,tone:"mint"},{label:"Rejected",value:runStats?rejected:"—",note:"Loaded records only",icon:CircleDot,tone:"pink"},{label:"Access boundary",value:accessLabel,note:"Current runtime snapshot",icon:LockKeyhole,tone:"blue"}]
+    :route.kind==="access"
+     ?[{label:"Workspace access",value:accessLabel,note:"Server-reported state",icon:LockKeyhole,tone:"blue"},{label:"Key required",value:workspaceConfig?(workspaceConfig.auth_required?"Yes":"No"):"Unknown",note:"Server configuration",icon:ShieldCheck,tone:"violet"},{label:"Server gate",value:workspaceConfig?(workspaceConfig.runtime_configuration_missing?"Missing":workspaceConfig.access_control_configured?"Configured":"Not confirmed"):"Unknown",note:"Never inferred from UI state",icon:Radio,tone:"cyan"},{label:"Credential display",value:"Hidden",note:"Never returned to the browser",icon:LockKeyhole,tone:"mint"}]
+     :route.kind==="agent"
   ?[{label:"Pipeline stage",value:agent?.stage||route.agentId,note:"Fixed stage assignment",icon:Network,tone:"violet"},{label:"Specialists",value:"07",note:"Registered role catalog",icon:Bot,tone:"blue"},{label:"Human gate",value:"On",note:"Review before release",icon:ShieldCheck,tone:"mint"}]
   :route.kind==="queue"
    ?[{label:"Queued",value:workspaceConfig?.queued_workflows??"—",note:"Persisted queue",icon:Clock3,tone:"blue"},{label:"Running",value:workspaceConfig?.running_workflows??"—",note:"Persisted running count",icon:Activity,tone:"cyan"},{label:"Orphaned",value:workspaceConfig?.orphaned_workflows??"—",note:"Awaiting recovery",icon:CircleDot,tone:"violet"}]
@@ -177,7 +322,7 @@ export default function WorkspacePage({route,runs=[],runsTotal=0,runStats,worksp
  return <div className="view-stack subpage workspace-page">
   <section className="workspace-page-hero"><img src={image} alt="" loading="eager" fetchPriority="high" decoding="async"/><div className="workspace-page-hero-shade"/><div className="workspace-page-hero-copy"><div className="eyebrow"><span className="eyebrow-square"/> {eyebrow}</div><span className="workspace-page-icon"><Icon size={23}/></span><h1>{title}</h1><p>{desc}</p><div className="workspace-page-breadcrumb"><a href={getWorkspaceHref("overview")}>Workspace</a><span>/</span><span>{route.group}</span><span>/</span><strong>{route.label}</strong></div></div><div className="workspace-page-hero-actions"><a className="button-primary" href={getWorkspaceHref("runs",{focusTask:true})}><Sparkles size={14}/> New task</a><a className="button-outline" href={getWorkspaceHref("overview")}>Overview <ArrowUpRight size={13}/></a></div></section>
   <div className="workspace-page-metrics">{stats.map((metric)=><Metric key={metric.label} {...metric}/>)}</div>
-  <div className="workspace-page-layout"><main className="workspace-page-main"><section className="panel-card workspace-page-primary"><div className="workspace-page-primary-heading"><div><div className="eyebrow">{route.group.toUpperCase()} / {route.kind.toUpperCase()}</div><h2>{route.kind==="agent"?"Role scope and hand-off":"Workspace view"}</h2><p>{route.kind==="agent"?"Inspect the specialist's mission and artifact contribution.":"This destination combines current workspace evidence with direct paths to the next useful action."}</p></div><Icon size={19}/></div><PageBody route={route} runs={runs} config={workspaceConfig} apiState={apiState} agents={agents} openRun={openRun} onSelectTemplate={onSelectTemplate} onRefreshRuntime={onRefreshRuntime}/></section>{content?.sections?.map((section)=><PageSection key={section.title} section={section}/>)}</main>
+  <div className="workspace-page-layout"><main className="workspace-page-main"><section className="panel-card workspace-page-primary"><div className="workspace-page-primary-heading"><div><div className="eyebrow">{route.group.toUpperCase()} / {route.kind.toUpperCase()}</div><h2>{route.kind==="agent"?"Role scope and hand-off":"Workspace view"}</h2><p>{route.kind==="agent"?"Inspect the specialist's mission and artifact contribution.":"This destination combines current workspace evidence with direct paths to the next useful action."}</p></div><Icon size={19}/></div><PageBody route={route} runs={runs} runStats={runStats} config={workspaceConfig} apiState={apiState} agents={agents} openRun={openRun} onSelectTemplate={onSelectTemplate} onRefreshRuntime={onRefreshRuntime}/></section>{content?.sections?.map((section)=><PageSection key={section.title} section={section}/>)}</main>
    <aside className="workspace-page-rail"><section className="panel-card workspace-page-rail-card"><div className="eyebrow">NEXT DESTINATIONS</div><h2>Keep moving</h2><p>Open a related page without returning to the dashboard.</p>{related.map((item)=><DestinationCard key={item.title} item={item}/>)}</section><section className="panel-card workspace-page-rail-card"><div className="eyebrow">RUNTIME READINESS</div><h2>{workspaceConfig?.can_start_runs?"Ready to launch":apiState==="connected"?"Setup required":"Connection unknown"}</h2><p>{workspaceConfig?.can_start_runs?"The API currently reports that workflow launch is enabled.":"Check provider, database, access and worker requirements before starting live work."}</p><a className="button-outline full-button" href={getWorkspaceHref("settings-runtime")}>Inspect runtime <ArrowRight size={13}/></a></section></aside>
   </div>
  </div>;

@@ -42,6 +42,19 @@ export const TASK_TEMPLATES = Object.freeze([
     "goal": "Perform a release-readiness assessment. Review architecture, API contracts, authentication, storage durability, worker capacity, CI evidence, observability, operational runbooks, rollout strategy and rollback. Distinguish verified evidence from missing evidence. Recommend go or no-go and do not deploy."
   }
 ]);
+export function filterTaskTemplates(templates = TASK_TEMPLATES, query = "", category = "All") {
+  const normalize = (value) => String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  const terms = normalize(query).split(/[^a-z0-9]+/).filter(Boolean);
+  return templates.filter((item) => {
+    if (category !== "All" && item.category !== category) return false;
+    const searchable = normalize([item.title, item.category, item.detail, item.goal].join(" "));
+    return terms.every((term) => searchable.includes(term));
+  });
+}
+
 export const WORKSPACE_PAGE_CONTENT = Object.freeze({
   "launchpad": {
     "eyebrow": "WORKSPACE / TASK DESIGN",
