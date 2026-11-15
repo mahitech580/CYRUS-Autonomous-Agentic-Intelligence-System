@@ -339,8 +339,10 @@ def test_create_run_replays_idempotency_key_without_scheduling_twice(client, mon
     assert replay.json()["item"]["id"] == run_id
     assert len(scheduled) == 1
     with main.SessionLocal() as db:
-        matches = db.query(main.WorkflowRun).filter_by(idempotency_key=headers["Idempotency-Key"]).all()
+        stored_key = main.create_idempotency_storage_key(headers["Idempotency-Key"])
+        matches = db.query(main.WorkflowRun).filter_by(idempotency_key=stored_key).all()
         assert len(matches) == 1
+        assert headers["Idempotency-Key"] not in [item.idempotency_key for item in db.query(main.WorkflowRun).all()]
 
 
 def test_create_run_rejects_idempotency_key_reuse_for_another_goal(client, monkeypatch):
@@ -1258,3 +1260,47 @@ def test_durable_worker_mode_requires_idempotency_keys_for_billable_attempts(cli
     )
     assert retried.status_code == 202
     assert retried.json()["item"]["id"] != source_id
+
+
+
+def test_create_idempotency_namespace_cannot_replay_a_retry_record(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    scheduled = []
+    monkeypatch.setattr(main, "execute_workflow", lambda run_id: scheduled.append(run_id))
+
+    goal = "Create a workflow without colliding with a retry request namespace"
+    retry_record_id = "RUN-RETRY-NAMESPACE-" + main.uuid4().hex[:8].upper()
+    retry_storage_key = main.retry_idempotency_storage_key(
+        "RUN-ORIGINAL-SOURCE",
+        "retry-namespace-collision-123",
+    )
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=retry_record_id,
+            goal=goal,
+            status="queued",
+            progress=0,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            approval_status="pending",
+            idempotency_key=retry_storage_key,
+        ))
+        db.commit()
+
+    headers = {"Idempotency-Key": retry_storage_key}
+    first = client.post("/api/runs", json={"goal": goal}, headers=headers)
+    replay = client.post("/api/runs", json={"goal": goal}, headers=headers)
+
+    assert first.status_code == 202
+    assert first.json()["item"]["id"] != retry_record_id
+    assert replay.json()["item"]["id"] == first.json()["item"]["id"]
+    assert len(scheduled) == 1
+    with main.SessionLocal() as db:
+        created = db.get(main.WorkflowRun, first.json()["item"]["id"])
+        retry_record = db.get(main.WorkflowRun, retry_record_id)
+        assert created.idempotency_key == main.create_idempotency_storage_key(retry_storage_key)
+        assert retry_record.idempotency_key == retry_storage_key

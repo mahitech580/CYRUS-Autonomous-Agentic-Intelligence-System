@@ -1044,10 +1044,16 @@ def create_run(
     request_key = idempotency_key.strip() if idempotency_key is not None else None
     if external_worker_required() and request_key is None:
         raise HTTPException(status_code=400, detail="Idempotency-Key is required when durable worker execution is enabled.")
+    storage_key = None
     if request_key is not None:
         if not re.fullmatch(r"[A-Za-z0-9._:-]{8,128}", request_key):
             raise HTTPException(status_code=400, detail="Idempotency-Key must contain 8–128 safe ASCII characters.")
-        existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == request_key))
+        storage_key = create_idempotency_storage_key(request_key)
+        existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == storage_key))
+        # Older releases stored raw create keys. Preserve those replays except
+        # for the reserved retry namespace, which may identify a retry record.
+        if existing is None and not request_key.startswith("retry:"):
+            existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == request_key))
         if existing is not None:
             if existing.goal != goal:
                 raise HTTPException(status_code=409, detail="This Idempotency-Key was already used for a different workflow goal.")
@@ -1071,7 +1077,7 @@ def create_run(
         events=[],
         execution_mode="live-model",
         approval_status="pending",
-        idempotency_key=request_key,
+        idempotency_key=storage_key,
     )
     append_event(run, "workflow", "CYRUS", "Run queued for seven real model-backed stages.", "queued")
     db.add(run)
@@ -1081,7 +1087,9 @@ def create_run(
         db.rollback()
         if request_key is None:
             raise
-        existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == request_key))
+        existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == storage_key))
+        if existing is None and request_key is not None and not request_key.startswith("retry:"):
+            existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == request_key))
         if existing is None:
             raise HTTPException(status_code=409, detail="The workflow could not reserve this idempotency key. Retry with a new key.")
         if existing.goal != goal:
@@ -1218,6 +1226,11 @@ def cancel_run(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     db.refresh(run)
     return {"item": as_run(run), "notice": "Cancellation recorded."}
 
+
+
+def create_idempotency_storage_key(request_key: str) -> str:
+    """Namespace and hash create keys so they cannot collide with retry records."""
+    return "create:" + hashlib.sha256(request_key.encode("utf-8")).hexdigest()
 
 
 def retry_idempotency_storage_key(source_id: str, request_key: str) -> str:
