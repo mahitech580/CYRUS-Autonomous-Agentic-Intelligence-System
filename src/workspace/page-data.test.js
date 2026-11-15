@@ -63,3 +63,23 @@ test("previously shared route kinds now render dedicated workspace experiences",
   assert.ok(source.includes("filterTaskTemplates(TASK_TEMPLATES,query,category)"));
   assert.ok(source.includes("runStats={runStats}"));
 });
+
+
+test("task brief filtering supports Unicode scripts and decomposed accents", () => {
+  const templates = [
+    { id: "telugu", title: "వీడియో విశ్లేషణ", category: "Research", detail: "వీడియో పరిశీలన", goal: "విశ్లేషణ" },
+    { id: "arabic", title: "تحليل البيانات", category: "Research", detail: "مراجعة", goal: "تحليل" },
+    { id: "latin", title: "Cafe\u0301 reliability", category: "Reliability", detail: "Service recovery", goal: "Rollback" },
+  ];
+  assert.deepEqual(filterTaskTemplates(templates, "వీడియో").map((item) => item.id), ["telugu"]);
+  assert.deepEqual(filterTaskTemplates(templates, "تحليل").map((item) => item.id), ["arabic"]);
+  assert.deepEqual(filterTaskTemplates(templates, "cafe").map((item) => item.id), ["latin"]);
+  assert.deepEqual(filterTaskTemplates(templates, "తెలియని పదం"), []);
+});
+
+test("task brief filtering ignores malformed collections and records", () => {
+  const templates = [null, "invalid", [], { id: "valid", title: "Secure API", category: "Backend" }];
+  assert.deepEqual(filterTaskTemplates(templates, "secure").map((item) => item.id), ["valid"]);
+  assert.deepEqual(filterTaskTemplates(null, "secure"), []);
+  assert.deepEqual(filterTaskTemplates("invalid", "secure"), []);
+});

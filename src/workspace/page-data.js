@@ -42,15 +42,22 @@ export const TASK_TEMPLATES = Object.freeze([
     "goal": "Perform a release-readiness assessment. Review architecture, API contracts, authentication, storage durability, worker capacity, CI evidence, observability, operational runbooks, rollout strategy and rollback. Distinguish verified evidence from missing evidence. Recommend go or no-go and do not deploy."
   }
 ]);
-export function filterTaskTemplates(templates = TASK_TEMPLATES, query = "", category = "All") {
-  const normalize = (value) => String(value ?? "")
+function normalizeTaskTemplateSearch(value) {
+  return String(value ?? "")
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\p{M}/gu, "")
     .toLowerCase();
-  const terms = normalize(query).split(/[^a-z0-9]+/).filter(Boolean);
-  return templates.filter((item) => {
+}
+
+export function filterTaskTemplates(templates = TASK_TEMPLATES, query = "", category = "All") {
+  const items = Array.isArray(templates) ? templates : [];
+  const terms = normalizeTaskTemplateSearch(query).match(/[\p{L}\p{N}]+/gu) || [];
+  return items.filter((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return false;
     if (category !== "All" && item.category !== category) return false;
-    const searchable = normalize([item.title, item.category, item.detail, item.goal].join(" "));
+    const searchable = normalizeTaskTemplateSearch(
+      [item.title, item.category, item.detail, item.goal].map((value) => String(value ?? "")).join(" ")
+    );
     return terms.every((term) => searchable.includes(term));
   });
 }
