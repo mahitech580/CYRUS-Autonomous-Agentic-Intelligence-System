@@ -43,3 +43,12 @@ test("unknown and in-page anchors do not become workspace routes", () => {
   assert.equal(getWorkspaceRoute("#/missing"), null);
   assert.equal(getWorkspaceRoute(""), null);
 });
+
+
+
+test("route matching strips query strings and fragments from raw and hash paths", () => {
+  assert.equal(getWorkspaceRoute("/runs?focus=task")?.id, "runs");
+  assert.equal(getWorkspaceRoute("/runs/?focus=task")?.id, "runs");
+  assert.equal(getWorkspaceRoute("#/runs?focus=task#drawer")?.id, "runs");
+  assert.equal(getRouteIntent("#/runs?focus=task#drawer").get("focus"), "task");
+});

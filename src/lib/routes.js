@@ -351,10 +351,14 @@ export const WORKSPACE_NAV_GROUPS = Object.freeze(groupLabels.map((label) => ({
   routes: WORKSPACE_ROUTES.filter((route) => route.group === label),
 })));
 
+function normalizeWorkspacePath(value) {
+  return (String(value || "").split(/[?#]/, 1)[0].replace(/\/+$/, "") || "/overview").toLowerCase();
+}
+
 function pathFromHash(hash) {
   const value = String(hash || "").replace(/^#/, "");
   if (!value.startsWith("/")) return null;
-  return (value.split("?", 1)[0].replace(/\/+$/, "") || "/overview").toLowerCase();
+  return normalizeWorkspacePath(value);
 }
 
 export function getWorkspaceRoute(target) {
@@ -363,7 +367,7 @@ export function getWorkspaceRoute(target) {
     const path = pathFromHash(value);
     return path ? routeByPath.get(path) || null : null;
   }
-  if (value.startsWith("/")) return routeByPath.get(value.replace(/\/+$/, "").toLowerCase() || "/overview") || null;
+  if (value.startsWith("/")) return routeByPath.get(normalizeWorkspacePath(value)) || null;
   const key = value.toLowerCase();
   return routeById.get(key) || routeByLabel.get(key) || routeByView.get(key) || null;
 }
@@ -383,5 +387,6 @@ export function getViewFromHash(hash) {
 export function getRouteIntent(hash) {
   const value = String(hash || "").replace(/^#/, "");
   const queryIndex = value.indexOf("?");
-  return new URLSearchParams(queryIndex >= 0 ? value.slice(queryIndex + 1) : "");
+  const query = queryIndex >= 0 ? value.slice(queryIndex + 1).split("#", 1)[0] : "";
+  return new URLSearchParams(query);
 }
