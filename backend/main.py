@@ -1148,6 +1148,7 @@ def get_run_events(
         event for event in raw_events
         if isinstance(event, dict) and isinstance(event.get("id"), str) and event["id"]
     ]
+    retained_total = len(available)
     cursor_expired = False
     if after:
         indices = [i for i, event in enumerate(available) if event["id"] == after]
@@ -1167,7 +1168,7 @@ def get_run_events(
     return {
         "items": page,
         # total describes the retained event window, not just this page.
-        "total": len(available),
+        "total": retained_total,
         "next_after": next_after,
         "has_more": has_more,
         "cursor_expired": cursor_expired,
