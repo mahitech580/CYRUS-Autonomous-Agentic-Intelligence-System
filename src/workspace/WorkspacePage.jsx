@@ -59,6 +59,7 @@ function RuntimePanel({config,apiState}){
 function QueuePanel({config,apiState,onRefreshRuntime}){
  const [refreshing,setRefreshing]=React.useState(false);
  const [refreshError,setRefreshError]=React.useState("");
+ const [refreshMessage,setRefreshMessage]=React.useState("");
  const restricted=!!(config?.runtime_access_denied||config?.runtime_configuration_missing);
  const snapshotAvailable=apiState==="connected"&&!!config&&!restricted;
  const available=snapshotAvailable&&config.queued_workflows!=null&&config.running_workflows!=null;
@@ -69,7 +70,11 @@ function QueuePanel({config,apiState,onRefreshRuntime}){
   if(refreshing||typeof onRefreshRuntime!=="function")return;
   setRefreshing(true);
   setRefreshError("");
-  try{await onRefreshRuntime();}
+  setRefreshMessage("");
+  try{
+   await onRefreshRuntime();
+   setRefreshMessage("Queue snapshot refreshed.");
+  }
   catch(error){setRefreshError(error?.message||"Could not refresh queue telemetry.");}
   finally{setRefreshing(false);}
  }
@@ -80,7 +85,7 @@ function QueuePanel({config,apiState,onRefreshRuntime}){
    :available
     ?"Queue and worker counts are from the latest runtime snapshot."
     :"Queue and worker state remain unknown until the API returns a fresh database snapshot.";
- return <div className="workspace-queue-panel"><div className="workspace-queue-toolbar"><span className="eyebrow">LIVE RUNTIME SNAPSHOT</span><button className="button-outline" type="button" onClick={refresh} disabled={refreshing||typeof onRefreshRuntime!=="function"}><RefreshCw size={13} className={refreshing?"spin-icon":""}/>{refreshing?"Refreshing":"Refresh snapshot"}</button></div><div className="workspace-queue-grid">{values.map(([label,value])=><div className="workspace-queue-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="workspace-runtime-banner"><span className={workerReady?"runtime-signal runtime-signal-ready":"runtime-signal"}/><div><strong>{workerStatus}</strong><small>{detail}</small></div></div>{refreshError?<p className="inline-help" role="alert">{refreshError}</p>:null}<a className="button-outline" href={getWorkspaceHref("runs-active")}>Inspect active run records <ArrowRight size={13}/></a></div>;
+ return <div className="workspace-queue-panel"><div className="workspace-queue-toolbar"><span className="eyebrow">LIVE RUNTIME SNAPSHOT</span><button className="button-outline" type="button" onClick={refresh} disabled={refreshing||typeof onRefreshRuntime!=="function"}><RefreshCw size={13} className={refreshing?"spin-icon":""}/>{refreshing?"Refreshing":"Refresh snapshot"}</button><span className="workspace-sr-only" role="status" aria-live="polite">{refreshMessage}</span></div><div className="workspace-queue-grid">{values.map(([label,value])=><div className="workspace-queue-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="workspace-runtime-banner"><span className={workerReady?"runtime-signal runtime-signal-ready":"runtime-signal"}/><div><strong>{workerStatus}</strong><small>{detail}</small></div></div>{refreshError?<p className="inline-help" role="alert">{refreshError}</p>:null}<a className="button-outline" href={getWorkspaceHref("runs-active")}>Inspect active run records <ArrowRight size={13}/></a></div>;
 }
 function IntegrationPanel({route,config,apiState}){
  const snapshotAvailable=apiState==="connected"&&!!config;

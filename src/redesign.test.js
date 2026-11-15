@@ -544,3 +544,15 @@ test("workspace command palette is available from the keyboard and top bar", asy
   assert.ok(styles.includes("prefers-reduced-motion: reduce"));
   assert.ok(imports.includes('@import "./redesign/command-menu.css";'));
 });
+
+
+
+test("queue refresh announces successful snapshots to assistive technology", async () => {
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  const styles = await read("redesign/workspace-pages.css");
+  assert.ok(pages.includes('role="status" aria-live="polite"'));
+  assert.ok(pages.includes('setRefreshMessage("Queue snapshot refreshed.")'));
+  assert.ok(pages.includes("setRefreshMessage("")"));
+  assert.ok(styles.includes(".workspace-sr-only"));
+  assert.ok(styles.includes("clip:rect(0,0,0,0)"));
+});

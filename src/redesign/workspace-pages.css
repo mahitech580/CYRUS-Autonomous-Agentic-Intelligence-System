@@ -156,3 +156,7 @@
 .workspace-access-actions a{display:inline-flex;align-items:center;gap:7px}
 @media(max-width:900px){.workspace-observability-grid{grid-template-columns:1fr}.workspace-governance-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:740px){.workspace-prompt-toolbar{align-items:stretch;flex-direction:column}.workspace-prompt-count{align-self:flex-end}.workspace-prompt-grid{grid-template-columns:1fr}.workspace-observability-legend{grid-template-columns:1fr 1fr}.workspace-governance-control{grid-template-columns:24px minmax(0,1fr)}.workspace-governance-control>small{grid-column:2;text-align:left}.workspace-access-actions{display:grid}.workspace-access-actions a{justify-content:center}.workspace-access-row{flex-direction:column;gap:5px}.workspace-access-row>strong{max-width:100%;text-align:left}}
+
+
+/* Announce asynchronous queue refresh results without adding visual noise. */
+.workspace-sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
