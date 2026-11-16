@@ -207,22 +207,26 @@ export function getRunPageOffset(response, currentOffset = 0, pageLength = 0) {
 export function getRunStageState(run, stageId) {
   const stages = Array.isArray(run?.stages) ? run.stages : [];
   const persisted = stages.find((stage) => stage?.id === stageId);
+  const runStatus = String(run?.status || "").trim().toLowerCase();
   if (persisted) {
     const status = String(persisted.status || "").trim().toLowerCase();
     if (["failed", "error"].includes(status)) return "failed";
-    if (["running", "started"].includes(status)) return "active";
+    if (["interrupted", "cancelled", "stopped"].includes(status)) return "interrupted";
+    if (["running", "started"].includes(status)) return runStatus === "running" ? "active" : "interrupted";
     if (["queued", "pending"].includes(status)) return "queued";
     // Older records did not persist a stage status; their artifact presence
     // remains the compatibility signal for a completed stage.
-    return "completed";
+    if (!status || ["completed", "success"].includes(status)) return "completed";
+    // Unknown future states must not be presented as successful artifacts.
+    return "queued";
   }
   const events = Array.isArray(run?.events) ? run.events : [];
   const stageEvents = events.filter((event) => event?.stage === stageId);
   if (stageEvents.some((event) => event?.status === "failed")) return "failed";
   if (stageEvents.some((event) => event?.status === "completed")) return "completed";
   const started = stageEvents.some((event) => event?.status === "started");
-  if (started && ["failed", "cancelled"].includes(run?.status)) return "interrupted";
-  if (run?.current_stage === stageId && ["queued", "running"].includes(run?.status)) return "active";
+  if (started && runStatus !== "running") return "interrupted";
+  if (run?.current_stage === stageId && runStatus === "running") return "active";
   return "queued";
 }
 
@@ -231,6 +235,10 @@ export function getRunStageState(run, stageId) {
 /** Derive stage elapsed time from persisted start and terminal events. */
 export function getRunStageTiming(run, stageId, now = Date.now()) {
   const events = Array.isArray(run?.events) ? run.events : [];
+  const stages = Array.isArray(run?.stages) ? run.stages : [];
+  const persistedStage = stages.find((stage) => stage?.id === stageId);
+  const persistedStatus = String(persistedStage?.status || "").trim().toLowerCase();
+  const runStatus = String(run?.status || "").trim().toLowerCase();
   let startedAt = null;
   let endedAt = null;
   let terminalStatus = null;
@@ -250,12 +258,24 @@ export function getRunStageTiming(run, stageId, now = Date.now()) {
     }
   }
   if (startedAt === null) return null;
-  if (endedAt === null && ["failed", "cancelled"].includes(run?.status)) {
+  if (endedAt === null && persistedStage?.completed_at) {
+    const completedAt = Date.parse(persistedStage.completed_at);
+    if (Number.isFinite(completedAt) && completedAt >= startedAt) {
+      endedAt = completedAt;
+      terminalStatus = "completed";
+    }
+  }
+  if (endedAt === null && !["queued", "running"].includes(runStatus)) {
     const updatedAt = Date.parse(run?.updated_at);
     if (Number.isFinite(updatedAt) && updatedAt >= startedAt) {
       endedAt = updatedAt;
-      terminalStatus = "interrupted";
+      terminalStatus = ["failed", "error"].includes(persistedStatus) ? "failed" : "interrupted";
     }
+  }
+  // A legacy artifact may prove completion without carrying a trustworthy
+  // completion timestamp. Do not invent a duration from the whole run's update time.
+  if (endedAt === null && persistedStage && (!persistedStatus || ["completed", "success"].includes(persistedStatus))) {
+    return null;
   }
   const fallbackNow = Number.isFinite(Number(now)) ? Number(now) : Date.now();
   const end = endedAt ?? fallbackNow;

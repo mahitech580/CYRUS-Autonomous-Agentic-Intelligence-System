@@ -497,6 +497,39 @@ test("CSV export neutralizes formulas after Unicode whitespace prefixes", () => 
 });
 
 
+test("terminal workflows do not leave persisted running stages active", () => {
+  const startedAt = "2026-11-16T10:00:00.000Z";
+  const completedAt = "2026-11-16T10:00:12.000Z";
+  const updatedAt = "2026-11-16T10:00:25.000Z";
+  const failedRun = {
+    status: "failed",
+    updated_at: updatedAt,
+    stages: [{ id: "code", status: "running" }],
+    events: [{ id: "code-start", stage: "code", status: "started", at: startedAt }],
+  };
+  assert.equal(getRunStageState(failedRun, "code"), "interrupted");
+  assert.deepEqual(getRunStageTiming(failedRun, "code"), {
+    status: "interrupted", durationMs: 25000,
+  });
+
+  const completedRun = {
+    status: "review",
+    stages: [{ id: "plan", status: "completed", completed_at: completedAt }],
+    events: [{ id: "plan-start", stage: "plan", status: "started", at: startedAt }],
+  };
+  assert.equal(getRunStageState(completedRun, "plan"), "completed");
+  assert.deepEqual(getRunStageTiming(completedRun, "plan"), {
+    status: "completed", durationMs: 12000,
+  });
+
+  assert.equal(getRunStageState({
+    status: "running", stages: [{ id: "architect", status: "future-state" }],
+  }, "architect"), "queued");
+  assert.equal(getRunStageState({
+    status: "review", events: [{ stage: "test", status: "started", at: startedAt }],
+  }, "test"), "interrupted");
+});
+
 test("cancelled and lease-expired workflows distinguish interrupted stages from queued work", () => {
   const events = [
     { id: "event-started", stage: "code", status: "started" },
