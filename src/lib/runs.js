@@ -235,6 +235,17 @@ export function getRunStageTiming(run, stageId, now = Date.now()) {
   };
 }
 
+/** Match the API's required goal length before sending a request. */
+export function validateRunGoal(value) {
+  const raw = String(value ?? "");
+  const clean = raw.trim();
+  if (!clean) return "Describe the engineering outcome before starting a workflow.";
+  const characterCount = [...clean].length;
+  if (characterCount < 8) return "Describe the engineering outcome in at least 8 characters.";
+  if ([...raw].length > 1200) return "Keep the workflow goal to 1,200 characters or fewer.";
+  return "";
+}
+
 /** Put a newly accepted workflow first without duplicating an idempotent replay. */
 /** Aggregate only finite, non-negative token counts from run details already loaded in memory. */
 export function summarizeRunUsage(runs) {

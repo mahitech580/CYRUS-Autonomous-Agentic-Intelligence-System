@@ -337,3 +337,18 @@ test("workflow creation bounds remembered idempotency keys for edited goals", ()
   assert.notEqual(first, recreated);
   assert.equal(holder.current.size, 16);
 });
+
+
+test("run goal validation matches backend trimmed minimum and maximum lengths", async () => {
+  const { validateRunGoal } = await import("./runs.js");
+  assert.match(validateRunGoal("   "), /Describe the engineering outcome/);
+  assert.match(validateRunGoal("short"), /at least 8 characters/);
+  assert.equal(validateRunGoal("  Build a robust workflow  "), "");
+  assert.match(validateRunGoal("a".repeat(1201)), /1,200 characters or fewer/);
+});
+
+test("run goal validation counts Unicode code points rather than UTF-16 code units", async () => {
+  const { validateRunGoal } = await import("./runs.js");
+  assert.match(validateRunGoal("😀😀😀😀"), /at least 8 characters/);
+  assert.equal(validateRunGoal("😀😀😀😀😀😀😀😀"), "");
+});
