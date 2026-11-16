@@ -1664,12 +1664,17 @@ def test_config_reports_bounded_workspace_run_launch_limits(client, monkeypatch)
     monkeypatch.setenv("CYRUS_RUNS_PER_HOUR", "0")
     response = client.get("/api/config")
     assert response.status_code == 200
-    assert response.json()["run_launch_limits"] == {"per_minute": 60, "per_hour": 1}
+    assert response.json()["run_launch_limits"] == {"enabled": False, "per_minute": 60, "per_hour": 1}
 
     monkeypatch.setenv("CYRUS_RUNS_PER_MINUTE", "not-a-number")
     monkeypatch.setenv("CYRUS_RUNS_PER_HOUR", "also-invalid")
     fallback = client.get("/api/config")
-    assert fallback.json()["run_launch_limits"] == {"per_minute": 5, "per_hour": 30}
+    assert fallback.json()["run_launch_limits"] == {"enabled": False, "per_minute": 5, "per_hour": 30}
+
+    access_key = "settings-rate-limit-" + main.uuid4().hex
+    monkeypatch.setenv("CYRUS_ACCESS_KEY", access_key)
+    enabled = client.get("/api/config", headers={"Authorization": "Bearer " + access_key})
+    assert enabled.json()["run_launch_limits"] == {"enabled": True, "per_minute": 5, "per_hour": 30}
 
 
 def test_run_launch_quota_retries_after_a_concurrent_window_reset(monkeypatch):

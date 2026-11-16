@@ -631,4 +631,5 @@ test("settings exposes the server-enforced workspace launch quota", async () => 
   assert.ok(app.includes('RUN LAUNCH LIMITS'));
   assert.ok(app.includes('launchLimits?.per_minute'));
   assert.ok(app.includes('launchLimits?.per_hour'));
+  assert.ok(app.includes('launchLimits?.enabled === false'));
 });

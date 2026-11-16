@@ -38,7 +38,7 @@ When durable external-worker mode is enabled, both new-run and retry requests mu
 
 ## Run launch protection
 
-The API enforces database-backed workspace-wide limits on new billable workflow attempts: **5 launches per minute** and **30 per hour** by default. Configure `CYRUS_RUNS_PER_MINUTE` (1–60) and `CYRUS_RUNS_PER_HOUR` (1–500) on the API service to adjust them. New runs and retries share the same quota; a replay with the same accepted idempotency key does not consume another slot. Bucket identifiers use a SHA-256 hash of the shared workspace access key, never the key itself. Because this version uses one shared workspace credential rather than per-user accounts, the limits are workspace-wide, not per operator. Keep provider-side spend alerts and billing budgets enabled as an additional control.
+When `CYRUS_ACCESS_KEY` is configured (required in production), the API enforces database-backed workspace-wide limits on new billable workflow attempts: **5 launches per minute** and **30 per hour** by default. Local development without a workspace key remains unrestricted. Configure `CYRUS_RUNS_PER_MINUTE` (1–60) and `CYRUS_RUNS_PER_HOUR` (1–500) on the API service to adjust them. New runs and retries share the same quota; a replay with the same accepted idempotency key does not consume another slot. Bucket identifiers use a SHA-256 hash of the shared workspace access key, never the key itself. Because this version uses one shared workspace credential rather than per-user accounts, the limits are workspace-wide, not per operator. Keep provider-side spend alerts and billing budgets enabled as an additional control.
 
 ## Runtime safety
 

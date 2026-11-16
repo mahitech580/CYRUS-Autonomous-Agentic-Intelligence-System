@@ -1086,6 +1086,7 @@ def config() -> dict[str, Any]:
         "access_control_configured": access_control_configured,
         "web_search_enabled": web_search_enabled(),
         "run_launch_limits": {
+            "enabled": bool(os.getenv("CYRUS_ACCESS_KEY", "").strip()),
             "per_minute": bounded_int_setting("CYRUS_RUNS_PER_MINUTE", 5, 1, 60),
             "per_hour": bounded_int_setting("CYRUS_RUNS_PER_HOUR", 30, 1, 500),
         },

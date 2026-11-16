@@ -1128,9 +1128,10 @@ function SettingsView({ apiState, workspaceConfig, onRefreshRuntime, settingsOpe
   const runtimeConfigRestricted = !!(workspaceConfig?.runtime_access_denied || workspaceConfig?.runtime_configuration_missing);
   const launchLimits = workspaceConfig?.run_launch_limits;
   const launchLimitLabel = runtimeConfigRestricted ? "Access required"
-    : Number.isFinite(launchLimits?.per_minute) && Number.isFinite(launchLimits?.per_hour)
-      ? launchLimits.per_minute + " / min · " + launchLimits.per_hour + " / hour"
-      : "Unavailable";
+    : launchLimits?.enabled === false ? "Unrestricted (no workspace key)"
+      : launchLimits?.enabled === true && Number.isFinite(launchLimits?.per_minute) && Number.isFinite(launchLimits?.per_hour)
+        ? launchLimits.per_minute + " / min · " + launchLimits.per_hour + " / hour"
+        : "Unavailable";
 
   function saveWorkspaceAccessKey() {
     if (!setAccessKey(accessKey)) {
