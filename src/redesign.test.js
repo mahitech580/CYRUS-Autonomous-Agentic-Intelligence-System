@@ -600,3 +600,15 @@ test("run timeline stage disclosures expose expanded state and stable panel rela
   assert.ok(app.includes('className="artifact-output" hidden={expandedStage !== stageId}'));
   assert.ok(app.includes('type="button" className="timeline-stage-button"'));
 });
+
+test("Vercel applies browser security headers to every workspace response", async () => {
+  const config = JSON.parse(await read("../vercel.json"));
+  const rule = config.headers?.find((item) => item.source === "/(.*)");
+  assert.ok(rule, "security headers should cover all application routes");
+  const headers = Object.fromEntries((rule.headers || []).map(({ key, value }) => [key, value]));
+  assert.equal(headers["X-Content-Type-Options"], "nosniff");
+  assert.equal(headers["X-Frame-Options"], "DENY");
+  assert.equal(headers["Referrer-Policy"], "no-referrer");
+  assert.equal(headers["Permissions-Policy"], "camera=(), microphone=(), geolocation=()");
+});
+
