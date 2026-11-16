@@ -1339,3 +1339,62 @@ def test_event_endpoint_skips_malformed_legacy_entries_without_breaking_cursors(
     assert reset.json()["total"] == 2
     assert [item["id"] for item in reset.json()["items"]] == ["event-valid-1", "event-valid-2"]
     assert reset.json()["cursor_expired"] is True
+
+
+def test_legacy_run_json_shapes_are_normalized_across_api_reads_and_event_writes(client):
+    run_id = "RUN-LEGACY-SHAPE-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=run_id,
+            goal="Keep legacy workflow records readable after malformed JSON shapes",
+            status="running",
+            progress=45,
+            stages={"unexpected": "object"},
+            events="unexpected scalar",
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+
+    detail = client.get(f"/api/runs/{run_id}")
+    assert detail.status_code == 200
+    assert detail.json()["item"]["stages"] == []
+    assert detail.json()["item"]["events"] == []
+
+    status = client.get(f"/api/runs/{run_id}/status")
+    assert status.status_code == 200
+    assert status.json()["item"]["stage_count"] == 0
+
+    history = client.get("/api/runs?limit=100&offset=0")
+    assert history.status_code == 200
+    summary = next(item for item in history.json()["items"] if item["id"] == run_id)
+    assert summary["stage_count"] == 0
+    assert summary["event_count"] == 0
+
+    events = client.get(f"/api/runs/{run_id}/events")
+    assert events.status_code == 200
+    assert events.json()["items"] == []
+    assert events.json()["total"] == 0
+
+    with main.SessionLocal() as db:
+        run = db.get(main.WorkflowRun, run_id)
+        main.append_event(run, "recovery", "CYRUS", "Recovered legacy event storage.", "info")
+        db.commit()
+        assert len(run.events) == 1
+        assert run.events[0]["message"] == "Recovered legacy event storage."
+
+
+def test_record_normalizer_preserves_valid_dicts_and_ignores_non_record_values():
+    value = [
+        None,
+        "invalid",
+        {"id": "valid-1", "message": "first"},
+        42,
+        {"id": "valid-2", "message": "second"},
+    ]
+    assert main.persisted_records(value) == [
+        {"id": "valid-1", "message": "first"},
+        {"id": "valid-2", "message": "second"},
+    ]
+    assert main.persisted_records({"id": "unexpected-object"}) == []
+    assert main.persisted_records("unexpected-scalar") == []

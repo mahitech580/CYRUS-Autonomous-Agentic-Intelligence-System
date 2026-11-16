@@ -339,6 +339,13 @@ def require_workspace_access(authorization: str | None = Header(default=None)) -
         raise HTTPException(status_code=401, detail="Workspace access key required.")
 
 
+def persisted_records(value: Any) -> list[dict[str, Any]]:
+    """Return valid JSON record objects while ignoring malformed legacy values."""
+    if not isinstance(value, list):
+        return []
+    return [record for record in value if isinstance(record, dict)]
+
+
 def as_run(item: WorkflowRun) -> dict[str, Any]:
     created, updated = item.created_at, item.updated_at
     return {
@@ -348,8 +355,8 @@ def as_run(item: WorkflowRun) -> dict[str, Any]:
         "progress": item.progress,
         "created_at": utc_iso(created),
         "updated_at": utc_iso(updated),
-        "stages": item.stages or [],
-        "events": item.events or [],
+        "stages": persisted_records(item.stages),
+        "events": persisted_records(item.events),
         "execution_mode": item.execution_mode,
         "current_stage": item.current_stage,
         "error": item.error,
@@ -373,13 +380,13 @@ def as_run_summary(item: WorkflowRun) -> dict[str, Any]:
         "error": item.error,
         "approval_status": item.approval_status or "pending",
         "agent_count": len(AGENTS),
-        "stage_count": len(item.stages or []),
-        "event_count": len(item.events or []),
+        "stage_count": len(persisted_records(item.stages)),
+        "event_count": len(persisted_records(item.events)),
     }
 
 
 def append_event(run: WorkflowRun, stage: str, agent: str, message: str, status: str) -> None:
-    events = list(run.events or [])
+    events = persisted_records(run.events)
     events.append({"id": uuid4().hex[:12], "at": utcnow().isoformat(), "stage": stage, "agent": agent, "message": redact_sensitive_text(message, max_length=2000), "status": status})
     run.events = events[-250:]
     run.updated_at = utcnow()
@@ -1126,7 +1133,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]
         "current_stage": run.current_stage,
         "error": run.error,
         "approval_status": run.approval_status or "pending",
-        "stage_count": len(run.stages or []),
+        "stage_count": len(persisted_records(run.stages)),
         "updated_at": utc_iso(run.updated_at),
     }}
 
@@ -1141,12 +1148,11 @@ def get_run_events(
     run = db.get(WorkflowRun, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Workflow run not found.")
-    raw_events = run.events if isinstance(run.events, list) else []
-    # Only identified event objects can participate in cursor pagination. A
-    # malformed legacy JSON entry must not turn a status poll into an API 500.
+    # Only identified records can participate in cursor pagination. The shared
+    # normalizer also tolerates malformed legacy JSON top-level values.
     available = [
-        event for event in raw_events
-        if isinstance(event, dict) and isinstance(event.get("id"), str) and event["id"]
+        event for event in persisted_records(run.events)
+        if isinstance(event.get("id"), str) and event["id"]
     ]
     retained_total = len(available)
     cursor_expired = False
