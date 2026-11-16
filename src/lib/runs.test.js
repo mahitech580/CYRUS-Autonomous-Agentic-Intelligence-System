@@ -434,3 +434,11 @@ test("persisted stage status takes precedence over artifact presence", () => {
   assert.equal(getRunStageState(run, "code"), "completed");
   assert.equal(getRunStageState(run, "review"), "failed");
 });
+
+
+test("history pagination ignores stale cursors that would repeat an already loaded page", () => {
+  assert.equal(getRunPageOffset({ next_offset: 0 }, 30, 15), 45);
+  assert.equal(getRunPageOffset({ next_offset: 30 }, 30, 15), 45);
+  assert.equal(getRunPageOffset({ next_offset: 45 }, 30, 15), 45);
+  assert.equal(getRunPageOffset({ next_offset: "invalid" }, 30, 15), 45);
+});

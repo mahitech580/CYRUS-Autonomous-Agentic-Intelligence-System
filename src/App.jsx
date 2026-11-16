@@ -426,6 +426,14 @@ export default function App() {
     try {
       const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset });
       const items = Array.isArray(data.items) ? data.items.map(mapRunRecord) : [];
+      if (!items.length) {
+        // A concurrent deletion or stale count can leave an empty page before
+        // the previous total. Stop offering a load-more action instead of looping.
+        setRunsOffset(offset);
+        setRunsTotal((current) => Math.min(current, offset));
+        notify("No older workflow records were returned. History is up to date.");
+        return;
+      }
       setRuns((current) => {
         const known = new Set(current.map((item) => item.id));
         return [...current, ...items.filter((item) => !known.has(item.id))];
