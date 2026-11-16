@@ -573,6 +573,20 @@ def consume_run_launch_quota(db: Session, *, now: datetime | None = None) -> Non
         if reset.rowcount == 1:
             continue
 
+        # Another API instance may have won the window reset after our first
+        # increment attempt. Re-check the current window before declaring it full.
+        incremented = db.execute(
+            update(RunLaunchBucket)
+            .where(
+                RunLaunchBucket.id == bucket_id,
+                RunLaunchBucket.window_started_at == window_start,
+                RunLaunchBucket.count < limit,
+            )
+            .values(count=RunLaunchBucket.count + 1)
+        )
+        if incremented.rowcount == 1:
+            continue
+
         existing = db.get(RunLaunchBucket, bucket_id)
         if existing is None:
             try:

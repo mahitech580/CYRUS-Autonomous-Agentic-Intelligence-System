@@ -1670,3 +1670,62 @@ def test_config_reports_bounded_workspace_run_launch_limits(client, monkeypatch)
     monkeypatch.setenv("CYRUS_RUNS_PER_HOUR", "also-invalid")
     fallback = client.get("/api/config")
     assert fallback.json()["run_launch_limits"] == {"per_minute": 5, "per_hour": 30}
+
+
+def test_run_launch_quota_retries_after_a_concurrent_window_reset(monkeypatch):
+    access_key = "rate-limit-rollover-" + main.uuid4().hex
+    monkeypatch.setenv("CYRUS_ACCESS_KEY", access_key)
+    monkeypatch.setenv("CYRUS_RUNS_PER_MINUTE", "5")
+    monkeypatch.setenv("CYRUS_RUNS_PER_HOUR", "30")
+    epoch = int(main.utcnow().timestamp())
+    minute_start = epoch - epoch % 60
+    hour_start = epoch - epoch % 3600
+    scope = main.hashlib.sha256(access_key.encode("utf-8")).hexdigest()
+    minute_id = "run-launch-minute-" + scope
+    hour_id = "run-launch-hour-" + scope
+    with main.SessionLocal() as db:
+        db.add_all([
+            main.RunLaunchBucket(id=minute_id, window_started_at=minute_start - 60, count=5),
+            main.RunLaunchBucket(id=hour_id, window_started_at=hour_start, count=0),
+        ])
+        db.commit()
+
+    class EmptyResult:
+        rowcount = 0
+
+    class RacingSession:
+        def __init__(self, session):
+            self.session = session
+            self.calls = 0
+
+        def execute(self, statement):
+            self.calls += 1
+            if self.calls == 1:
+                return EmptyResult()
+            if self.calls == 2:
+                # Simulate another serverless instance winning the reset.
+                with main.SessionLocal() as concurrent:
+                    result = concurrent.execute(statement)
+                    assert result.rowcount == 1
+                    concurrent.commit()
+                return EmptyResult()
+            return self.session.execute(statement)
+
+        def get(self, *args, **kwargs):
+            return self.session.get(*args, **kwargs)
+
+        def begin_nested(self):
+            return self.session.begin_nested()
+
+    with main.SessionLocal() as db:
+        main.consume_run_launch_quota(
+            RacingSession(db),
+            now=main.datetime.fromtimestamp(epoch, main.timezone.utc),
+        )
+        db.commit()
+
+    with main.SessionLocal() as db:
+        assert db.get(main.RunLaunchBucket, minute_id).count == 2
+        assert db.get(main.RunLaunchBucket, hour_id).count == 1
+        db.execute(main.delete(main.RunLaunchBucket).where(main.RunLaunchBucket.id.in_([minute_id, hour_id])))
+        db.commit()
