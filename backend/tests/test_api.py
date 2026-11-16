@@ -1408,3 +1408,58 @@ def test_protected_runtime_config_includes_an_explicit_utc_snapshot_timestamp(cl
     parsed = main.datetime.fromisoformat(snapshot_at)
     assert parsed.tzinfo is not None
     assert abs((main.utcnow() - parsed).total_seconds()) < 10
+
+
+def test_legacy_run_text_is_redacted_on_detail_summary_status_and_event_reads(client):
+    run_id = "RUN-LEGACY-SECRET-" + main.uuid4().hex[:8].upper()
+    provider_key = "sk_live_" + "A" * 24
+    bearer = "legacy-bearer-" + "B" * 24
+    database_password = "legacy-db-password-7f4a"
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=run_id,
+            goal="Document this integration with " + provider_key,
+            status="failed",
+            progress=35,
+            stages=[{
+                "id": "code",
+                "agent": "Forge",
+                "summary": "Preserve the useful implementation context.",
+                "output": "API_KEY=" + provider_key + " and postgresql://operator:" + database_password + "@db.example.test/cyrus",
+            }],
+            events=[{
+                "id": "event-legacy-secret",
+                "stage": "code",
+                "agent": "Forge",
+                "message": "Authorization: Bearer " + bearer,
+                "status": "failed",
+            }],
+            execution_mode="live-model",
+            error="Provider returned " + provider_key,
+            approval_status="pending",
+        ))
+        db.commit()
+
+    detail = client.get(f"/api/runs/{run_id}")
+    assert detail.status_code == 200
+    item = detail.json()["item"]
+    serialized = str(item)
+    assert provider_key not in serialized
+    assert database_password not in serialized
+    assert "postgresql://operator:" not in serialized
+    assert "Preserve the useful implementation context." in serialized
+
+    summary = client.get("/api/runs?limit=100&offset=0")
+    assert summary.status_code == 200
+    summary_item = next(row for row in summary.json()["items"] if row["id"] == run_id)
+    assert provider_key not in str(summary_item)
+
+    status = client.get(f"/api/runs/{run_id}/status")
+    assert status.status_code == 200
+    assert provider_key not in str(status.json())
+
+    events = client.get(f"/api/runs/{run_id}/events")
+    assert events.status_code == 200
+    event_payload = str(events.json())
+    assert bearer not in event_payload
+    assert "Bearer [REDACTED]" in event_payload

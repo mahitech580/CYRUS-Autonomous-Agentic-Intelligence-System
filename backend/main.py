@@ -346,20 +346,44 @@ def persisted_records(value: Any) -> list[dict[str, Any]]:
     return [record for record in value if isinstance(record, dict)]
 
 
+def redact_record_fields(record: dict[str, Any], fields: tuple[str, ...]) -> dict[str, Any]:
+    """Redact legacy free-text values at the API boundary without mutating ORM JSON."""
+    safe = dict(record)
+    for field in fields:
+        value = safe.get(field)
+        if isinstance(value, str):
+            safe[field] = redact_sensitive_text(value, max_length=30000 if field == "output" else 2000)
+    return safe
+
+
+def safe_stage_records(value: Any) -> list[dict[str, Any]]:
+    return [
+        redact_record_fields(record, ("summary", "output", "error"))
+        for record in persisted_records(value)
+    ]
+
+
+def safe_event_records(value: Any) -> list[dict[str, Any]]:
+    return [
+        redact_record_fields(record, ("message",))
+        for record in persisted_records(value)
+    ]
+
+
 def as_run(item: WorkflowRun) -> dict[str, Any]:
     created, updated = item.created_at, item.updated_at
     return {
         "id": item.id,
-        "goal": item.goal,
+        "goal": redact_sensitive_text(item.goal, max_length=1200),
         "status": item.status,
         "progress": item.progress,
         "created_at": utc_iso(created),
         "updated_at": utc_iso(updated),
-        "stages": persisted_records(item.stages),
-        "events": persisted_records(item.events),
+        "stages": safe_stage_records(item.stages),
+        "events": safe_event_records(item.events),
         "execution_mode": item.execution_mode,
         "current_stage": item.current_stage,
-        "error": item.error,
+        "error": redact_sensitive_text(item.error, max_length=2000) if item.error else None,
         "approval_status": item.approval_status or "pending",
         "agent_count": len(AGENTS),
     }
@@ -370,14 +394,14 @@ def as_run_summary(item: WorkflowRun) -> dict[str, Any]:
     created, updated = item.created_at, item.updated_at
     return {
         "id": item.id,
-        "goal": item.goal,
+        "goal": redact_sensitive_text(item.goal, max_length=1200),
         "status": item.status,
         "progress": item.progress,
         "created_at": utc_iso(created),
         "updated_at": utc_iso(updated),
         "execution_mode": item.execution_mode,
         "current_stage": item.current_stage,
-        "error": item.error,
+        "error": redact_sensitive_text(item.error, max_length=2000) if item.error else None,
         "approval_status": item.approval_status or "pending",
         "agent_count": len(AGENTS),
         "stage_count": len(persisted_records(item.stages)),
@@ -1132,7 +1156,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]
         "status": run.status,
         "progress": run.progress,
         "current_stage": run.current_stage,
-        "error": run.error,
+        "error": redact_sensitive_text(run.error, max_length=2000) if run.error else None,
         "approval_status": run.approval_status or "pending",
         "stage_count": len(persisted_records(run.stages)),
         "updated_at": utc_iso(run.updated_at),
@@ -1152,7 +1176,7 @@ def get_run_events(
     # Only identified records can participate in cursor pagination. The shared
     # normalizer also tolerates malformed legacy JSON top-level values.
     available = [
-        event for event in persisted_records(run.events)
+        event for event in safe_event_records(run.events)
         if isinstance(event.get("id"), str) and event["id"]
     ]
     retained_total = len(available)
