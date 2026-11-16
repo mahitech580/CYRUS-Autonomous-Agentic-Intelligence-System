@@ -1571,3 +1571,89 @@ def test_local_development_can_force_access_control_without_changing_defaults(cl
 
     monkeypatch.setenv("CYRUS_REQUIRE_ACCESS_KEY", "true")
     assert main.workspace_access_required() is True
+
+
+def test_run_launch_quota_blocks_new_runs_but_allows_idempotent_replays(client, monkeypatch):
+    access_key = "rate-limit-access-" + main.uuid4().hex
+    monkeypatch.setenv("CYRUS_ACCESS_KEY", access_key)
+    monkeypatch.setenv("CYRUS_RUNS_PER_MINUTE", "1")
+    monkeypatch.setenv("CYRUS_RUNS_PER_HOUR", "10")
+    monkeypatch.setattr(main, "provider_ready", lambda: True)
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    monkeypatch.setattr(main, "worker_is_ready", lambda: True)
+    monkeypatch.setattr(main, "external_worker_required", lambda: True)
+
+    headers = {
+        "Authorization": "Bearer " + access_key,
+        "Idempotency-Key": "rate-limit-create-0001",
+    }
+    first = client.post("/api/runs", json={"goal": "Create a rate-limited workflow"}, headers=headers)
+    assert first.status_code == 202
+    assert first.json()["replayed"] is False
+
+    blocked = client.post(
+        "/api/runs",
+        json={"goal": "Create another rate-limited workflow"},
+        headers={**headers, "Idempotency-Key": "rate-limit-create-0002"},
+    )
+    assert blocked.status_code == 429
+    assert int(blocked.headers["retry-after"]) >= 1
+    assert "1 per minute" in blocked.json()["detail"]
+
+    replay = client.post("/api/runs", json={"goal": "Create a rate-limited workflow"}, headers=headers)
+    assert replay.status_code == 202
+    assert replay.json()["replayed"] is True
+
+    with main.SessionLocal() as db:
+        bucket_ids = db.scalars(main.select(main.RunLaunchBucket.id)).all()
+    assert access_key not in " ".join(bucket_ids)
+
+
+def test_retry_launches_share_the_workspace_hourly_quota(client, monkeypatch):
+    access_key = "rate-limit-retry-" + main.uuid4().hex
+    monkeypatch.setenv("CYRUS_ACCESS_KEY", access_key)
+    monkeypatch.setenv("CYRUS_RUNS_PER_MINUTE", "5")
+    monkeypatch.setenv("CYRUS_RUNS_PER_HOUR", "1")
+    monkeypatch.setattr(main, "provider_ready", lambda: True)
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    monkeypatch.setattr(main, "worker_is_ready", lambda: True)
+    monkeypatch.setattr(main, "external_worker_required", lambda: True)
+
+    source_id = "RUN-RATE-LIMIT-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=source_id,
+            goal="Retry a failed workflow under the workspace quota",
+            status="failed",
+            progress=14,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            error="Provider unavailable",
+        ))
+        db.commit()
+
+    headers = {
+        "Authorization": "Bearer " + access_key,
+        "Idempotency-Key": "rate-limit-retry-0001",
+    }
+    first = client.post(f"/api/runs/{source_id}/retry", headers=headers)
+    assert first.status_code == 202
+    assert first.json()["replayed"] is False
+
+    blocked = client.post(
+        f"/api/runs/{source_id}/retry",
+        headers={**headers, "Idempotency-Key": "rate-limit-retry-0002"},
+    )
+    assert blocked.status_code == 429
+    assert "1 per hour" in blocked.json()["detail"]
+
+    replay = client.post(f"/api/runs/{source_id}/retry", headers=headers)
+    assert replay.status_code == 202
+    assert replay.json()["replayed"] is True
+
+    with main.SessionLocal() as db:
+        source = db.get(main.WorkflowRun, source_id)
+        assert source.status == "failed"
+        db.delete(source)
+        db.commit()

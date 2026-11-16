@@ -24,7 +24,7 @@ import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, Index, JSON, String, and_, case, create_engine, delete, func, inspect, or_, select, text, update
+from sqlalchemy import DateTime, Index, Integer, JSON, String, and_, case, create_engine, delete, func, inspect, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -77,6 +77,16 @@ class WorkerHeartbeat(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     active_run_id: Mapped[str | None] = mapped_column(String(48), nullable=True)
+
+
+class RunLaunchBucket(Base):
+    """Database-backed, credential-scoped windows for billable workflow launches."""
+
+    __tablename__ = "run_launch_buckets"
+
+    id: Mapped[str] = mapped_column(String(96), primary_key=True)
+    window_started_at: Mapped[int] = mapped_column(Integer, nullable=False)
+    count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
 AGENTS = [
@@ -517,6 +527,84 @@ def bounded_int_setting(name: str, default: int, minimum: int, maximum: int) -> 
     except (TypeError, ValueError):
         return default
     return max(minimum, min(configured, maximum))
+
+
+def consume_run_launch_quota(db: Session, *, now: datetime | None = None) -> None:
+    """Atomically limit billable launches per shared workspace credential.
+
+    The access key is hashed before it is used as a bucket identifier. Local
+    development without a configured key remains unrestricted; production
+    requires the key before either launch route can reach this function.
+    """
+    access_key = os.getenv("CYRUS_ACCESS_KEY", "").strip()
+    if not access_key:
+        return
+
+    scope = hashlib.sha256(access_key.encode("utf-8")).hexdigest()
+    epoch = int((now or utcnow()).timestamp())
+    windows = (
+        ("minute", 60, bounded_int_setting("CYRUS_RUNS_PER_MINUTE", 5, 1, 60)),
+        ("hour", 3600, bounded_int_setting("CYRUS_RUNS_PER_HOUR", 30, 1, 500)),
+    )
+
+    for label, seconds, limit in windows:
+        window_start = epoch - (epoch % seconds)
+        bucket_id = f"run-launch-{label}-{scope}"
+        incremented = db.execute(
+            update(RunLaunchBucket)
+            .where(
+                RunLaunchBucket.id == bucket_id,
+                RunLaunchBucket.window_started_at == window_start,
+                RunLaunchBucket.count < limit,
+            )
+            .values(count=RunLaunchBucket.count + 1)
+        )
+        if incremented.rowcount == 1:
+            continue
+
+        reset = db.execute(
+            update(RunLaunchBucket)
+            .where(
+                RunLaunchBucket.id == bucket_id,
+                RunLaunchBucket.window_started_at < window_start,
+            )
+            .values(window_started_at=window_start, count=1)
+        )
+        if reset.rowcount == 1:
+            continue
+
+        existing = db.get(RunLaunchBucket, bucket_id)
+        if existing is None:
+            try:
+                # Two serverless instances can create the first bucket at once.
+                # A savepoint lets the losing insert retry the atomic increment.
+                with db.begin_nested():
+                    db.add(RunLaunchBucket(
+                        id=bucket_id,
+                        window_started_at=window_start,
+                        count=1,
+                    ))
+                    db.flush()
+                continue
+            except IntegrityError:
+                incremented = db.execute(
+                    update(RunLaunchBucket)
+                    .where(
+                        RunLaunchBucket.id == bucket_id,
+                        RunLaunchBucket.window_started_at == window_start,
+                        RunLaunchBucket.count < limit,
+                    )
+                    .values(count=RunLaunchBucket.count + 1)
+                )
+                if incremented.rowcount == 1:
+                    continue
+
+        retry_after = max(1, window_start + seconds - epoch)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Run launch limit reached: {limit} per {label}. Try again in {retry_after} seconds.",
+            headers={"Retry-After": str(retry_after)},
+        )
 
 
 def bounded_float_setting(name: str, default: float, minimum: float, maximum: float) -> float:
@@ -1121,6 +1209,7 @@ def create_run(
     if not worker_is_ready():
         raise HTTPException(status_code=503, detail="The durable execution worker is not available. Start the CYRUS worker service and wait for its heartbeat.")
 
+    consume_run_launch_quota(db)
     run = WorkflowRun(
         id="RUN-" + uuid4().hex[:10].upper(),
         goal=goal,
@@ -1330,6 +1419,7 @@ def retry_run(
     if not worker_is_ready():
         raise HTTPException(status_code=503, detail="The durable execution worker is not available. Start the CYRUS worker service and wait for its heartbeat.")
 
+    consume_run_launch_quota(db)
     retried = WorkflowRun(
         id="RUN-" + uuid4().hex[:10].upper(),
         goal=redact_sensitive_text(source.goal, max_length=1200),

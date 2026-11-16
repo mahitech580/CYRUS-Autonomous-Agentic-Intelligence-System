@@ -36,6 +36,10 @@ When durable external-worker mode is enabled, both new-run and retry requests mu
 - The default 90-second TTL keeps the documented 15-second heartbeat and 30-second recovery cadence unchanged.
 - If a deployment needs slower heartbeat writes, increase the TTL rather than setting the heartbeat interval beyond the lease window.
 
+## Run launch protection
+
+The API enforces database-backed workspace-wide limits on new billable workflow attempts: **5 launches per minute** and **30 per hour** by default. Configure `CYRUS_RUNS_PER_MINUTE` (1–60) and `CYRUS_RUNS_PER_HOUR` (1–500) on the API service to adjust them. New runs and retries share the same quota; a replay with the same accepted idempotency key does not consume another slot. Bucket identifiers use a SHA-256 hash of the shared workspace access key, never the key itself. Because this version uses one shared workspace credential rather than per-user accounts, the limits are workspace-wide, not per operator. Keep provider-side spend alerts and billing budgets enabled as an additional control.
+
 ## Runtime safety
 
 Provider outputs are saved as artifacts, not executed on the API host. The approval route records a human decision but does not deploy. Do not expose this service publicly until provider key, persistent database, workspace key, CORS origins, backups, and cost/rate controls are configured.
