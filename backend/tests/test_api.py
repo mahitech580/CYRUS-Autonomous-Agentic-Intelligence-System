@@ -1463,3 +1463,67 @@ def test_legacy_run_text_is_redacted_on_detail_summary_status_and_event_reads(cl
     event_payload = str(events.json())
     assert bearer not in event_payload
     assert "Authorization: [REDACTED]" in event_payload
+
+
+def test_legacy_goals_are_redacted_before_retry_storage_and_provider_calls(client, monkeypatch):
+    secret = "sk_live_" + "A" * 24
+    raw_goal = "Inspect this legacy integration with OPENAI_API_KEY=" + secret
+    source_id = "RUN-LEGACY-RETRY-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=source_id,
+            goal=raw_goal,
+            status="failed",
+            progress=35,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setattr(main, "provider_ready", lambda: True)
+    monkeypatch.setattr(main, "database_is_durable", lambda: True)
+    monkeypatch.setattr(main, "worker_is_ready", lambda: True)
+    monkeypatch.setattr(main, "external_worker_required", lambda: False)
+    scheduled = []
+    monkeypatch.setattr(main, "execute_workflow", scheduled.append)
+
+    retried = client.post(
+        f"/api/runs/{source_id}/retry",
+        headers={"Idempotency-Key": "legacy-retry-key-123"},
+    )
+    assert retried.status_code == 202
+    retried_id = retried.json()["item"]["id"]
+    assert scheduled == [retried_id]
+    with main.SessionLocal() as db:
+        saved_retry = db.get(main.WorkflowRun, retried_id)
+        assert secret not in saved_retry.goal
+        assert "OPENAI_API_KEY=[REDACTED]" in saved_retry.goal
+
+    queued_id = "RUN-LEGACY-EXEC-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=queued_id,
+            goal=raw_goal,
+            status="queued",
+            progress=0,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+
+    provider_goals = []
+
+    def capture_safe_goal(_agent, _role, _instruction, goal, _context):
+        provider_goals.append(goal)
+        return ("safe generated artifact", {"input_tokens": 1, "output_tokens": 1}, "resp-legacy-goal")
+
+    monkeypatch.setattr(main, "complete_agent", capture_safe_goal)
+    assert main.execute_workflow(queued_id) is True
+    assert len(provider_goals) == len(main.STAGE_DEFINITIONS)
+    assert all(secret not in goal for goal in provider_goals)
+    assert all("OPENAI_API_KEY=[REDACTED]" in goal for goal in provider_goals)

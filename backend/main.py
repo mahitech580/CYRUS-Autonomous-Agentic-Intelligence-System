@@ -765,7 +765,7 @@ def execute_workflow(
                 run = get_run_for_update(db, run_id)
                 if run is None or run.status != "running" or run.execution_token != worker_token:
                     return claimed
-                goal = run.goal
+                goal = redact_sensitive_text(run.goal, max_length=1200)
                 run.current_stage = stage_id
                 append_event(run, stage_id, agent, f"{agent} started the {stage_id} stage.", "started")
                 db.commit()
@@ -1311,7 +1311,7 @@ def retry_run(
 
     retried = WorkflowRun(
         id="RUN-" + uuid4().hex[:10].upper(),
-        goal=source.goal,
+        goal=redact_sensitive_text(source.goal, max_length=1200),
         status="queued",
         progress=0,
         stages=[],
