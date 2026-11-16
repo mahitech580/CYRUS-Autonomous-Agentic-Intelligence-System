@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, prependRunRecord, validateRunGoal } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, prependRunRecord, validateRunGoal, mergeRunSummaryIntoDetail } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
@@ -404,6 +404,11 @@ export default function App() {
       const items = Array.isArray(data.items) ? data.items.map(mapRunRecord) : [];
       const total = Number(data.total);
       setRuns(items);
+      setSelectedRun((current) => {
+        if (!current) return current;
+        const summary = items.find((item) => item.id === current.id);
+        return summary ? mergeRunSummaryIntoDetail(current, summary) : current;
+      });
       setRunsTotal(Number.isFinite(total) ? Math.max(items.length, total) : items.length);
       setRunsOffset(items.length);
       setRunStats(data.stats && typeof data.stats === "object" ? data.stats : null);

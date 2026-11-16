@@ -257,6 +257,22 @@ export function validateRunGoal(value) {
   return "";
 }
 
+/**
+ * Refresh list metadata without discarding detail already loaded into an open drawer.
+ * The API list endpoint intentionally omits stage artifacts and event payloads.
+ */
+export function mergeRunSummaryIntoDetail(current, summary) {
+  if (!current || typeof current !== "object") return summary || current;
+  if (!summary || typeof summary !== "object" || summary.id !== current.id) return current;
+  return {
+    ...current,
+    ...summary,
+    stages: Array.isArray(current.stages) ? current.stages : [],
+    events: Array.isArray(current.events) ? current.events : [],
+    detail_loading: !!current.detail_loading,
+  };
+}
+
 /** Put a newly accepted workflow first without duplicating an idempotent replay. */
 /** Aggregate only finite, non-negative token counts from run details already loaded in memory. */
 export function summarizeRunUsage(runs) {

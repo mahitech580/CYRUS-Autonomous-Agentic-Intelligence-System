@@ -377,3 +377,39 @@ test("run search ignores malformed stage and event entries", () => {
   assert.deepEqual(filterRuns(records, "access controls").map((run) => run.id), ["RUN-SAFE-SEARCH"]);
   assert.deepEqual(filterRuns(records, "connection failed").map((run) => run.id), ["RUN-SAFE-SEARCH"]);
 });
+
+
+test("refreshing run summaries updates an open drawer without dropping loaded details", async () => {
+  const { mergeRunSummaryIntoDetail } = await import("./runs.js");
+  const current = {
+    id: "RUN-OPEN",
+    status: "running",
+    progress: 40,
+    stages: [{ id: "plan", output: "Loaded planning artifact" }],
+    events: [{ id: "event-1", message: "Loaded event" }],
+    detail_loading: false
+  };
+  const summary = {
+    id: "RUN-OPEN",
+    status: "review",
+    progress: 100,
+    stage_count: 7,
+    event_count: 23
+  };
+  const merged = mergeRunSummaryIntoDetail(current, summary);
+  assert.equal(merged.status, "review");
+  assert.equal(merged.progress, 100);
+  assert.equal(merged.stage_count, 7);
+  assert.equal(merged.event_count, 23);
+  assert.deepEqual(merged.stages, current.stages);
+  assert.deepEqual(merged.events, current.events);
+  assert.equal(merged.detail_loading, false);
+});
+
+test("run summary merge ignores a different run and preserves active detail loading", async () => {
+  const { mergeRunSummaryIntoDetail } = await import("./runs.js");
+  const current = { id: "RUN-A", stages: [], events: [], detail_loading: true };
+  assert.equal(mergeRunSummaryIntoDetail(current, { id: "RUN-B", status: "failed" }), current);
+  const merged = mergeRunSummaryIntoDetail(current, { id: "RUN-A", status: "running" });
+  assert.equal(merged.detail_loading, true);
+});
