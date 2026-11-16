@@ -1488,6 +1488,7 @@ def test_legacy_goals_are_redacted_before_retry_storage_and_provider_calls(clien
     monkeypatch.setattr(main, "database_is_durable", lambda: True)
     monkeypatch.setattr(main, "worker_is_ready", lambda: True)
     monkeypatch.setattr(main, "external_worker_required", lambda: False)
+    real_execute_workflow = main.execute_workflow
     scheduled = []
     monkeypatch.setattr(main, "execute_workflow", scheduled.append)
 
@@ -1523,6 +1524,10 @@ def test_legacy_goals_are_redacted_before_retry_storage_and_provider_calls(clien
         provider_goals.append(goal)
         return ("safe generated artifact", {"input_tokens": 1, "output_tokens": 1}, "resp-legacy-goal")
 
+    # Restore the real executor after checking that retry acceptance schedules
+    # exactly one background task. The list.append stub returns None and must
+    # not leak into the direct execution/redaction assertion below.
+    monkeypatch.setattr(main, "execute_workflow", real_execute_workflow)
     monkeypatch.setattr(main, "complete_agent", capture_safe_goal)
     assert main.execute_workflow(queued_id) is True
     assert len(provider_goals) == len(main.STAGE_DEFINITIONS)
