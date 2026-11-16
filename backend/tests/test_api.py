@@ -1462,4 +1462,4 @@ def test_legacy_run_text_is_redacted_on_detail_summary_status_and_event_reads(cl
     assert events.status_code == 200
     event_payload = str(events.json())
     assert bearer not in event_payload
-    assert "Bearer [REDACTED]" in event_payload
+    assert "Authorization: [REDACTED]" in event_payload
