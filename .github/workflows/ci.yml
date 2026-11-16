@@ -78,12 +78,20 @@ jobs:
               assert "no-new-privileges:true" in service.get("security_opt", [])
               assert "ALL" in service.get("cap_drop", [])
           PY
-      - name: Build and smoke-test the non-root API container
+      - name: Build and smoke-test the non-root API and durable worker containers
         working-directory: .
         run: |
+          set -euo pipefail
           docker build --file Dockerfile.api --tag cyrus-api:ci .
-          docker run --detach --rm --name cyrus-api-ci --publish 8000:8000 cyrus-api:ci
-          trap 'docker stop cyrus-api-ci >/dev/null 2>&1 || true' EXIT
+          cleanup() {
+            docker stop --time 15 cyrus-worker-ci >/dev/null 2>&1 || true
+            docker stop cyrus-api-worker-ci >/dev/null 2>&1 || true
+            docker stop cyrus-api-ci >/dev/null 2>&1 || true
+            docker volume rm cyrus-worker-ci-data >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach --rm --name cyrus-api-ci --publish 127.0.0.1:8000:8000 cyrus-api:ci
           for attempt in $(seq 1 30); do
             if docker exec cyrus-api-ci python -c "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2)); assert data['status'] == 'ok'"; then
               break
@@ -92,3 +100,37 @@ jobs:
             sleep 1
           done
           docker exec cyrus-api-ci python -c "import os; assert os.getuid() == 10001"
+          docker stop cyrus-api-ci >/dev/null
+
+          # Share a writable database volume between two non-root containers.
+          docker volume create cyrus-worker-ci-data >/dev/null
+          docker run --rm --user 0 --volume cyrus-worker-ci-data:/data --entrypoint sh cyrus-api:ci -c "chown 10001:10001 /data"
+          docker run --detach --rm --name cyrus-api-worker-ci --publish 127.0.0.1:8000:8000 --volume cyrus-worker-ci-data:/data --env DATABASE_URL=sqlite:////data/cyrus.db --env CYRUS_ENVIRONMENT=development --env CYRUS_EXTERNAL_WORKER=true --env CYRUS_WORKER_HEARTBEAT_TTL_SECONDS=30 cyrus-api:ci
+          for attempt in $(seq 1 30); do
+            if docker exec cyrus-api-worker-ci python -c "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2)); assert data['status'] == 'ok'"; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then docker logs cyrus-api-worker-ci; exit 1; fi
+            sleep 1
+          done
+
+          docker run --detach --rm --name cyrus-worker-ci --volume cyrus-worker-ci-data:/data --env DATABASE_URL=sqlite:////data/cyrus.db --env CYRUS_ENVIRONMENT=development --env CYRUS_EXTERNAL_WORKER=true --env CYRUS_WORKER_ID=ci-worker --env CYRUS_WORKER_POLL_SECONDS=0.5 --env CYRUS_WORKER_HEARTBEAT_SECONDS=5 --env CYRUS_WORKER_HEARTBEAT_TTL_SECONDS=30 cyrus-api:ci python -m backend.worker
+          for attempt in $(seq 1 30); do
+            if docker exec cyrus-api-worker-ci python -c "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/config', timeout=2)); assert data['worker_required'] and data['worker_ready'] and not data['provider_configured'] and not data['persistent_storage'] and not data['can_start_runs']"; then
+              echo "Durable worker heartbeat registered; missing provider and durable storage still block launches."
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then docker logs cyrus-worker-ci; docker logs cyrus-api-worker-ci; exit 1; fi
+            sleep 1
+          done
+          docker exec cyrus-worker-ci python -c "import os; assert os.getuid() == 10001"
+
+          docker stop --time 15 cyrus-worker-ci >/dev/null
+          for attempt in $(seq 1 15); do
+            if docker exec cyrus-api-worker-ci python -c "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/config', timeout=2)); assert data['worker_ready'] is False"; then
+              echo "Worker shutdown removed its heartbeat and readiness was withdrawn."
+              break
+            fi
+            if [ "$attempt" -eq 15 ]; then docker logs cyrus-api-worker-ci; exit 1; fi
+            sleep 1
+          done
