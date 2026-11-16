@@ -45,13 +45,13 @@ export const TASK_TEMPLATES = Object.freeze([
 function normalizeTaskTemplateSearch(value) {
   return String(value ?? "")
     .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
+    .replace(/([A-Za-z])\p{M}+/gu, "$1")
     .toLowerCase();
 }
 
 export function filterTaskTemplates(templates = TASK_TEMPLATES, query = "", category = "All") {
   const items = Array.isArray(templates) ? templates : [];
-  const terms = normalizeTaskTemplateSearch(query).match(/[\p{L}\p{N}]+/gu) || [];
+  const terms = normalizeTaskTemplateSearch(query).match(/[\p{L}\p{N}\p{M}]+/gu) || [];
   return items.filter((item) => {
     if (!item || typeof item !== "object" || Array.isArray(item)) return false;
     if (category !== "All" && item.category !== category) return false;

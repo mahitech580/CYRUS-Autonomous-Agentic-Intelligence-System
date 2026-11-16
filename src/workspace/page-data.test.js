@@ -83,3 +83,13 @@ test("task brief filtering ignores malformed collections and records", () => {
   assert.deepEqual(filterTaskTemplates(null, "secure"), []);
   assert.deepEqual(filterTaskTemplates("invalid", "secure"), []);
 });
+
+
+test("task brief search preserves Indic dependent vowel signs while folding Latin accents", () => {
+  const templates = [
+    { id: "telugu-vowels", title: "కోడ్ విశ్లేషణ", category: "Research", detail: "భాషా పరీక్ష", goal: "తెలుగు" },
+    { id: "latin-accent", title: "Cafe\u0301 reliability", category: "Reliability", detail: "Service recovery", goal: "Rollback" }
+  ];
+  assert.deepEqual(filterTaskTemplates(templates, "కోడ్").map((item) => item.id), ["telugu-vowels"]);
+  assert.deepEqual(filterTaskTemplates(templates, "cafe").map((item) => item.id), ["latin-accent"]);
+});

@@ -6,9 +6,9 @@ const CSV_COLUMNS = [
 function normalizeRunSearchValue(value) {
   return String(value ?? "")
     .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
+    .replace(/([A-Za-z])\p{M}+/gu, "$1")
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/[^\p{L}\p{N}\p{M}]+/gu, " ")
     .trim();
 }
 

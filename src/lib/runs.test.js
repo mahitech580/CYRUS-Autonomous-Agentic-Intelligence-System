@@ -301,3 +301,13 @@ test("stage timing uses persisted start and terminal events and handles interrup
   assert.deepEqual(getRunStageTiming(interrupted, "test", 0), { status: "interrupted", durationMs: 5000 });
   assert.equal(getRunStageTiming(run, "release", 0), null);
 });
+
+
+test("run search preserves Indic dependent vowel signs while folding Latin accents", () => {
+  const records = [
+    { id: "TEL-1", goal: "కోడ్ విశ్లేషణ", status: "queued" },
+    { id: "LAT-1", goal: "Cafe\u0301 reliability", status: "queued" }
+  ];
+  assert.deepEqual(filterRuns(records, "కోడ్").map((run) => run.id), ["TEL-1"]);
+  assert.deepEqual(filterRuns(records, "cafe").map((run) => run.id), ["LAT-1"]);
+});
