@@ -105,7 +105,7 @@ jobs:
           # Share a writable database volume between two non-root containers.
           docker volume create cyrus-worker-ci-data >/dev/null
           docker run --rm --user 0 --volume cyrus-worker-ci-data:/data --entrypoint sh cyrus-api:ci -c "chown 10001:10001 /data"
-          docker run --detach --rm --name cyrus-api-worker-ci --publish 127.0.0.1:8000:8000 --volume cyrus-worker-ci-data:/data --env DATABASE_URL=sqlite:////data/cyrus.db --env CYRUS_ENVIRONMENT=development --env CYRUS_EXTERNAL_WORKER=true --env CYRUS_WORKER_HEARTBEAT_TTL_SECONDS=30 cyrus-api:ci
+          docker run --detach --rm --name cyrus-api-worker-ci --publish 127.0.0.1:8000:8000 --volume cyrus-worker-ci-data:/data --env DATABASE_URL=sqlite:////data/cyrus.db --env CYRUS_ENVIRONMENT=production --env CYRUS_ACCESS_KEY=ci-only-test-key --env CYRUS_EXTERNAL_WORKER=true --env CYRUS_WORKER_HEARTBEAT_TTL_SECONDS=30 cyrus-api:ci
           for attempt in $(seq 1 30); do
             if docker exec cyrus-api-worker-ci python -c "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2)); assert data['status'] == 'ok'"; then
               break
@@ -114,23 +114,40 @@ jobs:
             sleep 1
           done
 
-          docker run --detach --rm --name cyrus-worker-ci --volume cyrus-worker-ci-data:/data --env DATABASE_URL=sqlite:////data/cyrus.db --env CYRUS_ENVIRONMENT=development --env CYRUS_EXTERNAL_WORKER=true --env CYRUS_WORKER_ID=ci-worker --env CYRUS_WORKER_POLL_SECONDS=0.5 --env CYRUS_WORKER_HEARTBEAT_SECONDS=5 --env CYRUS_WORKER_HEARTBEAT_TTL_SECONDS=30 cyrus-api:ci python -m backend.worker
+          docker run --detach --rm --name cyrus-worker-ci --volume cyrus-worker-ci-data:/data --env DATABASE_URL=sqlite:////data/cyrus.db --env CYRUS_ENVIRONMENT=production --env CYRUS_EXTERNAL_WORKER=true --env CYRUS_WORKER_ID=ci-worker --env CYRUS_WORKER_POLL_SECONDS=0.5 --env CYRUS_WORKER_HEARTBEAT_SECONDS=5 --env CYRUS_WORKER_HEARTBEAT_TTL_SECONDS=30 cyrus-api:ci python -m backend.worker
+          docker exec cyrus-api-worker-ci python -c 'import urllib.error, urllib.request
+          try:
+              urllib.request.urlopen("http://127.0.0.1:8000/api/config", timeout=2)
+          except urllib.error.HTTPError as error:
+              assert error.code == 401
+          else:
+              raise AssertionError("missing workspace access key was accepted")'
+
           for attempt in $(seq 1 30); do
-            if docker exec cyrus-api-worker-ci python -c "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/config', timeout=2)); assert data['worker_required'] and data['worker_ready'] and not data['provider_configured'] and not data['persistent_storage'] and not data['can_start_runs']"; then
-              echo "Durable worker heartbeat registered; missing provider and durable storage still block launches."
+            if docker exec cyrus-api-worker-ci python -c 'import json, urllib.request; request = urllib.request.Request("http://127.0.0.1:8000/api/config", headers={"Authorization": "Bearer ci-only-test-key"}); data = json.load(urllib.request.urlopen(request, timeout=2)); assert data["worker_required"] and data["worker_ready"] and not data["provider_configured"] and not data["persistent_storage"] and not data["can_start_runs"]' >/dev/null 2>&1; then
+              echo "Worker heartbeat registered; production access, provider, and storage gates remain enforced."
               break
             fi
-            if [ "$attempt" -eq 30 ]; then docker logs cyrus-worker-ci; docker logs cyrus-api-worker-ci; exit 1; fi
+            if [ "$attempt" -eq 30 ]; then
+              docker exec cyrus-api-worker-ci python -c 'import json, urllib.request; request = urllib.request.Request("http://127.0.0.1:8000/api/config", headers={"Authorization": "Bearer ci-only-test-key"}); print(json.dumps(json.load(urllib.request.urlopen(request, timeout=2)), indent=2))' || true
+              docker logs cyrus-worker-ci
+              docker logs cyrus-api-worker-ci
+              exit 1
+            fi
             sleep 1
           done
           docker exec cyrus-worker-ci python -c "import os; assert os.getuid() == 10001"
 
           docker stop --time 15 cyrus-worker-ci >/dev/null
           for attempt in $(seq 1 15); do
-            if docker exec cyrus-api-worker-ci python -c "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/config', timeout=2)); assert data['worker_ready'] is False"; then
+            if docker exec cyrus-api-worker-ci python -c 'import json, urllib.request; request = urllib.request.Request("http://127.0.0.1:8000/api/config", headers={"Authorization": "Bearer ci-only-test-key"}); data = json.load(urllib.request.urlopen(request, timeout=2)); assert data["worker_ready"] is False' >/dev/null 2>&1; then
               echo "Worker shutdown removed its heartbeat and readiness was withdrawn."
               break
             fi
-            if [ "$attempt" -eq 15 ]; then docker logs cyrus-api-worker-ci; exit 1; fi
+            if [ "$attempt" -eq 15 ]; then
+              docker exec cyrus-api-worker-ci python -c 'import json, urllib.request; request = urllib.request.Request("http://127.0.0.1:8000/api/config", headers={"Authorization": "Bearer ci-only-test-key"}); print(json.dumps(json.load(urllib.request.urlopen(request, timeout=2)), indent=2))' || true
+              docker logs cyrus-api-worker-ci
+              exit 1
+            fi
             sleep 1
           done
