@@ -62,7 +62,7 @@ Provision the database in your own account, enable TLS as recommended by the pro
 
 ### Protect public deployments
 
-Set a long random CYRUS_ACCESS_KEY in the backend host's environment variables. Then enter the same value in CYRUS Settings. Protected routes require an Authorization Bearer token; the browser keeps the key in session storage only. Do not reuse a provider key as the workspace access key.
+Set CYRUS_ENVIRONMENT=production on non-Vercel production/staging hosts and set a long random CYRUS_ACCESS_KEY in the backend environment. Managed PostgreSQL/MySQL deployments are treated as production and require the key even if the environment label is omitted. Production SQLite is rejected. Local Docker Compose explicitly defaults to development; change CYRUS_ENVIRONMENT to production before exposing that stack publicly. Then enter the same key in CYRUS Settings. Protected routes require an Authorization Bearer token; the browser keeps the key in session storage only. CYRUS_REQUIRE_ACCESS_KEY=true can force the gate in development. Do not reuse a provider key as the workspace access key.
 
 ### Run a durable external worker
 
@@ -95,6 +95,8 @@ For Vercel, configure server-only variables in the cyrus-api project's Environme
 | CYRUS_ENABLE_WEB_SEARCH | No | Enables web search for Scout only; default false |
 | DATABASE_URL | Production required | Managed durable PostgreSQL/MySQL URL |
 | CYRUS_ACCESS_KEY | Production required | Shared workspace access key |
+| CYRUS_ENVIRONMENT | No | Set production or staging on deployed hosts; local Compose defaults to development |
+| CYRUS_REQUIRE_ACCESS_KEY | No | Set true to require a workspace key even in development |
 | CORS_ORIGINS | Yes for browser deployment | Comma-separated trusted frontend origins |
 | VITE_API_BASE_URL | Frontend | Public URL for CYRUS REST API |
 

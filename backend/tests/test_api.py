@@ -13,7 +13,8 @@ import main
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    monkeypatch.setenv("CYRUS_ENVIRONMENT", "development")
     main.ensure_schema()
     with TestClient(main.app) as test_client:
         yield test_client
@@ -1527,3 +1528,37 @@ def test_legacy_goals_are_redacted_before_retry_storage_and_provider_calls(clien
     assert len(provider_goals) == len(main.STAGE_DEFINITIONS)
     assert all(secret not in goal for goal in provider_goals)
     assert all("OPENAI_API_KEY=[REDACTED]" in goal for goal in provider_goals)
+
+
+def test_production_sqlite_requires_access_control_and_is_not_durable(client, monkeypatch):
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)
+    monkeypatch.setenv("CYRUS_ENVIRONMENT", "production")
+
+    assert main.database_is_durable() is False
+    assert main.workspace_access_required() is True
+    assert client.get("/api/config").status_code == 503
+    health = client.get("/api/health").json()
+    assert health["persistent_storage"] is False
+    assert health["ready_for_runs"] is False
+
+
+def test_managed_database_defaults_to_protected_production_without_environment_label(client, monkeypatch):
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)
+    monkeypatch.delenv("CYRUS_ENVIRONMENT", raising=False)
+    monkeypatch.setattr(main.engine.dialect, "name", "postgresql")
+    assert main.database_is_durable() is True
+    assert main.workspace_access_required() is True
+
+
+def test_local_development_can_force_access_control_without_changing_defaults(client, monkeypatch):
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("CYRUS_ACCESS_KEY", raising=False)
+    monkeypatch.setenv("CYRUS_ENVIRONMENT", "development")
+    monkeypatch.delenv("CYRUS_REQUIRE_ACCESS_KEY", raising=False)
+    assert main.database_is_durable() is True
+    assert main.workspace_access_required() is False
+
+    monkeypatch.setenv("CYRUS_REQUIRE_ACCESS_KEY", "true")
+    assert main.workspace_access_required() is True

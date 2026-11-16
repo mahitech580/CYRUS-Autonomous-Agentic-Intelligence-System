@@ -25,7 +25,7 @@ Every workflow generates seven model responses. Model usage is billed by the pro
 
 ## Persistence and access
 
-SQLite is for local development only. Production runs are refused unless DATABASE_URL uses managed PostgreSQL/MySQL. Set CYRUS_ACCESS_KEY to a long random secret in the backend environment; protected endpoints require a Bearer token. Production runs are also refused if access control is not configured.
+SQLite is for local development only. Set CYRUS_ENVIRONMENT=production on non-Vercel production/staging hosts; production SQLite is rejected. Managed PostgreSQL/MySQL is treated as a production signal when no environment label is supplied. Production and staging require CYRUS_ACCESS_KEY, and CYRUS_REQUIRE_ACCESS_KEY=true can force the gate in development. Set the key to a long random secret in the backend environment; protected endpoints require a Bearer token. Production runs are refused if access control is not configured.
 When durable external-worker mode is enabled, both new-run and retry requests must include an 8–128 character `Idempotency-Key`. The frontend generates stable request keys so network retries cannot create duplicate billable attempts.
 
 ## Runtime safety

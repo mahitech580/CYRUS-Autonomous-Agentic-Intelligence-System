@@ -175,11 +175,31 @@ def provider_name() -> str:
 
 
 def database_is_durable() -> bool:
-    # SQLite is useful for a local single-process developer setup, but /tmp or the
-    # serverless filesystem must not be represented as durable production storage.
+    # Managed SQL engines are durable. SQLite is accepted only for local/test
+    # environments; a production or staging deployment must not silently treat
+    # an instance-local file as persistent storage.
     if engine.dialect.name in {"postgresql", "mysql", "mariadb"}:
         return True
-    return not bool(os.getenv("VERCEL")) and engine.dialect.name == "sqlite"
+    environment = os.getenv("CYRUS_ENVIRONMENT", "").strip().lower()
+    local_environment = environment in {"", "development", "dev", "test", "local"}
+    return not bool(os.getenv("VERCEL")) and local_environment and engine.dialect.name == "sqlite"
+
+
+def workspace_access_required() -> bool:
+    """Require a shared access key for hosted, staging and durable-database deployments."""
+    if os.getenv("VERCEL"):
+        return True
+    forced = os.getenv("CYRUS_REQUIRE_ACCESS_KEY", "").strip().lower() in {"1", "true", "yes", "on"}
+    if forced:
+        return True
+    environment = os.getenv("CYRUS_ENVIRONMENT", "").strip().lower()
+    if environment in {"development", "dev", "test", "local"}:
+        return False
+    if environment:
+        return True
+    # A managed database is a production signal even when a host-specific
+    # environment label has not been supplied.
+    return engine.dialect.name in {"postgresql", "mysql", "mariadb"}
 
 
 def external_worker_required() -> bool:
@@ -330,7 +350,7 @@ def get_db():
 def require_workspace_access(authorization: str | None = Header(default=None)) -> None:
     expected = os.getenv("CYRUS_ACCESS_KEY", "").strip()
     if not expected:
-        if os.getenv("VERCEL"):
+        if workspace_access_required():
             raise HTTPException(status_code=503, detail="Workspace access control is not configured. Add CYRUS_ACCESS_KEY to the server environment.")
         return
     scheme, separator, credential = (authorization or "").strip().partition(" ")
@@ -943,8 +963,9 @@ def config() -> dict[str, Any]:
     durable = database_is_durable()
     ready = provider_ready()
     access_control = bool(os.getenv("CYRUS_ACCESS_KEY", "").strip())
-    access_control_required = access_control or bool(os.getenv("VERCEL"))
-    access_control_configured = access_control or not bool(os.getenv("VERCEL"))
+    access_required = workspace_access_required()
+    access_control_required = access_control or access_required
+    access_control_configured = access_control or not access_required
     worker_required = external_worker_required()
     worker_ready = worker_is_ready()
     queue = workflow_queue_snapshot()
@@ -981,7 +1002,7 @@ def health() -> dict[str, Any]:
     database_ok = database_is_reachable()
     ready = provider_ready()
     durable = database_is_durable()
-    access_configured = bool(os.getenv("CYRUS_ACCESS_KEY", "").strip()) or not bool(os.getenv("VERCEL"))
+    access_configured = bool(os.getenv("CYRUS_ACCESS_KEY", "").strip()) or not workspace_access_required()
     worker_required = external_worker_required()
     worker_ready = worker_is_ready()
     ready_for_runs = database_ok and durable and ready and access_configured and worker_ready
@@ -1091,7 +1112,7 @@ def create_run(
                 raise HTTPException(status_code=409, detail="This Idempotency-Key was already used for a different workflow goal.")
             return {"item": as_run(existing), "notice": "The workflow was already accepted with this idempotency key."}
 
-    if os.getenv("VERCEL") and not os.getenv("CYRUS_ACCESS_KEY", "").strip():
+    if workspace_access_required() and not os.getenv("CYRUS_ACCESS_KEY", "").strip():
         raise HTTPException(status_code=503, detail="Workspace access control is not configured. Add CYRUS_ACCESS_KEY to the server environment.")
     if not provider_ready():
         raise HTTPException(status_code=503, detail="Real AI is not configured. Add OPENAI_API_KEY to the server environment.")
@@ -1355,7 +1376,7 @@ def ready() -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="Persistent production storage is not configured.")
     if not provider_ready():
         raise HTTPException(status_code=503, detail="Model provider is not configured.")
-    if os.getenv("VERCEL") and not os.getenv("CYRUS_ACCESS_KEY", "").strip():
+    if workspace_access_required() and not os.getenv("CYRUS_ACCESS_KEY", "").strip():
         raise HTTPException(status_code=503, detail="Workspace access control is not configured.")
     if not worker_is_ready():
         raise HTTPException(status_code=503, detail="The durable execution worker is not available. Start the CYRUS worker service and wait for its heartbeat.")
