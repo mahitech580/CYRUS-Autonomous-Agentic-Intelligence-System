@@ -225,6 +225,9 @@ def test_shutdown_marks_the_active_run_failed_and_preserves_completed_stages(mon
 
 def test_worker_loop_refreshes_and_removes_heartbeat_on_shutdown(monkeypatch, caplog):
     monkeypatch.setenv("CYRUS_EXTERNAL_WORKER", "true")
+    monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_TTL_SECONDS", "30")
+    monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_SECONDS", "60")
+    monkeypatch.setenv("CYRUS_WORKER_RECOVERY_SECONDS", "120")
     main.ensure_schema()
     stop = threading.Event()
     executed = []
@@ -241,6 +244,7 @@ def test_worker_loop_refreshes_and_removes_heartbeat_on_shutdown(monkeypatch, ca
         worker.run_worker(stop_event=stop, worker_id="worker-shutdown-test")
 
     assert "worker started worker_id=worker-shutdown-test" in caplog.text
+    assert "heartbeat_seconds=10.0 recovery_seconds=15.0" in caplog.text
     assert "workflow dispatch worker_id=worker-shutdown-test run_id=RUN-WORKER-STOP" in caplog.text
     assert "worker stopped worker_id=worker-shutdown-test" in caplog.text
     assert executed == ["RUN-WORKER-STOP"]
@@ -321,6 +325,30 @@ def test_worker_retry_delay_is_exponential_and_bounded():
     assert worker.worker_retry_delay(3, 2.0) == 8.0
     assert worker.worker_retry_delay(99, 30.0) == 30.0
     assert worker.worker_retry_delay(0, 0.1) == 0.5
+
+
+def test_worker_heartbeat_interval_stays_inside_the_lease_ttl(monkeypatch):
+    monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_SECONDS", "60")
+    monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_TTL_SECONDS", "30")
+    assert worker.worker_heartbeat_interval_seconds() == 10.0
+
+    monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_TTL_SECONDS", "90")
+    assert worker.worker_heartbeat_interval_seconds() == 30.0
+
+    monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_SECONDS", "5")
+    assert worker.worker_heartbeat_interval_seconds() == 5.0
+
+
+def test_worker_recovery_interval_stays_inside_the_lease_ttl(monkeypatch):
+    monkeypatch.setenv("CYRUS_WORKER_RECOVERY_SECONDS", "120")
+    monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_TTL_SECONDS", "30")
+    assert worker.worker_recovery_interval_seconds() == 15.0
+
+    monkeypatch.setenv("CYRUS_WORKER_HEARTBEAT_TTL_SECONDS", "90")
+    assert worker.worker_recovery_interval_seconds() == 45.0
+
+    monkeypatch.setenv("CYRUS_WORKER_RECOVERY_SECONDS", "5")
+    assert worker.worker_recovery_interval_seconds() == 5.0
 
 
 def test_worker_initialization_retries_transient_schema_failure(monkeypatch):

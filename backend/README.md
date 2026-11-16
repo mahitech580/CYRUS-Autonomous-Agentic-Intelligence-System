@@ -28,6 +28,14 @@ Every workflow generates seven model responses. Model usage is billed by the pro
 SQLite is for local development only. Set CYRUS_ENVIRONMENT=production on non-Vercel production/staging hosts; production SQLite is rejected. Managed PostgreSQL/MySQL is treated as a production signal when no environment label is supplied. Production and staging require CYRUS_ACCESS_KEY, and CYRUS_REQUIRE_ACCESS_KEY=true can force the gate in development. Set the key to a long random secret in the backend environment; protected endpoints require a Bearer token. Production runs are refused if access control is not configured.
 When durable external-worker mode is enabled, both new-run and retry requests must include an 8–128 character `Idempotency-Key`. The frontend generates stable request keys so network retries cannot create duplicate billable attempts.
 
+## Worker lease timing
+
+- CYRUS_WORKER_HEARTBEAT_TTL_SECONDS defines how long a worker lease remains fresh (30–300 seconds).
+- CYRUS_WORKER_HEARTBEAT_SECONDS is an upper bound; the worker automatically caps renewals at one third of the lease TTL so a valid worker cannot age out between heartbeats.
+- CYRUS_WORKER_RECOVERY_SECONDS is also an upper bound; stale-run reconciliation is capped at half the lease TTL so expired work is noticed promptly.
+- The default 90-second TTL keeps the documented 15-second heartbeat and 30-second recovery cadence unchanged.
+- If a deployment needs slower heartbeat writes, increase the TTL rather than setting the heartbeat interval beyond the lease window.
+
 ## Runtime safety
 
 Provider outputs are saved as artifacts, not executed on the API host. The approval route records a human decision but does not deploy. Do not expose this service publicly until provider key, persistent database, workspace key, CORS origins, backups, and cost/rate controls are configured.

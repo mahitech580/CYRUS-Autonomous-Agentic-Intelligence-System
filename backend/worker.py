@@ -69,6 +69,20 @@ def worker_retry_delay(failures: int, base_seconds: float) -> float:
     return min(base * (2 ** exponent), 30.0)
 
 
+def worker_heartbeat_interval_seconds() -> float:
+    """Renew the lease at least three times within its configured TTL."""
+    configured = main.bounded_float_setting("CYRUS_WORKER_HEARTBEAT_SECONDS", 15.0, 5.0, 60.0)
+    lease_ttl = main.worker_heartbeat_ttl_seconds()
+    return min(configured, max(5.0, lease_ttl / 3.0))
+
+
+def worker_recovery_interval_seconds() -> float:
+    """Reconcile expired worker leases at least twice within their TTL."""
+    configured = main.bounded_float_setting("CYRUS_WORKER_RECOVERY_SECONDS", 30.0, 5.0, 120.0)
+    lease_ttl = main.worker_heartbeat_ttl_seconds()
+    return min(configured, max(5.0, lease_ttl / 2.0))
+
+
 def initialize_worker(stop: threading.Event, identity: str, retry_base_seconds: float) -> bool:
     """Wait for schema and heartbeat storage to recover instead of crash-looping on startup."""
     failures = 0
@@ -98,8 +112,8 @@ def run_worker(*, stop_event: threading.Event | None = None, worker_id: str | No
     stop = stop_event or threading.Event()
     identity = worker_id or worker_identity()
     poll_seconds = main.bounded_float_setting("CYRUS_WORKER_POLL_SECONDS", 2.0, 0.5, 30.0)
-    heartbeat_seconds = main.bounded_float_setting("CYRUS_WORKER_HEARTBEAT_SECONDS", 15.0, 5.0, 60.0)
-    recovery_seconds = main.bounded_float_setting("CYRUS_WORKER_RECOVERY_SECONDS", 30.0, 5.0, 120.0)
+    heartbeat_seconds = worker_heartbeat_interval_seconds()
+    recovery_seconds = worker_recovery_interval_seconds()
     if not initialize_worker(stop, identity, poll_seconds):
         return
 
