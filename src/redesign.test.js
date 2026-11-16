@@ -573,8 +573,8 @@ test("secondary workspace explanatory copy meets a legible minimum size", async 
   ]) {
     assert.ok(styles.includes(selector), "missing readable type scale for " + selector);
   }
-  assert.ok(styles.includes("font-size:12px"));
-  assert.ok(styles.includes("font-size:11px"));
+  assert.ok(styles.includes("font-size: 12px"));
+  assert.ok(styles.includes("font-size: 11px"));
   assert.ok(styles.includes("@media(max-width:740px)"));
 });
 
