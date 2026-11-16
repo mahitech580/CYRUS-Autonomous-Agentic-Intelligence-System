@@ -16,9 +16,20 @@ export function filterRuns(runs, query = "", statusFilter = "all") {
   const items = Array.isArray(runs) ? runs.filter((run) => run && typeof run === "object") : [];
   const terms = normalizeRunSearchValue(query).split(/\s+/).filter(Boolean);
   return items.filter((run) => {
+    const stageSearch = Array.isArray(run.stages)
+      ? run.stages.flatMap((stage) => stage && typeof stage === "object" ? [
+        stage.id, stage.agent, stage.role, stage.status, stage.summary,
+      ] : [])
+      : [];
+    const eventSearch = Array.isArray(run.events)
+      ? run.events.flatMap((event) => event && typeof event === "object" ? [
+        event.stage, event.agent, event.status, event.message,
+      ] : [])
+      : [];
     const searchable = normalizeRunSearchValue([
       run.id, run.goal, run.status, run.kind, run.current_stage,
       run.approval_status, run.execution_mode, run.error,
+      ...stageSearch, ...eventSearch,
     ].filter((value) => typeof value === "string" || typeof value === "number").join(" "));
     const matchesSearch = !terms.length || terms.every((term) => searchable.includes(term));
     const matchesStatus = statusFilter === "all"

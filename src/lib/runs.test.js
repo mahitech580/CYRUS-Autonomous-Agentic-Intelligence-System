@@ -352,3 +352,28 @@ test("run goal validation counts Unicode code points rather than UTF-16 code uni
   assert.match(validateRunGoal("😀😀😀😀"), /at least 8 characters/);
   assert.equal(validateRunGoal("😀😀😀😀😀😀😀😀"), "");
 });
+
+
+test("run search includes stage and event details only when those details are loaded", () => {
+  const detailed = [{
+    id: "RUN-DETAIL-SEARCH",
+    goal: "Prepare a service release",
+    status: "review",
+    stages: [{ id: "architect", agent: "Forma", role: "Architecture", summary: "Design a payment boundary", status: "completed" }],
+    events: [{ id: "event-1", stage: "test", agent: "Sentinel", message: "Detected a retry race in webhook delivery", status: "failed" }]
+  }];
+  assert.deepEqual(filterRuns(detailed, "payment boundary").map((run) => run.id), ["RUN-DETAIL-SEARCH"]);
+  assert.deepEqual(filterRuns(detailed, "webhook retry race").map((run) => run.id), ["RUN-DETAIL-SEARCH"]);
+  assert.deepEqual(filterRuns([{ ...detailed[0], stages: undefined, events: undefined }], "webhook retry race"), []);
+});
+
+test("run search ignores malformed stage and event entries", () => {
+  const records = [{
+    id: "RUN-SAFE-SEARCH",
+    goal: "Review deployment",
+    stages: [null, "invalid", { agent: "Lens", summary: "Review access controls" }],
+    events: [null, 42, { message: "Connection failed safely" }]
+  }];
+  assert.deepEqual(filterRuns(records, "access controls").map((run) => run.id), ["RUN-SAFE-SEARCH"]);
+  assert.deepEqual(filterRuns(records, "connection failed").map((run) => run.id), ["RUN-SAFE-SEARCH"]);
+});
