@@ -15,3 +15,7 @@
 .timeline-duration { color:#8dc9e3; font:9px var(--mono); white-space:nowrap; }
 .timeline-duration-running { color:#86eaff; }
 .timeline-duration-failed, .timeline-duration-interrupted { color:#ff9fb1; }
+
+
+/* A stopped workflow can leave a stage interrupted without failing that stage. */
+.timeline-interrupted { color:#2a2111; border-color:#e9c17a; background:#e9c17a; box-shadow:0 0 16px rgba(233,193,122,.18); }

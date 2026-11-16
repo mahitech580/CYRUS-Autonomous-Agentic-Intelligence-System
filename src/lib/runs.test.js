@@ -462,3 +462,15 @@ test("CSV export neutralizes formulas after Unicode whitespace prefixes", () => 
   assert.ok(csv.includes('"\'\u00a0=HYPERLINK(""https://attacker.test"",""open"")"'));
   assert.ok(csv.includes('"\'\u3000+SUM(1,2)"'));
 });
+
+
+test("cancelled and lease-expired workflows distinguish interrupted stages from queued work", () => {
+  const events = [
+    { id: "event-started", stage: "code", status: "started" },
+    { id: "event-finished", stage: "plan", status: "completed" },
+  ];
+  assert.equal(getRunStageState({ status: "cancelled", events }, "code"), "interrupted");
+  assert.equal(getRunStageState({ status: "failed", events }, "code"), "interrupted");
+  assert.equal(getRunStageState({ status: "cancelled", events }, "plan"), "completed");
+  assert.equal(getRunStageState({ status: "cancelled", events }, "research"), "queued");
+});

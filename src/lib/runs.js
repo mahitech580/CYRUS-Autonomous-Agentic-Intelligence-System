@@ -217,8 +217,11 @@ export function getRunStageState(run, stageId) {
     return "completed";
   }
   const events = Array.isArray(run?.events) ? run.events : [];
-  const failed = events.some((event) => event?.status === "failed" && event?.stage === stageId);
-  if (failed) return "failed";
+  const stageEvents = events.filter((event) => event?.stage === stageId);
+  if (stageEvents.some((event) => event?.status === "failed")) return "failed";
+  if (stageEvents.some((event) => event?.status === "completed")) return "completed";
+  const started = stageEvents.some((event) => event?.status === "started");
+  if (started && ["failed", "cancelled"].includes(run?.status)) return "interrupted";
   if (run?.current_stage === stageId && ["queued", "running"].includes(run?.status)) return "active";
   return "queued";
 }

@@ -1248,14 +1248,16 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
       const active = stageState === "active";
       const complete = stageState === "completed";
       const failed = stageState === "failed";
+      const interrupted = stageState === "interrupted";
+      const notReached = ["failed", "cancelled"].includes(run.status) && !complete && !active && !failed && !interrupted;
       const timing = getRunStageTiming(run, stageId);
       const timingLabel = timing?.status === "running" ? "Running"
         : timing?.status === "failed" ? "Failed after"
           : timing?.status === "interrupted" ? "Interrupted after"
             : "Completed in";
       return <div className="timeline-item" key={step.title}>
-        <span className={"timeline-dot" + (complete ? " timeline-done" : active ? " timeline-active" : failed ? " timeline-failed" : "")}>{complete ? <Check size={11} /> : active ? <Activity size={11} /> : failed ? <X size={11} /> : index + 1}</span>
-        <div className="timeline-stage"><button type="button" className="timeline-stage-button" aria-expanded={!!stage && expandedStage === stageId} aria-controls={stage ? "artifact-panel-" + run.id + "-" + stageId : undefined} onClick={() => setExpandedStage(expandedStage === stageId ? "" : stageId)}><strong>{step.title} <span>{stage?.agent || step.title}</span></strong><small>{complete ? "Real model output saved" : active ? "Waiting for provider response" : failed ? "Failed at this stage" : run.status === "failed" ? "Not reached" : "Queued"}{timing ? <span className={"timeline-duration timeline-duration-" + timing.status}> · {timingLabel} {formatDurationMs(timing.durationMs)}</span> : null}</small></button>
+        <span className={"timeline-dot" + (complete ? " timeline-done" : active ? " timeline-active" : failed ? " timeline-failed" : interrupted ? " timeline-interrupted" : "")}>{complete ? <Check size={11} /> : active ? <Activity size={11} /> : failed ? <X size={11} /> : interrupted ? <Clock3 size={11} /> : index + 1}</span>
+        <div className="timeline-stage"><button type="button" className="timeline-stage-button" aria-expanded={!!stage && expandedStage === stageId} aria-controls={stage ? "artifact-panel-" + run.id + "-" + stageId : undefined} onClick={() => setExpandedStage(expandedStage === stageId ? "" : stageId)}><strong>{step.title} <span>{stage?.agent || step.title}</span></strong><small>{complete ? "Real model output saved" : active ? "Waiting for provider response" : failed ? "Failed at this stage" : interrupted ? "Interrupted before completion" : notReached ? "Not reached" : "Queued"}{timing ? <span className={"timeline-duration timeline-duration-" + timing.status}> · {timingLabel} {formatDurationMs(timing.durationMs)}</span> : null}</small></button>
           {stage ? <div id={"artifact-panel-" + run.id + "-" + stageId} className="artifact-output" hidden={expandedStage !== stageId}><div className="artifact-label">MODEL OUTPUT</div><pre>{stage.output || stage.summary || "No output available."}</pre></div> : null}
         </div>
       </div>;
