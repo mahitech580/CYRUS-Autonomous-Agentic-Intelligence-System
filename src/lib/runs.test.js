@@ -413,3 +413,24 @@ test("run summary merge ignores a different run and preserves active detail load
   const merged = mergeRunSummaryIntoDetail(current, { id: "RUN-A", status: "running" });
   assert.equal(merged.detail_loading, true);
 });
+
+
+test("persisted stage status takes precedence over artifact presence", () => {
+  const run = {
+    status: "running",
+    current_stage: "test",
+    stages: [
+      { id: "plan", status: "failed", output: "partial plan artifact" },
+      { id: "research", status: "running", output: "streamed research artifact" },
+      { id: "architect", status: "queued" },
+      { id: "code", output: "legacy artifact without a persisted status" },
+      { id: "review", status: "error" },
+    ],
+    events: [],
+  };
+  assert.equal(getRunStageState(run, "plan"), "failed");
+  assert.equal(getRunStageState(run, "research"), "active");
+  assert.equal(getRunStageState(run, "architect"), "queued");
+  assert.equal(getRunStageState(run, "code"), "completed");
+  assert.equal(getRunStageState(run, "review"), "failed");
+});

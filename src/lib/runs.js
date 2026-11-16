@@ -199,7 +199,16 @@ export function getRunPageOffset(response, currentOffset = 0, pageLength = 0) {
 /** Resolve each pipeline stage from persisted artifacts, the active stage, and failure events. */
 export function getRunStageState(run, stageId) {
   const stages = Array.isArray(run?.stages) ? run.stages : [];
-  if (stages.some((stage) => stage?.id === stageId)) return "completed";
+  const persisted = stages.find((stage) => stage?.id === stageId);
+  if (persisted) {
+    const status = String(persisted.status || "").trim().toLowerCase();
+    if (["failed", "error"].includes(status)) return "failed";
+    if (["running", "started"].includes(status)) return "active";
+    if (["queued", "pending"].includes(status)) return "queued";
+    // Older records did not persist a stage status; their artifact presence
+    // remains the compatibility signal for a completed stage.
+    return "completed";
+  }
   const events = Array.isArray(run?.events) ? run.events : [];
   const failed = events.some((event) => event?.status === "failed" && event?.stage === stageId);
   if (failed) return "failed";
