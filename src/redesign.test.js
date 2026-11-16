@@ -556,3 +556,24 @@ test("queue refresh announces successful snapshots to assistive technology", asy
   assert.ok(styles.includes(".workspace-sr-only"));
   assert.ok(styles.includes("clip:rect(0,0,0,0)"));
 });
+
+
+test("secondary workspace explanatory copy meets a legible minimum size", async () => {
+  const styles = await read("redesign/readability.css");
+  const imports = await read("redesign.css");
+  assert.ok(imports.includes('@import "./redesign/readability.css";'));
+  for (const selector of [
+    ".workspace-page-primary-heading p",
+    ".workspace-page-section-heading p",
+    ".workspace-destination-copy strong",
+    ".workspace-destination-copy small",
+    ".workspace-page-rail-card > p",
+    ".workspace-template-card p",
+    ".workspace-run-record-main small"
+  ]) {
+    assert.ok(styles.includes(selector), "missing readable type scale for " + selector);
+  }
+  assert.ok(styles.includes("font-size:12px"));
+  assert.ok(styles.includes("font-size:11px"));
+  assert.ok(styles.includes("@media(max-width:740px)"));
+});

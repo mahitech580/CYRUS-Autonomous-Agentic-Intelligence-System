@@ -1,0 +1,57 @@
+/*
+ * Secondary workspace pages are information-dense operational surfaces.
+ * Keep supporting copy readable without enlarging IDs, badges or data labels.
+ */
+.workspace-page-primary-heading p,
+.workspace-page-section-heading p,
+.workspace-page-rail-card > p,
+.workspace-governance-control p,
+.workspace-access-banner p,
+.workspace-template-card p {
+  font-size: 12px;
+  line-height: 1.75;
+}
+.workspace-destination-copy strong,
+.workspace-page-rail-card h2 {
+  font-size: 12px;
+}
+.workspace-destination-copy small,
+.workspace-run-record-main small,
+.workspace-policy-row p,
+.workspace-governance-control > small,
+.workspace-access-row {
+  font-size: 11px;
+  line-height: 1.65;
+}
+.workspace-run-record-main strong {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.workspace-run-id {
+  font-size: 9px;
+}
+.workspace-page-hero-copy > p {
+  font-size: 13px;
+}
+.workspace-observability-legend li,
+.workspace-observability-runtime-row,
+.workspace-governance-metrics article > span {
+  font-size: 11px;
+}
+@media(max-width:740px) {
+  .workspace-page-primary-heading p,
+  .workspace-page-section-heading p,
+  .workspace-page-rail-card > p,
+  .workspace-governance-control p,
+  .workspace-access-banner p,
+  .workspace-template-card p {
+    font-size: 12px;
+  }
+  .workspace-destination-copy small,
+  .workspace-run-record-main small,
+  .workspace-policy-row p,
+  .workspace-governance-control > small,
+  .workspace-access-row {
+    font-size: 11px;
+  }
+}
