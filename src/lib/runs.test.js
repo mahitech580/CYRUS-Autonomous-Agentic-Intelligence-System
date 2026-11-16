@@ -311,3 +311,29 @@ test("run search preserves Indic dependent vowel signs while folding Latin accen
   assert.deepEqual(filterRuns(records, "కోడ్").map((run) => run.id), ["TEL-1"]);
   assert.deepEqual(filterRuns(records, "cafe").map((run) => run.id), ["LAT-1"]);
 });
+
+
+test("workflow creation restores the same idempotency key after editing the goal away and back", () => {
+  const holder = { current: null };
+  let generated = 0;
+  const createKey = () => "goal-key-" + (++generated);
+  const first = getOrCreateRunRequestKey(holder, "Build a reliable workflow", createKey);
+  const other = getOrCreateRunRequestKey(holder, "Build a different workflow", createKey);
+  const restored = getOrCreateRunRequestKey(holder, "Build a reliable workflow", createKey);
+  assert.equal(first, restored);
+  assert.notEqual(first, other);
+  assert.equal(generated, 2);
+});
+
+test("workflow creation bounds remembered idempotency keys for edited goals", () => {
+  const holder = { current: null };
+  let generated = 0;
+  const createKey = () => "bounded-key-" + (++generated);
+  const first = getOrCreateRunRequestKey(holder, "Goal 0", createKey);
+  for (let index = 1; index <= 16; index += 1) {
+    getOrCreateRunRequestKey(holder, "Goal " + index, createKey);
+  }
+  const recreated = getOrCreateRunRequestKey(holder, "Goal 0", createKey);
+  assert.notEqual(first, recreated);
+  assert.equal(holder.current.size, 16);
+});

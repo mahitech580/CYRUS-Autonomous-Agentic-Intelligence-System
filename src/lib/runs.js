@@ -147,10 +147,27 @@ export function getOrCreateRunRequestKey(holder, goal, createKey = () => {
   if (!holder || typeof holder !== "object") {
     throw new TypeError("A mutable request-key holder is required.");
   }
-  if (!holder.current || holder.current.goal !== cleanGoal) {
-    holder.current = { goal: cleanGoal, key: createKey() };
+
+  // Keep recent goals separate so editing away and back after an ambiguous
+  // network failure reuses the original key instead of creating a duplicate.
+  if (!(holder.current instanceof Map)) {
+    const previous = holder.current;
+    holder.current = new Map(
+      previous?.goal && previous?.key ? [[previous.goal, previous.key]] : []
+    );
   }
-  return holder.current.key;
+  const keys = holder.current;
+  if (keys.has(cleanGoal)) {
+    const existing = keys.get(cleanGoal);
+    keys.delete(cleanGoal);
+    keys.set(cleanGoal, existing);
+    return existing;
+  }
+
+  const key = createKey();
+  keys.set(cleanGoal, key);
+  while (keys.size > 16) keys.delete(keys.keys().next().value);
+  return key;
 }
 
 
