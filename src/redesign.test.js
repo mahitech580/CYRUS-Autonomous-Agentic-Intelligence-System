@@ -601,6 +601,16 @@ test("run timeline stage disclosures expose expanded state and stable panel rela
   assert.ok(app.includes('type="button" className="timeline-stage-button"'));
 });
 
+test("legacy stylesheet fallback accents stay in the cyan and mint palette", async () => {
+  const styles = await read("styles.css");
+  const tokens = await read("redesign/tokens.css");
+  assert.ok(tokens.includes("--lime: #67e8f9"));
+  for (const legacy of ["#c7fb63", "#c9fa78", "#d9ff91", "#e0ff9b", "#e3ffad", "#e0ffb7", "rgba(199,251,99", "rgba(201,250,120"]) {
+    assert.ok(!styles.includes(legacy), `legacy accent remains in base styles: ${legacy}`);
+  }
+  assert.ok(styles.includes("background: #72f1c4"));
+});
+
 test("Vercel applies browser security headers to every workspace response", async () => {
   const config = JSON.parse(await read("../vercel.json"));
   const rule = config.headers?.find((item) => item.source === "/(.*)");
