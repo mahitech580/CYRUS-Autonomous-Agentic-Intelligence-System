@@ -349,3 +349,11 @@ export function getRunInsertionChanges(items, incoming, replayed = false) {
     totalDelta: inserted && replayed !== true ? 1 : 0,
   };
 }
+
+/** Refresh server aggregates when a queued/running workflow reaches a terminal state. */
+export function shouldRefreshRunAggregates(previousStatus, nextStatus) {
+  const activeStatuses = new Set(["queued", "running"]);
+  const previous = String(previousStatus || "").trim().toLowerCase();
+  const next = String(nextStatus || "").trim().toLowerCase();
+  return activeStatuses.has(previous) && !activeStatuses.has(next);
+}

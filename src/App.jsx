@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, getRunInsertionChanges, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
@@ -317,6 +317,16 @@ export default function App() {
       throw error;
     }
   }
+  async function refreshRunStats() {
+    try {
+      const snapshot = await api.runs({ limit: 1, offset: 0 });
+      const total = Number(snapshot?.total);
+      if (Number.isFinite(total)) setRunsTotal(Math.max(0, Math.floor(total)));
+      if (snapshot?.stats && typeof snapshot.stats === "object") setRunStats(snapshot.stats);
+    } catch (error) {
+      if (error?.status === 401) redirectToSettingsOnUnauthorized(error);
+    }
+  }
   function redirectToSettingsOnUnauthorized(error) {
     if (error?.status !== 401) return false;
     setSelectedRun(null);
@@ -369,6 +379,7 @@ export default function App() {
       setView("Runs & tasks");
       drawerReturnFocus.current = document.activeElement;
       setSelectedRun(created);
+      void refreshRunStats();
       notify("Live AI workflow accepted. Follow the seven agent stages in run details.");
     } catch (error) {
       if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not start the workflow.");
@@ -455,7 +466,7 @@ export default function App() {
     if (!poll.statusOk) {
       const error = statusResult.status === "rejected" ? statusResult.reason : null;
       if (error?.status === 401) redirectToSettingsOnUnauthorized(error);
-      return { cursor: after || "", ok: false };
+      return { cursor: after || "", ok: false, status: null };
     }
 
     // A transient event-history failure must not discard a healthy status update.
@@ -490,6 +501,7 @@ export default function App() {
     return {
       cursor: eventResponse?.next_after || after || "",
       ok: poll.eventsOk,
+      status: status.status,
     };
   }
   async function decideRun(decision, note = "") {
@@ -501,6 +513,7 @@ export default function App() {
       setSelectedRun(updated);
       setRuns((current) => current.map((item) => item.id === updated.id ? updated : item));
       setReviewRefreshToken((current) => current + 1);
+      void refreshRunStats();
       notify(decision === "approve" ? "Approval recorded. No deployment was triggered." : "Workflow rejected.");
     } catch (error) {
       if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not record the decision.");
@@ -523,6 +536,7 @@ export default function App() {
       if (insertion.totalDelta) setRunsTotal((current) => current + insertion.totalDelta);
       if (insertion.offsetDelta) setRunsOffset((current) => current + insertion.offsetDelta);
       setSelectedRun(retried);
+      void refreshRunStats();
       notify("Retry queued as " + retried.id + ". The original failed workflow was preserved.");
     } catch (error) {
       if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not retry the failed workflow.");
@@ -538,6 +552,7 @@ export default function App() {
       const updated = mapRunRecord(response.item);
       setSelectedRun(updated);
       setRuns((current) => current.map((item) => item.id === updated.id ? updated : item));
+      void refreshRunStats();
       notify("Cancellation recorded.");
     } catch (error) {
       if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not cancel the workflow.");
@@ -554,6 +569,7 @@ export default function App() {
     let inFlight = false;
     let resumeImmediately = false;
     let failures = 0;
+    let lastStatus = selectedRun.status;
     let cursor = selectedRun.events?.length
       ? selectedRun.events[selectedRun.events.length - 1]?.id || ""
       : "";
@@ -575,6 +591,11 @@ export default function App() {
       try {
         const result = await refreshSelectedRun(selectedRun.id, cursor, activeController.signal);
         if (result.cursor) cursor = result.cursor;
+        if (result.status && result.status !== lastStatus) {
+          const previousStatus = lastStatus;
+          lastStatus = result.status;
+          if (shouldRefreshRunAggregates(previousStatus, lastStatus)) void refreshRunStats();
+        }
         failures = result.ok ? 0 : Math.min(failures + 1, 5);
         delay = result.ok ? 2500 : nextRunPollDelay(failures);
       } catch (error) {

@@ -194,6 +194,16 @@ test("run insertion replaces an idempotent replay without duplicating history", 
   assert.deepEqual(prependRunRecord(current, null), current);
 });
 
+test("run aggregate refresh is required when active work reaches a terminal state", async () => {
+  const { shouldRefreshRunAggregates } = await import("./runs.js");
+  assert.equal(shouldRefreshRunAggregates("queued", "running"), false);
+  assert.equal(shouldRefreshRunAggregates("running", "review"), true);
+  assert.equal(shouldRefreshRunAggregates("queued", "cancelled"), true);
+  assert.equal(shouldRefreshRunAggregates("running", "failed"), true);
+  assert.equal(shouldRefreshRunAggregates("failed", "review"), false);
+  assert.equal(shouldRefreshRunAggregates("review", "approved"), false);
+});
+
 test("run insertion updates pagination without inflating totals on an idempotent replay", async () => {
   const { getRunInsertionChanges } = await import("./runs.js");
   const current = [{ id: "RUN-OLD" }];
