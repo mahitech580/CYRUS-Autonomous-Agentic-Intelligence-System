@@ -50,7 +50,7 @@ function csvCell(value) {
   let text = value == null ? "" : String(value);
   // Spreadsheet applications may evaluate untrusted cells beginning with a
   // formula marker, even when the field is correctly CSV-quoted.
-  if (/^[\u0000-\u0020]*[=+\-@]/.test(text)) text = "'" + text;
+  if (/^[\s\uFEFF]*[=+\-@]/u.test(text)) text = "'" + text;
   return '"' + text.replace(/"/g, '""').replace(/\r\n?|\n/g, " ") + '"';
 }
 

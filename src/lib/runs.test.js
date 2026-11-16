@@ -452,3 +452,13 @@ test("completed workflow semantics match the backend aggregate contract", () => 
   assert.equal(isRunCompleted({ status: "review", progress: "unknown" }), false);
   assert.equal(isRunCompleted(null), false);
 });
+
+
+test("CSV export neutralizes formulas after Unicode whitespace prefixes", () => {
+  const csv = buildRunsCsv([
+    { id: "RUN-CSV-UNICODE-1", goal: "\u00a0=HYPERLINK(\"https://attacker.test\",\"open\")" },
+    { id: "RUN-CSV-UNICODE-2", goal: "\u3000+SUM(1,2)" },
+  ]);
+  assert.ok(csv.includes('"\'\u00a0=HYPERLINK(""https://attacker.test"",""open"")"'));
+  assert.ok(csv.includes('"\'\u3000+SUM(1,2)"'));
+});
