@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
-import { summarizeRunUsage } from "../lib/runs.js";
+import { isRunCompleted, summarizeRunUsage } from "../lib/runs.js";
 
 const iconMap={Activity,Bot,Braces,CheckCircle2,CircleDot,Clock3,Code2,Database,FileCode2,GitBranch,Globe2,LockKeyhole,Network,Radio,Rocket,ShieldCheck,Sparkles,Terminal,Workflow};
 const iconFor=(name)=>iconMap[name]||Activity;
@@ -295,7 +295,7 @@ export default function WorkspacePage({route,runs=[],runsTotal=0,runStats,worksp
  const Icon=iconFor(route.icon);
  const agent=agents.find((item)=>item.id===route.agentId);
  const active=Number.isFinite(Number(runStats?.active))?Number(runStats.active):runs.filter((run)=>["queued","running"].includes(run.status)).length;
- const completed=Number.isFinite(Number(runStats?.completed))?Number(runStats.completed):runs.filter((run)=>["completed","approved"].includes(run.status)).length;
+ const completed=Number.isFinite(Number(runStats?.completed))?Number(runStats.completed):runs.filter(isRunCompleted).length;
  const total=Number.isFinite(Number(runStats?.total))?Number(runStats.total):runsTotal;
  const pending=runs.filter((run)=>run.status==="review").length;
  const failed=runs.filter((run)=>run.status==="failed").length;

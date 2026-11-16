@@ -12,6 +12,14 @@ function normalizeRunSearchValue(value) {
     .trim();
 }
 
+export function isRunCompleted(run) {
+  if (!run || typeof run !== "object") return false;
+  const progress = Number(run.progress);
+  return ["completed", "review", "approved"].includes(run.status)
+    && Number.isFinite(progress)
+    && progress >= 100;
+}
+
 export function filterRuns(runs, query = "", statusFilter = "all") {
   const items = Array.isArray(runs) ? runs.filter((run) => run && typeof run === "object") : [];
   const terms = normalizeRunSearchValue(query).split(/\s+/).filter(Boolean);
@@ -33,9 +41,7 @@ export function filterRuns(runs, query = "", statusFilter = "all") {
     ].filter((value) => typeof value === "string" || typeof value === "number").join(" "));
     const matchesSearch = !terms.length || terms.every((term) => searchable.includes(term));
     const matchesStatus = statusFilter === "all"
-      || (statusFilter === "completed"
-        ? ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100
-        : run.status === statusFilter);
+      || (statusFilter === "completed" ? isRunCompleted(run) : run.status === statusFilter);
     return matchesSearch && matchesStatus;
   });
 }

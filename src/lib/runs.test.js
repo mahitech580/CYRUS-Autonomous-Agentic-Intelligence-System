@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getRunStageState, getRunStageTiming, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage } from "./runs.js";
+import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -441,4 +441,14 @@ test("history pagination ignores stale cursors that would repeat an already load
   assert.equal(getRunPageOffset({ next_offset: 30 }, 30, 15), 45);
   assert.equal(getRunPageOffset({ next_offset: 45 }, 30, 15), 45);
   assert.equal(getRunPageOffset({ next_offset: "invalid" }, 30, 15), 45);
+});
+
+
+test("completed workflow semantics match the backend aggregate contract", () => {
+  assert.equal(isRunCompleted({ status: "review", progress: 100 }), true);
+  assert.equal(isRunCompleted({ status: "approved", progress: "100" }), true);
+  assert.equal(isRunCompleted({ status: "completed", progress: 99 }), false);
+  assert.equal(isRunCompleted({ status: "failed", progress: 100 }), false);
+  assert.equal(isRunCompleted({ status: "review", progress: "unknown" }), false);
+  assert.equal(isRunCompleted(null), false);
 });

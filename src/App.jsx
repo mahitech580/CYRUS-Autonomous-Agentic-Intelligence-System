@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, prependRunRecord, validateRunGoal, mergeRunSummaryIntoDetail } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, prependRunRecord, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
@@ -739,7 +739,7 @@ function Overview({ runs, allRuns, goal, setGoal, startRun, isStarting, canStart
   }
   const completed = Number.isFinite(Number(runStats?.completed))
     ? Math.max(0, Math.floor(Number(runStats.completed)))
-    : allRuns.filter((run) => ["completed", "review", "approved"].includes(run.status) && Number(run.progress) >= 100).length;
+    : allRuns.filter(isRunCompleted).length;
   const active = Number.isFinite(Number(runStats?.active))
     ? Math.max(0, Math.floor(Number(runStats.active)))
     : allRuns.filter((run) => run.status === "running" || run.status === "queued").length;
