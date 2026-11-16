@@ -591,3 +591,12 @@ test("queue telemetry labels the protected server snapshot with its capture time
   assert.ok(pages.includes('dateTime={captured.toISOString()}'));
   assert.ok(styles.includes(".workspace-queue-snapshot-time"));
 });
+
+
+test("run timeline stage disclosures expose expanded state and stable panel relationships", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('aria-expanded={!!stage && expandedStage === stageId}'));
+  assert.ok(app.includes('aria-controls={stage ? "artifact-panel-" + run.id + "-" + stageId : undefined}'));
+  assert.ok(app.includes('className="artifact-output" hidden={expandedStage !== stageId}'));
+  assert.ok(app.includes('type="button" className="timeline-stage-button"'));
+});
