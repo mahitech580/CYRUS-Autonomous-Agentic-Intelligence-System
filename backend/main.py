@@ -1071,6 +1071,10 @@ def config() -> dict[str, Any]:
         "auth_required": access_control_required,
         "access_control_configured": access_control_configured,
         "web_search_enabled": web_search_enabled(),
+        "run_launch_limits": {
+            "per_minute": bounded_int_setting("CYRUS_RUNS_PER_MINUTE", 5, 1, 60),
+            "per_hour": bounded_int_setting("CYRUS_RUNS_PER_HOUR", 30, 1, 500),
+        },
         "execution_mode": "live-model" if ready else "not-configured",
         "worker_required": worker_required,
         "worker_ready": worker_ready,

@@ -1657,3 +1657,16 @@ def test_retry_launches_share_the_workspace_hourly_quota(client, monkeypatch):
         assert source.status == "failed"
         db.delete(source)
         db.commit()
+
+
+def test_config_reports_bounded_workspace_run_launch_limits(client, monkeypatch):
+    monkeypatch.setenv("CYRUS_RUNS_PER_MINUTE", "1000")
+    monkeypatch.setenv("CYRUS_RUNS_PER_HOUR", "0")
+    response = client.get("/api/config")
+    assert response.status_code == 200
+    assert response.json()["run_launch_limits"] == {"per_minute": 60, "per_hour": 1}
+
+    monkeypatch.setenv("CYRUS_RUNS_PER_MINUTE", "not-a-number")
+    monkeypatch.setenv("CYRUS_RUNS_PER_HOUR", "also-invalid")
+    fallback = client.get("/api/config")
+    assert fallback.json()["run_launch_limits"] == {"per_minute": 5, "per_hour": 30}

@@ -622,3 +622,13 @@ test("Vercel applies browser security headers to every workspace response", asyn
   assert.equal(headers["Permissions-Policy"], "camera=(), microphone=(), geolocation=()");
 });
 
+
+
+test("settings exposes the server-enforced workspace launch quota", async () => {
+  const app = await read("../src/App.jsx");
+  const backend = await read("../backend/main.py");
+  assert.ok(backend.includes('"run_launch_limits"'));
+  assert.ok(app.includes('RUN LAUNCH LIMITS'));
+  assert.ok(app.includes('launchLimits?.per_minute'));
+  assert.ok(app.includes('launchLimits?.per_hour'));
+});

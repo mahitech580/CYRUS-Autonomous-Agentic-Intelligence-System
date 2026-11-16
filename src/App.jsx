@@ -1126,6 +1126,11 @@ function SettingsView({ apiState, workspaceConfig, onRefreshRuntime, settingsOpe
   const [refreshingRuntime, setRefreshingRuntime] = useState(false);
   const [accessKeyError, setAccessKeyError] = useState("");
   const runtimeConfigRestricted = !!(workspaceConfig?.runtime_access_denied || workspaceConfig?.runtime_configuration_missing);
+  const launchLimits = workspaceConfig?.run_launch_limits;
+  const launchLimitLabel = runtimeConfigRestricted ? "Access required"
+    : Number.isFinite(launchLimits?.per_minute) && Number.isFinite(launchLimits?.per_hour)
+      ? launchLimits.per_minute + " / min · " + launchLimits.per_hour + " / hour"
+      : "Unavailable";
 
   function saveWorkspaceAccessKey() {
     if (!setAccessKey(accessKey)) {
@@ -1171,6 +1176,7 @@ function SettingsView({ apiState, workspaceConfig, onRefreshRuntime, settingsOpe
           <div><span>ACCESS CONTROL</span><code>{workspaceConfig?.auth_required ? (workspaceConfig?.access_control_configured ? "Protected" : "CYRUS_ACCESS_KEY missing") : "Local development"}</code></div>
           <div><span>WORKER CAPACITY</span><code>{runtimeConfigRestricted ? "Access required" : workspaceConfig?.worker_required ? (workspaceConfig?.worker_ready ? (workspaceConfig?.available_workers == null || workspaceConfig?.active_workers == null ? "Worker ready · capacity unknown" : workspaceConfig.available_workers + " available · " + workspaceConfig.active_workers + " active") : "No fresh worker heartbeat") : "Inline development execution"}</code></div>
           <div><span>QUEUE PRESSURE</span><code>{workspaceConfig?.queued_workflows == null ? "Unavailable" : workspaceConfig.queued_workflows + " queued · " + (workspaceConfig.running_workflows ?? 0) + " running"}</code></div>
+          <div><span>RUN LAUNCH LIMITS</span><code>{launchLimitLabel}</code></div>
           <div><span>ORPHANED WORKFLOWS</span><code>{workspaceConfig?.orphaned_workflows == null ? "Unavailable" : workspaceConfig.orphaned_workflows + " awaiting lease recovery"}</code></div>
           <div><span>OLDEST QUEUED</span><code>{workspaceConfig?.queued_workflows == null ? "Unavailable" : workspaceConfig.queued_workflows === 0 ? "No queued work" : Math.round(workspaceConfig.oldest_queued_seconds ?? 0) + " seconds"}</code></div>
           <div><span>EXECUTION MODE</span><code>{workspaceConfig?.execution_mode || "API offline"}</code></div>
