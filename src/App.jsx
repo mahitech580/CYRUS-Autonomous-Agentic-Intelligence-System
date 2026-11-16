@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
@@ -32,6 +32,7 @@ const pipeline = [
   { title: "Review", sub: "Quality gates", icon: GitPullRequest, color: "pink" },
   { title: "Release", sub: "Ship safely", icon: Rocket, color: "green" },
 ];
+const pipelineStageIds = pipeline.map((step) => step.title.toLowerCase());
 const RUNS_PAGE_SIZE = 30;
 const starterBriefs = [
   {
@@ -1216,6 +1217,7 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
       initialStageSelection.current = true;
     }
   }, [stages.length]);
+  const completedStageCount = countCompletedRunStages(run, pipelineStageIds);
   const completedTokens = stages.reduce((sum, stage) => {
     const inputTokens = Number(stage?.usage?.input_tokens);
     const outputTokens = Number(stage?.usage?.output_tokens);
@@ -1254,7 +1256,7 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
     <div className="drawer-head"><div><div className="eyebrow">WORKFLOW DETAILS / ARTIFACTS</div><span className="run-id">{run.id}</span></div><button className="icon-button" onClick={onClose} aria-label="Close details"><X size={17} /></button></div>
     <h2>{run.goal}</h2><StatusPill status={run.status} />
     <div className="drawer-progress"><div><span>{run.current_stage ? "Current stage · " + run.current_stage : "Execution progress"}</span><strong>{run.progress || 0}%</strong></div><div className="capacity-track" role="progressbar" aria-label="Workflow progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progressValue} aria-valuetext={`${progressValue}% complete`}><i style={{ width: progressValue + "%" }} /></div></div>
-    <div className="drawer-meta"><div><span>WORKFLOW TYPE</span><strong>{run.kind || "Agent workflow"}</strong></div><div><span>AGENT STAGES</span><strong>{run.detail_loading ? "Loading details…" : stages.length + " / 7 completed"}</strong></div><div><span>UPDATED</span><strong>{run.time || "Recently"}</strong></div><div><span>MODEL USAGE</span><strong>{completedTokens.toLocaleString()} tokens</strong></div></div>
+    <div className="drawer-meta"><div><span>WORKFLOW TYPE</span><strong>{run.kind || "Agent workflow"}</strong></div><div><span>AGENT STAGES</span><strong>{run.detail_loading ? "Loading details…" : completedStageCount + " / 7 completed"}</strong></div><div><span>UPDATED</span><strong>{run.time || "Recently"}</strong></div><div><span>MODEL USAGE</span><strong>{completedTokens.toLocaleString()} tokens</strong></div></div>
     {run.error ? <div className="run-error"><strong>Workflow failed</strong><p>{run.error}</p></div> : null}
     {run.detail_loading ? <div className="empty-state drawer-loading" role="status">Loading saved artifacts and execution history…</div> : null}
     <div className="drawer-section-title">Generated agent artifacts</div>

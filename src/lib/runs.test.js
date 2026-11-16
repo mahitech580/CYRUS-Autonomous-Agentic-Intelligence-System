@@ -497,6 +497,23 @@ test("CSV export neutralizes formulas after Unicode whitespace prefixes", () => 
 });
 
 
+test("completed stage counts follow timeline state rather than raw artifact length", async () => {
+  const { countCompletedRunStages } = await import("./runs.js");
+  const run = {
+    status: "failed",
+    stages: [
+      { id: "plan", status: "completed" },
+      { id: "research", status: "running" },
+      { id: "architect", status: "future-state" },
+      { id: "code" },
+    ],
+    events: [{ id: "test-done", stage: "test", status: "completed" }],
+  };
+  assert.equal(countCompletedRunStages(run, [
+    "plan", "research", "architect", "code", "test", "review", "release",
+  ]), 3);
+});
+
 test("terminal workflows do not leave persisted running stages active", () => {
   const startedAt = "2026-11-16T10:00:00.000Z";
   const completedAt = "2026-11-16T10:00:12.000Z";
@@ -509,6 +526,13 @@ test("terminal workflows do not leave persisted running stages active", () => {
   };
   assert.equal(getRunStageState(failedRun, "code"), "interrupted");
   assert.deepEqual(getRunStageTiming(failedRun, "code"), {
+    status: "interrupted", durationMs: 25000,
+  });
+  assert.deepEqual(getRunStageTiming({
+    status: "queued",
+    updated_at: updatedAt,
+    events: [{ id: "stale-start", stage: "research", status: "started", at: startedAt }],
+  }, "research"), {
     status: "interrupted", durationMs: 25000,
   });
 

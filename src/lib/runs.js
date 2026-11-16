@@ -232,6 +232,15 @@ export function getRunStageState(run, stageId) {
 
 
 
+
+/** Count completed pipeline stages using the same state rules as the timeline. */
+export function countCompletedRunStages(run, stageIds = []) {
+  const ids = Array.isArray(stageIds) ? stageIds : [];
+  return ids.reduce((count, stageId) => (
+    count + (getRunStageState(run, stageId) === "completed" ? 1 : 0)
+  ), 0);
+}
+
 /** Derive stage elapsed time from persisted start and terminal events. */
 export function getRunStageTiming(run, stageId, now = Date.now()) {
   const events = Array.isArray(run?.events) ? run.events : [];
@@ -265,7 +274,7 @@ export function getRunStageTiming(run, stageId, now = Date.now()) {
       terminalStatus = "completed";
     }
   }
-  if (endedAt === null && !["queued", "running"].includes(runStatus)) {
+  if (endedAt === null && runStatus !== "running") {
     const updatedAt = Date.parse(run?.updated_at);
     if (Number.isFinite(updatedAt) && updatedAt >= startedAt) {
       endedAt = updatedAt;
