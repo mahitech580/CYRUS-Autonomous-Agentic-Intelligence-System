@@ -333,3 +333,19 @@ export function prependRunRecord(items, incoming) {
   if (!incoming || typeof incoming !== "object" || !incoming.id) return current;
   return [incoming, ...current.filter((run) => run?.id !== incoming.id)];
 }
+
+/**
+ * Keep local history pagination and server totals correct when a request is
+ * replayed after an ambiguous network failure.
+ */
+export function getRunInsertionChanges(items, incoming, replayed = false) {
+  const current = Array.isArray(items) ? items : [];
+  const validIncoming = !!incoming && typeof incoming === "object" && !!incoming.id;
+  const alreadyLoaded = validIncoming && current.some((run) => run?.id === incoming.id);
+  const inserted = validIncoming && !alreadyLoaded;
+  return {
+    items: prependRunRecord(current, incoming),
+    offsetDelta: inserted ? 1 : 0,
+    totalDelta: inserted && replayed !== true ? 1 : 0,
+  };
+}

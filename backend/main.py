@@ -1110,7 +1110,7 @@ def create_run(
         if existing is not None:
             if existing.goal != goal:
                 raise HTTPException(status_code=409, detail="This Idempotency-Key was already used for a different workflow goal.")
-            return {"item": as_run(existing), "notice": "The workflow was already accepted with this idempotency key."}
+            return {"item": as_run(existing), "notice": "The workflow was already accepted with this idempotency key.", "replayed": True}
 
     if workspace_access_required() and not os.getenv("CYRUS_ACCESS_KEY", "").strip():
         raise HTTPException(status_code=503, detail="Workspace access control is not configured. Add CYRUS_ACCESS_KEY to the server environment.")
@@ -1147,7 +1147,7 @@ def create_run(
             raise HTTPException(status_code=409, detail="The workflow could not reserve this idempotency key. Retry with a new key.")
         if existing.goal != goal:
             raise HTTPException(status_code=409, detail="This Idempotency-Key was already used for a different workflow goal.")
-        return {"item": as_run(existing), "notice": "The workflow was already accepted with this idempotency key."}
+        return {"item": as_run(existing), "notice": "The workflow was already accepted with this idempotency key.", "replayed": True}
 
     db.refresh(run)
     if external_worker_required():
@@ -1155,7 +1155,7 @@ def create_run(
     else:
         background_tasks.add_task(execute_workflow, run.id)
         notice = "Accepted. Model-backed agent stages are starting."
-    return {"item": as_run(run), "notice": notice}
+    return {"item": as_run(run), "notice": notice, "replayed": False}
 
 
 @app.get("/api/runs/{run_id}", dependencies=[Depends(require_workspace_access)])
@@ -1321,7 +1321,7 @@ def retry_run(
         storage_key = retry_idempotency_storage_key(source.id, request_key)
         existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == storage_key))
         if existing is not None:
-            return {"item": as_run(existing), "notice": "This retry was already accepted with the supplied idempotency key."}
+            return {"item": as_run(existing), "notice": "This retry was already accepted with the supplied idempotency key.", "replayed": True}
 
     if not provider_ready():
         raise HTTPException(status_code=503, detail="Real AI is not configured. Add OPENAI_API_KEY to the server environment.")
@@ -1358,14 +1358,14 @@ def retry_run(
         existing = db.scalar(select(WorkflowRun).where(WorkflowRun.idempotency_key == storage_key))
         if existing is None:
             raise HTTPException(status_code=409, detail="The retry could not reserve this idempotency key. Retry with a new key.")
-        return {"item": as_run(existing), "notice": "This retry was already accepted with the supplied idempotency key."}
+        return {"item": as_run(existing), "notice": "This retry was already accepted with the supplied idempotency key.", "replayed": True}
     db.refresh(retried)
     if external_worker_required():
         notice = "A new workflow attempt was queued for the durable worker; the failed run and its artifacts were preserved."
     else:
         background_tasks.add_task(execute_workflow, retried.id)
         notice = "A new workflow attempt was queued; the failed run and its artifacts were preserved."
-    return {"item": as_run(retried), "notice": notice}
+    return {"item": as_run(retried), "notice": notice, "replayed": False}
 
 
 @app.get("/api/ready")

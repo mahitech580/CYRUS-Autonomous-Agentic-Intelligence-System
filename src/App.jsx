@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, prependRunRecord, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, hasRunArtifacts, getRunPageOffset, getRunInsertionChanges, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
@@ -361,12 +361,10 @@ export default function App() {
       createRunRequest.current = null;
       const created = mapRunRecord(result.item || result);
       loadedStageCount.current[created.id] = Array.isArray(created.stages) ? created.stages.length : 0;
-      const alreadyLoaded = runs.some((item) => item?.id === created.id);
-      setRuns((current) => prependRunRecord(current, created));
-      if (!alreadyLoaded) {
-        setRunsTotal((current) => current + 1);
-        setRunsOffset((current) => current + 1);
-      }
+      const insertion = getRunInsertionChanges(runs, created, result.replayed);
+      setRuns(insertion.items);
+      if (insertion.totalDelta) setRunsTotal((current) => current + insertion.totalDelta);
+      if (insertion.offsetDelta) setRunsOffset((current) => current + insertion.offsetDelta);
       setGoal("");
       setView("Runs & tasks");
       drawerReturnFocus.current = document.activeElement;
@@ -520,12 +518,10 @@ export default function App() {
       retryRunRequests.current.delete(sourceId);
       const retried = mapRunRecord(response.item || response);
       loadedStageCount.current[retried.id] = Array.isArray(retried.stages) ? retried.stages.length : 0;
-      const alreadyLoaded = runs.some((item) => item?.id === retried.id);
-      setRuns((current) => prependRunRecord(current, retried));
-      if (!alreadyLoaded) {
-        setRunsTotal((current) => current + 1);
-        setRunsOffset((current) => current + 1);
-      }
+      const insertion = getRunInsertionChanges(runs, retried, response.replayed);
+      setRuns(insertion.items);
+      if (insertion.totalDelta) setRunsTotal((current) => current + insertion.totalDelta);
+      if (insertion.offsetDelta) setRunsOffset((current) => current + insertion.offsetDelta);
       setSelectedRun(retried);
       notify("Retry queued as " + retried.id + ". The original failed workflow was preserved.");
     } catch (error) {

@@ -194,6 +194,29 @@ test("run insertion replaces an idempotent replay without duplicating history", 
   assert.deepEqual(prependRunRecord(current, null), current);
 });
 
+test("run insertion updates pagination without inflating totals on an idempotent replay", async () => {
+  const { getRunInsertionChanges } = await import("./runs.js");
+  const current = [{ id: "RUN-OLD" }];
+  const incoming = { id: "RUN-NEW" };
+
+  const created = getRunInsertionChanges(current, incoming, false);
+  assert.deepEqual(created.items, [incoming, current[0]]);
+  assert.equal(created.offsetDelta, 1);
+  assert.equal(created.totalDelta, 1);
+
+  const replayed = getRunInsertionChanges(current, incoming, true);
+  assert.deepEqual(replayed.items, [incoming, current[0]]);
+  assert.equal(replayed.offsetDelta, 1);
+  assert.equal(replayed.totalDelta, 0);
+
+  const alreadyLoaded = getRunInsertionChanges([incoming, current[0]], incoming, true);
+  assert.equal(alreadyLoaded.offsetDelta, 0);
+  assert.equal(alreadyLoaded.totalDelta, 0);
+  assert.deepEqual(getRunInsertionChanges(current, null), {
+    items: current, offsetDelta: 0, totalDelta: 0,
+  });
+});
+
 test("run stage state distinguishes completed, active, failed and not-reached stages", () => {
   const run = {
     status: "failed",

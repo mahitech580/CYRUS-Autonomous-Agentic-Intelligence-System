@@ -329,6 +329,7 @@ def test_create_run_replays_idempotency_key_without_scheduling_twice(client, mon
 
     first = client.post("/api/runs", json=payload, headers=headers)
     assert first.status_code == 202
+    assert first.json()["replayed"] is False
     run_id = first.json()["item"]["id"]
 
     # A replay remains safe even if provider configuration changes after the
@@ -337,6 +338,7 @@ def test_create_run_replays_idempotency_key_without_scheduling_twice(client, mon
     replay = client.post("/api/runs", json=payload, headers=headers)
 
     assert replay.status_code == 202
+    assert replay.json()["replayed"] is True
     assert replay.json()["item"]["id"] == run_id
     assert len(scheduled) == 1
     with main.SessionLocal() as db:
@@ -1134,7 +1136,9 @@ def test_retry_replays_idempotency_key_without_creating_duplicate_workflows(clie
     replay = client.post(f"/api/runs/{source_id}/retry", headers=headers)
 
     assert first.status_code == 202
+    assert first.json()["replayed"] is False
     assert replay.status_code == 202
+    assert replay.json()["replayed"] is True
     assert replay.json()["item"]["id"] == first.json()["item"]["id"]
     assert "already accepted" in replay.json()["notice"]
     with main.SessionLocal() as db:
