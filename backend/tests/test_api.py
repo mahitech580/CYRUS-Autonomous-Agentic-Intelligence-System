@@ -1398,3 +1398,13 @@ def test_record_normalizer_preserves_valid_dicts_and_ignores_non_record_values()
     ]
     assert main.persisted_records({"id": "unexpected-object"}) == []
     assert main.persisted_records("unexpected-scalar") == []
+
+
+def test_protected_runtime_config_includes_an_explicit_utc_snapshot_timestamp(client):
+    response = client.get("/api/config")
+    assert response.status_code == 200
+    snapshot_at = response.json().get("snapshot_at")
+    assert isinstance(snapshot_at, str)
+    parsed = main.datetime.fromisoformat(snapshot_at)
+    assert parsed.tzinfo is not None
+    assert abs((main.utcnow() - parsed).total_seconds()) < 10

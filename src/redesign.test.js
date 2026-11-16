@@ -577,3 +577,17 @@ test("secondary workspace explanatory copy meets a legible minimum size", async 
   assert.ok(styles.includes("font-size:11px"));
   assert.ok(styles.includes("@media(max-width:740px)"));
 });
+
+
+test("queue telemetry labels the protected server snapshot with its capture time", async () => {
+  const backend = await read("../backend/main.py");
+  const pages = await read("workspace/WorkspacePage.jsx");
+  const styles = await read("redesign/workspace-pages.css");
+  const configStart = backend.indexOf('def config()');
+  const configEnd = backend.indexOf('@app.get("/api/health")', configStart);
+  assert.ok(backend.slice(configStart, configEnd).includes('"snapshot_at": utcnow().isoformat()'));
+  assert.ok(pages.includes("config.snapshot_at"));
+  assert.ok(pages.includes('className="workspace-queue-snapshot-time"'));
+  assert.ok(pages.includes('dateTime={captured.toISOString()}'));
+  assert.ok(styles.includes(".workspace-queue-snapshot-time"));
+});

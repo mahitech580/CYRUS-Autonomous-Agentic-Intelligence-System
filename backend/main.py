@@ -927,6 +927,7 @@ def config() -> dict[str, Any]:
     return {
         "service": "cyrus-api",
         "version": APP_VERSION,
+        "snapshot_at": utcnow().isoformat(),
         "provider_configured": ready,
         "provider": provider_name() if ready else None,
         "model": provider_model() if ready else None,
