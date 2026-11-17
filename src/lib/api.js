@@ -55,7 +55,7 @@ function errorMessageFromBody(body, status) {
 export function parseRetryAfterSeconds(value, now = Date.now()) {
   const header = String(value ?? "").trim();
   if (!header) return null;
-  if (/^\\d+$/.test(header)) {
+  if (/^\d+$/.test(header)) {
     const seconds = Number(header);
     return Number.isSafeInteger(seconds) ? seconds : null;
   }
