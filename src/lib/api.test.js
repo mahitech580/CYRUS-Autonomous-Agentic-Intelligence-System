@@ -164,6 +164,26 @@ test("API timeouts abort a stalled request with an actionable message", async (t
   );
 });
 
+test("API timeouts also abort stalled response-body consumption", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async (_url, { signal }) => new Response(new ReadableStream({
+    start(streamController) {
+      signal.addEventListener("abort", () => {
+        streamController.error(new DOMException("The operation was aborted.", "AbortError"));
+      }, { once: true });
+    },
+  }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+  await assert.rejects(
+    request("/api/health", { timeoutMs: 5 }),
+    (error) => error.name === "TimeoutError" && /timed out/i.test(error.message),
+  );
+});
+
 test("network failures are normalized without hiding HTTP errors", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });

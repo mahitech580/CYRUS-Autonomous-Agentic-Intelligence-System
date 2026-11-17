@@ -93,9 +93,16 @@ export async function request(path, options = {}) {
     });
     const contentType = (response.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase();
     const isJson = contentType === "application/json" || contentType.endsWith("+json");
-    const body = isJson
-      ? await response.json().catch(() => null)
-      : await response.text().catch(() => "");
+    let body;
+    try {
+      body = isJson ? await response.json() : await response.text();
+    } catch (error) {
+      // Keep malformed-response handling tolerant, but never swallow an abort:
+      // the caller must still receive timeout and cancellation errors while a
+      // response body is being consumed.
+      if (controller.signal.aborted) throw error;
+      body = isJson ? null : "";
+    }
     if (!response.ok) {
       const message = errorMessageFromBody(body, response.status);
       const requestId = response.headers.get("x-request-id");
