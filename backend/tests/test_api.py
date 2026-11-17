@@ -972,7 +972,7 @@ def test_provider_identity_uses_exact_openai_hostname(monkeypatch):
     monkeypatch.setenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
     assert main.provider_name() == "OpenAI Responses API"
 
-def test_cors_exposes_request_id_for_browser_error_diagnostics(client):
+def test_cors_exposes_request_and_retry_headers_for_browser_diagnostics(client):
     response = client.get(
         "/api/health",
         headers={"Origin": "http://localhost:5173"},
@@ -981,6 +981,7 @@ def test_cors_exposes_request_id_for_browser_error_diagnostics(client):
     assert response.headers.get("x-request-id")
     exposed = response.headers.get("access-control-expose-headers", "").lower()
     assert "x-request-id" in exposed
+    assert "retry-after" in exposed
 
 def test_cors_origin_configuration_is_normalized_and_deduplicated(monkeypatch):
     monkeypatch.setenv(
@@ -1586,6 +1587,7 @@ def test_run_launch_quota_blocks_new_runs_but_allows_idempotent_replays(client, 
     headers = {
         "Authorization": "Bearer " + access_key,
         "Idempotency-Key": "rate-limit-create-0001",
+        "Origin": "http://localhost:5173",
     }
     first = client.post("/api/runs", json={"goal": "Create a rate-limited workflow"}, headers=headers)
     assert first.status_code == 202
@@ -1598,6 +1600,9 @@ def test_run_launch_quota_blocks_new_runs_but_allows_idempotent_replays(client, 
     )
     assert blocked.status_code == 429
     assert int(blocked.headers["retry-after"]) >= 1
+    assert blocked.headers.get("access-control-allow-origin") == "http://localhost:5173"
+    exposed = blocked.headers.get("access-control-expose-headers", "").lower()
+    assert "retry-after" in exposed
     assert "1 per minute" in blocked.json()["detail"]
 
     replay = client.post("/api/runs", json={"goal": "Create a rate-limited workflow"}, headers=headers)

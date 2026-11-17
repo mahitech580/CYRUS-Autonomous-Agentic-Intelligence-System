@@ -52,6 +52,19 @@ function errorMessageFromBody(body, status) {
   return "Request failed: " + status;
 }
 
+export function parseRetryAfterSeconds(value, now = Date.now()) {
+  const header = String(value ?? "").trim();
+  if (!header) return null;
+  if (/^\\d+$/.test(header)) {
+    const seconds = Number(header);
+    return Number.isSafeInteger(seconds) ? seconds : null;
+  }
+  const retryAt = Date.parse(header);
+  const currentTime = Number(now);
+  if (!Number.isFinite(retryAt) || !Number.isFinite(currentTime)) return null;
+  return Math.max(0, Math.ceil((retryAt - currentTime) / 1000));
+}
+
 export async function request(path, options = {}) {
   const key = getAccessKey();
   const {
@@ -112,6 +125,8 @@ export async function request(path, options = {}) {
       );
       error.status = response.status;
       if (requestId) error.requestId = requestId;
+      const retryAfterSeconds = parseRetryAfterSeconds(response.headers.get("retry-after"));
+      if (retryAfterSeconds !== null) error.retryAfterSeconds = retryAfterSeconds;
       throw error;
     }
     return body;

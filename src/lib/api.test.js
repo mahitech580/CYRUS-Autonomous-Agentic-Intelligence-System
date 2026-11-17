@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { api, getAccessKey, request, setAccessKey } from "./api.js";
+import { api, getAccessKey, parseRetryAfterSeconds, request, setAccessKey } from "./api.js";
 
 test("access key storage verifies trimmed writes and clears", async (t) => {
   const originalWindow = globalThis.window;
@@ -146,6 +146,30 @@ test("HTTP errors expose the server request ID for support diagnostics", async (
   );
 });
 
+
+test("Retry-After supports delta seconds and HTTP dates without accepting invalid values", () => {
+  const now = Date.UTC(2026, 10, 17, 14, 0, 0);
+  assert.equal(parseRetryAfterSeconds("42", now), 42);
+  assert.equal(parseRetryAfterSeconds("Tue, 17 Nov 2026 14:00:12 GMT", now), 12);
+  assert.equal(parseRetryAfterSeconds("Tue, 17 Nov 2026 13:59:59 GMT", now), 0);
+  assert.equal(parseRetryAfterSeconds("not-a-date", now), null);
+  assert.equal(parseRetryAfterSeconds("999999999999999999999999999999", now), null);
+  assert.equal(parseRetryAfterSeconds("", now), null);
+});
+
+test("rate-limit errors expose parsed Retry-After metadata", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => new Response(JSON.stringify({ detail: "Run launch limit reached." }), {
+    status: 429,
+    headers: { "content-type": "application/json", "retry-after": "37" },
+  });
+
+  await assert.rejects(
+    request("/api/runs", { method: "POST", body: "{}" }),
+    (error) => error.status === 429 && error.retryAfterSeconds === 37,
+  );
+});
 
 test("API timeouts abort a stalled request with an actionable message", async (t) => {
   const originalFetch = globalThis.fetch;
