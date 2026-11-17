@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, mergeRunPollResult, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
@@ -464,18 +464,23 @@ export default function App() {
       api.runEvents(runId, after, { signal }),
     ]);
     const poll = settleRunPoll(statusResult, eventResult);
-    if (!poll.statusOk) {
-      const error = statusResult.status === "rejected" ? statusResult.reason : null;
-      if (error?.status === 401) redirectToSettingsOnUnauthorized(error);
+    const statusError = statusResult.status === "rejected" ? statusResult.reason : null;
+    const eventError = eventResult.status === "rejected" ? eventResult.reason : null;
+    if (statusError?.status === 401 || eventError?.status === 401) {
+      redirectToSettingsOnUnauthorized(statusError?.status === 401 ? statusError : eventError);
+      return { cursor: after || "", ok: false, status: null };
+    }
+    if (!poll.statusOk && !poll.eventsOk) {
       return { cursor: after || "", ok: false, status: null };
     }
 
-    // A transient event-history failure must not discard a healthy status update.
+    // Apply each successful channel independently: an event-history outage must
+    // not discard status, and a status outage must not lose persisted events.
     const status = poll.status;
     const eventResponse = poll.events;
     let detailItem = null;
     const knownStageCount = loadedStageCount.current[runId] ?? 0;
-    if (needsRunDetailRefresh(status.stage_count, knownStageCount)) {
+    if (status && needsRunDetailRefresh(status.stage_count, knownStageCount)) {
       try {
         const detailResponse = await api.getRun(runId, { signal });
         detailItem = detailResponse.item || null;
@@ -485,24 +490,19 @@ export default function App() {
             : knownStageCount;
         }
       } catch (detailError) {
-        if (detailError.status === 401) notify("Workspace access key is missing or incorrect.");
+        if (detailError.status === 401) redirectToSettingsOnUnauthorized(detailError);
       }
     }
-    if (eventResult.status === "rejected" && eventResult.reason?.status === 401) {
-      redirectToSettingsOnUnauthorized(eventResult.reason);
-    }
-    const incoming = Array.isArray(eventResponse?.items) ? eventResponse.items : [];
-    const resetEvents = !!eventResponse?.cursor_expired;
     setSelectedRun((current) => current?.id === runId
-      ? { ...current, ...status, ...(detailItem ? { stages: detailItem.stages } : {}), events: mergeRunEvents(current.events, incoming, resetEvents) }
+      ? mergeRunPollResult(current, poll, detailItem) || current
       : current);
     setRuns((current) => current.map((item) => item.id === runId
-      ? { ...item, ...status, ...(detailItem ? { stages: detailItem.stages } : {}), events: mergeRunEvents(item.events, incoming, resetEvents) }
+      ? mergeRunPollResult(item, poll, detailItem) || item
       : item));
     return {
       cursor: eventResponse?.next_after || after || "",
-      ok: poll.eventsOk,
-      status: status.status,
+      ok: poll.statusOk && poll.eventsOk,
+      status: status?.status || null,
     };
   }
   async function decideRun(decision, note = "") {

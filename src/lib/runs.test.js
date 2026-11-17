@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage } from "./runs.js";
+import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -144,6 +144,41 @@ test("run polling reports event success independently from status success", () =
   assert.equal(result.eventsOk, true);
 });
 
+
+test("run polling merges successful events when status polling fails", async () => {
+  const { mergeRunPollResult } = await import("./runs.js");
+  const current = {
+    id: "RUN-PARTIAL",
+    status: "running",
+    progress: 35,
+    stages: [{ id: "plan", output: "Existing artifact" }],
+    events: [{ id: "event-old", message: "Existing event" }],
+  };
+  const eventsOnly = mergeRunPollResult(current, {
+    status: null,
+    statusOk: false,
+    events: { items: [{ id: "event-new", message: "New event" }], next_after: "event-new" },
+    eventsOk: true,
+  });
+  assert.equal(eventsOnly.status, "running");
+  assert.equal(eventsOnly.progress, 35);
+  assert.deepEqual(eventsOnly.events.map((event) => event.id), ["event-old", "event-new"]);
+  assert.deepEqual(eventsOnly.stages, current.stages);
+
+  const statusOnly = mergeRunPollResult(current, {
+    status: { id: "RUN-PARTIAL", status: "review", progress: 100 },
+    statusOk: true,
+    events: null,
+    eventsOk: false,
+  });
+  assert.equal(statusOnly.status, "review");
+  assert.equal(statusOnly.progress, 100);
+  assert.deepEqual(statusOnly.events, current.events);
+
+  assert.equal(mergeRunPollResult(current, {
+    status: null, statusOk: false, events: null, eventsOk: false,
+  }), null);
+});
 
 test("run polling rejects fulfilled but malformed status and event payloads", () => {
   const malformedStatus = settleRunPoll(

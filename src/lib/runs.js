@@ -136,6 +136,30 @@ export function nextRunPollDelay(failures) {
 }
 
 /** Keep successful status and event responses independent during polling. */
+export function mergeRunPollResult(current, poll, detailItem = null) {
+  if (!current || typeof current !== "object" || !poll
+    || (!poll.statusOk && !poll.eventsOk)) return null;
+
+  const status = poll.statusOk ? poll.status : null;
+  const eventPayload = poll.eventsOk ? poll.events : null;
+  return {
+    ...current,
+    ...(status || {}),
+    ...(status && detailItem && Array.isArray(detailItem.stages)
+      ? { stages: detailItem.stages }
+      : {}),
+    ...(eventPayload
+      ? {
+          events: mergeRunEvents(
+            current.events,
+            eventPayload.items,
+            eventPayload.cursor_expired === true,
+          ),
+        }
+      : {}),
+  };
+}
+
 export function settleRunPoll(statusResult, eventResult) {
   const statusItem = statusResult?.value?.item;
   const statusOk = statusResult?.status === "fulfilled"
