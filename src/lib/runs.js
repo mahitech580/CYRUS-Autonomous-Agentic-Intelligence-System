@@ -137,11 +137,28 @@ export function nextRunPollDelay(failures) {
 
 /** Keep successful status and event responses independent during polling. */
 export function settleRunPoll(statusResult, eventResult) {
-  const statusOk = statusResult?.status === "fulfilled" && !!statusResult.value?.item;
-  const eventsOk = eventResult?.status === "fulfilled";
+  const statusItem = statusResult?.value?.item;
+  const statusOk = statusResult?.status === "fulfilled"
+    && !!statusItem
+    && typeof statusItem === "object"
+    && !Array.isArray(statusItem)
+    && typeof statusItem.id === "string"
+    && !!statusItem.id
+    && typeof statusItem.status === "string"
+    && !!statusItem.status;
+
+  const eventPayload = eventResult?.value;
+  const eventsOk = eventResult?.status === "fulfilled"
+    && !!eventPayload
+    && typeof eventPayload === "object"
+    && !Array.isArray(eventPayload)
+    && Array.isArray(eventPayload.items)
+    && (eventPayload.next_after == null || typeof eventPayload.next_after === "string")
+    && (eventPayload.cursor_expired == null || typeof eventPayload.cursor_expired === "boolean");
+
   return {
-    status: statusOk ? statusResult.value.item : null,
-    events: eventsOk ? eventResult.value : null,
+    status: statusOk ? statusItem : null,
+    events: eventsOk ? eventPayload : null,
     statusOk,
     eventsOk,
   };

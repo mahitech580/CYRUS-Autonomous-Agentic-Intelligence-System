@@ -145,6 +145,31 @@ test("run polling reports event success independently from status success", () =
 });
 
 
+test("run polling rejects fulfilled but malformed status and event payloads", () => {
+  const malformedStatus = settleRunPoll(
+    { status: "fulfilled", value: { item: { id: "RUN-1" } } },
+    { status: "fulfilled", value: { items: [] } },
+  );
+  assert.equal(malformedStatus.status, null);
+  assert.equal(malformedStatus.statusOk, false);
+  assert.equal(malformedStatus.eventsOk, true);
+
+  const malformedEvents = settleRunPoll(
+    { status: "fulfilled", value: { item: { id: "RUN-1", status: "running" } } },
+    { status: "fulfilled", value: { items: "not-an-array", next_after: 42 } },
+  );
+  assert.equal(malformedEvents.status.status, "running");
+  assert.equal(malformedEvents.statusOk, true);
+  assert.equal(malformedEvents.events, null);
+  assert.equal(malformedEvents.eventsOk, false);
+
+  const arrayPayload = settleRunPoll(
+    { status: "fulfilled", value: { item: { id: "RUN-1", status: "running" } } },
+    { status: "fulfilled", value: [] },
+  );
+  assert.equal(arrayPayload.eventsOk, false);
+});
+
 test("run detail refresh is requested only when new stages are persisted", () => {
   assert.equal(needsRunDetailRefresh(1, 0), true);
   assert.equal(needsRunDetailRefresh(2, 2), false);
