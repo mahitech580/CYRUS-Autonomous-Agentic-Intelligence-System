@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
+import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -698,4 +698,28 @@ test("execution event filters require every query term and safely handle empty f
   assert.deepEqual(filterRunEvents(events, "review security").map((event) => event.id), ["event-1"]);
   assert.deepEqual(filterRunEvents(events, "review missing"), []);
   assert.deepEqual(filterRunEvents(events, "   ", "all").map((event) => event.id), ["event-1", "event-2"]);
+});
+
+
+test("run event polling clears a stale cursor only when an expired window is empty", () => {
+  assert.equal(getNextRunEventCursor({
+    items: [],
+    cursor_expired: true,
+    next_after: null,
+  }, "event-previous"), "");
+  assert.equal(getNextRunEventCursor({
+    items: [{ id: "event-recovered" }],
+    cursor_expired: true,
+    next_after: "event-recovered",
+  }, "event-previous"), "event-recovered");
+  assert.equal(getNextRunEventCursor({
+    items: [],
+    cursor_expired: false,
+    next_after: "event-previous",
+  }, "event-previous"), "event-previous");
+  assert.equal(getNextRunEventCursor({
+    items: [],
+    cursor_expired: false,
+    next_after: null,
+  }, "event-previous"), "event-previous");
 });

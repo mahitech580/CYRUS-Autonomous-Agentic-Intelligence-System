@@ -1366,7 +1366,7 @@ def get_run_events(
     else:
         page = available[:limit]
         has_more = len(available) > len(page)
-    next_after = page[-1].get("id") if page else after
+    next_after = page[-1].get("id") if page else (None if cursor_expired else after)
     return {
         "items": page,
         # total describes the retained event window, not just this page.

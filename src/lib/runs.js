@@ -138,6 +138,19 @@ export function mergeRunEvents(existing, incoming, replace = false) {
   return [...merged.values()].slice(-250);
 }
 
+/** Advance a polling cursor, clearing it when an expired empty window has no replacement ID. */
+export function getNextRunEventCursor(eventResponse, previousCursor = "") {
+  const previous = typeof previousCursor === "string" ? previousCursor : "";
+  if (eventResponse?.cursor_expired === true
+    && Array.isArray(eventResponse.items)
+    && eventResponse.items.length === 0) {
+    return "";
+  }
+  return typeof eventResponse?.next_after === "string" && eventResponse.next_after
+    ? eventResponse.next_after
+    : previous;
+}
+
  
 /** Summary-safe check for saved artifacts; list responses intentionally omit payloads. */
 export function hasRunArtifacts(run) {

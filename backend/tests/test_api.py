@@ -1820,3 +1820,29 @@ def test_run_detail_and_event_history_allowlist_persisted_record_fields(client):
                for event in history.json()["items"])
     assert "event-header-secret" not in history.text
     assert "nested-event-debug-secret" not in history.text
+
+
+
+def test_event_endpoint_clears_expired_cursor_when_retained_history_is_empty(client):
+    run_id = "RUN-EVENT-EMPTY-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=run_id,
+            goal="Recover a stale event cursor after retained history is empty",
+            status="running",
+            progress=10,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+
+    response = client.get(f"/api/runs/{run_id}/events?after=expired-cursor")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["items"] == []
+    assert body["total"] == 0
+    assert body["has_more"] is False
+    assert body["cursor_expired"] is True
+    assert body["next_after"] is None
