@@ -103,3 +103,13 @@
   .drawer-event-toolbar { grid-template-columns:minmax(0,1fr); }
   .drawer-event-search, .drawer-event-filter, .drawer-event-clear { grid-column:1; }
 }
+
+.drawer-event-search:focus-within,
+.drawer-event-filter:focus-within {
+  border-color:rgba(103,232,249,.76);
+  box-shadow:0 0 0 3px rgba(103,232,249,.13);
+}
+.drawer-event-clear:focus-visible {
+  outline:2px solid #67e8f9;
+  outline-offset:3px;
+}

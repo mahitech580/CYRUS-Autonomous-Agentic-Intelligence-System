@@ -662,3 +662,13 @@ test("run event filters reset when the drawer switches runs and do not narrow re
   assert.ok(app.includes("filteredEvents.slice().reverse().map"));
   assert.ok(app.includes("const eventsAtRetentionLimit = events.length >= 250;"));
 });
+
+
+test("execution event filters retain visible keyboard focus indicators", async () => {
+  const styles = await read("redesign/events.css");
+  assert.ok(styles.includes(".drawer-event-search:focus-within"));
+  assert.ok(styles.includes(".drawer-event-filter:focus-within"));
+  assert.ok(styles.includes(".drawer-event-clear:focus-visible"));
+  assert.ok(styles.includes("outline-offset:3px"));
+  assert.ok(styles.includes("rgba(103,232,249,.13)"));
+});
