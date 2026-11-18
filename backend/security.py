@@ -6,7 +6,7 @@ import re
 
 _QUOTED_ASSIGNMENT = re.compile(
     r"""(?ix)
-    (?P<prefix>["']?(?:[A-Z0-9_]*_)?(?:api[_-]?key|access[_-]?key|private[_-]?key|signing[_-]?key|encryption[_-]?key|database[_-]?url|
+    (?P<prefix>["']?(?:[A-Z0-9_-]*[-_])?(?:api[_-]?key|access[_-]?key|private[_-]?key|signing[_-]?key|encryption[_-]?key|database[_-]?url|
     connection[_-]?string|client[_-]?secret|refresh[_-]?token|password|passwd|
     secret|token|authorization)["']?\s*[:=]\s*)
     (?P<quote>["']).*?(?P=quote)
@@ -15,7 +15,7 @@ _QUOTED_ASSIGNMENT = re.compile(
 
 
 _ASSIGNMENT = re.compile(
-    r"(?i)\b((?:[A-Z0-9_]*_)?(?:api[_-]?key|access[_-]?key|private[_-]?key|signing[_-]?key|encryption[_-]?key|database[_-]?url|"
+    r"(?i)\b((?:[A-Z0-9_-]*[-_])?(?:api[_-]?key|access[_-]?key|private[_-]?key|signing[_-]?key|encryption[_-]?key|database[_-]?url|"
     r"connection[_-]?string|client[_-]?secret|refresh[_-]?token|password|passwd|"
     r"secret|token|authorization))(\s*[:=]\s*)(?:(?:Bearer|Basic)\s+)?[^\s,;\"'&#]+"
 )
@@ -35,7 +35,7 @@ _PROVIDER_KEYS = re.compile(
 )
 _URL_CREDENTIALS = re.compile(r"(?i)((?:https?|postgres(?:ql)?|mysql(?:\+\w+)?|redis|mongodb(?:\+srv)?)://)[^/@\s:]+:[^/@\s]+@")
 _QUERY_SECRETS = re.compile(
-    r"(?i)([?&#](?:api[-_]?key|access[-_]?key|refresh[-_]?token|client[-_]?secret|database[-_]?url|connection[-_]?string|authorization|password|passwd|secret|token|auth)=)[^&#\s]+"
+    r"(?i)([?&#](?:[A-Z0-9_-]*[-_])?(?:api[-_]?key|access[-_]?key|refresh[-_]?token|client[-_]?secret|database[-_]?url|connection[-_]?string|authorization|password|passwd|secret|token|auth)=)[^&#\s]+"
 )
 
 _PEM_PRIVATE_KEY = re.compile(

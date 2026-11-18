@@ -122,3 +122,30 @@ def test_redacts_hugging_face_gitlab_slack_webhook_and_sendgrid_tokens():
     for token in tokens:
         assert token not in result
     assert result.count("[REDACTED_KEY]") == len(tokens)
+
+
+
+def test_redacts_prefixed_http_api_and_client_secret_headers_and_query_parameters():
+    text = "\n".join([
+        "X-API-Key: header-api-secret",
+        "X-Goog-API-Key: google-header-secret",
+        "X-Client-Secret: client-header-secret",
+        '{"x-api-key":"json-api-secret"}',
+        "https://provider.example/callback?x-api-key=query-api-secret&x-client-secret=query-client-secret&display=kept",
+    ])
+    result = redact_sensitive_text(text)
+    for secret in (
+        "header-api-secret",
+        "google-header-secret",
+        "client-header-secret",
+        "json-api-secret",
+        "query-api-secret",
+        "query-client-secret",
+    ):
+        assert secret not in result
+    assert "X-API-Key: [REDACTED]" in result
+    assert "X-Goog-API-Key: [REDACTED]" in result
+    assert "X-Client-Secret: [REDACTED]" in result
+    assert '"x-api-key":"[REDACTED]"' in result
+    assert "x-client-secret=[REDACTED]" in result
+    assert "display=kept" in result
