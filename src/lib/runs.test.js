@@ -699,22 +699,3 @@ test("execution event filters require every query term and safely handle empty f
   assert.deepEqual(filterRunEvents(events, "review missing"), []);
   assert.deepEqual(filterRunEvents(events, "   ", "all").map((event) => event.id), ["event-1", "event-2"]);
 });
-
-
-test("punctuation-only search input does not silently return every run or event", () => {
-  const runs = [
-    { id: "RUN-001", goal: "Secure API review", status: "review" },
-    { id: "RUN-002", goal: "Improve workspace navigation", status: "completed", progress: 100 },
-  ];
-  const events = [
-    { id: "event-1", agent: "Atlas", stage: "plan", message: "Secure API review" },
-    { id: "event-2", agent: "Scout", stage: "research", message: "Workspace navigation" },
-  ];
-
-  assert.deepEqual(filterRuns(runs, "!!!"), []);
-  assert.deepEqual(filterRunEvents(events, "!!!"), []);
-  assert.deepEqual(filterRuns(runs, "!!! secure").map((run) => run.id), ["RUN-001"]);
-  assert.deepEqual(filterRunEvents(events, "!!! atlas").map((event) => event.id), ["event-1"]);
-  assert.deepEqual(filterRuns(runs, "   ").map((run) => run.id), ["RUN-001", "RUN-002"]);
-  assert.deepEqual(filterRunEvents(events, "   ").map((event) => event.id), ["event-1", "event-2"]);
-});

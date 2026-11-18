@@ -12,15 +12,6 @@ function normalizeRunSearchValue(value) {
     .trim();
 }
 
-function getRunSearchTerms(value) {
-  const raw = String(value ?? "").trim();
-  const normalized = normalizeRunSearchValue(raw);
-  return {
-    hasInput: raw.length > 0,
-    terms: normalized ? normalized.split(/\s+/).filter(Boolean) : [],
-  };
-}
-
 function isRunEvent(event) {
   return !!event && typeof event === "object" && !Array.isArray(event);
 }
@@ -45,8 +36,7 @@ export function getRunEventStatuses(events) {
  */
 export function filterRunEvents(events, query = "", statusFilter = "all") {
   const items = Array.isArray(events) ? events.filter(isRunEvent) : [];
-  const { hasInput, terms } = getRunSearchTerms(query);
-  if (hasInput && !terms.length) return [];
+  const terms = normalizeRunSearchValue(query).split(/\s+/).filter(Boolean);
   const selectedStatus = String(statusFilter ?? "all").trim().toLowerCase() || "all";
 
   return items.filter((event) => {
@@ -69,8 +59,7 @@ export function isRunCompleted(run) {
 
 export function filterRuns(runs, query = "", statusFilter = "all") {
   const items = Array.isArray(runs) ? runs.filter((run) => run && typeof run === "object") : [];
-  const { hasInput, terms } = getRunSearchTerms(query);
-  if (hasInput && !terms.length) return [];
+  const terms = normalizeRunSearchValue(query).split(/\s+/).filter(Boolean);
   return items.filter((run) => {
     const stageSearch = Array.isArray(run.stages)
       ? run.stages.flatMap((stage) => stage && typeof stage === "object" ? [
