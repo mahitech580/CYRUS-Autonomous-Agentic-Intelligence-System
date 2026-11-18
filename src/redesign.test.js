@@ -633,3 +633,32 @@ test("settings exposes the server-enforced workspace launch quota", async () => 
   assert.ok(app.includes('launchLimits?.per_hour'));
   assert.ok(app.includes('launchLimits?.enabled === false'));
 });
+
+
+test("run event history provides accessible search and API-derived status filters", async () => {
+  const app = await read("../src/App.jsx");
+  const styles = await read("redesign/events.css");
+  const helpers = await read("../src/lib/runs.js");
+  assert.ok(app.includes('type="search"'));
+  assert.ok(app.includes('aria-label="Search execution events"'));
+  assert.ok(app.includes('aria-label="Filter events by status"'));
+  assert.ok(app.includes("getRunEventStatuses(events)"));
+  assert.ok(app.includes("filterRunEvents(events, eventQuery, eventStatusFilter)"));
+  assert.ok(app.includes("filteredEvents.slice().reverse().map"));
+  assert.ok(app.includes("No matching execution events"));
+  assert.ok(app.includes('role="status" aria-live="polite" aria-atomic="true"'));
+  assert.ok(helpers.includes('export function filterRunEvents(events, query = "", statusFilter = "all")'));
+  assert.ok(styles.includes(".drawer-event-toolbar"));
+  assert.ok(styles.includes(".drawer-event-empty"));
+  assert.ok(styles.includes("@media(max-width:560px)"));
+});
+
+test("run event filters reset when the drawer switches runs and do not narrow report exports", async () => {
+  const app = await read("../src/App.jsx");
+  assert.ok(app.includes('}, [run.id]);'));
+  assert.ok(app.includes('setEventQuery("");'));
+  assert.ok(app.includes('setEventStatusFilter("all");'));
+  assert.ok(app.includes('...(run.events || []).map((event) =>'));
+  assert.ok(app.includes("filteredEvents.slice().reverse().map"));
+  assert.ok(app.includes("const eventsAtRetentionLimit = events.length >= 250;"));
+});

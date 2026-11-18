@@ -11,3 +11,95 @@
 .event-marker-approval_required { background:#bd9cff; box-shadow:0 0 0 4px rgba(189,156,255,.1); }
 
 .drawer-event-retention { margin:-4px 0 12px; color:#8fa4c4; font-size:10px; line-height:1.6; }
+
+
+.drawer-event-toolbar {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(118px,150px) auto;
+  align-items:center;
+  gap:8px;
+  margin:0 0 8px;
+}
+.drawer-event-search,
+.drawer-event-filter {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  min-height:38px;
+  padding:0 10px;
+  border:1px solid rgba(126,158,219,.22);
+  border-radius:10px;
+  background:rgba(11,20,38,.72);
+  color:#a9bddb;
+}
+.drawer-event-search svg { flex:0 0 auto; color:#7f9ac4; }
+.drawer-event-search input {
+  width:100%;
+  min-width:0;
+  height:36px;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:#e8f1ff;
+  font:inherit;
+  font-size:11px;
+}
+.drawer-event-search input::placeholder { color:#7186aa; opacity:1; }
+.drawer-event-filter select {
+  width:100%;
+  min-width:0;
+  height:36px;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:#dceaff;
+  color-scheme:dark;
+  font:inherit;
+  font-size:11px;
+}
+.drawer-event-clear {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-height:36px;
+  padding:0 10px;
+  border:1px solid rgba(126,158,219,.2);
+  border-radius:9px;
+  background:rgba(126,158,219,.07);
+  color:#b8c9e4;
+  font:inherit;
+  font-size:10px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.drawer-event-clear:hover { border-color:rgba(103,232,249,.4); color:#e8faff; }
+.drawer-event-results {
+  margin:0 0 9px;
+  color:#7f93b7;
+  font-size:10px;
+  line-height:1.5;
+}
+.drawer-event-empty {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:6px;
+  padding:16px;
+  border:1px dashed rgba(126,158,219,.24);
+  border-radius:12px;
+  color:#8fa4c4;
+}
+.drawer-event-empty > svg { color:#82b8dc; }
+.drawer-event-empty strong { color:#dceaff; font-size:12px; }
+.drawer-event-empty span { font-size:10px; line-height:1.6; }
+@media(max-width:560px) {
+  .drawer-event-toolbar { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  .drawer-event-search { grid-column:1/-1; }
+  .drawer-event-clear { grid-column:1/-1; justify-self:start; }
+}
+@media(max-width:360px) {
+  .drawer-event-toolbar { grid-template-columns:minmax(0,1fr); }
+  .drawer-event-search, .drawer-event-filter, .drawer-event-clear { grid-column:1; }
+}

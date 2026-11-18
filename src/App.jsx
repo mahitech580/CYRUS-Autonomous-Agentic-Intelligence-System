@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, mergeRunPollResult, buildRunsCsv, filterRuns, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, mergeRunPollResult, buildRunsCsv, filterRuns, filterRunEvents, getRunEventStatuses, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
@@ -1218,12 +1218,25 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
   const [expandedStage, setExpandedStage] = useState(stages.length ? stages[stages.length - 1].id : "plan");
   const initialStageSelection = useRef(stages.length > 0);
   const [note, setNote] = useState("");
+  const [eventQuery, setEventQuery] = useState("");
+  const [eventStatusFilter, setEventStatusFilter] = useState("all");
   useEffect(() => {
     if (!initialStageSelection.current && stages.length > 0) {
       setExpandedStage(stages[stages.length - 1]?.id || "plan");
       initialStageSelection.current = true;
     }
   }, [stages.length]);
+  useEffect(() => {
+    setEventQuery("");
+    setEventStatusFilter("all");
+  }, [run.id]);
+  const validEvents = useMemo(() => filterRunEvents(events), [events]);
+  const filteredEvents = useMemo(
+    () => filterRunEvents(events, eventQuery, eventStatusFilter),
+    [events, eventQuery, eventStatusFilter],
+  );
+  const eventStatuses = useMemo(() => getRunEventStatuses(events), [events]);
+  const hasEventFilters = eventQuery.trim().length > 0 || eventStatusFilter !== "all";
   const completedStageCount = countCompletedRunStages(run, pipelineStageIds);
   const completedTokens = stages.reduce((sum, stage) => {
     const inputTokens = Number(stage?.usage?.input_tokens);
@@ -1291,20 +1304,63 @@ function RunDrawer({ run, onClose, onApprove, onCancel, onRetry, busy }) {
     <div className="drawer-section-title event-heading">Execution event history <span>{eventsAtRetentionLimit ? "Latest 250 retained" : events.length + " recorded"}</span></div>
     {eventsAtRetentionLimit ? <p className="drawer-event-retention" role="note">Showing the most recent 250 events retained by the API. Older event records are not available.</p> : null}
     {events.length ? <>
-      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        Latest event: {latestEvent?.agent || "CYRUS"} — {latestEvent?.message || "Event recorded."}
+      <div className="drawer-event-toolbar" role="search" aria-label="Filter execution event history">
+        <label className="drawer-event-search">
+          <Search size={14} aria-hidden="true" />
+          <span className="sr-only">Search execution events</span>
+          <input
+            type="search"
+            aria-label="Search execution events"
+            placeholder="Search ID, agent, stage or message"
+            value={eventQuery}
+            onChange={(event) => setEventQuery(event.target.value)}
+          />
+        </label>
+        <label className="drawer-event-filter">
+          <span className="sr-only">Filter events by status</span>
+          <select
+            aria-label="Filter events by status"
+            value={eventStatusFilter}
+            onChange={(event) => setEventStatusFilter(event.target.value)}
+          >
+            <option value="all">All statuses</option>
+            {eventStatuses.map((status) => <option key={status} value={status}>{status.replace(/[_-]+/g, " ")}</option>)}
+          </select>
+        </label>
+        {hasEventFilters ? <button
+          className="drawer-event-clear"
+          type="button"
+          onClick={() => { setEventQuery(""); setEventStatusFilter("all"); }}
+        ><X size={13} /> Clear filters</button> : null}
       </div>
-      <div className="drawer-event-list" role="region" aria-label="Execution event history">{events.slice().reverse().map((event, index) => {
-      const eventStatus = String(event.status || "info").replace(/[^a-z0-9_-]/gi, "");
-      return <article className="drawer-event" key={event.id || (event.at || "event") + "-" + index}>
-        <span className={"event-marker event-marker-" + eventStatus} />
-        <div className="drawer-event-copy">
-          <div className="drawer-event-top"><strong>{event.agent || "CYRUS"}</strong><span>{event.status || "info"}</span></div>
-          <p>{event.message || "Event recorded."}</p>
-          <time dateTime={event.at || undefined}>{formatEventTime(event.at)}</time>
+      <div className="drawer-event-results" role="status" aria-live="polite" aria-atomic="true">
+        Showing {filteredEvents.length} of {validEvents.length} loaded events
+      </div>
+      {filteredEvents.length ? <>
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          Latest event: {latestEvent?.agent || "CYRUS"} — {latestEvent?.message || "Event recorded."}
         </div>
-      </article>;
-    })}</div>
+        <div className="drawer-event-list" role="region" aria-label="Execution event history">{filteredEvents.slice().reverse().map((event, index) => {
+          const eventStatus = String(event.status || "info").trim().toLowerCase() || "info";
+          const eventMarkerStatus = eventStatus.replace(/[^a-z0-9_-]/g, "");
+          return <article className="drawer-event" key={event.id || (event.at || "event") + "-" + index}>
+            <span className={"event-marker event-marker-" + eventMarkerStatus} />
+            <div className="drawer-event-copy">
+              <div className="drawer-event-top"><strong>{event.agent || "CYRUS"}</strong><span>{eventStatus.replace(/[_-]+/g, " ")}</span></div>
+              <p>{event.message || "Event recorded."}</p>
+              <time dateTime={event.at || undefined}>{formatEventTime(event.at)}</time>
+            </div>
+          </article>;
+        })}</div>
+      </> : hasEventFilters ? <div className="empty-state drawer-empty-events drawer-event-empty">
+        <Search size={18} />
+        <strong>No matching execution events</strong>
+        <span>Try a different search term or clear the filters to see the loaded event history.</span>
+      </div> : <div className="empty-state drawer-empty-events drawer-event-empty">
+        <Activity size={18} />
+        <strong>No valid execution events</strong>
+        <span>The API returned no displayable event records for this run.</span>
+      </div>}
     </> : <div className="empty-state drawer-empty-events"><Activity size={18} /><span>No execution events have been recorded for this run.</span></div>}
     {run.status === "review" ? <div className="approval-panel"><div className="eyebrow">HUMAN REVIEW REQUIRED</div><strong>Approve the workflow artifacts?</strong><p>Approval records your decision only. It does not execute generated code, write to GitHub, or deploy a release.</p><label className="form-field"><span>Review note (optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={1000} placeholder="What did you verify?" /></label><div className="approval-actions"><button className="button-outline" disabled={busy} onClick={() => onApprove("reject", note)}>Reject artifacts</button><button className="button-primary" disabled={busy} onClick={() => onApprove("approve", note)}>{busy ? "Saving…" : "Approve artifacts"}<Check size={14} /></button></div></div> : null}
     {run.status === "failed" ? <button className="button-primary full-button" disabled={busy} onClick={onRetry}><RefreshCw size={14} /> Retry as new workflow</button> : null}

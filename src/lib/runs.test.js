@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage } from "./runs.js";
+import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -623,4 +623,79 @@ test("cancelled and lease-expired workflows distinguish interrupted stages from 
   assert.equal(getRunStageState({ status: "failed", events }, "code"), "interrupted");
   assert.equal(getRunStageState({ status: "cancelled", events }, "plan"), "completed");
   assert.equal(getRunStageState({ status: "cancelled", events }, "research"), "queued");
+});
+
+
+test("execution event search matches all terms across event identity and content fields", () => {
+  const events = [
+    {
+      id: "event-research-1",
+      at: "2026-11-18T08:00:00.000Z",
+      stage: "research",
+      agent: "Scout",
+      status: "completed",
+      message: "Fetched React Router documentation",
+    },
+    {
+      id: "event-test-2",
+      at: "2026-11-18T08:01:00.000Z",
+      stage: "test",
+      agent: "Sentinel",
+      status: "failed",
+      message: "Retry race found",
+    },
+    {
+      id: "event-build-3",
+      at: "2026-11-18T08:02:00.000Z",
+      stage: "code",
+      agent: "Forge",
+      status: "completed",
+      message: "Updated API client",
+    },
+  ];
+
+  assert.deepEqual(filterRunEvents(events, "SCOUT react documentation").map((event) => event.id), ["event-research-1"]);
+  assert.deepEqual(filterRunEvents(events, "event-test-2 08:01").map((event) => event.id), ["event-test-2"]);
+  assert.deepEqual(filterRunEvents(events, "retry race", "FAILED").map((event) => event.id), ["event-test-2"]);
+  assert.deepEqual(filterRunEvents(events, "", "completed").map((event) => event.id), ["event-research-1", "event-build-3"]);
+});
+
+test("execution event search preserves Indic marks and folds Latin accents", () => {
+  const events = [
+    { id: "event-cafe", agent: "Café", message: "Release notes prepared" },
+    { id: "event-telugu", stage: "కోడ్", message: "విశ్లేషణ పూర్తయింది" },
+  ];
+  assert.deepEqual(filterRunEvents(events, "cafe").map((event) => event.id), ["event-cafe"]);
+  assert.deepEqual(filterRunEvents(events, "కోడ్").map((event) => event.id), ["event-telugu"]);
+});
+
+test("execution event filters ignore malformed entries, normalize statuses and preserve source order", () => {
+  const events = [
+    { id: "event-old", status: " FAILED ", message: "First" },
+    null,
+    "invalid",
+    42,
+    [],
+    { id: "event-info", status: "info", message: "Second" },
+    { id: "event-default", status: " ", message: "Third" },
+  ];
+  assert.deepEqual(filterRunEvents(events).map((event) => event.id), [
+    "event-old", "event-info", "event-default",
+  ]);
+  assert.deepEqual(filterRunEvents(events, "", "failed").map((event) => event.id), ["event-old"]);
+  assert.deepEqual(getRunEventStatuses(events), ["failed", "info"]);
+  assert.deepEqual(filterRunEvents(null), []);
+  assert.deepEqual(events.map((event) => event?.id ?? null), [
+    "event-old", null, null, null, null, "event-info", "event-default",
+  ]);
+});
+
+test("execution event filters require every query term and safely handle empty filters", () => {
+  const events = [
+    { id: "event-1", stage: "review", agent: "Lens", message: "Security boundary checked" },
+    { id: "event-2", stage: "review", agent: "Lens", message: "API contract checked" },
+  ];
+  assert.deepEqual(filterRunEvents(events, "review security").map((event) => event.id), ["event-1"]);
+  assert.deepEqual(filterRunEvents(events, "review missing"), []);
+  assert.deepEqual(filterRunEvents(events, "   ", "all").map((event) => event.id), ["event-1", "event-2"]);
 });

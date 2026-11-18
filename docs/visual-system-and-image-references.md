@@ -110,3 +110,23 @@ The secondary workspace routes now separate discovery, operational evidence, gov
 - **Runtime health vs. Workspace access:** Runtime health retains the dependency checklist. Workspace access presents only the server-reported access-control state and links to Settings. It never reads or displays a credential and explicitly states that the current API does not expose per-user RBAC.
 
 These pages use existing route IDs, API payloads and design tokens. No new backend capability, integration status, worker metric, audit source or deployment action is implied.
+
+
+## Execution event discovery
+
+Updated: 18 November 2026
+
+The run-details drawer supports search and status filtering over the event records already loaded for the selected workflow.
+
+- Search matches every query term across event ID, timestamp, stage, agent, status and message. Matching uses the same Unicode-aware normalization as workflow search.
+- Status choices are derived from the loaded event window; the UI does not invent statuses or imply that more history is available.
+- Results retain source order in memory and are displayed newest-first, matching the existing timeline.
+- The filter count is explicitly scoped to loaded, displayable records. The 250-event API retention notice remains based on the unfiltered retained window.
+- Filters reset when the selected run changes. Exporting the Markdown report continues to include the complete loaded event log, regardless of the visible filter.
+- An empty history, a filter with no matches, and a malformed/non-displayable event payload have distinct explanations.
+
+Interaction references:
+
+- [MDN: search input type](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/search) — native search-field behavior and semantics.
+- [WAI-ARIA: status role](https://www.w3.org/WAI/WCAG21/Techniques/aria/ARIA22) — polite announcements for the changing result count.
+- [WAI-ARIA APG: combobox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) — reference for labelled, keyboard-operable selection controls. The status filter remains a native select.

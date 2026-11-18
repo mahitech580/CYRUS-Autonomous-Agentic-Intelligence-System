@@ -12,6 +12,43 @@ function normalizeRunSearchValue(value) {
     .trim();
 }
 
+function isRunEvent(event) {
+  return !!event && typeof event === "object" && !Array.isArray(event);
+}
+
+function getRunEventStatus(event) {
+  return String(event?.status || "info").trim().toLowerCase() || "info";
+}
+
+/** Return only statuses present in the loaded event window. */
+export function getRunEventStatuses(events) {
+  const statuses = new Set();
+  if (!Array.isArray(events)) return [];
+  for (const event of events) {
+    if (isRunEvent(event)) statuses.add(getRunEventStatus(event));
+  }
+  return [...statuses].sort();
+}
+
+/**
+ * Filter only the event records currently loaded for a run. All query terms
+ * must match across the event's ID, timestamp, stage, agent, status or message.
+ */
+export function filterRunEvents(events, query = "", statusFilter = "all") {
+  const items = Array.isArray(events) ? events.filter(isRunEvent) : [];
+  const terms = normalizeRunSearchValue(query).split(/\s+/).filter(Boolean);
+  const selectedStatus = String(statusFilter ?? "all").trim().toLowerCase() || "all";
+
+  return items.filter((event) => {
+    const eventStatus = getRunEventStatus(event);
+    if (selectedStatus !== "all" && eventStatus !== selectedStatus) return false;
+    const searchable = normalizeRunSearchValue([
+      event.id, event.at, event.stage, event.agent, eventStatus, event.message,
+    ].filter((value) => typeof value === "string" || typeof value === "number").join(" "));
+    return terms.every((term) => searchable.includes(term));
+  });
+}
+
 export function isRunCompleted(run) {
   if (!run || typeof run !== "object") return false;
   const progress = Number(run.progress);
