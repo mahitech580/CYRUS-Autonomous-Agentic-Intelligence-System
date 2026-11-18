@@ -1739,3 +1739,84 @@ def test_run_launch_quota_retries_after_a_concurrent_window_reset(monkeypatch):
         assert db.get(main.RunLaunchBucket, hour_id).count == 1
         db.execute(main.delete(main.RunLaunchBucket).where(main.RunLaunchBucket.id.in_([minute_id, hour_id])))
         db.commit()
+
+
+
+def test_run_detail_and_event_history_allowlist_persisted_record_fields(client):
+    run_id = "RUN-RECORD-ALLOWLIST-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=run_id,
+            goal="Keep persisted workflow records within the public API schema",
+            status="review",
+            progress=100,
+            stages=[{
+                "id": "plan",
+                "agent": "Atlas",
+                "role": "Planning agent",
+                "status": "completed",
+                "summary": "Create a safe plan",
+                "output": "The plan is ready for review.",
+                "usage": {
+                    "input_tokens": 7,
+                    "output_tokens": 11,
+                    "provider_key": "nested-stage-secret",
+                },
+                "provider_response_id": "resp_test_123",
+                "completed_at": "2026-11-18T10:00:00Z",
+                "private_prompt": "unapproved stage metadata",
+                "authorization": "Bearer stage-header-secret",
+                "debug": {"token": "nested-stage-debug-secret"},
+            }],
+            events=[
+                {
+                    "id": "event-safe-1",
+                    "at": "2026-11-18T10:00:01Z",
+                    "stage": "plan",
+                    "agent": "Atlas",
+                    "message": "Authorization: Bearer event-message-secret",
+                    "status": "completed",
+                    "authorization": "Bearer event-header-secret",
+                    "debug": {"token": "nested-event-debug-secret"},
+                },
+                {
+                    "id": "event-safe-2",
+                    "at": "2026-11-18T10:00:02Z",
+                    "stage": "review",
+                    "agent": "CYRUS",
+                    "message": {"token": "nested-message-secret"},
+                    "status": "info",
+                    "metadata": {"private": "unapproved event metadata"},
+                },
+            ],
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+
+    detail = client.get(f"/api/runs/{run_id}")
+    assert detail.status_code == 200
+    item = detail.json()["item"]
+    stage = item["stages"][0]
+    assert stage["usage"] == {"input_tokens": 7, "output_tokens": 11}
+    assert stage["provider_response_id"] == "resp_test_123"
+    assert "private_prompt" not in stage
+    assert "authorization" not in stage
+    assert "debug" not in stage
+    assert "provider_key" not in stage["usage"]
+
+    events = item["events"]
+    assert set(events[0]) == {"id", "at", "stage", "agent", "message", "status"}
+    assert "event-message-secret" not in events[0]["message"]
+    assert "authorization" not in events[0]
+    assert "debug" not in events[0]
+    assert "message" not in events[1]
+    assert "metadata" not in events[1]
+    assert "nested-message-secret" not in detail.text
+
+    history = client.get(f"/api/runs/{run_id}/events")
+    assert history.status_code == 200
+    assert all(set(event).issubset({"id", "at", "stage", "agent", "message", "status"})
+               for event in history.json()["items"])
+    assert "event-header-secret" not in history.text
+    assert "nested-event-debug-secret" not in history.text

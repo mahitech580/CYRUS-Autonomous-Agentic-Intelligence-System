@@ -386,16 +386,58 @@ def redact_record_fields(record: dict[str, Any], fields: tuple[str, ...]) -> dic
     return safe
 
 
+STAGE_TEXT_LIMITS = {
+    "id": 48,
+    "agent": 80,
+    "role": 120,
+    "status": 24,
+    "summary": 2000,
+    "output": 30000,
+    "error": 2000,
+    "provider_response_id": 128,
+    "started_at": 64,
+    "completed_at": 64,
+}
+EVENT_TEXT_LIMITS = {
+    "id": 40,
+    "at": 64,
+    "stage": 48,
+    "agent": 80,
+    "message": 2000,
+    "status": 24,
+}
+
+
 def safe_stage_records(value: Any) -> list[dict[str, Any]]:
-    return [
-        redact_record_fields(record, ("summary", "output", "error"))
-        for record in persisted_records(value)
-    ]
+    """Expose only the documented stage fields and bounded token counters."""
+    safe_records = []
+    for record in persisted_records(value):
+        safe = {
+            field: redact_sensitive_text(record[field], max_length=limit)
+            for field, limit in STAGE_TEXT_LIMITS.items()
+            if isinstance(record.get(field), str)
+        }
+        usage = record.get("usage")
+        if isinstance(usage, dict):
+            safe["usage"] = {
+                field: min(recorded, 2**53 - 1)
+                for field in ("input_tokens", "output_tokens")
+                if isinstance((recorded := usage.get(field)), int)
+                and not isinstance(recorded, bool)
+                and recorded >= 0
+            }
+        safe_records.append(safe)
+    return safe_records
 
 
 def safe_event_records(value: Any) -> list[dict[str, Any]]:
+    """Allowlist event fields so legacy JSON cannot leak arbitrary metadata."""
     return [
-        redact_record_fields(record, ("message",))
+        {
+            field: redact_sensitive_text(record[field], max_length=limit)
+            for field, limit in EVENT_TEXT_LIMITS.items()
+            if isinstance(record.get(field), str)
+        }
         for record in persisted_records(value)
     ]
 
