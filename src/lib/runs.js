@@ -292,9 +292,10 @@ export function getRunPageOffset(response, currentOffset = 0, pageLength = 0) {
   const minimumNextOffset = offset + count;
   const nextOffset = response?.next_offset;
   const parsedNext = Number(nextOffset);
-  // A stale or malformed cursor must never move history backwards or repeat a page.
-  if (nextOffset != null && Number.isFinite(parsedNext) && parsedNext >= minimumNextOffset) {
-    return Math.floor(parsedNext);
+  // The API advances by exactly the number of returned rows. Reject stale,
+  // fractional, or forward-skipping cursors so history pages cannot be skipped.
+  if (nextOffset != null && Number.isSafeInteger(parsedNext) && parsedNext === minimumNextOffset) {
+    return parsedNext;
   }
   return minimumNextOffset;
 }
