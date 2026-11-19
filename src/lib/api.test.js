@@ -129,6 +129,25 @@ test("run polling API helpers honor AbortSignals and encode run IDs", async (t) 
   assert.equal(captured.options.signal.aborted, true);
 });
 
+test("run event polling requests the complete retained history window", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let capturedUrl = "";
+  globalThis.fetch = async (url) => {
+    capturedUrl = url;
+    return new Response(JSON.stringify({ items: [], total: 0, has_more: false }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  await api.runEvents("RUN/1", "event-previous");
+  assert.equal(
+    capturedUrl,
+    "http://localhost:8000/api/runs/RUN%2F1/events?limit=250&after=event-previous",
+  );
+});
+
 
 test("HTTP errors expose the server request ID for support diagnostics", async (t) => {
   const originalFetch = globalThis.fetch;

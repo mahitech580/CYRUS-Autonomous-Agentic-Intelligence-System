@@ -194,7 +194,13 @@ export const api = {
   },
   getRun: (runId, options = {}) => request("/api/runs/" + encodeURIComponent(runId), options),
   getRunStatus: (runId, options = {}) => request("/api/runs/" + encodeURIComponent(runId) + "/status", options),
-  runEvents: (runId, after, options = {}) => request("/api/runs/" + encodeURIComponent(runId) + "/events" + (after ? "?after=" + encodeURIComponent(after) : ""), options),
+  runEvents: (runId, after, options = {}) => {
+    // Ask for the full retained window so an expired cursor can rebuild all
+    // available history instead of silently dropping older retained events.
+    const params = new URLSearchParams({ limit: "250" });
+    if (after) params.set("after", String(after));
+    return request("/api/runs/" + encodeURIComponent(runId) + "/events?" + params.toString(), options);
+  },
   approveRun: (runId, decision, note = "") => request("/api/runs/" + encodeURIComponent(runId) + "/approval", {
     method: "POST",
     body: JSON.stringify({ decision, note }),
