@@ -97,6 +97,13 @@ For Vercel, configure server-only variables in the cyrus-api project's Environme
 | CYRUS_ACCESS_KEY | Production required | Shared workspace access key |
 | CYRUS_ENVIRONMENT | No | Set production or staging on deployed hosts; local Compose defaults to development |
 | CYRUS_REQUIRE_ACCESS_KEY | No | Set true to require a workspace key even in development |
+| CYRUS_EXTERNAL_WORKER | No | Set true when running a separate durable worker; Vercel requires a fresh worker heartbeat before workflow creation is enabled |
+| CYRUS_WORKER_ID | No | Optional worker identity prefix; the host name and process ID are appended to distinguish replicas |
+| CYRUS_WORKER_POLL_SECONDS | No | Queue polling interval and retry-backoff base in seconds; default 2, bounded 0.5–30 |
+| CYRUS_WORKER_HEARTBEAT_TTL_SECONDS | No | Worker lease lifetime in seconds; default 90, bounded 30–300 |
+| CYRUS_WORKER_HEARTBEAT_SECONDS | No | Heartbeat renewal interval in seconds; default 15, bounded 5–60 and capped relative to the lease TTL |
+| CYRUS_WORKER_RECOVERY_SECONDS | No | Stale-run and expired-heartbeat cleanup interval in seconds; default 30, bounded 5–120 and capped relative to the lease TTL |
+| CYRUS_WORKER_STALE_SECONDS | No | Fallback stale-run timeout for legacy or inline runs without an active worker lease; default 600, bounded 300–1800 |
 | CORS_ORIGINS | Yes for browser deployment | Comma-separated trusted frontend origins |
 | VITE_API_BASE_URL | Frontend | Public URL for CYRUS REST API |
 
