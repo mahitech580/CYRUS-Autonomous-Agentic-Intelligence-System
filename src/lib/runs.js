@@ -151,6 +151,12 @@ export function getNextRunEventCursor(eventResponse, previousCursor = "") {
     : previous;
 }
 
+/** Apply a poll cursor update; an empty string is an intentional reset, not a missing value. */
+export function applyRunEventCursor(currentCursor, nextCursor) {
+  if (typeof nextCursor === "string") return nextCursor;
+  return typeof currentCursor === "string" ? currentCursor : "";
+}
+
  
 /** Summary-safe check for saved artifacts; list responses intentionally omit payloads. */
 export function hasRunArtifacts(run) {

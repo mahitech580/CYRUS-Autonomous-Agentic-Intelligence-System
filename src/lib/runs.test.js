@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
+import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -722,4 +722,10 @@ test("run event polling clears a stale cursor only when an expired window is emp
     cursor_expired: false,
     next_after: null,
   }, "event-previous"), "event-previous");
+});
+
+test("poll cursor application treats empty strings as explicit resets", () => {
+  assert.equal(applyRunEventCursor("event-expired", ""), "");
+  assert.equal(applyRunEventCursor("event-old", "event-new"), "event-new");
+  assert.equal(applyRunEventCursor("event-old", null), "event-old");
 });

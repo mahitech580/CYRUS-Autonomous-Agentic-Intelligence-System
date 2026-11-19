@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, mergeRunPollResult, buildRunsCsv, filterRuns, filterRunEvents, getRunEventStatuses, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, getNextRunEventCursor, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, mergeRunPollResult, buildRunsCsv, filterRuns, filterRunEvents, getRunEventStatuses, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
@@ -591,7 +591,7 @@ export default function App() {
       let delay = 2500;
       try {
         const result = await refreshSelectedRun(selectedRun.id, cursor, activeController.signal);
-        if (result.cursor) cursor = result.cursor;
+        cursor = applyRunEventCursor(cursor, result.cursor);
         if (result.status && result.status !== lastStatus) {
           const previousStatus = lastStatus;
           lastStatus = result.status;
