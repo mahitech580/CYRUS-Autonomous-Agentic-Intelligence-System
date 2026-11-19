@@ -217,6 +217,19 @@ def test_rejects_short_goal(client, monkeypatch):
     assert response.status_code == 422
 
 
+def test_validation_errors_do_not_echo_submitted_secrets(client):
+    secret = "sk-" + "A" * 24
+    cases = [
+        ("/api/runs", {"goal": "Build a secure API " + secret + " " + "x" * 1200}),
+        ("/api/runs/RUN-VALIDATION/approval", {"decision": "approve", "note": secret + " " + "x" * 1100}),
+    ]
+    for path, payload in cases:
+        response = client.post(path, json=payload)
+        assert response.status_code == 422
+        assert secret not in response.text
+        assert all("input" not in error for error in response.json()["detail"])
+
+
 def test_requires_model_provider(client, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("CYRUS_LLM_API_KEY", raising=False)

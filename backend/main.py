@@ -22,6 +22,8 @@ from uuid import uuid4
 
 import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy import DateTime, Index, Integer, JSON, String, and_, case, create_engine, delete, func, inspect, or_, select, text, update
@@ -1005,6 +1007,25 @@ app = FastAPI(
     version=APP_VERSION,
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def redact_validation_error_details(_: Request, exc: RequestValidationError) -> JSONResponse:
+    """Avoid echoing submitted request bodies in validation responses."""
+    safe_errors = []
+    for error in exc.errors():
+        raw_location = error.get("loc", ())
+        location = [
+            redact_sensitive_text(part, max_length=120) if isinstance(part, str) else part
+            for part in raw_location
+            if isinstance(part, (str, int))
+        ] if isinstance(raw_location, (list, tuple)) else []
+        safe_errors.append({
+            "type": str(error.get("type") or "value_error")[:100],
+            "loc": location,
+            "msg": redact_sensitive_text(error.get("msg") or "Invalid request.", max_length=500),
+        })
+    return JSONResponse(status_code=422, content={"detail": safe_errors})
 
 
 def configured_cors_origins() -> list[str]:
