@@ -193,17 +193,21 @@ export function nextRunPollDelay(failures) {
 
 /** Keep successful status and event responses independent during polling. */
 export function mergeRunPollResult(current, poll, detailItem = null) {
-  if (!current || typeof current !== "object" || !poll
-    || (!poll.statusOk && !poll.eventsOk)) return null;
+  if (!current || typeof current !== "object" || !poll) return null;
 
-  const status = poll.statusOk ? poll.status : null;
+  // A successful HTTP response is not enough: never let a mismatched run ID
+  // replace the selected record or attach another run's saved artifacts.
+  const status = poll.statusOk && poll.status?.id === current.id ? poll.status : null;
   const eventPayload = poll.eventsOk ? poll.events : null;
+  const detailStages = detailItem?.id === current.id && Array.isArray(detailItem.stages)
+    ? detailItem.stages
+    : null;
+  if (!status && !eventPayload) return null;
+
   return {
     ...current,
     ...(status || {}),
-    ...(status && detailItem && Array.isArray(detailItem.stages)
-      ? { stages: detailItem.stages }
-      : {}),
+    ...(detailStages ? { stages: detailStages } : {}),
     ...(eventPayload
       ? {
           events: mergeRunEvents(
@@ -216,14 +220,16 @@ export function mergeRunPollResult(current, poll, detailItem = null) {
   };
 }
 
-export function settleRunPoll(statusResult, eventResult) {
+export function settleRunPoll(statusResult, eventResult, expectedRunId = null) {
   const statusItem = statusResult?.value?.item;
+  const expectedId = typeof expectedRunId === "string" ? expectedRunId : null;
   const statusOk = statusResult?.status === "fulfilled"
     && !!statusItem
     && typeof statusItem === "object"
     && !Array.isArray(statusItem)
     && typeof statusItem.id === "string"
     && !!statusItem.id
+    && (expectedId === null || statusItem.id === expectedId)
     && typeof statusItem.status === "string"
     && !!statusItem.status;
 

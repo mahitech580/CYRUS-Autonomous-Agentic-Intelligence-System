@@ -205,6 +205,50 @@ test("run polling rejects fulfilled but malformed status and event payloads", ()
   assert.equal(arrayPayload.eventsOk, false);
 });
 
+test("run polling rejects cross-run status and detail payloads", () => {
+  const current = {
+    id: "RUN-EXPECTED",
+    status: "running",
+    progress: 25,
+    stages: [{ id: "plan", output: "Expected run artifact" }],
+    events: [{ id: "event-old", message: "Existing event" }],
+  };
+  const mismatchedStatus = settleRunPoll(
+    { status: "fulfilled", value: { item: { id: "RUN-OTHER", status: "failed", progress: 100 } } },
+    { status: "rejected", reason: new Error("temporary event failure") },
+    current.id,
+  );
+  assert.equal(mismatchedStatus.statusOk, false);
+  assert.equal(mergeRunPollResult(current, mismatchedStatus), null);
+
+  const eventsOnly = settleRunPoll(
+    { status: "fulfilled", value: { item: { id: "RUN-OTHER", status: "failed", progress: 100 } } },
+    { status: "fulfilled", value: { items: [{ id: "event-new", message: "Expected run event" }] } },
+    current.id,
+  );
+  const eventMerge = mergeRunPollResult(current, eventsOnly, {
+    id: "RUN-OTHER",
+    stages: [{ id: "code", output: "Wrong run artifact" }],
+  });
+  assert.equal(eventMerge.id, current.id);
+  assert.equal(eventMerge.status, "running");
+  assert.equal(eventMerge.progress, 25);
+  assert.deepEqual(eventMerge.stages, current.stages);
+  assert.deepEqual(eventMerge.events.map((event) => event.id), ["event-old", "event-new"]);
+
+  const statusOnly = settleRunPoll(
+    { status: "fulfilled", value: { item: { id: current.id, status: "review", progress: 100 } } },
+    { status: "rejected", reason: new Error("temporary event failure") },
+    current.id,
+  );
+  const statusMerge = mergeRunPollResult(current, statusOnly, {
+    id: "RUN-OTHER",
+    stages: [{ id: "code", output: "Wrong run artifact" }],
+  });
+  assert.equal(statusMerge.status, "review");
+  assert.deepEqual(statusMerge.stages, current.stages);
+});
+
 test("run detail refresh is requested only when new stages are persisted", () => {
   assert.equal(needsRunDetailRefresh(1, 0), true);
   assert.equal(needsRunDetailRefresh(2, 2), false);

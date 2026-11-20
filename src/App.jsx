@@ -463,7 +463,7 @@ export default function App() {
       api.getRunStatus(runId, { signal }),
       api.runEvents(runId, after, { signal }),
     ]);
-    const poll = settleRunPoll(statusResult, eventResult);
+    const poll = settleRunPoll(statusResult, eventResult, runId);
     const statusError = statusResult.status === "rejected" ? statusResult.reason : null;
     const eventError = eventResult.status === "rejected" ? eventResult.reason : null;
     if (statusError?.status === 401 || eventError?.status === 401) {
@@ -483,7 +483,7 @@ export default function App() {
     if (status && needsRunDetailRefresh(status.stage_count, knownStageCount)) {
       try {
         const detailResponse = await api.getRun(runId, { signal });
-        detailItem = detailResponse.item || null;
+        detailItem = detailResponse.item?.id === runId ? detailResponse.item : null;
         if (detailItem) {
           loadedStageCount.current[runId] = Array.isArray(detailItem.stages)
             ? detailItem.stages.length
