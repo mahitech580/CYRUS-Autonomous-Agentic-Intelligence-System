@@ -547,6 +547,16 @@ test("workspace command palette is available from the keyboard and top bar", asy
 
 
 
+test("command palette keeps listbox focus on its combobox instead of tabbable action buttons", async () => {
+  const menu = await read("WorkspaceCommandMenu.jsx");
+  assert.ok(menu.includes('role="combobox"'));
+  assert.ok(menu.includes('role="listbox"'));
+  assert.ok(menu.includes('role="option"'));
+  assert.ok(menu.includes("tabIndex={-1}"));
+  assert.ok(menu.includes("onMouseDown={(event) => event.preventDefault()}"));
+  assert.ok(!menu.includes('<button\n            id={"cyrus-command-option-" + route.id}'));
+});
+
 test("queue refresh announces successful snapshots to assistive technology", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
   const styles = await read("redesign/workspace-pages.css");

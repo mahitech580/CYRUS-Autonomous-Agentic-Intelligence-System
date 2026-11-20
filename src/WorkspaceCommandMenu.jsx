@@ -109,13 +109,14 @@ export default function WorkspaceCommandMenu({ open, onClose, onNavigate, curren
       </div>
       <div id="cyrus-command-results" className="cyrus-command-results" role="listbox" aria-label="Workspace pages">
         {results.length ? results.map((route, index) => (
-          <button
+          <div
             id={"cyrus-command-option-" + route.id}
             key={route.id}
-            type="button"
             role="option"
             aria-selected={activeRoute?.id === route.id}
+            tabIndex={-1}
             className={"cyrus-command-option" + (activeRoute?.id === route.id ? " is-active" : "")}
+            onMouseDown={(event) => event.preventDefault()}
             onMouseMove={() => setActiveIndex(index)}
             onClick={() => chooseRoute(route)}
           >
@@ -127,7 +128,7 @@ export default function WorkspaceCommandMenu({ open, onClose, onNavigate, curren
               {route.id === currentRouteId ? <span className="cyrus-command-current">Current</span> : null}
               <ArrowRight size={15} aria-hidden="true" />
             </span>
-          </button>
+          </div>
         )) : (
           <p className="cyrus-command-empty" role="status">No pages match “{query}”. Try a page name, group or route.</p>
         )}
