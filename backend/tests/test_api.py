@@ -1836,6 +1836,54 @@ def test_run_detail_and_event_history_allowlist_persisted_record_fields(client):
 
 
 
+def test_run_serializers_ignore_legacy_records_without_identifiers(client):
+    run_id = "RUN-LEGACY-IDENTIFIERS-" + main.uuid4().hex[:8].upper()
+    valid_event = {
+        "id": "event-valid-legacy",
+        "at": "2026-11-20T10:00:00Z",
+        "stage": "plan",
+        "agent": "Atlas",
+        "message": "Identified event remains visible.",
+        "status": "completed",
+    }
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=run_id,
+            goal="Keep malformed legacy records out of visible workflow history",
+            status="review",
+            progress=100,
+            stages=[
+                {"id": "plan", "status": "completed", "output": "Valid artifact."},
+                {"status": "completed", "output": "Legacy artifact without an identifier."},
+                {"id": "", "status": "completed", "output": "Empty identifier."},
+            ],
+            events=[
+                valid_event,
+                {"message": "Legacy event without an identifier.", "status": "info"},
+                {"id": "", "message": "Empty event identifier.", "status": "info"},
+            ],
+            execution_mode="live-model",
+            approval_status="pending",
+        ))
+        db.commit()
+
+    detail = client.get(f"/api/runs/{run_id}")
+    assert detail.status_code == 200
+    item = detail.json()["item"]
+    assert [stage["id"] for stage in item["stages"]] == ["plan"]
+    assert [event["id"] for event in item["events"]] == ["event-valid-legacy"]
+
+    summary_response = client.get("/api/runs?limit=100")
+    assert summary_response.status_code == 200
+    summary = next(record for record in summary_response.json()["items"] if record["id"] == run_id)
+    assert summary["stage_count"] == 1
+    assert summary["event_count"] == 1
+
+    history = client.get(f"/api/runs/{run_id}/events")
+    assert history.status_code == 200
+    assert [event["id"] for event in history.json()["items"]] == ["event-valid-legacy"]
+
+
 def test_event_endpoint_clears_expired_cursor_when_retained_history_is_empty(client):
     run_id = "RUN-EVENT-EMPTY-" + main.uuid4().hex[:8].upper()
     with main.SessionLocal() as db:

@@ -414,6 +414,9 @@ def safe_stage_records(value: Any) -> list[dict[str, Any]]:
     """Expose only the documented stage fields and bounded token counters."""
     safe_records = []
     for record in persisted_records(value):
+        identifier = record.get("id")
+        if not isinstance(identifier, str) or not identifier.strip():
+            continue
         safe = {
             field: redact_sensitive_text(record[field], max_length=limit)
             for field, limit in STAGE_TEXT_LIMITS.items()
@@ -433,15 +436,18 @@ def safe_stage_records(value: Any) -> list[dict[str, Any]]:
 
 
 def safe_event_records(value: Any) -> list[dict[str, Any]]:
-    """Allowlist event fields so legacy JSON cannot leak arbitrary metadata."""
-    return [
-        {
+    """Allowlist identified event records so malformed legacy rows stay out of history."""
+    safe_records = []
+    for record in persisted_records(value):
+        identifier = record.get("id")
+        if not isinstance(identifier, str) or not identifier.strip():
+            continue
+        safe_records.append({
             field: redact_sensitive_text(record[field], max_length=limit)
             for field, limit in EVENT_TEXT_LIMITS.items()
             if isinstance(record.get(field), str)
-        }
-        for record in persisted_records(value)
-    ]
+        })
+    return safe_records
 
 
 def as_run(item: WorkflowRun) -> dict[str, Any]:
@@ -478,8 +484,8 @@ def as_run_summary(item: WorkflowRun) -> dict[str, Any]:
         "error": redact_sensitive_text(item.error, max_length=2000) if item.error else None,
         "approval_status": item.approval_status or "pending",
         "agent_count": len(AGENTS),
-        "stage_count": len(persisted_records(item.stages)),
-        "event_count": len(persisted_records(item.events)),
+        "stage_count": len(safe_stage_records(item.stages)),
+        "event_count": len(safe_event_records(item.events)),
     }
 
 
