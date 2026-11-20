@@ -277,6 +277,7 @@ def test_queue_and_recovery_queries_have_composite_indexes():
     indexes = {index["name"] for index in main.inspect(main.engine).get_indexes("workflow_runs")}
     assert "ix_workflow_runs_queue_order" in indexes
     assert "ix_workflow_runs_stale_recovery" in indexes
+    assert "ix_workflow_runs_worker_lease" in indexes
 
 
 def test_queue_snapshot_reports_aggregate_pressure_without_run_details():
@@ -296,7 +297,7 @@ def test_queue_snapshot_reports_aggregate_pressure_without_run_details():
             main.WorkflowRun(
                 id=running_id, goal="A private running goal", status="running",
                 progress=10, stages=[], events=[], execution_mode="live-model",
-                created_at=now,
+                execution_worker_id=heartbeat_id, created_at=now,
             ),
             main.WorkerHeartbeat(id=heartbeat_id, last_seen_at=now, active_run_id=running_id),
         ])
@@ -316,6 +317,47 @@ def test_queue_snapshot_reports_aggregate_pressure_without_run_details():
         db.delete(db.get(main.WorkflowRun, running_id))
         db.delete(db.get(main.WorkerHeartbeat, heartbeat_id))
         db.commit()
+
+
+def test_queue_snapshot_ignores_heartbeats_not_bound_to_running_workflows():
+    main.ensure_schema()
+    now = main.utcnow()
+    run_id = "RUN-COMPLETE-LEASE-" + main.uuid4().hex[:8].upper()
+    worker_id = "worker-complete-lease-" + main.uuid4().hex[:8]
+    before = main.workflow_queue_snapshot()
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=run_id,
+            goal="Do not count a completed workflow as active worker capacity",
+            status="completed",
+            progress=100,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            execution_worker_id=worker_id,
+            updated_at=now,
+        ))
+        db.add(main.WorkerHeartbeat(
+            id=worker_id,
+            last_seen_at=now,
+            active_run_id=run_id,
+        ))
+        db.commit()
+
+    try:
+        snapshot = main.workflow_queue_snapshot()
+        assert snapshot["available_workers"] == before["available_workers"] + 1
+        assert snapshot["active_workers"] == before["active_workers"]
+        assert snapshot["orphaned_workflows"] == before["orphaned_workflows"]
+    finally:
+        with main.SessionLocal() as db:
+            run = db.get(main.WorkflowRun, run_id)
+            heartbeat = db.get(main.WorkerHeartbeat, worker_id)
+            if run is not None:
+                db.delete(run)
+            if heartbeat is not None:
+                db.delete(heartbeat)
+            db.commit()
 
 
 

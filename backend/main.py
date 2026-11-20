@@ -54,6 +54,7 @@ class WorkflowRun(Base):
         Index("uq_workflow_runs_idempotency_key", "idempotency_key", unique=True),
         Index("ix_workflow_runs_queue_order", "status", "created_at", "id"),
         Index("ix_workflow_runs_stale_recovery", "status", "updated_at", "id"),
+        Index("ix_workflow_runs_worker_lease", "status", "execution_worker_id", "id"),
     )
 
     id: Mapped[str] = mapped_column(String(48), primary_key=True)
@@ -283,10 +284,16 @@ def workflow_queue_snapshot() -> dict[str, Any] | None:
             available_workers = db.scalar(
                 select(func.count()).select_from(WorkerHeartbeat).where(WorkerHeartbeat.last_seen_at >= worker_cutoff)
             ) or 0
+            active_run_lease = select(WorkflowRun.id).where(
+                WorkflowRun.status == "running",
+                WorkflowRun.execution_worker_id == WorkerHeartbeat.id,
+                WorkflowRun.id == WorkerHeartbeat.active_run_id,
+            ).exists()
             active_workers = db.scalar(
                 select(func.count()).select_from(WorkerHeartbeat).where(
                     WorkerHeartbeat.last_seen_at >= worker_cutoff,
                     WorkerHeartbeat.active_run_id.is_not(None),
+                    active_run_lease,
                 )
             ) or 0
             fresh_worker_lease = select(WorkerHeartbeat.id).where(
