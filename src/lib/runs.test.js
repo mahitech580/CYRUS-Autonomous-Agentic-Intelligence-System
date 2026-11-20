@@ -249,6 +249,39 @@ test("run polling rejects cross-run status and detail payloads", () => {
   assert.deepEqual(statusMerge.stages, current.stages);
 });
 
+test("run polling rejects event pages with malformed IDs or mismatched cursors", () => {
+  const statusFailure = { status: "rejected", reason: new Error("status unavailable") };
+  const mismatchedCursor = settleRunPoll(statusFailure, {
+    status: "fulfilled",
+    value: { items: [{ id: "event-one" }], next_after: "event-two" },
+  });
+  assert.equal(mismatchedCursor.eventsOk, false);
+
+  const missingIdentity = settleRunPoll(statusFailure, {
+    status: "fulfilled",
+    value: { items: [{ message: "No stable event ID" }], next_after: "event-one" },
+  });
+  assert.equal(missingIdentity.eventsOk, false);
+
+  const staleExpiredCursor = settleRunPoll(statusFailure, {
+    status: "fulfilled",
+    value: { items: [], next_after: "event-old", cursor_expired: true },
+  });
+  assert.equal(staleExpiredCursor.eventsOk, false);
+
+  const validExpiredReset = settleRunPoll(statusFailure, {
+    status: "fulfilled",
+    value: { items: [], next_after: null, cursor_expired: true },
+  });
+  assert.equal(validExpiredReset.eventsOk, true);
+
+  const validPage = settleRunPoll(statusFailure, {
+    status: "fulfilled",
+    value: { items: [{ id: "event-one" }, { id: "event-two" }], next_after: "event-two" },
+  });
+  assert.equal(validPage.eventsOk, true);
+});
+
 test("run detail refresh is requested only when new stages are persisted", () => {
   assert.equal(needsRunDetailRefresh(1, 0), true);
   assert.equal(needsRunDetailRefresh(2, 2), false);

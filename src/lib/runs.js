@@ -234,11 +234,22 @@ export function settleRunPoll(statusResult, eventResult, expectedRunId = null) {
     && !!statusItem.status;
 
   const eventPayload = eventResult?.value;
+  const eventItems = Array.isArray(eventPayload?.items) ? eventPayload.items : null;
+  const eventItemsValid = !!eventItems && eventItems.every((event) => (
+    isRunEvent(event) && typeof event.id === "string" && !!event.id.trim()
+  ));
+  const cursorMatchesItems = eventItemsValid && (
+    eventItems.length === 0
+      ? eventPayload.cursor_expired !== true || eventPayload.next_after == null
+      : typeof eventPayload.next_after === "string"
+        && eventPayload.next_after === eventItems[eventItems.length - 1].id
+  );
   const eventsOk = eventResult?.status === "fulfilled"
     && !!eventPayload
     && typeof eventPayload === "object"
     && !Array.isArray(eventPayload)
-    && Array.isArray(eventPayload.items)
+    && eventItemsValid
+    && cursorMatchesItems
     && (eventPayload.next_after == null || typeof eventPayload.next_after === "string")
     && (eventPayload.cursor_expired == null || typeof eventPayload.cursor_expired === "boolean");
 
