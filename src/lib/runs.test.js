@@ -223,7 +223,7 @@ test("run polling rejects cross-run status and detail payloads", () => {
 
   const eventsOnly = settleRunPoll(
     { status: "fulfilled", value: { item: { id: "RUN-OTHER", status: "failed", progress: 100 } } },
-    { status: "fulfilled", value: { items: [{ id: "event-new", message: "Expected run event" }] } },
+    { status: "fulfilled", value: { items: [{ id: "event-new", message: "Expected run event" }], next_after: "event-new" } },
     current.id,
   );
   const eventMerge = mergeRunPollResult(current, eventsOnly, {
