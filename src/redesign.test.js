@@ -386,11 +386,13 @@ test("activity stream and observability expose separate saved-record and telemet
   const data = await read("../src/workspace/page-data.js");
   assert.ok(pages.includes('const isAll=route.filter==="all"'));
   assert.ok(pages.includes('isAll?runs:'));
-  assert.ok(pages.includes('if(route.kind==="activity")return <RunList route={{filter:"all"}}'));
+  assert.ok(pages.includes('if(route.kind==="activity")return <ActivityPanel'));
+  assert.ok(pages.includes("api.runEvents(run.id,null,{signal:controller.signal})"));
+  assert.ok(pages.includes("buildRunActivity(sources,50)"));
   assert.ok(pages.includes('if(route.kind==="observability")return <ObservabilityPanel'));
   assert.ok(pages.includes('isAll?"Latest saved workflow records"'));
   assert.ok(data.includes("approved and rejected workflow decisions"));
-  assert.ok(data.includes("queued, running and terminal workflow records"));
+  assert.ok(data.includes("persisted stage events across up to eight of the latest loaded workflows"));
 });
 
 
