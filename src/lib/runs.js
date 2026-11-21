@@ -30,6 +30,28 @@ export function getRunEventStatuses(events) {
   return [...statuses].sort();
 }
 
+
+/** Validate the complete event-page envelope before replacing a saved activity window. */
+export function isRunEventPage(response) {
+  if (!response || typeof response !== "object" || Array.isArray(response)) return false;
+  if (!Array.isArray(response.items)
+    || !Number.isInteger(response.total)
+    || response.total < 0
+    || typeof response.has_more !== "boolean"
+    || typeof response.cursor_expired !== "boolean"
+    || (response.next_after !== null && typeof response.next_after !== "string")) return false;
+  if (response.next_after?.length > 40) return false;
+  if (response.items.some((event) => !isRunEvent(event)
+    || typeof event.id !== "string"
+    || !event.id.trim())) return false;
+  if (response.items.length) {
+    if (response.next_after !== response.items[response.items.length - 1].id) return false;
+  } else if (response.has_more || (response.cursor_expired && response.next_after !== null)) {
+    return false;
+  }
+  return true;
+}
+
 /**
  * Merge bounded per-run event windows into one newest-first workspace activity list.
  * Event identity is scoped to its workflow because IDs are only unique within a run.

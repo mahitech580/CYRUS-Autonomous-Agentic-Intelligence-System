@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, buildRunActivity, mergeRunActivity, getCurrentRunActivity, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
+import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, buildRunActivity, mergeRunActivity, getCurrentRunActivity, isRunEventPage, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -911,4 +911,20 @@ test("workspace activity hides stale run sets and uses current run metadata", ()
   assert.equal(current[0].goal, "Updated goal");
   assert.equal(current[0].runStatus, "completed");
   assert.deepEqual(getCurrentRunActivity(events, key, key, []), []);
+});
+
+
+test("event page validation rejects malformed records and broken cursor metadata", () => {
+  assert.equal(isRunEventPage({
+    items: [], total: 0, next_after: null, has_more: false, cursor_expired: false,
+  }), true);
+  assert.equal(isRunEventPage({
+    items: [{ id: "event-1", status: "completed" }],
+    total: 1, next_after: "event-1", has_more: false, cursor_expired: false,
+  }), true);
+  assert.equal(isRunEventPage({ items: [], total: 0, next_after: null, has_more: true, cursor_expired: false }), false);
+  assert.equal(isRunEventPage({ items: [{ id: " " }], total: 1, next_after: " ", has_more: false, cursor_expired: false }), false);
+  assert.equal(isRunEventPage({ items: [{ id: "event-1" }], total: 1, next_after: "event-2", has_more: false, cursor_expired: false }), false);
+  assert.equal(isRunEventPage({ items: [], total: "0", next_after: null, has_more: false, cursor_expired: false }), false);
+  assert.equal(isRunEventPage(null), false);
 });

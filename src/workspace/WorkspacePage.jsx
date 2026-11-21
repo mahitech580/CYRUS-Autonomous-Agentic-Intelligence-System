@@ -8,7 +8,7 @@ import {
 import { api } from "../lib/api.js";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
-import { filterRunEvents, getCurrentRunActivity, getRunEventStatuses, isRunCompleted, mergeRunActivity, summarizeRunUsage } from "../lib/runs.js";
+import { filterRunEvents, getCurrentRunActivity, getRunEventStatuses, isRunCompleted, isRunEventPage, mergeRunActivity, summarizeRunUsage } from "../lib/runs.js";
 
 const iconMap={Activity,Bot,Boxes,Braces,CheckCircle2,CircleDot,Clock3,Code2,Command,Cpu,Database,FileCode2,GitBranch,GitPullRequest,Globe2,LayoutDashboard,LockKeyhole,Network,Radio,Rocket,Search,Settings2,ShieldCheck,Sparkles,Terminal,Timer,Workflow};
 const iconFor=(name)=>iconMap[name]||Activity;
@@ -57,6 +57,7 @@ function ActivityPanel({runs,openRun,apiState,config}){
  const recentRuns=(Array.isArray(runs)?runs:[]).filter((run)=>run&&typeof run.id==="string"&&run.id).slice(0,8);
  const runKey=JSON.stringify(recentRuns.map((run)=>run.id));
  const accessBlocked=!!(config?.runtime_access_denied||config?.runtime_configuration_missing);
+ const canReadActivity=apiState==="connected"&&!!config&&!accessBlocked;
  React.useEffect(()=>{
   let active=true;
   const controller=new AbortController();
@@ -100,7 +101,7 @@ function ActivityPanel({runs,openRun,apiState,config}){
    let failures=0;
    let unauthorized=false;
    results.forEach((result,index)=>{
-    if(result.status==="fulfilled"&&Array.isArray(result.value?.items)){
+    if(result.status==="fulfilled"&&isRunEventPage(result.value)){
      const run=recentRuns[index];
      sources.push({runId:run.id,goal:run.goal,status:run.status,events:result.value.items});
     }else{
@@ -126,11 +127,13 @@ function ActivityPanel({runs,openRun,apiState,config}){
   });
   return cleanup;
  },[runKey,apiState,config?.runtime_access_denied,config?.runtime_configuration_missing,Boolean(config),refreshKey]);
- const currentEvents=getCurrentRunActivity(events,loadedRunKey,runKey,recentRuns);
+ const snapshotCurrent=loadedRunKey===runKey;
+ const waitingForSnapshot=canReadActivity&&recentRuns.length>0&&!snapshotCurrent;
+ const currentEvents=canReadActivity?getCurrentRunActivity(events,loadedRunKey,runKey,recentRuns):[];
  const filtered=filterRunEvents(currentEvents,query,statusFilter);
  const statuses=getRunEventStatuses(currentEvents);
  const loadedDate=loadedAt.key===runKey&&loadedAt.value?new Date(loadedAt.value):null;
- return <section className="workspace-activity-panel" aria-busy={loading}>
+ return <section className="workspace-activity-panel" aria-busy={loading||waitingForSnapshot}>
   <div className="workspace-activity-toolbar">
    <label className="workspace-activity-search"><Search size={15} aria-hidden="true"/><input type="search" value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="Search message, run or agent" aria-label="Search retained activity"/></label>
    <label className="workspace-activity-filter"><span className="workspace-sr-only">Filter activity by status</span><select value={statusFilter} onChange={(event)=>setStatusFilter(event.target.value)} aria-label="Filter activity by status"><option value="all">All statuses</option>{statuses.map((value)=><option key={value} value={value}>{value.charAt(0).toUpperCase()+value.slice(1)}</option>)}</select></label>
@@ -142,10 +145,10 @@ function ActivityPanel({runs,openRun,apiState,config}){
    {loadedDate&&!Number.isNaN(loadedDate.getTime())?<time dateTime={loadedDate.toISOString()}>Updated {loadedDate.toLocaleTimeString()}</time>:null}
   </div>
   {error?<div className="notice-strip" role="alert"><Activity size={15}/><span>{error} <a href={getWorkspaceHref("settings")}>Open settings</a></span></div>:null}
-  {loading&&!currentEvents.length?<div className="workspace-empty"><Activity size={22}/><strong>Loading retained event history</strong><span>Reading saved events from the latest loaded workflow records.</span></div>:null}
-  {!loading&&!error&&!recentRuns.length?<div className="workspace-empty"><Activity size={22}/><strong>No workflow records loaded</strong><span>Load saved workflows before inspecting their retained activity.</span><a className="button-outline" href={getWorkspaceHref("runs")}>Open runs & tasks <ArrowRight size={13}/></a></div>:null}
-  {!loading&&error&&!currentEvents.length?<div className="workspace-empty"><Activity size={22}/><strong>Activity is unavailable</strong><span>Check the API connection or workspace access, then refresh this page.</span></div>:null}
-  {!loading&&!error&&recentRuns.length>0&&!currentEvents.length?<div className="workspace-empty"><Activity size={22}/><strong>No retained events found</strong><span>The loaded workflows do not currently expose retained event records.</span></div>:null}
+  {(loading||waitingForSnapshot)&&!currentEvents.length?<div className="workspace-empty"><Activity size={22}/><strong>Loading retained event history</strong><span>Reading saved events from the latest loaded workflow records.</span></div>:null}
+  {!loading&&!waitingForSnapshot&&canReadActivity&&!error&&!recentRuns.length?<div className="workspace-empty"><Activity size={22}/><strong>No workflow records loaded</strong><span>Load saved workflows before inspecting their retained activity.</span><a className="button-outline" href={getWorkspaceHref("runs")}>Open runs & tasks <ArrowRight size={13}/></a></div>:null}
+  {!loading&&!waitingForSnapshot&&error&&!currentEvents.length?<div className="workspace-empty"><Activity size={22}/><strong>Activity is unavailable</strong><span>Check the API connection or workspace access, then refresh this page.</span></div>:null}
+  {!loading&&!waitingForSnapshot&&canReadActivity&&!error&&recentRuns.length>0&&!currentEvents.length?<div className="workspace-empty"><Activity size={22}/><strong>No retained events found</strong><span>The loaded workflows do not currently expose retained event records.</span></div>:null}
   {currentEvents.length>0&&!filtered.length?<div className="workspace-empty"><Search size={22}/><strong>No activity matches these filters</strong><span>Try another search term or clear the selected status.</span><button type="button" className="button-outline" onClick={()=>{setQuery("");setStatusFilter("all");}}>Clear filters</button></div>:null}
   {filtered.length?<div className="workspace-activity-list">{filtered.map((event)=>{
    const occurred=Number.isFinite(event.timestamp)?new Date(event.timestamp):null;

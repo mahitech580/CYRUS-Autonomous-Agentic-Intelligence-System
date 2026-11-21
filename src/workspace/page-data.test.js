@@ -137,6 +137,8 @@ test("activity stream uses retained per-run events with bounded loading and acti
   assert.ok(source.includes("offset+=4"));
   assert.ok(source.includes(".slice(0,8)"));
   assert.ok(source.includes("mergeRunActivity(events,sources,recentRuns.map((run)=>run.id),50)"));
+  assert.ok(source.includes("isRunEventPage(result.value)"));
+  assert.ok(source.includes("waitingForSnapshot=canReadActivity&&recentRuns.length>0&&!snapshotCurrent"));
   assert.ok(source.includes("getCurrentRunActivity(events,loadedRunKey,runKey,recentRuns)"));
   assert.ok(source.includes("filterRunEvents(currentEvents,query,statusFilter)"));
   assert.ok(source.includes('aria-label="Search retained activity"'));
