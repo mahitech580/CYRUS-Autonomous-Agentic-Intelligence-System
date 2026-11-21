@@ -84,6 +84,57 @@ export function buildRunActivity(sources, limit = 50) {
   }).slice(0, safeLimit);
 }
 
+
+/**
+ * Keep last-known-good event windows for runs whose refresh failed. A successful
+ * response replaces that run's window, while runs outside the current scope are dropped.
+ */
+export function mergeRunActivity(existing, refreshedSources, allowedRunIds, limit = 50) {
+  const allowed = new Set((Array.isArray(allowedRunIds) ? allowedRunIds : [])
+    .filter((runId) => typeof runId === "string" && runId.trim())
+    .map((runId) => runId.trim()));
+  const refreshed = new Map();
+  for (const source of Array.isArray(refreshedSources) ? refreshedSources : []) {
+    if (!source || typeof source !== "object" || Array.isArray(source)) continue;
+    const runId = typeof source.runId === "string" ? source.runId.trim() : "";
+    if (runId && allowed.has(runId) && Array.isArray(source.events)) refreshed.set(runId, source);
+  }
+
+  const preserved = new Map();
+  for (const event of Array.isArray(existing) ? existing : []) {
+    if (!isRunEvent(event)) continue;
+    const runId = typeof event.runId === "string" ? event.runId.trim() : "";
+    if (!runId || !allowed.has(runId) || refreshed.has(runId)) continue;
+    let source = preserved.get(runId);
+    if (!source) {
+      source = { runId, goal: event.goal, status: event.runStatus, events: [] };
+      preserved.set(runId, source);
+    }
+    source.events.push(event);
+  }
+  return buildRunActivity([...preserved.values(), ...refreshed.values()], limit);
+}
+
+/** Hide an activity snapshot until it belongs to the current run set and refresh its run metadata. */
+export function getCurrentRunActivity(events, loadedRunKey, currentRunKey, runs) {
+  if (typeof loadedRunKey !== "string" || loadedRunKey !== currentRunKey) return [];
+  const runById = new Map((Array.isArray(runs) ? runs : [])
+    .filter((run) => run && typeof run === "object" && typeof run.id === "string")
+    .map((run) => [run.id, run]));
+  return (Array.isArray(events) ? events : []).filter((event) => {
+    return isRunEvent(event) && typeof event.runId === "string" && runById.has(event.runId);
+  }).map((event) => {
+    const run = runById.get(event.runId);
+    return {
+      ...event,
+      goal: typeof run.goal === "string" && run.goal.trim() ? run.goal.trim() : event.goal,
+      runStatus: typeof run.status === "string" && run.status.trim()
+        ? run.status.trim().toLowerCase()
+        : event.runStatus,
+    };
+  });
+}
+
 /**
  * Filter only the event records currently loaded for a run. All query terms
  * must match across the event's ID, timestamp, stage, agent, status or message.

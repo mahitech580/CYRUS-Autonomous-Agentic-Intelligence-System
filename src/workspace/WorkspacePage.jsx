@@ -8,7 +8,7 @@ import {
 import { api } from "../lib/api.js";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
-import { buildRunActivity, filterRunEvents, getRunEventStatuses, isRunCompleted, summarizeRunUsage } from "../lib/runs.js";
+import { filterRunEvents, getCurrentRunActivity, getRunEventStatuses, isRunCompleted, mergeRunActivity, summarizeRunUsage } from "../lib/runs.js";
 
 const iconMap={Activity,Bot,Boxes,Braces,CheckCircle2,CircleDot,Clock3,Code2,Command,Cpu,Database,FileCode2,GitBranch,GitPullRequest,Globe2,LayoutDashboard,LockKeyhole,Network,Radio,Rocket,Search,Settings2,ShieldCheck,Sparkles,Terminal,Timer,Workflow};
 const iconFor=(name)=>iconMap[name]||Activity;
@@ -51,7 +51,8 @@ function ActivityPanel({runs,openRun,apiState,config}){
  const [statusFilter,setStatusFilter]=React.useState("all");
  const [loading,setLoading]=React.useState(false);
  const [error,setError]=React.useState("");
- const [loadedAt,setLoadedAt]=React.useState("");
+ const [loadedAt,setLoadedAt]=React.useState({key:"",value:""});
+ const [loadedRunKey,setLoadedRunKey]=React.useState("");
  const [refreshKey,setRefreshKey]=React.useState(0);
  const recentRuns=(Array.isArray(runs)?runs:[]).filter((run)=>run&&typeof run.id==="string"&&run.id).slice(0,8);
  const runKey=JSON.stringify(recentRuns.map((run)=>run.id));
@@ -62,7 +63,8 @@ function ActivityPanel({runs,openRun,apiState,config}){
   const cleanup=()=>{active=false;controller.abort();};
   if(apiState!=="connected"||!config||accessBlocked){
    setEvents([]);
-   setLoadedAt("");
+   setLoadedAt({key:"",value:""});
+   setLoadedRunKey("");
    setLoading(false);
    setError(config?.runtime_configuration_missing
     ?"Server-side workspace access is not configured. Retained event history remains protected."
@@ -77,7 +79,8 @@ function ActivityPanel({runs,openRun,apiState,config}){
   }
   if(!recentRuns.length){
    setEvents([]);
-   setLoadedAt("");
+   setLoadedAt({key:"",value:""});
+   setLoadedRunKey("");
    setLoading(false);
    setError("");
    return cleanup;
@@ -103,11 +106,12 @@ function ActivityPanel({runs,openRun,apiState,config}){
     }else{
      if(result.status==="rejected"&&result.reason?.name==="AbortError")return;
      failures+=1;
-     if(result.status==="rejected"&&result.reason?.status===401)unauthorized=true;
+     if(result.status==="rejected"&&[401,403].includes(result.reason?.status))unauthorized=true;
     }
    });
-   setEvents(buildRunActivity(sources,50));
-   setLoadedAt(new Date().toISOString());
+   setEvents(mergeRunActivity(events,sources,recentRuns.map((run)=>run.id),50));
+   setLoadedRunKey(runKey);
+   if(sources.length)setLoadedAt({key:runKey,value:new Date().toISOString()});
    setError(unauthorized
     ?"Workspace access was rejected while loading event history. Re-enter the key in Settings and retry."
     :failures
@@ -122,9 +126,10 @@ function ActivityPanel({runs,openRun,apiState,config}){
   });
   return cleanup;
  },[runKey,apiState,config?.runtime_access_denied,config?.runtime_configuration_missing,Boolean(config),refreshKey]);
- const filtered=filterRunEvents(events,query,statusFilter);
- const statuses=getRunEventStatuses(events);
- const loadedDate=loadedAt?new Date(loadedAt):null;
+ const currentEvents=getCurrentRunActivity(events,loadedRunKey,runKey,recentRuns);
+ const filtered=filterRunEvents(currentEvents,query,statusFilter);
+ const statuses=getRunEventStatuses(currentEvents);
+ const loadedDate=loadedAt.key===runKey&&loadedAt.value?new Date(loadedAt.value):null;
  return <section className="workspace-activity-panel" aria-busy={loading}>
   <div className="workspace-activity-toolbar">
    <label className="workspace-activity-search"><Search size={15} aria-hidden="true"/><input type="search" value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="Search message, run or agent" aria-label="Search retained activity"/></label>
@@ -132,16 +137,16 @@ function ActivityPanel({runs,openRun,apiState,config}){
    <button type="button" className="workspace-activity-refresh" onClick={()=>setRefreshKey((value)=>value+1)} disabled={loading||!recentRuns.length||apiState!=="connected"||accessBlocked}><RefreshCw size={13} className={loading?"spin-icon":""}/>{loading?"Loading":"Refresh activity"}</button>
   </div>
   <div className="workspace-activity-summary" role="status" aria-live="polite">
-   <span>{loading?"Loading retained events…":"Showing "+filtered.length+" of "+events.length+" retained events"}</span>
+   <span>{loading?"Loading retained events…":"Showing "+filtered.length+" of "+currentEvents.length+" retained events"}</span>
    <span>Up to {recentRuns.length} latest loaded workflows · 250 retained events per workflow</span>
    {loadedDate&&!Number.isNaN(loadedDate.getTime())?<time dateTime={loadedDate.toISOString()}>Updated {loadedDate.toLocaleTimeString()}</time>:null}
   </div>
   {error?<div className="notice-strip" role="alert"><Activity size={15}/><span>{error} <a href={getWorkspaceHref("settings")}>Open settings</a></span></div>:null}
-  {loading&&!events.length?<div className="workspace-empty"><Activity size={22}/><strong>Loading retained event history</strong><span>Reading saved events from the latest loaded workflow records.</span></div>:null}
+  {loading&&!currentEvents.length?<div className="workspace-empty"><Activity size={22}/><strong>Loading retained event history</strong><span>Reading saved events from the latest loaded workflow records.</span></div>:null}
   {!loading&&!error&&!recentRuns.length?<div className="workspace-empty"><Activity size={22}/><strong>No workflow records loaded</strong><span>Load saved workflows before inspecting their retained activity.</span><a className="button-outline" href={getWorkspaceHref("runs")}>Open runs & tasks <ArrowRight size={13}/></a></div>:null}
-  {!loading&&error&&!events.length?<div className="workspace-empty"><Activity size={22}/><strong>Activity is unavailable</strong><span>Check the API connection or workspace access, then refresh this page.</span></div>:null}
-  {!loading&&!error&&recentRuns.length>0&&!events.length?<div className="workspace-empty"><Activity size={22}/><strong>No retained events found</strong><span>The loaded workflows do not currently expose retained event records.</span></div>:null}
-  {events.length>0&&!filtered.length?<div className="workspace-empty"><Search size={22}/><strong>No activity matches these filters</strong><span>Try another search term or clear the selected status.</span><button type="button" className="button-outline" onClick={()=>{setQuery("");setStatusFilter("all");}}>Clear filters</button></div>:null}
+  {!loading&&error&&!currentEvents.length?<div className="workspace-empty"><Activity size={22}/><strong>Activity is unavailable</strong><span>Check the API connection or workspace access, then refresh this page.</span></div>:null}
+  {!loading&&!error&&recentRuns.length>0&&!currentEvents.length?<div className="workspace-empty"><Activity size={22}/><strong>No retained events found</strong><span>The loaded workflows do not currently expose retained event records.</span></div>:null}
+  {currentEvents.length>0&&!filtered.length?<div className="workspace-empty"><Search size={22}/><strong>No activity matches these filters</strong><span>Try another search term or clear the selected status.</span><button type="button" className="button-outline" onClick={()=>{setQuery("");setStatusFilter("all");}}>Clear filters</button></div>:null}
   {filtered.length?<div className="workspace-activity-list">{filtered.map((event)=>{
    const occurred=Number.isFinite(event.timestamp)?new Date(event.timestamp):null;
    return <button type="button" className="workspace-activity-row" key={event.runId+"-"+event.id} onClick={()=>openRun({id:event.runId,goal:event.goal,status:event.runStatus})} aria-label={"Open workflow "+event.runId+" event "+event.id}>

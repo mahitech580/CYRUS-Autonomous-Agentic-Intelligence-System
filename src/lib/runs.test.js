@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, buildRunActivity, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
+import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, buildRunActivity, mergeRunActivity, getCurrentRunActivity, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -867,4 +867,48 @@ test("global activity output is capped even when a caller requests an excessive 
   }));
   const activity = buildRunActivity([{ runId: "RUN-LARGE", events }], 999);
   assert.equal(activity.length, 200);
+});
+
+
+test("partial activity refresh replaces successful runs, preserves failed runs and drops removed runs", () => {
+  const existing = buildRunActivity([
+    { runId: "RUN-1", goal: "Old goal", status: "running", events: [
+      { id: "old-1", at: "2026-11-21T09:00:00Z", status: "started", message: "Old event" },
+    ] },
+    { runId: "RUN-2", goal: "Keep this run", status: "running", events: [
+      { id: "keep-1", at: "2026-11-21T09:01:00Z", status: "info", message: "Last known good" },
+    ] },
+    { runId: "RUN-3", goal: "Removed run", status: "completed", events: [
+      { id: "drop-1", at: "2026-11-21T09:02:00Z", status: "completed", message: "Must disappear" },
+    ] },
+  ]);
+  const merged = mergeRunActivity(existing, [{
+    runId: "RUN-1", goal: "New goal", status: "completed", events: [
+      { id: "new-1", at: "2026-11-21T09:03:00Z", status: "completed", message: "Fresh event" },
+    ],
+  }], ["RUN-1", "RUN-2"]);
+  assert.deepEqual(merged.map((event) => event.runId + ":" + event.id), [
+    "RUN-1:new-1", "RUN-2:keep-1",
+  ]);
+  assert.equal(merged.find((event) => event.runId === "RUN-2").message, "Last known good");
+  assert.equal(merged.some((event) => event.id === "old-1" || event.id === "drop-1"), false);
+});
+
+test("workspace activity hides stale run sets and uses current run metadata", () => {
+  const events = buildRunActivity([{
+    runId: "RUN-CURRENT", goal: "Old goal", status: "running", events: [
+      { id: "event-1", at: "2026-11-21T10:00:00Z", status: "info", message: "Current event" },
+    ],
+  }]);
+  const key = JSON.stringify(["RUN-CURRENT"]);
+  assert.deepEqual(getCurrentRunActivity(events, key, JSON.stringify(["RUN-OTHER"]), [
+    { id: "RUN-OTHER", goal: "Other", status: "failed" },
+  ]), []);
+  const current = getCurrentRunActivity(events, key, key, [
+    { id: "RUN-CURRENT", goal: "Updated goal", status: "completed" },
+  ]);
+  assert.equal(current.length, 1);
+  assert.equal(current[0].goal, "Updated goal");
+  assert.equal(current[0].runStatus, "completed");
+  assert.deepEqual(getCurrentRunActivity(events, key, key, []), []);
 });
