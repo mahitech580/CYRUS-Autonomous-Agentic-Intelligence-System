@@ -388,7 +388,8 @@ test("activity stream and observability expose separate saved-record and telemet
   assert.ok(pages.includes('isAll?runs:'));
   assert.ok(pages.includes('if(route.kind==="activity")return <ActivityPanel'));
   assert.ok(pages.includes("api.runEvents(run.id,null,{signal:controller.signal})"));
-  assert.ok(pages.includes("buildRunActivity(sources,50)"));
+  assert.ok(pages.includes("mergeRunActivity(events,sources,recentRuns.map((run)=>run.id),50)"));
+  assert.ok(pages.includes("getCurrentRunActivity(events,loadedRunKey,runKey,recentRuns)"));
   assert.ok(pages.includes('if(route.kind==="observability")return <ObservabilityPanel'));
   assert.ok(pages.includes('isAll?"Latest saved workflow records"'));
   assert.ok(data.includes("approved and rejected workflow decisions"));

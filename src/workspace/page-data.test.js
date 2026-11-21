@@ -136,8 +136,9 @@ test("activity stream uses retained per-run events with bounded loading and acti
   assert.ok(source.includes("Promise.allSettled"));
   assert.ok(source.includes("offset+=4"));
   assert.ok(source.includes(".slice(0,8)"));
-  assert.ok(source.includes("buildRunActivity(sources,50)"));
-  assert.ok(source.includes("filterRunEvents(events,query,statusFilter)"));
+  assert.ok(source.includes("mergeRunActivity(events,sources,recentRuns.map((run)=>run.id),50)"));
+  assert.ok(source.includes("getCurrentRunActivity(events,loadedRunKey,runKey,recentRuns)"));
+  assert.ok(source.includes("filterRunEvents(currentEvents,query,statusFilter)"));
   assert.ok(source.includes('aria-label="Search retained activity"'));
   assert.ok(source.includes('aria-label="Filter activity by status"'));
   assert.ok(source.includes('onClick={()=>openRun({id:event.runId,goal:event.goal,status:event.runStatus})}'));
