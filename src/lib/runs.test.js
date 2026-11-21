@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
+import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, buildRunActivity, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -808,4 +808,63 @@ test("poll cursor application treats empty strings as explicit resets", () => {
   assert.equal(applyRunEventCursor("event-expired", ""), "");
   assert.equal(applyRunEventCursor("event-old", "event-new"), "event-new");
   assert.equal(applyRunEventCursor("event-old", null), "event-old");
+});
+
+
+test("global activity merges retained events newest-first and scopes event identity to each run", () => {
+  const activity = buildRunActivity([
+    {
+      runId: "RUN-1",
+      goal: "Build a secure API",
+      status: "running",
+      events: [
+        { id: "same", at: "2026-11-20T10:00:00Z", stage: "plan", agent: "Atlas", status: "started", message: "Planning" },
+        { id: "older", at: "2026-11-20T09:00:00Z", status: "completed", message: "Earlier stage" },
+        { id: "same", at: "2026-11-20T10:01:00Z", status: "completed", message: "Updated planning" },
+        { status: "info", message: "Missing event identity" },
+      ],
+    },
+    {
+      runId: "RUN-2",
+      goal: "Investigate incident",
+      status: "failed",
+      events: [
+        { id: "same", at: "2026-11-20T10:02:00Z", status: "failed", message: "Failure" },
+        { id: "unknown-time", at: "not-a-date", status: "info", message: "No timestamp" },
+      ],
+    },
+    null,
+    { runId: "", events: [{ id: "ignored", at: "2026-11-20T10:03:00Z" }] },
+  ], 10);
+  assert.deepEqual(activity.map((item) => item.runId + ":" + item.id), [
+    "RUN-2:same",
+    "RUN-1:same",
+    "RUN-1:older",
+    "RUN-2:unknown-time",
+  ]);
+  assert.equal(activity[1].message, "Updated planning");
+  assert.equal(activity[0].goal, "Investigate incident");
+  assert.equal(activity[3].timestamp, null);
+});
+
+test("global activity search includes run goals and identifiers", () => {
+  const activity = buildRunActivity([{
+    runId: "RUN-SEARCH",
+    goal: "Investigate payment timeout",
+    status: "failed",
+    events: [{ id: "evt-1", at: "2026-11-20T10:00:00Z", status: "failed", message: "Worker stopped" }],
+  }]);
+  assert.deepEqual(filterRunEvents(activity, "payment timeout").map((item) => item.id), ["evt-1"]);
+  assert.deepEqual(filterRunEvents(activity, "RUN-SEARCH").map((item) => item.id), ["evt-1"]);
+  assert.deepEqual(filterRunEvents(activity, "payment", "completed"), []);
+});
+
+test("global activity output is capped even when a caller requests an excessive limit", () => {
+  const events = Array.from({ length: 205 }, (_, index) => ({
+    id: "event-" + index,
+    at: new Date(1760000000000 + index * 1000).toISOString(),
+    status: "info",
+  }));
+  const activity = buildRunActivity([{ runId: "RUN-LARGE", events }], 999);
+  assert.equal(activity.length, 200);
 });

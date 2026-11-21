@@ -162,3 +162,37 @@
 .workspace-sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 .workspace-queue-snapshot-time{margin:-6px 0 0;color:#98abc9;font-size:11px;line-height:1.5}.workspace-queue-snapshot-time time{color:#d9eaff;font-variant-numeric:tabular-nums}
+
+
+/* Retained cross-run activity stream: compact, searchable and usable on narrow screens. */
+.workspace-activity-panel{display:grid;gap:11px;min-width:0}
+.workspace-activity-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 155px auto;align-items:center;gap:8px}
+.workspace-activity-search,.workspace-activity-filter{display:flex;align-items:center;gap:8px;min-width:0;min-height:38px;padding:0 10px;border:1px solid rgba(126,158,219,.2);border-radius:10px;background:rgba(8,18,36,.7);color:#8ea6ca}
+.workspace-activity-search:focus-within,.workspace-activity-filter:focus-within{border-color:rgba(103,232,249,.55);box-shadow:0 0 0 3px rgba(103,232,249,.09)}
+.workspace-activity-search input,.workspace-activity-filter select{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#dceaff;font:10px var(--mono)}
+.workspace-activity-search input::placeholder{color:#7186a9}
+.workspace-activity-filter select option{background:#0d1528;color:#e6f0ff}
+.workspace-activity-refresh{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 11px;border:1px solid rgba(103,232,249,.24);border-radius:10px;background:rgba(103,232,249,.07);color:#a8efff;font-size:9px;white-space:nowrap}
+.workspace-activity-refresh:disabled{opacity:.48;cursor:not-allowed}
+.workspace-activity-refresh:focus-visible,.workspace-activity-row:focus-visible{outline:2px solid var(--accent-cyan);outline-offset:3px}
+.workspace-activity-summary{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;color:#8ea4c6;font-size:9px}
+.workspace-activity-summary time{color:#c2d6f2;font-variant-numeric:tabular-nums}
+.workspace-activity-list{display:grid;gap:7px}
+.workspace-activity-row{display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:center;gap:11px;width:100%;padding:12px;border:1px solid rgba(126,158,219,.15);border-radius:11px;background:rgba(9,20,40,.5);color:inherit;text-align:left;cursor:pointer;transition:background .16s ease,border-color .16s ease}
+.workspace-activity-row:hover{border-color:rgba(103,232,249,.3);background:rgba(15,34,58,.72)}
+.workspace-activity-dot{width:7px;height:7px;border-radius:50%;background:#8da4c8;box-shadow:0 0 0 3px rgba(141,164,200,.1)}
+.workspace-activity-dot.status-failed{background:#fb7185;box-shadow:0 0 0 3px rgba(251,113,133,.1)}
+.workspace-activity-dot.status-completed,.workspace-activity-dot.status-approved{background:#62f2d2;box-shadow:0 0 0 3px rgba(98,242,210,.1)}
+.workspace-activity-dot.status-started,.workspace-activity-dot.status-running{background:#67e8f9;box-shadow:0 0 0 3px rgba(103,232,249,.1)}
+.workspace-activity-main{display:grid;gap:5px;min-width:0}
+.workspace-activity-main-top{display:flex;align-items:center;justify-content:space-between;gap:9px;min-width:0}
+.workspace-activity-main-top strong{min-width:0;overflow-wrap:anywhere;color:#e5efff;font-size:10px;line-height:1.5}
+.workspace-activity-status{flex:0 0 auto;padding:3px 7px;border:1px solid rgba(126,158,219,.17);border-radius:999px;color:#9fb6d8;font-size:8px;letter-spacing:.55px;text-transform:uppercase}
+.workspace-activity-status.status-failed{border-color:rgba(251,113,133,.25);color:#ff9aaa}
+.workspace-activity-status.status-completed,.workspace-activity-status.status-approved{border-color:rgba(98,242,210,.2);color:#8cf2d9}
+.workspace-activity-meta{overflow-wrap:anywhere;color:#8ea5c9;font-size:8px;line-height:1.5}
+.workspace-activity-goal{overflow:hidden;color:#6f85a8;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+.workspace-activity-time{display:flex;align-items:center;gap:8px;color:#9db1d1;font-size:9px;white-space:nowrap}
+.workspace-activity-time time{font-variant-numeric:tabular-nums}
+.workspace-activity-panel .notice-strip a{color:#a7efff;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:740px){.workspace-activity-toolbar{grid-template-columns:minmax(0,1fr) minmax(110px,.6fr)}.workspace-activity-search{grid-column:1/-1}.workspace-activity-refresh{grid-column:1/-1}.workspace-activity-row{grid-template-columns:8px minmax(0,1fr);align-items:start}.workspace-activity-time{grid-column:2;justify-content:space-between}.workspace-activity-main-top{align-items:flex-start}}

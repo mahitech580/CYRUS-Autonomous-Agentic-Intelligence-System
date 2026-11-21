@@ -7,12 +7,15 @@ import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./p
 test("all 22 secondary general-purpose destinations have page-specific content", () => {
   const routes = WORKSPACE_ROUTES.filter((route) => route.kind !== "existing" && route.kind !== "agent");
   assert.equal(routes.length, 22);
+  const titles = [];
   for (const route of routes) {
     const item = WORKSPACE_PAGE_CONTENT[route.id];
     assert.ok(item, "missing content for " + route.id);
     assert.ok(item.title && item.description && item.eyebrow && item.image);
     assert.ok(item.sections.length > 0);
+    titles.push(item.title);
   }
+  assert.equal(new Set(titles).size, routes.length, "secondary destinations need distinct page titles");
   assert.equal(WORKSPACE_ROUTES.filter((route) => route.kind === "agent").length, 7);
 });
 
@@ -46,16 +49,32 @@ test("previously shared route kinds now render dedicated workspace experiences",
   const source = await readFile(new URL("./WorkspacePage.jsx", import.meta.url), "utf8");
   const routes = [
     ["launchpad", "TemplateGrid"],
+    ["agent", "AgentPanel"],
+    ["run-list", "RunList"],
     ["prompt-library", "PromptLibraryPanel"],
-    ["activity", "RunList"],
+    ["activity", "ActivityPanel"],
     ["observability", "ObservabilityPanel"],
+    ["review-history", "RunList"],
+    ["integration", "IntegrationPanel"],
+    ["queue", "QueuePanel"],
+    ["usage", "UsagePanel"],
+    ["audit", "AuditPanel"],
     ["governance", "GovernancePanel"],
     ["policies", "PolicyPanel"],
     ["runtime", "RuntimePanel"],
     ["access", "AccessPanel"],
+    ["appearance", "AppearancePanel"],
+    ["deployment", "workspace-deployment-note"],
+    ["ci", "workspace-ci-panel"],
   ];
+  const pageBodyStart = source.indexOf("function PageBody(");
+  const pageBodyEnd = source.indexOf("function PageSection(", pageBodyStart);
+  const pageBody = source.slice(pageBodyStart, pageBodyEnd);
+  const routeKinds = new Set(WORKSPACE_ROUTES.filter((route) => route.kind !== "existing").map((route) => route.kind));
+  assert.deepEqual([...routeKinds].sort(), routes.map(([kind]) => kind).sort());
   for (const [kind, component] of routes) {
-    assert.ok(source.includes('if(route.kind==="' + kind + '")return <' + component), kind + " must render " + component);
+    assert.ok(pageBody.includes('if(route.kind==="' + kind + '")'), kind + " must have an explicit renderer");
+    assert.ok(pageBody.includes(component), kind + " must render " + component);
   }
   assert.ok(!source.includes('route.kind==="launchpad"||route.kind==="prompt-library"'));
   assert.ok(!source.includes('["governance","policies"].includes(route.kind)'));
@@ -92,4 +111,35 @@ test("task brief search preserves Indic dependent vowel signs while folding Lati
   ];
   assert.deepEqual(filterTaskTemplates(templates, "కోడ్").map((item) => item.id), ["telugu-vowels"]);
   assert.deepEqual(filterTaskTemplates(templates, "cafe").map((item) => item.id), ["latin-accent"]);
+});
+
+
+test("every route hero icon resolves to an imported Lucide component", async () => {
+  const source = await readFile(new URL("./WorkspacePage.jsx", import.meta.url), "utf8");
+  const importBlock = source.match(/import \{([\s\S]*?)\} from "lucide-react";/);
+  const iconMapBlock = source.match(/const iconMap=\{([^}]+)\}/);
+  assert.ok(importBlock, "WorkspacePage must import its route icons");
+  assert.ok(iconMapBlock, "WorkspacePage must map route icons");
+  const imported = new Set(importBlock[1].split(",").map((name) => name.trim()).filter(Boolean));
+  const mapped = new Set(iconMapBlock[1].split(",").map((name) => name.trim()).filter(Boolean));
+  for (const route of WORKSPACE_ROUTES) {
+    assert.ok(imported.has(route.icon), route.id + " imports missing icon " + route.icon);
+    assert.ok(mapped.has(route.icon), route.id + " does not map icon " + route.icon);
+  }
+});
+
+test("activity stream uses retained per-run events with bounded loading and actionable filters", async () => {
+  const source = await readFile(new URL("./WorkspacePage.jsx", import.meta.url), "utf8");
+  const pageData = await readFile(new URL("./page-data.js", import.meta.url), "utf8");
+  assert.ok(source.includes('if(route.kind==="activity")return <ActivityPanel'));
+  assert.ok(source.includes("api.runEvents(run.id,null,{signal:controller.signal})"));
+  assert.ok(source.includes("Promise.allSettled"));
+  assert.ok(source.includes("offset+=4"));
+  assert.ok(source.includes(".slice(0,8)"));
+  assert.ok(source.includes("buildRunActivity(sources,50)"));
+  assert.ok(source.includes("filterRunEvents(events,query,statusFilter)"));
+  assert.ok(source.includes('aria-label="Search retained activity"'));
+  assert.ok(source.includes('aria-label="Filter activity by status"'));
+  assert.ok(source.includes('onClick={()=>openRun({id:event.runId,goal:event.goal,status:event.runStatus})}'));
+  assert.ok(pageData.includes("persisted stage events across up to eight of the latest loaded workflows"));
 });

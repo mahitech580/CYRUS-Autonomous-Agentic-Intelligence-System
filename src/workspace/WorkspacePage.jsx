@@ -1,14 +1,16 @@
 import React from "react";
 import {
- Activity, ArrowRight, ArrowUpRight, Bot, Braces, CheckCircle2, CircleDot,
- Clock3, Code2, Database, FileCode2, GitBranch, Globe2, LockKeyhole,
- Network, Radio, RefreshCw, Rocket, Search, ShieldCheck, Sparkles, Terminal, Workflow
+ Activity, ArrowRight, ArrowUpRight, Bot, Boxes, Braces, CheckCircle2, CircleDot,
+ Clock3, Code2, Command, Cpu, Database, FileCode2, GitBranch, GitPullRequest,
+ Globe2, LayoutDashboard, LockKeyhole, Network, Radio, RefreshCw, Rocket, Search,
+ Settings2, ShieldCheck, Sparkles, Terminal, Timer, Workflow
 } from "lucide-react";
+import { api } from "../lib/api.js";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
-import { isRunCompleted, summarizeRunUsage } from "../lib/runs.js";
+import { buildRunActivity, filterRunEvents, getRunEventStatuses, isRunCompleted, summarizeRunUsage } from "../lib/runs.js";
 
-const iconMap={Activity,Bot,Braces,CheckCircle2,CircleDot,Clock3,Code2,Database,FileCode2,GitBranch,Globe2,LockKeyhole,Network,Radio,Rocket,ShieldCheck,Sparkles,Terminal,Workflow};
+const iconMap={Activity,Bot,Boxes,Braces,CheckCircle2,CircleDot,Clock3,Code2,Command,Cpu,Database,FileCode2,GitBranch,GitPullRequest,Globe2,LayoutDashboard,LockKeyhole,Network,Radio,Rocket,Search,Settings2,ShieldCheck,Sparkles,Terminal,Timer,Workflow};
 const iconFor=(name)=>iconMap[name]||Activity;
 const statusText={queued:"Queued",running:"Running",review:"Needs review",approved:"Approved",rejected:"Rejected",completed:"Completed",failed:"Failed",cancelled:"Cancelled"};
 
@@ -43,6 +45,119 @@ function RunList({runs,route,openRun}){
  const heading=isActive?"Queued and running workflows":isAll?"Latest saved workflow records":"Closed workflow records";
  return <section className="workspace-page-section"><div className="workspace-page-section-heading"><div><div className="eyebrow">SAVED RUN RECORDS</div><h2>{heading}</h2><p>Only records currently loaded from the API are listed here. Use Runs & tasks for search, CSV export and pagination.</p></div><a className="button-quiet" href={getWorkspaceHref("runs")}>Open full history <ArrowRight size={13}/></a></div>{rows.length?<div className="workspace-run-list">{rows.map((run)=><RunRecord key={run.id} run={run} onOpen={openRun}/>)}</div>:<div className="workspace-empty"><Workflow size={24}/><strong>{isActive?"No active workflows in the loaded records":isAll?"No workflow records are loaded":"No closed workflows in the loaded records"}</strong><span>Empty results are not replaced with sample runs. Open the main run list to refresh and paginate saved records.</span><a className="button-outline" href={getWorkspaceHref("runs")}>Open runs & tasks <ArrowRight size={13}/></a></div>}</section>;
 }
+function ActivityPanel({runs,openRun,apiState,config}){
+ const [events,setEvents]=React.useState([]);
+ const [query,setQuery]=React.useState("");
+ const [statusFilter,setStatusFilter]=React.useState("all");
+ const [loading,setLoading]=React.useState(false);
+ const [error,setError]=React.useState("");
+ const [loadedAt,setLoadedAt]=React.useState("");
+ const [refreshKey,setRefreshKey]=React.useState(0);
+ const recentRuns=(Array.isArray(runs)?runs:[]).filter((run)=>run&&typeof run.id==="string"&&run.id).slice(0,8);
+ const runKey=JSON.stringify(recentRuns.map((run)=>run.id));
+ const accessBlocked=!!(config?.runtime_access_denied||config?.runtime_configuration_missing);
+ React.useEffect(()=>{
+  let active=true;
+  const controller=new AbortController();
+  const cleanup=()=>{active=false;controller.abort();};
+  if(apiState!=="connected"||!config||accessBlocked){
+   setEvents([]);
+   setLoadedAt("");
+   setLoading(false);
+   setError(config?.runtime_configuration_missing
+    ?"Server-side workspace access is not configured. Retained event history remains protected."
+    :config?.runtime_access_denied
+     ?"Workspace access is required to load retained event history."
+     :apiState==="connected"
+      ?"Runtime configuration is unavailable. Refresh the workspace and try again."
+      :apiState==="checking"
+       ?"Waiting for the CYRUS API connection before loading event history."
+       :"The CYRUS API is unavailable. Reconnect the workspace to inspect event history.");
+   return cleanup;
+  }
+  if(!recentRuns.length){
+   setEvents([]);
+   setLoadedAt("");
+   setLoading(false);
+   setError("");
+   return cleanup;
+  }
+  setLoading(true);
+  setError("");
+  async function load(){
+   const results=[];
+   for(let offset=0;offset<recentRuns.length;offset+=4){
+    const batchRuns=recentRuns.slice(offset,offset+4);
+    const batch=await Promise.allSettled(batchRuns.map((run)=>api.runEvents(run.id,null,{signal:controller.signal})));
+    results.push(...batch);
+    if(!active)return;
+   }
+   if(!active)return;
+   const sources=[];
+   let failures=0;
+   let unauthorized=false;
+   results.forEach((result,index)=>{
+    if(result.status==="fulfilled"&&Array.isArray(result.value?.items)){
+     const run=recentRuns[index];
+     sources.push({runId:run.id,goal:run.goal,status:run.status,events:result.value.items});
+    }else{
+     if(result.status==="rejected"&&result.reason?.name==="AbortError")return;
+     failures+=1;
+     if(result.status==="rejected"&&result.reason?.status===401)unauthorized=true;
+    }
+   });
+   setEvents(buildRunActivity(sources,50));
+   setLoadedAt(new Date().toISOString());
+   setError(unauthorized
+    ?"Workspace access was rejected while loading event history. Re-enter the key in Settings and retry."
+    :failures
+     ?"Event history could not be loaded for "+failures+" of "+recentRuns.length+" recent workflows."
+     :"");
+   setLoading(false);
+  }
+  load().catch((cause)=>{
+   if(!active||cause?.name==="AbortError")return;
+   setError(cause?.message||"Could not load workflow activity.");
+   setLoading(false);
+  });
+  return cleanup;
+ },[runKey,apiState,config?.runtime_access_denied,config?.runtime_configuration_missing,Boolean(config),refreshKey]);
+ const filtered=filterRunEvents(events,query,statusFilter);
+ const statuses=getRunEventStatuses(events);
+ const loadedDate=loadedAt?new Date(loadedAt):null;
+ return <section className="workspace-activity-panel" aria-busy={loading}>
+  <div className="workspace-activity-toolbar">
+   <label className="workspace-activity-search"><Search size={15} aria-hidden="true"/><input type="search" value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="Search message, run or agent" aria-label="Search retained activity"/></label>
+   <label className="workspace-activity-filter"><span className="workspace-sr-only">Filter activity by status</span><select value={statusFilter} onChange={(event)=>setStatusFilter(event.target.value)} aria-label="Filter activity by status"><option value="all">All statuses</option>{statuses.map((value)=><option key={value} value={value}>{value.charAt(0).toUpperCase()+value.slice(1)}</option>)}</select></label>
+   <button type="button" className="workspace-activity-refresh" onClick={()=>setRefreshKey((value)=>value+1)} disabled={loading||!recentRuns.length||apiState!=="connected"||accessBlocked}><RefreshCw size={13} className={loading?"spin-icon":""}/>{loading?"Loading":"Refresh activity"}</button>
+  </div>
+  <div className="workspace-activity-summary" role="status" aria-live="polite">
+   <span>{loading?"Loading retained events…":"Showing "+filtered.length+" of "+events.length+" retained events"}</span>
+   <span>Up to {recentRuns.length} latest loaded workflows · 250 retained events per workflow</span>
+   {loadedDate&&!Number.isNaN(loadedDate.getTime())?<time dateTime={loadedDate.toISOString()}>Updated {loadedDate.toLocaleTimeString()}</time>:null}
+  </div>
+  {error?<div className="notice-strip" role="alert"><Activity size={15}/><span>{error} <a href={getWorkspaceHref("settings")}>Open settings</a></span></div>:null}
+  {loading&&!events.length?<div className="workspace-empty"><Activity size={22}/><strong>Loading retained event history</strong><span>Reading saved events from the latest loaded workflow records.</span></div>:null}
+  {!loading&&!error&&!recentRuns.length?<div className="workspace-empty"><Activity size={22}/><strong>No workflow records loaded</strong><span>Load saved workflows before inspecting their retained activity.</span><a className="button-outline" href={getWorkspaceHref("runs")}>Open runs & tasks <ArrowRight size={13}/></a></div>:null}
+  {!loading&&error&&!events.length?<div className="workspace-empty"><Activity size={22}/><strong>Activity is unavailable</strong><span>Check the API connection or workspace access, then refresh this page.</span></div>:null}
+  {!loading&&!error&&recentRuns.length>0&&!events.length?<div className="workspace-empty"><Activity size={22}/><strong>No retained events found</strong><span>The loaded workflows do not currently expose retained event records.</span></div>:null}
+  {events.length>0&&!filtered.length?<div className="workspace-empty"><Search size={22}/><strong>No activity matches these filters</strong><span>Try another search term or clear the selected status.</span><button type="button" className="button-outline" onClick={()=>{setQuery("");setStatusFilter("all");}}>Clear filters</button></div>:null}
+  {filtered.length?<div className="workspace-activity-list">{filtered.map((event)=>{
+   const occurred=Number.isFinite(event.timestamp)?new Date(event.timestamp):null;
+   return <button type="button" className="workspace-activity-row" key={event.runId+"-"+event.id} onClick={()=>openRun({id:event.runId,goal:event.goal,status:event.runStatus})} aria-label={"Open workflow "+event.runId+" event "+event.id}>
+    <span className={"workspace-activity-dot status-"+event.status} aria-hidden="true"/>
+    <span className="workspace-activity-main">
+     <span className="workspace-activity-main-top"><strong>{event.message||"Workflow event"}</strong><span className={"workspace-activity-status status-"+event.status}>{event.status}</span></span>
+     <span className="workspace-activity-meta">{event.agent||"System"} · {event.stage||"Workflow"} · {event.runId}</span>
+     <span className="workspace-activity-goal">{event.goal}</span>
+    </span>
+    <span className="workspace-activity-time">{occurred?<time dateTime={occurred.toISOString()}>{occurred.toLocaleString()}</time>:"Time unavailable"}<ArrowRight size={14}/></span>
+   </button>;
+  })}</div>:null}
+  <p className="workspace-footnote">This stream merges retained events from up to eight of the latest loaded workflow summaries. It is not a global trace or a separate audit service.</p>
+ </section>;
+}
+
 function RuntimePanel({config,apiState}){
  const snapshotAvailable=apiState==="connected"&&!!config;
  const ready=snapshotAvailable&&!!config.can_start_runs;
@@ -265,7 +380,7 @@ function PageBody({route,runs,runStats,config,apiState,agents,openRun,onSelectTe
  if(route.kind==="prompt-library")return <PromptLibraryPanel onSelectTemplate={onSelectTemplate}/>;
  if(route.kind==="agent")return <AgentPanel route={route} agents={agents}/>;
  if(route.kind==="run-list")return <RunList route={route} runs={runs} openRun={openRun}/>;
- if(route.kind==="activity")return <RunList route={{filter:"all"}} runs={runs} openRun={openRun}/>;
+ if(route.kind==="activity")return <ActivityPanel runs={runs} openRun={openRun} apiState={apiState} config={config}/>;
  if(route.kind==="observability")return <ObservabilityPanel runs={runs} config={config} apiState={apiState}/>;
  if(route.kind==="review-history")return <RunList route={{filter:"history"}} runs={runs.filter((run)=>["approved","rejected"].includes(run.approval_status)||["approved","rejected"].includes(run.status))} openRun={openRun}/>;
  if(route.kind==="integration")return <IntegrationPanel route={route} config={config} apiState={apiState}/>;

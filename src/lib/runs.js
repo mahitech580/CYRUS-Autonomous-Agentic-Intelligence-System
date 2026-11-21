@@ -31,6 +31,60 @@ export function getRunEventStatuses(events) {
 }
 
 /**
+ * Merge bounded per-run event windows into one newest-first workspace activity list.
+ * Event identity is scoped to its workflow because IDs are only unique within a run.
+ */
+export function buildRunActivity(sources, limit = 50) {
+  const unique = new Map();
+  const records = Array.isArray(sources) ? sources : [];
+  for (const source of records) {
+    if (!source || typeof source !== "object" || Array.isArray(source)) continue;
+    const runId = typeof source.runId === "string" ? source.runId.trim() : "";
+    if (!runId || !Array.isArray(source.events)) continue;
+    const goal = typeof source.goal === "string" && source.goal.trim()
+      ? source.goal.trim()
+      : "Untitled workflow";
+    const runStatus = typeof source.status === "string"
+      ? source.status.trim().toLowerCase() || "unknown"
+      : "unknown";
+    for (const event of source.events) {
+      if (!isRunEvent(event) || typeof event.id !== "string" || !event.id.trim()) continue;
+      const id = event.id.trim();
+      const at = typeof event.at === "string" ? event.at : "";
+      const parsedAt = Date.parse(at);
+      const item = {
+        id,
+        runId,
+        goal,
+        runStatus,
+        at,
+        timestamp: Number.isFinite(parsedAt) ? parsedAt : null,
+        stage: typeof event.stage === "string" ? event.stage : "",
+        agent: typeof event.agent === "string" ? event.agent : "",
+        status: getRunEventStatus(event),
+        message: typeof event.message === "string" ? event.message : "",
+      };
+      const identity = runId + ":" + id;
+      const previous = unique.get(identity);
+      if (!previous || (
+        Number.isFinite(item.timestamp)
+        && (!Number.isFinite(previous.timestamp) || item.timestamp >= previous.timestamp)
+      )) unique.set(identity, item);
+    }
+  }
+  const requestedLimit = Number(limit);
+  const safeLimit = Number.isFinite(requestedLimit)
+    ? Math.max(0, Math.min(200, Math.floor(requestedLimit)))
+    : 50;
+  return [...unique.values()].sort((left, right) => {
+    const leftTime = Number.isFinite(left.timestamp) ? left.timestamp : Number.NEGATIVE_INFINITY;
+    const rightTime = Number.isFinite(right.timestamp) ? right.timestamp : Number.NEGATIVE_INFINITY;
+    const timeOrder = leftTime === rightTime ? 0 : rightTime - leftTime;
+    return timeOrder || left.runId.localeCompare(right.runId) || left.id.localeCompare(right.id);
+  }).slice(0, safeLimit);
+}
+
+/**
  * Filter only the event records currently loaded for a run. All query terms
  * must match across the event's ID, timestamp, stage, agent, status or message.
  */
@@ -43,7 +97,7 @@ export function filterRunEvents(events, query = "", statusFilter = "all") {
     const eventStatus = getRunEventStatus(event);
     if (selectedStatus !== "all" && eventStatus !== selectedStatus) return false;
     const searchable = normalizeRunSearchValue([
-      event.id, event.at, event.stage, event.agent, eventStatus, event.message,
+      event.id, event.runId, event.goal, event.runStatus, event.at, event.stage, event.agent, eventStatus, event.message,
     ].filter((value) => typeof value === "string" || typeof value === "number").join(" "));
     return terms.every((term) => searchable.includes(term));
   });
