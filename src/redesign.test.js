@@ -685,3 +685,18 @@ test("execution event filters retain visible keyboard focus indicators", async (
   assert.ok(styles.includes("outline-offset:3px"));
   assert.ok(styles.includes("rgba(103,232,249,.13)"));
 });
+
+
+test("activity stream typography is readable and long messages stay bounded on mobile", async () => {
+  const styles = await read("redesign/workspace-pages.css");
+  const start = styles.indexOf(".workspace-activity-panel");
+  const mobileStart = styles.indexOf("@media(max-width:740px)", start);
+  assert.ok(start >= 0 && mobileStart > start, "activity styles and mobile layout must exist");
+  const desktop = styles.slice(start, mobileStart);
+  assert.ok(desktop.includes("font-size:12px"), "event messages need readable 12px text");
+  assert.ok(desktop.includes("font-size:10px"), "activity metadata needs readable 10px text");
+  assert.ok(desktop.includes("-webkit-line-clamp:2"), "long event messages must not dominate the activity list");
+  const mobileEnd = styles.indexOf("@media(max-width:360px)", mobileStart);
+  const mobile = styles.slice(mobileStart, mobileEnd < 0 ? undefined : mobileEnd);
+  assert.ok(mobile.includes(".workspace-activity-filter{grid-column:1/-1}"), "mobile status filter must use the full toolbar width");
+});
