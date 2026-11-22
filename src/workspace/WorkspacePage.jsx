@@ -406,7 +406,7 @@ function CiPanel(){
   async function load(){
    setLoading(true);setError("");
    try{
-    const response=await fetch(GITHUB_ACTIONS_API,{headers:{Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},signal:controller.signal});
+    const response=await fetch(GITHUB_ACTIONS_API,{headers:{Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},cache:"no-store",signal:controller.signal});
     if(!response.ok){
      const rateLimited=response.status===403&&response.headers?.get("x-ratelimit-remaining")==="0";
      throw new Error(rateLimited?"GitHub's public API rate limit has been reached. Wait for the reset window or open Actions directly.":"GitHub Actions returned HTTP "+response.status+". Check the public repository or open Actions directly.");

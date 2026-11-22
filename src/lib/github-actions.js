@@ -1,4 +1,5 @@
 const RUNS_PATH = "/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/";
+const PRIMARY_FILTER_STATES = new Set(["queued", "in_progress", "success", "failure", "timed_out", "cancelled"]);
 const KNOWN_STATES = new Set([
   "queued", "in_progress", "success", "failure", "cancelled", "timed_out",
   "action_required", "skipped", "neutral", "stale", "completed",
@@ -81,10 +82,12 @@ export function filterWorkflowRuns(runs, query = "", statusFilter = "all") {
   return items.filter((run) => {
     if (!run || typeof run !== "object" || Array.isArray(run)) return false;
     const state = getWorkflowRunStatus(run);
-    if (statusFilter !== "all") {
-      if (statusFilter === "other") {
-        if (KNOWN_STATES.has(state)) return false;
-      } else if (state !== statusFilter) return false;
+    if (statusFilter === "failure") {
+      if (state !== "failure" && state !== "timed_out") return false;
+    } else if (statusFilter === "other") {
+      if (PRIMARY_FILTER_STATES.has(state)) return false;
+    } else if (statusFilter !== "all" && state !== statusFilter) {
+      return false;
     }
     const searchable = normalizeSearch([run.name,run.branch,run.event,run.sha,run.runNumber,run.id,state].join(" "));
     return terms.every((term) => searchable.includes(term));

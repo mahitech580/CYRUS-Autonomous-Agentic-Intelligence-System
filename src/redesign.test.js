@@ -452,16 +452,21 @@ test("queue page can refresh protected runtime telemetry and explains unavailabl
 });
 
 
-test("CI page lists configured jobs without implying that they passed", async () => {
+test("CI page reads live public Actions results without implying unverified checks passed", async () => {
   const pages = await read("../src/workspace/WorkspacePage.jsx");
+  const helper = await read("../src/lib/github-actions.js");
   const styles = await read("redesign/workspace-pages.css");
-  const start = pages.indexOf('if(route.kind==="ci")');
-  const end = pages.indexOf(" return null;", start);
+  const start = pages.indexOf("function CiPanel()");
+  const end = pages.indexOf("function PageBody(", start);
   const ci = pages.slice(start, end);
-  assert.ok(ci.includes('className="workspace-ci-step-state">Configured</span>'));
-  assert.ok(ci.includes("not current pass/fail results"));
-  assert.ok(!ci.includes("CheckCircle2"));
-  assert.ok(styles.includes(".workspace-ci-step-state"));
+  assert.ok(ci.includes("GITHUB_ACTIONS_API"));
+  assert.ok(ci.includes("normalizeWorkflowRuns(await response.json())"));
+  assert.ok(ci.includes("cache:\"no-store\""));
+  assert.ok(ci.includes("workflowStatusLabels"));
+  assert.ok(ci.includes("No token, rerun, cancel or repository-write permission is used."));
+  assert.ok(helper.includes("safeRunUrl"));
+  assert.ok(styles.includes(".workspace-ci-run"));
+  assert.ok(styles.includes(".workspace-ci-state"));
 });
 
 

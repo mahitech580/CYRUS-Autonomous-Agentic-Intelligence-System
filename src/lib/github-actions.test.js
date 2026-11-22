@@ -46,10 +46,14 @@ test("search and status filters operate on normalized workflow metadata", () => 
     run(),
     run({id:102,status:"in_progress",conclusion:null,head_branch:"feature/queue",run_number:987,html_url:"https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/102"}),
     run({id:103,conclusion:"failure",run_number:988,html_url:"https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/103"}),
+    run({id:104,conclusion:"timed_out",run_number:989,html_url:"https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/104"}),
+    run({id:105,status:"waiting",conclusion:null,run_number:990,html_url:"https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/105"}),
+    run({id:106,status:"custom_state",conclusion:null,run_number:991,html_url:"https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/106"}),
   ]}).runs;
   assert.deepEqual(filterWorkflowRuns(data,"main push","success").map(x=>x.id),[101]);
   assert.deepEqual(filterWorkflowRuns(data,"feature queue","in_progress").map(x=>x.id),[102]);
-  assert.deepEqual(filterWorkflowRuns(data,"","failure").map(x=>x.id),[103]);
+  assert.deepEqual(filterWorkflowRuns(data,"","failure").map(x=>x.id),[103,104]);
+  assert.deepEqual(filterWorkflowRuns(data,"","other").map(x=>x.id),[105,106]);
   assert.deepEqual(filterWorkflowRuns(data,"not-present"),[]);
 });
 test("summarizes only the supplied recent window and keeps other states explicit", () => {
