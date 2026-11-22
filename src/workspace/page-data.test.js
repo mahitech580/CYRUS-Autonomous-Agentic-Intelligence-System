@@ -157,7 +157,10 @@ test("CI destination renders live, read-only GitHub Actions run evidence", async
   assert.ok(source.includes("signal:controller.signal"));
   assert.ok(source.includes('aria-label="Search workflow runs"'));
   assert.ok(source.includes('aria-label="Filter workflow runs by status"'));
-  assert.ok(source.includes("response.status===403"));
+  assert.ok(source.includes("getWorkflowRunsErrorMessage(response.status,response.headers)"));
+  assert.ok(helper.includes("code === 429"));
+  assert.ok(helper.includes('remaining === "0"'));
+  assert.ok(helper.includes('headers?.get?.("retry-after")'));
   assert.ok(helper.includes("actions/runs/"));
   assert.ok(!source.includes("workspace-ci-step-state"), "configured checks must not be presented as live pass/fail results");
 });
