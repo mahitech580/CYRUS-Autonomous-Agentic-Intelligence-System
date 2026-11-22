@@ -35,3 +35,19 @@ GitHub's Node 20 Actions runtime deprecation notice was updated on 25 August 202
 - [actions/setup-node releases](https://github.com/actions/setup-node/releases)
 - [actions/setup-python releases](https://github.com/actions/setup-python/releases)
 - [GitHub Actions secure use reference](https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions)
+
+## Workflow result interpretation
+
+Reviewed: 22 November 2026
+
+The Delivery / CI workspace reads the public GitHub Actions workflow-runs endpoint. A completed run is classified by its conclusion, not by treating every completed run as a success.
+
+- \`failure\`, \`timed_out\`, and \`startup_failure\` are grouped as failed runs in the summary and failure filter.
+- \`startup_failure\` means a check suite or run failed at startup; it must not be shown as a pass or hidden in the generic “Other” filter.
+- Unknown future states remain visible as “Unknown” / “Other” rather than being guessed to be successful.
+- Workflow run IDs must be positive safe integers, and links must resolve to the canonical HTTPS GitHub origin and this repository's exact run path.
+
+Official references:
+- [GitHub REST API — list workflow runs](https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-repository)
+- [GitHub REST API — using the Checks API](https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-checks)
+- [GitHub GraphQL CheckConclusionState](https://docs.github.com/en/graphql/reference/checks#checkconclusionstate)

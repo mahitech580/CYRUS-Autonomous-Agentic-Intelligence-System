@@ -233,8 +233,8 @@
 .workspace-ci-state>i{width:6px;height:6px;border-radius:50%;background:#8ea4c6}
 .workspace-ci-state.status-success{border-color:rgba(98,242,210,.23);color:#8cf2d9}
 .workspace-ci-state.status-success>i{background:#62f2d2}
-.workspace-ci-state.status-failure,.workspace-ci-state.status-timed_out{border-color:rgba(251,113,133,.28);color:#ff9aaa}
-.workspace-ci-state.status-failure>i,.workspace-ci-state.status-timed_out>i{background:#fb7185}
+.workspace-ci-state.status-failure,.workspace-ci-state.status-timed_out,.workspace-ci-state.status-startup_failure{border-color:rgba(251,113,133,.28);color:#ff9aaa}
+.workspace-ci-state.status-failure>i,.workspace-ci-state.status-timed_out>i,.workspace-ci-state.status-startup_failure>i{background:#fb7185}
 .workspace-ci-state.status-in_progress{border-color:rgba(103,232,249,.25);color:#a8efff}
 .workspace-ci-state.status-in_progress>i{background:#67e8f9}
 .workspace-ci-state.status-queued,.workspace-ci-state.status-waiting,.workspace-ci-state.status-pending,.workspace-ci-state.status-requested{color:#c4cfe2}

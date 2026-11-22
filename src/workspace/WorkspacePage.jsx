@@ -388,7 +388,7 @@ function AccessPanel({config,apiState}){
 const GITHUB_ACTIONS_API = "https://api.github.com/repos/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs?per_page=12";
 const GITHUB_ACTIONS_URL = "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions";
 const GITHUB_REPOSITORY_URL = "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System";
-const workflowStatusLabels = {queued:"Queued",in_progress:"In progress",success:"Passed",failure:"Failed",cancelled:"Cancelled",timed_out:"Timed out",action_required:"Action required",skipped:"Skipped",neutral:"Neutral",stale:"Stale",completed:"Completed",waiting:"Waiting",pending:"Pending",requested:"Requested",unknown:"Unknown"};
+const workflowStatusLabels = {queued:"Queued",in_progress:"In progress",success:"Passed",failure:"Failed",cancelled:"Cancelled",timed_out:"Timed out",startup_failure:"Failed at startup",action_required:"Action required",skipped:"Skipped",neutral:"Neutral",stale:"Stale",completed:"Completed",waiting:"Waiting",pending:"Pending",requested:"Requested",unknown:"Unknown"};
 function WorkflowRunState({run}){
  const status=getWorkflowRunStatus(run);
  return <span className={"workspace-ci-state status-"+status} aria-label={"Workflow result: "+(workflowStatusLabels[status]||"Unknown")}><i aria-hidden="true"/>{workflowStatusLabels[status]||"Unknown"}</span>;

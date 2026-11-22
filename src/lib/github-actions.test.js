@@ -41,6 +41,43 @@ test("maps completed conclusions and leaves unknown statuses explicit", () => {
   assert.equal(getWorkflowRunStatus({status:"completed",conclusion:null}),"completed");
   assert.equal(getWorkflowRunStatus({status:"unexpected"}),"unknown");
 });
+test("classifies startup failures as failed workflow runs", () => {
+  const data = normalizeWorkflowRuns({ workflow_runs: [
+    run({
+      id: 107,
+      conclusion: "startup_failure",
+      html_url: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/107",
+    }),
+  ] }).runs;
+  assert.equal(getWorkflowRunStatus(data[0]), "startup_failure");
+  assert.deepEqual(filterWorkflowRuns(data, "", "failure").map((item) => item.id), [107]);
+  assert.deepEqual(filterWorkflowRuns(data, "", "other"), []);
+  assert.deepEqual(summarizeWorkflowRuns(data), {
+    inProgress: 0, queued: 0, successful: 0, failed: 1, cancelled: 0, other: 0,
+  });
+});
+
+test("accepts only positive integer workflow IDs and canonical GitHub run URLs", () => {
+  const invalidIds = [true, 101.5, "1e2", "101.5", Number.MAX_SAFE_INTEGER + 1, "0", -1];
+  const invalidIdRuns = invalidIds.map((id, index) => run({
+    id,
+    html_url: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/" + String(id) + "-" + index,
+  }));
+  const unsafeUrls = [
+    "https://github.com:444/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/201",
+    "https://user@github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/202",
+    "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/203?download=1",
+    "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/204#fragment",
+    "https://github.com/other/repository/actions/runs/205",
+  ].map((html_url, index) => run({ id: 201 + index, html_url }));
+  const validStringId = run({
+    id: "207",
+    html_url: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/207",
+  });
+  const result = normalizeWorkflowRuns({ workflow_runs: [...invalidIdRuns, ...unsafeUrls, validStringId] });
+  assert.deepEqual(result.runs.map((item) => item.id), [207]);
+});
+
 test("search and status filters operate on normalized workflow metadata", () => {
   const data=normalizeWorkflowRuns({workflow_runs:[
     run(),

@@ -1,12 +1,20 @@
 const RUNS_PATH = "/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/";
-const PRIMARY_FILTER_STATES = new Set(["queued", "in_progress", "success", "failure", "timed_out", "cancelled"]);
+const PRIMARY_FILTER_STATES = new Set(["queued", "in_progress", "success", "failure", "timed_out", "startup_failure", "cancelled"]);
 const KNOWN_STATES = new Set([
-  "queued", "in_progress", "success", "failure", "cancelled", "timed_out",
+  "queued", "in_progress", "success", "failure", "cancelled", "timed_out", "startup_failure",
   "action_required", "skipped", "neutral", "stale", "completed",
   "waiting", "pending", "requested",
 ]);
 function cleanText(value, maxLength = 160) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+function validRunId(value) {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+  if (typeof value !== "string" || !/^\d+$/.test(value)) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 function validDate(value) {
   if (typeof value !== "string" || !value.trim() || !Number.isFinite(Date.parse(value))) return null;
@@ -16,8 +24,7 @@ function safeRunUrl(value, id) {
   if (typeof value !== "string") return "";
   try {
     const url = new URL(value);
-    return url.protocol === "https:"
-      && url.hostname === "github.com"
+    return url.origin === "https://github.com"
       && !url.username && !url.password && !url.search && !url.hash
       && url.pathname === RUNS_PATH + id ? url.href : "";
   } catch { return ""; }
@@ -32,8 +39,8 @@ export function normalizeWorkflowRuns(payload, limit = 12) {
   const runs = [];
   for (const record of payload.workflow_runs) {
     if (!record || typeof record !== "object" || Array.isArray(record)) continue;
-    const id = Number(record.id);
-    if (!Number.isSafeInteger(id) || id <= 0) continue;
+    const id = validRunId(record.id);
+    if (id === null) continue;
     const url = safeRunUrl(record.html_url, id);
     if (!url) continue;
     const rawStatus = cleanText(record.status, 40).toLowerCase();
@@ -83,7 +90,7 @@ export function filterWorkflowRuns(runs, query = "", statusFilter = "all") {
     if (!run || typeof run !== "object" || Array.isArray(run)) return false;
     const state = getWorkflowRunStatus(run);
     if (statusFilter === "failure") {
-      if (state !== "failure" && state !== "timed_out") return false;
+      if (state !== "failure" && state !== "timed_out" && state !== "startup_failure") return false;
     } else if (statusFilter === "other") {
       if (PRIMARY_FILTER_STATES.has(state)) return false;
     } else if (statusFilter !== "all" && state !== statusFilter) {
@@ -100,7 +107,7 @@ export function summarizeWorkflowRuns(runs) {
     if (state === "in_progress") summary.inProgress += 1;
     else if (state === "queued") summary.queued += 1;
     else if (state === "success") summary.successful += 1;
-    else if (state === "failure" || state === "timed_out") summary.failed += 1;
+    else if (state === "failure" || state === "timed_out" || state === "startup_failure") summary.failed += 1;
     else if (state === "cancelled") summary.cancelled += 1;
     else summary.other += 1;
   }
