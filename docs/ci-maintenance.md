@@ -51,3 +51,9 @@ Official references:
 - [GitHub REST API — list workflow runs](https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-repository)
 - [GitHub REST API — using the Checks API](https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-checks)
 - [GitHub GraphQL CheckConclusionState](https://docs.github.com/en/graphql/reference/checks#checkconclusionstate)
+
+## Public Actions API rate-limit behavior
+
+The CI history view is unauthenticated and read-only. GitHub can return primary rate-limit responses (403 with \`X-RateLimit-Remaining: 0\`) or secondary rate-limit responses (403/429 with \`Retry-After\`). The workspace reads only those response headers, never a token, and displays the available retry/reset interval. A 403 without rate-limit evidence remains a generic access error.
+
+Reference: [GitHub REST API rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).

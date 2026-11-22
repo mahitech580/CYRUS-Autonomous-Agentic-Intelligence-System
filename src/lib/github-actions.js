@@ -29,6 +29,51 @@ function safeRunUrl(value, id) {
       && url.pathname === RUNS_PATH + id ? url.href : "";
   } catch { return ""; }
 }
+export function parseGitHubRetryAfter(value, now = Date.now()) {
+  const header = String(value ?? "").trim();
+  if (!header) return null;
+  if (/^\d+$/.test(header)) {
+    const seconds = Number(header);
+    return Number.isSafeInteger(seconds) ? seconds : null;
+  }
+  const retryAt = Date.parse(header);
+  const currentTime = Number(now);
+  if (!Number.isFinite(retryAt) || !Number.isFinite(currentTime)) return null;
+  return Math.max(0, Math.ceil((retryAt - currentTime) / 1000));
+}
+function formatWait(seconds) {
+  if (seconds < 60) return seconds + " seconds";
+  if (seconds < 3600) {
+    const minutes = Math.ceil(seconds / 60);
+    return minutes + (minutes === 1 ? " minute" : " minutes");
+  }
+  if (seconds < 86400) {
+    const hours = Math.ceil(seconds / 3600);
+    return hours + (hours === 1 ? " hour" : " hours");
+  }
+  const days = Math.ceil(seconds / 86400);
+  return days + (days === 1 ? " day" : " days");
+}
+export function getWorkflowRunsErrorMessage(status, headers, now = Date.now()) {
+  const code = Number(status);
+  const remaining = headers?.get?.("x-ratelimit-remaining");
+  const retryAfter = parseGitHubRetryAfter(headers?.get?.("retry-after"), now);
+  const resetValue = String(headers?.get?.("x-ratelimit-reset") ?? "").trim();
+  const resetTimestamp = /^\d+$/.test(resetValue) ? Number(resetValue) : NaN;
+  const resetSeconds = Number.isSafeInteger(resetTimestamp) && Number.isFinite(Number(now))
+    ? Math.max(0, Math.ceil(resetTimestamp - Number(now) / 1000))
+    : null;
+  const rateLimited = code === 429 || (code === 403 && (remaining === "0" || retryAfter !== null));
+  if (rateLimited) {
+    const wait = retryAfter ?? (remaining === "0" ? resetSeconds : null);
+    if (wait !== null && wait > 0) {
+      return "GitHub's public API rate limit has been reached. Try again in about " + formatWait(wait) + " or open Actions directly.";
+    }
+    return "GitHub's public API rate limit has been reached. Wait for the reset window or open Actions directly.";
+  }
+  return "GitHub Actions returned HTTP " + (Number.isFinite(code) ? code : "unknown") + ". Check the public repository or open Actions directly.";
+}
+
 /** Normalize only public workflow-run records belonging to this repository. */
 export function normalizeWorkflowRuns(payload, limit = 12) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)

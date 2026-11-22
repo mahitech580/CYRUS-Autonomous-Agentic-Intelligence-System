@@ -6,7 +6,7 @@ import {
  Settings2, ShieldCheck, Sparkles, Terminal, Timer, Workflow
 } from "lucide-react";
 import { api } from "../lib/api.js";
-import { filterWorkflowRuns, getWorkflowRunStatus, normalizeWorkflowRuns, summarizeWorkflowRuns } from "../lib/github-actions.js";
+import { filterWorkflowRuns, getWorkflowRunStatus, getWorkflowRunsErrorMessage, normalizeWorkflowRuns, summarizeWorkflowRuns } from "../lib/github-actions.js";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
 import { filterRunEvents, getCurrentRunActivity, getRunEventStatuses, isRunCompleted, isRunEventPage, mergeRunActivity, summarizeRunUsage } from "../lib/runs.js";
@@ -407,10 +407,7 @@ function CiPanel(){
    setLoading(true);setError("");
    try{
     const response=await fetch(GITHUB_ACTIONS_API,{headers:{Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},cache:"no-store",signal:controller.signal});
-    if(!response.ok){
-     const rateLimited=response.status===403&&response.headers?.get("x-ratelimit-remaining")==="0";
-     throw new Error(rateLimited?"GitHub's public API rate limit has been reached. Wait for the reset window or open Actions directly.":"GitHub Actions returned HTTP "+response.status+". Check the public repository or open Actions directly.");
-    }
+    if(!response.ok) throw new Error(getWorkflowRunsErrorMessage(response.status,response.headers));
     const next=normalizeWorkflowRuns(await response.json());
     if(!active)return;
     setSnapshot(next);setUpdatedAt(new Date().toISOString());

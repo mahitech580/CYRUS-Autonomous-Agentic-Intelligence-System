@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { filterWorkflowRuns, getWorkflowRunStatus, normalizeWorkflowRuns, summarizeWorkflowRuns } from "./github-actions.js";
+import { filterWorkflowRuns, getWorkflowRunStatus, getWorkflowRunsErrorMessage, normalizeWorkflowRuns, parseGitHubRetryAfter, summarizeWorkflowRuns } from "./github-actions.js";
 const run = (overrides = {}) => ({
   id: 101, name: "CYRUS checks", run_number: 986, status: "completed", conclusion: "success",
   event: "push", head_branch: "main", head_sha: "a".repeat(40),
@@ -93,6 +93,37 @@ test("search and status filters operate on normalized workflow metadata", () => 
   assert.deepEqual(filterWorkflowRuns(data,"","other").map(x=>x.id),[105,106]);
   assert.deepEqual(filterWorkflowRuns(data,"not-present"),[]);
 });
+test("parses GitHub retry hints and explains primary and secondary rate limits", () => {
+  const now = Date.UTC(2026, 10, 22, 0, 0, 0);
+  assert.equal(parseGitHubRetryAfter("42", now), 42);
+  assert.equal(parseGitHubRetryAfter("Sun, 22 Nov 2026 00:00:12 GMT", now), 12);
+  assert.equal(parseGitHubRetryAfter("Sun, 22 Nov 2026 00:00:00 GMT", now), 0);
+  assert.equal(parseGitHubRetryAfter("not-a-date", now), null);
+  assert.equal(parseGitHubRetryAfter("999999999999999999999999999999", now), null);
+
+  assert.equal(
+    getWorkflowRunsErrorMessage(403, new Headers({
+      "x-ratelimit-remaining": "0",
+      "x-ratelimit-reset": String(now / 1000 + 90),
+    }), now),
+    "GitHub's public API rate limit has been reached. Try again in about 2 minutes or open Actions directly.",
+  );
+  assert.equal(
+    getWorkflowRunsErrorMessage(403, new Headers({ "retry-after": "45" }), now),
+    "GitHub's public API rate limit has been reached. Try again in about 45 seconds or open Actions directly.",
+  );
+  assert.equal(
+    getWorkflowRunsErrorMessage(429, new Headers({
+      "retry-after": "Sun, 22 Nov 2026 00:00:12 GMT",
+    }), now),
+    "GitHub's public API rate limit has been reached. Try again in about 12 seconds or open Actions directly.",
+  );
+  assert.equal(
+    getWorkflowRunsErrorMessage(403, new Headers(), now),
+    "GitHub Actions returned HTTP 403. Check the public repository or open Actions directly.",
+  );
+});
+
 test("summarizes only the supplied recent window and keeps other states explicit", () => {
   assert.deepEqual(summarizeWorkflowRuns([
     {status:"in_progress"},{status:"queued"},{status:"completed",conclusion:"success"},
