@@ -92,6 +92,12 @@ export function normalizeWorkflowRuns(payload, limit = 12) {
     const rawConclusion = cleanText(record.conclusion, 40).toLowerCase();
     const sha = typeof record.head_sha === "string" && /^[a-f0-9]{40}$/i.test(record.head_sha)
       ? record.head_sha.toLowerCase() : "";
+    const createdAt = validDate(record.created_at);
+    const updatedAt = validDate(record.updated_at);
+    const startedAt = validDate(record.run_started_at);
+    const elapsedMs = rawStatus === "completed" && startedAt && updatedAt
+      ? Date.parse(updatedAt) - Date.parse(startedAt)
+      : NaN;
     runs.push({
       id,
       name: cleanText(record.name, 120) || "Workflow run",
@@ -101,8 +107,11 @@ export function normalizeWorkflowRuns(payload, limit = 12) {
       event: cleanText(record.event, 80),
       branch: cleanText(record.head_branch, 160),
       sha,
-      createdAt: validDate(record.created_at),
-      updatedAt: validDate(record.updated_at),
+      createdAt,
+      updatedAt,
+      elapsedSeconds: Number.isFinite(elapsedMs) && elapsedMs >= 0
+        ? Math.floor(elapsedMs / 1000)
+        : null,
       url,
     });
   }
@@ -117,6 +126,17 @@ export function normalizeWorkflowRuns(payload, limit = 12) {
     : Math.max(payload.workflow_runs.length, runs.length);
   return { totalCount, runs: runs.slice(0, safeLimit) };
 }
+export function formatWorkflowDuration(seconds) {
+  if (!Number.isSafeInteger(seconds) || seconds < 0) return "";
+  if (seconds < 60) return seconds + "s";
+  const minutes = Math.floor(seconds / 60);
+  const remainderSeconds = seconds % 60;
+  if (minutes < 60) return minutes + "m" + (remainderSeconds ? " " + remainderSeconds + "s" : "");
+  const hours = Math.floor(minutes / 60);
+  const remainderMinutes = minutes % 60;
+  return hours + "h" + (remainderMinutes ? " " + remainderMinutes + "m" : "");
+}
+
 export function getWorkflowRunStatus(run) {
   const status = cleanText(run?.status, 40).toLowerCase();
   if (status === "completed") {

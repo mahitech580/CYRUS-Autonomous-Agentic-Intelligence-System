@@ -229,6 +229,7 @@
 .workspace-ci-run-meta{display:grid;gap:5px;min-width:0;color:#91a7c8;font-size:9px}
 .workspace-ci-run-meta>a{display:inline-flex;align-items:center;gap:5px;width:max-content;max-width:100%;color:#a8efff;font:10px var(--mono);text-decoration:none}
 .workspace-ci-run-meta time{color:#9aafd0;font-size:9px;line-height:1.45}
+.workspace-ci-duration{color:#9aafd0;font-size:9px;white-space:nowrap}
 .workspace-ci-state{display:inline-flex;align-items:center;justify-self:start;gap:7px;min-width:88px;padding:5px 8px;border:1px solid rgba(126,158,219,.18);border-radius:999px;color:#b3c5e0;font-size:9px;white-space:nowrap}
 .workspace-ci-state>i{width:6px;height:6px;border-radius:50%;background:#8ea4c6}
 .workspace-ci-state.status-success{border-color:rgba(98,242,210,.23);color:#8cf2d9}

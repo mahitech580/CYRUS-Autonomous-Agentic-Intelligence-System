@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { filterWorkflowRuns, getWorkflowRunStatus, getWorkflowRunsErrorMessage, normalizeWorkflowRuns, parseGitHubRetryAfter, summarizeWorkflowRuns } from "./github-actions.js";
+import { filterWorkflowRuns, formatWorkflowDuration, getWorkflowRunStatus, getWorkflowRunsErrorMessage, normalizeWorkflowRuns, parseGitHubRetryAfter, summarizeWorkflowRuns } from "./github-actions.js";
 const run = (overrides = {}) => ({
   id: 101, name: "CYRUS checks", run_number: 986, status: "completed", conclusion: "success",
   event: "push", head_branch: "main", head_sha: "a".repeat(40),
@@ -35,6 +35,48 @@ test("sorts newest first and enforces a bounded page size", () => {
   assert.deepEqual(normalizeWorkflowRuns({total_count:2,workflow_runs:[older,newer]},1).runs.map(x=>x.id),[103]);
   assert.equal(normalizeWorkflowRuns({workflow_runs:[older,newer]},100).runs.length,2);
 });
+test("calculates elapsed time only for completed runs with valid timestamps", () => {
+  const completed = normalizeWorkflowRuns({ workflow_runs: [
+    run({
+      id: 301,
+      run_started_at: "2026-11-22T02:00:00Z",
+      updated_at: "2026-11-22T02:02:14Z",
+      html_url: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/301",
+    }),
+  ] }).runs[0];
+  assert.equal(completed.elapsedSeconds, 134);
+
+  const running = normalizeWorkflowRuns({ workflow_runs: [
+    run({
+      id: 302,
+      status: "in_progress",
+      conclusion: null,
+      run_started_at: "2026-11-22T02:00:00Z",
+      updated_at: "2026-11-22T02:02:14Z",
+      html_url: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/302",
+    }),
+  ] }).runs[0];
+  assert.equal(running.elapsedSeconds, null);
+
+  const invalidRange = normalizeWorkflowRuns({ workflow_runs: [
+    run({
+      id: 303,
+      run_started_at: "2026-11-22T02:03:00Z",
+      updated_at: "2026-11-22T02:02:00Z",
+      html_url: "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs/303",
+    }),
+  ] }).runs[0];
+  assert.equal(invalidRange.elapsedSeconds, null);
+  assert.equal(formatWorkflowDuration(0), "0s");
+  assert.equal(formatWorkflowDuration(59), "59s");
+  assert.equal(formatWorkflowDuration(60), "1m");
+  assert.equal(formatWorkflowDuration(134), "2m 14s");
+  assert.equal(formatWorkflowDuration(3600), "1h");
+  assert.equal(formatWorkflowDuration(3660), "1h 1m");
+  assert.equal(formatWorkflowDuration(-1), "");
+  assert.equal(formatWorkflowDuration(1.5), "");
+});
+
 test("maps completed conclusions and leaves unknown statuses explicit", () => {
   assert.equal(getWorkflowRunStatus({status:"in_progress"}),"in_progress");
   assert.equal(getWorkflowRunStatus({status:"completed",conclusion:"failure"}),"failure");

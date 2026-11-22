@@ -463,10 +463,12 @@ test("CI page reads live public Actions results without implying unverified chec
   assert.ok(ci.includes("normalizeWorkflowRuns(await response.json())"));
   assert.ok(ci.includes("cache:\"no-store\""));
   assert.ok(ci.includes("workflowStatusLabels"));
+  assert.ok(ci.includes("formatWorkflowDuration(run.elapsedSeconds)"));
   assert.ok(ci.includes("No token, rerun, cancel or repository-write permission is used."));
   assert.ok(helper.includes("safeRunUrl"));
   assert.ok(styles.includes(".workspace-ci-run"));
   assert.ok(styles.includes(".workspace-ci-state"));
+  assert.ok(styles.includes(".workspace-ci-duration"));
 });
 
 

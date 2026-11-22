@@ -6,7 +6,7 @@ import {
  Settings2, ShieldCheck, Sparkles, Terminal, Timer, Workflow
 } from "lucide-react";
 import { api } from "../lib/api.js";
-import { filterWorkflowRuns, getWorkflowRunStatus, getWorkflowRunsErrorMessage, normalizeWorkflowRuns, summarizeWorkflowRuns } from "../lib/github-actions.js";
+import { filterWorkflowRuns, formatWorkflowDuration, getWorkflowRunStatus, getWorkflowRunsErrorMessage, normalizeWorkflowRuns, summarizeWorkflowRuns } from "../lib/github-actions.js";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
 import { filterRunEvents, getCurrentRunActivity, getRunEventStatuses, isRunCompleted, isRunEventPage, mergeRunActivity, summarizeRunUsage } from "../lib/runs.js";
@@ -446,7 +446,7 @@ function CiPanel(){
    const runLabel=run.runNumber?"#"+run.runNumber:"#"+run.id;
    return <article className="workspace-ci-run" key={run.id}>
     <div className="workspace-ci-run-main"><a className="workspace-ci-run-title" href={run.url} target="_blank" rel="noreferrer">{run.name} <span>{runLabel}</span><ArrowUpRight size={12}/></a><small>{run.event||"Event unavailable"} · {run.branch||"Branch unavailable"}</small></div>
-    <div className="workspace-ci-run-meta">{run.sha?<a href={GITHUB_REPOSITORY_URL+"/commit/"+run.sha} target="_blank" rel="noreferrer" aria-label={"Open commit "+run.sha.slice(0,7)}><GitBranch size={12}/>{run.sha.slice(0,7)}</a>:<span>Commit unavailable</span>}{run.createdAt?<time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString()}</time>:<span>Time unavailable</span>}</div>
+    <div className="workspace-ci-run-meta">{run.sha?<a href={GITHUB_REPOSITORY_URL+"/commit/"+run.sha} target="_blank" rel="noreferrer" aria-label={"Open commit "+run.sha.slice(0,7)}><GitBranch size={12}/>{run.sha.slice(0,7)}</a>:<span>Commit unavailable</span>}{run.createdAt?<time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString()}</time>:<span>Time unavailable</span>}{run.elapsedSeconds!==null?<span className="workspace-ci-duration">Elapsed {formatWorkflowDuration(run.elapsedSeconds)}</span>:null}</div>
     <WorkflowRunState run={run}/>
    </article>;
   })}</div>:null}
