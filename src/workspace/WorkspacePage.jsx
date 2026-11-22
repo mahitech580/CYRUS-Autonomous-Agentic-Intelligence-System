@@ -6,6 +6,7 @@ import {
  Settings2, ShieldCheck, Sparkles, Terminal, Timer, Workflow
 } from "lucide-react";
 import { api } from "../lib/api.js";
+import { filterWorkflowRuns, getWorkflowRunStatus, normalizeWorkflowRuns, summarizeWorkflowRuns } from "../lib/github-actions.js";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
 import { filterRunEvents, getCurrentRunActivity, getRunEventStatuses, isRunCompleted, isRunEventPage, mergeRunActivity, summarizeRunUsage } from "../lib/runs.js";
@@ -383,6 +384,79 @@ function AccessPanel({config,apiState}){
  </div>;
 }
 
+
+const GITHUB_ACTIONS_API = "https://api.github.com/repos/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs?per_page=12";
+const GITHUB_ACTIONS_URL = "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions";
+const GITHUB_REPOSITORY_URL = "https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System";
+const workflowStatusLabels = {queued:"Queued",in_progress:"In progress",success:"Passed",failure:"Failed",cancelled:"Cancelled",timed_out:"Timed out",action_required:"Action required",skipped:"Skipped",neutral:"Neutral",stale:"Stale",completed:"Completed",waiting:"Waiting",pending:"Pending",requested:"Requested",unknown:"Unknown"};
+function WorkflowRunState({run}){
+ const status=getWorkflowRunStatus(run);
+ return <span className={"workspace-ci-state status-"+status} aria-label={"Workflow result: "+(workflowStatusLabels[status]||"Unknown")}><i aria-hidden="true"/>{workflowStatusLabels[status]||"Unknown"}</span>;
+}
+function CiPanel(){
+ const [snapshot,setSnapshot]=React.useState({runs:[],totalCount:0});
+ const [loading,setLoading]=React.useState(true);
+ const [error,setError]=React.useState("");
+ const [query,setQuery]=React.useState("");
+ const [statusFilter,setStatusFilter]=React.useState("all");
+ const [refreshKey,setRefreshKey]=React.useState(0);
+ const [updatedAt,setUpdatedAt]=React.useState("");
+ React.useEffect(()=>{
+  const controller=new AbortController();let active=true;
+  async function load(){
+   setLoading(true);setError("");
+   try{
+    const response=await fetch(GITHUB_ACTIONS_API,{headers:{Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},signal:controller.signal});
+    if(!response.ok){
+     const rateLimited=response.status===403&&response.headers?.get("x-ratelimit-remaining")==="0";
+     throw new Error(rateLimited?"GitHub's public API rate limit has been reached. Wait for the reset window or open Actions directly.":"GitHub Actions returned HTTP "+response.status+". Check the public repository or open Actions directly.");
+    }
+    const next=normalizeWorkflowRuns(await response.json());
+    if(!active)return;
+    setSnapshot(next);setUpdatedAt(new Date().toISOString());
+   }catch(cause){
+    if(!active||cause?.name==="AbortError")return;
+    setError(cause?.message||"Could not load public GitHub Actions history.");
+   }finally{if(active)setLoading(false);}
+  }
+  load();
+  return ()=>{active=false;controller.abort();};
+ },[refreshKey]);
+ const filtered=filterWorkflowRuns(snapshot.runs,query,statusFilter);
+ const summary=summarizeWorkflowRuns(snapshot.runs);
+ const latest=snapshot.runs[0];
+ const latestStatus=latest?(workflowStatusLabels[getWorkflowRunStatus(latest)]||"Unknown"):"—";
+ return <section className="workspace-ci-live" aria-busy={loading}>
+  <div className="workspace-ci-summary">
+   <article><span>Repository runs</span><strong>{snapshot.totalCount.toLocaleString()}</strong><small>GitHub API total</small></article>
+   <article><span>In progress</span><strong>{summary.inProgress}</strong><small>Within latest {snapshot.runs.length}</small></article>
+   <article><span>Queued</span><strong>{summary.queued}</strong><small>Within latest {snapshot.runs.length}</small></article>
+   <article><span>Failed</span><strong>{summary.failed}</strong><small>Failure or timeout · latest {snapshot.runs.length}</small></article>
+  </div>
+  <div className="workspace-ci-toolbar">
+   <label className="workspace-ci-search"><Search size={15} aria-hidden="true"/><input type="search" value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="Search workflow, branch, event or commit" aria-label="Search workflow runs"/></label>
+   <label className="workspace-ci-filter"><span className="workspace-sr-only">Filter workflow runs by status</span><select value={statusFilter} onChange={(event)=>setStatusFilter(event.target.value)} aria-label="Filter workflow runs by status"><option value="all">All results</option><option value="in_progress">In progress</option><option value="queued">Queued</option><option value="success">Passed</option><option value="failure">Failed</option><option value="cancelled">Cancelled</option><option value="other">Other states</option></select></label>
+   <button type="button" className="workspace-ci-refresh" onClick={()=>setRefreshKey((value)=>value+1)} disabled={loading}><RefreshCw size={13} className={loading?"spin-icon":""}/>{loading?"Refreshing":"Refresh"}</button>
+   <a className="button-quiet workspace-ci-actions-link" href={GITHUB_ACTIONS_URL} target="_blank" rel="noreferrer">Open GitHub Actions <ArrowUpRight size={13}/></a>
+  </div>
+  <div className="workspace-ci-updated" role="status" aria-live="polite"><span>{loading?"Loading public workflow history…":"Showing "+filtered.length+" of "+snapshot.runs.length+" recent runs · latest result: "+latestStatus}</span>{updatedAt?<time dateTime={updatedAt}>Updated {new Date(updatedAt).toLocaleTimeString()}</time>:null}</div>
+  {error?<div className="notice-strip" role="alert"><Activity size={15}/><span>{error} <a href={GITHUB_ACTIONS_URL} target="_blank" rel="noreferrer">Open Actions</a></span></div>:null}
+  {loading&&!snapshot.runs.length?<div className="workspace-empty"><Activity size={22}/><strong>Loading GitHub Actions history</strong><span>Reading the latest public workflow runs for the main repository.</span></div>:null}
+  {!loading&&!error&&!snapshot.runs.length?<div className="workspace-empty"><Workflow size={22}/><strong>No workflow runs were returned</strong><span>GitHub returned an empty public run list. Open Actions to inspect the repository directly.</span><a className="button-outline" href={GITHUB_ACTIONS_URL} target="_blank" rel="noreferrer">Open GitHub Actions <ArrowUpRight size={13}/></a></div>:null}
+  {!loading&&error&&!snapshot.runs.length?<div className="workspace-empty"><Activity size={22}/><strong>Live CI history is unavailable</strong><span>Retry after checking connectivity or the public API rate limit.</span><button type="button" className="button-outline" onClick={()=>setRefreshKey((value)=>value+1)}>Retry request</button></div>:null}
+  {snapshot.runs.length>0&&!filtered.length?<div className="workspace-empty"><Search size={22}/><strong>No workflow runs match these filters</strong><span>Try another search term or clear the selected result filter.</span><button type="button" className="button-outline" onClick={()=>{setQuery("");setStatusFilter("all");}}>Clear filters</button></div>:null}
+  {filtered.length?<div className="workspace-ci-run-list">{filtered.map((run)=>{
+   const runLabel=run.runNumber?"#"+run.runNumber:"#"+run.id;
+   return <article className="workspace-ci-run" key={run.id}>
+    <div className="workspace-ci-run-main"><a className="workspace-ci-run-title" href={run.url} target="_blank" rel="noreferrer">{run.name} <span>{runLabel}</span><ArrowUpRight size={12}/></a><small>{run.event||"Event unavailable"} · {run.branch||"Branch unavailable"}</small></div>
+    <div className="workspace-ci-run-meta">{run.sha?<a href={GITHUB_REPOSITORY_URL+"/commit/"+run.sha} target="_blank" rel="noreferrer" aria-label={"Open commit "+run.sha.slice(0,7)}><GitBranch size={12}/>{run.sha.slice(0,7)}</a>:<span>Commit unavailable</span>}{run.createdAt?<time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString()}</time>:<span>Time unavailable</span>}</div>
+    <WorkflowRunState run={run}/>
+   </article>;
+  })}</div>:null}
+  <p className="workspace-footnote">Read-only public GitHub data. Only the latest {snapshot.runs.length} returned records are summarized; the repository total is shown separately. No token, rerun, cancel or repository-write permission is used. Unauthenticated API requests may be rate-limited.</p>
+ </section>;
+}
+
 function PageBody({route,runs,runStats,config,apiState,agents,openRun,onSelectTemplate,onRefreshRuntime}){
  if(route.kind==="launchpad")return <TemplateGrid onSelectTemplate={onSelectTemplate}/>;
  if(route.kind==="prompt-library")return <PromptLibraryPanel onSelectTemplate={onSelectTemplate}/>;
@@ -401,13 +475,7 @@ function PageBody({route,runs,runStats,config,apiState,agents,openRun,onSelectTe
  if(route.kind==="access")return <AccessPanel config={config} apiState={apiState}/>;
  if(route.kind==="appearance")return <AppearancePanel/>;
  if(route.kind==="deployment")return <div className="workspace-deployment-note"><div className="workspace-runtime-banner"><span className="runtime-signal"/><div><strong>Verify this deployment with the provider</strong><small>A configured URL does not prove that the latest deployment is ready or live.</small></div></div><a className="button-outline" href={route.target==="api"?"https://vercel.com/mahendra8/cyrus-api":"https://vercel.com/mahendra8/cyrus-workspace"} target="_blank" rel="noreferrer">Open Vercel project <ArrowUpRight size={13}/></a><a className="button-outline" href={route.target==="api"?"https://cyrus-api-mahendra8.vercel.app/docs":"https://cyrus-workspace-mahendra8.vercel.app"} target="_blank" rel="noreferrer">Open configured URL <ArrowUpRight size={13}/></a></div>;
- if(route.kind==="ci")return <div className="workspace-ci-panel" aria-label="Configured CI checks">
-  <div className="workspace-ci-step"><span>01</span><div><strong>Frontend tests and production build</strong><small>Configured Node tests, design-system assertions and Vite production output.</small></div><span className="workspace-ci-step-state">Configured</span></div>
-  <div className="workspace-ci-step"><span>02</span><div><strong>Backend tests</strong><small>Configured API, workflow orchestration, security and worker regression tests.</small></div><span className="workspace-ci-step-state">Configured</span></div>
-  <div className="workspace-ci-step"><span>03</span><div><strong>Container hardening and smoke test</strong><small>Configured Compose exposure checks and a non-root API image smoke test.</small></div><span className="workspace-ci-step-state">Configured</span></div>
-  <a className="button-outline" href="https://github.com/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions" target="_blank" rel="noreferrer">Open live Actions history <ArrowUpRight size={13}/></a>
-  <p className="workspace-footnote">These rows describe configured checks, not current pass/fail results. Open Actions and select the exact commit to verify its outcome.</p>
- </div>;
+ if(route.kind==="ci")return <CiPanel/>;
  return null;
 }
 function PageSection({section}){

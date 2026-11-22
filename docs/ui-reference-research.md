@@ -28,6 +28,19 @@ Reviewed on 2026-10-28 to guide interface improvements for the CYRUS Engineering
 6. **Inspectability comes before decorative telemetry.** Run status, persisted stage artifacts, and execution events are more valuable than invented activity charts or synthetic percentages.
 7. **Readable at desktop and mobile sizes.** Navigation and run details stay responsive, keyboard focus remains visible, and reduced-motion preferences remain honored.
 
+## Live CI run view (22 November 2026)
+
+The Delivery / CI pipeline destination reads the public repository's latest GitHub Actions workflow-run records instead of presenting configured checks as though they were current results.
+
+- Data source: [GitHub REST API — list workflow runs for a repository](https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-repository).
+- Request: \`GET /repos/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs?per_page=12\`.
+- The repository is public, so this read-only endpoint can be queried without a browser token. No GitHub credential or write permission is stored in the frontend.
+- The view labels the latest returned window separately from the repository-wide \`total_count\`, links each result to its exact Actions run, and links valid commit SHAs to the corresponding commit.
+- Search and status filters operate only on the returned records. Refresh, loading, empty, malformed-response, network-error and unauthenticated rate-limit states are explicit.
+- The UI does not rerun or cancel workflows, and it does not claim a configured workflow is passing. A result is marked passed only when GitHub returns a completed run with a \`success\` conclusion.
+
+Unauthenticated public API requests are subject to GitHub's rate limits. If the API is unavailable, the page keeps the last successfully loaded snapshot and links to the repository's Actions history.
+
 ## Next product-quality priorities
 
 - Add a first-run walkthrough after production readiness is configured, including one small example run with user consent and real provider output.

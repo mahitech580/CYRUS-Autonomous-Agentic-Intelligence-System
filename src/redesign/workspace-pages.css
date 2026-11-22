@@ -196,3 +196,49 @@
 .workspace-activity-time time{font-variant-numeric:tabular-nums}
 .workspace-activity-panel .notice-strip a{color:#a7efff;text-decoration:underline;text-underline-offset:3px}
 @media(max-width:740px){.workspace-activity-toolbar{grid-template-columns:minmax(0,1fr) minmax(110px,.6fr)}.workspace-activity-search{grid-column:1/-1}.workspace-activity-filter{grid-column:1/-1}.workspace-activity-refresh{grid-column:1/-1}.workspace-activity-row{grid-template-columns:8px minmax(0,1fr);align-items:start}.workspace-activity-time{grid-column:2;justify-content:space-between}.workspace-activity-main-top{align-items:flex-start}}
+
+
+/* Live, read-only GitHub Actions history for the delivery workspace. */
+.workspace-ci-live{display:grid;gap:12px;min-width:0}
+.workspace-ci-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.workspace-ci-summary article{display:grid;gap:5px;min-width:0;padding:12px;border:1px solid rgba(126,158,219,.15);border-radius:11px;background:rgba(9,20,40,.56)}
+.workspace-ci-summary article>span{color:#91a7c8;font-size:9px}
+.workspace-ci-summary article>strong{color:#e8f2ff;font:600 20px var(--mono);font-variant-numeric:tabular-nums}
+.workspace-ci-summary article>small{color:#7f95b7;font-size:8px;line-height:1.45}
+.workspace-ci-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 160px auto auto;align-items:center;gap:8px}
+.workspace-ci-search,.workspace-ci-filter{display:flex;align-items:center;gap:8px;min-width:0;min-height:38px;padding:0 10px;border:1px solid rgba(126,158,219,.2);border-radius:10px;background:rgba(8,18,36,.7);color:#8ea6ca}
+.workspace-ci-search:focus-within,.workspace-ci-filter:focus-within{border-color:rgba(103,232,249,.55);box-shadow:0 0 0 3px rgba(103,232,249,.09)}
+.workspace-ci-search input,.workspace-ci-filter select{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#dceaff;font:10px var(--mono)}
+.workspace-ci-search input::placeholder{color:#7186a9}
+.workspace-ci-filter select option{background:#0d1528;color:#e6f0ff}
+.workspace-ci-refresh{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 11px;border:1px solid rgba(103,232,249,.24);border-radius:10px;background:rgba(103,232,249,.07);color:#a8efff;font-size:10px;white-space:nowrap}
+.workspace-ci-refresh:disabled{opacity:.48;cursor:not-allowed}
+.workspace-ci-refresh:focus-visible,.workspace-ci-actions-link:focus-visible,.workspace-ci-run a:focus-visible{outline:2px solid var(--accent-cyan);outline-offset:3px}
+.workspace-ci-actions-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.workspace-ci-updated{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;color:#8ea4c6;font-size:9px}
+.workspace-ci-updated time{color:#c2d6f2;font-variant-numeric:tabular-nums}
+.workspace-ci-live .notice-strip a{color:#a7efff;text-decoration:underline;text-underline-offset:3px}
+.workspace-ci-run-list{display:grid;gap:7px;min-width:0}
+.workspace-ci-run{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(130px,.8fr) auto;align-items:center;gap:12px;min-width:0;padding:12px;border:1px solid rgba(126,158,219,.15);border-radius:11px;background:rgba(9,20,40,.5);transition:border-color .16s ease,background .16s ease}
+.workspace-ci-run:hover{border-color:rgba(103,232,249,.28);background:rgba(15,34,58,.7)}
+.workspace-ci-run-main{display:grid;gap:5px;min-width:0}
+.workspace-ci-run-title{display:inline-flex;align-items:center;gap:6px;min-width:0;width:max-content;max-width:100%;color:#e5efff;font-size:11px;font-weight:650;text-decoration:none}
+.workspace-ci-run-title span{color:#91a7c8;font:9px var(--mono)}
+.workspace-ci-run-title svg{flex:0 0 auto;color:#91a7c8}
+.workspace-ci-run-main>small{overflow-wrap:anywhere;color:#9aafd0;font-size:9px;line-height:1.5}
+.workspace-ci-run-meta{display:grid;gap:5px;min-width:0;color:#91a7c8;font-size:9px}
+.workspace-ci-run-meta>a{display:inline-flex;align-items:center;gap:5px;width:max-content;max-width:100%;color:#a8efff;font:10px var(--mono);text-decoration:none}
+.workspace-ci-run-meta time{color:#9aafd0;font-size:9px;line-height:1.45}
+.workspace-ci-state{display:inline-flex;align-items:center;justify-self:start;gap:7px;min-width:88px;padding:5px 8px;border:1px solid rgba(126,158,219,.18);border-radius:999px;color:#b3c5e0;font-size:9px;white-space:nowrap}
+.workspace-ci-state>i{width:6px;height:6px;border-radius:50%;background:#8ea4c6}
+.workspace-ci-state.status-success{border-color:rgba(98,242,210,.23);color:#8cf2d9}
+.workspace-ci-state.status-success>i{background:#62f2d2}
+.workspace-ci-state.status-failure,.workspace-ci-state.status-timed_out{border-color:rgba(251,113,133,.28);color:#ff9aaa}
+.workspace-ci-state.status-failure>i,.workspace-ci-state.status-timed_out>i{background:#fb7185}
+.workspace-ci-state.status-in_progress{border-color:rgba(103,232,249,.25);color:#a8efff}
+.workspace-ci-state.status-in_progress>i{background:#67e8f9}
+.workspace-ci-state.status-queued,.workspace-ci-state.status-waiting,.workspace-ci-state.status-pending,.workspace-ci-state.status-requested{color:#c4cfe2}
+.workspace-ci-state.status-cancelled{color:#aebbd0}
+@media(max-width:900px){.workspace-ci-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.workspace-ci-toolbar{grid-template-columns:minmax(0,1fr) 160px auto}.workspace-ci-actions-link{grid-column:1/-1;justify-self:start}}
+@media(max-width:740px){.workspace-ci-toolbar{grid-template-columns:minmax(0,1fr) minmax(120px,.65fr)}.workspace-ci-search{grid-column:1/-1}.workspace-ci-filter{grid-column:1/-1}.workspace-ci-refresh{grid-column:1/-1}.workspace-ci-actions-link{grid-column:1/-1}.workspace-ci-run{grid-template-columns:minmax(0,1fr) auto;align-items:start}.workspace-ci-run-meta{grid-column:1/-1;display:flex;justify-content:space-between;flex-wrap:wrap}.workspace-ci-state{grid-column:2;grid-row:1;align-self:start}}
+@media(max-width:420px){.workspace-ci-summary article{padding:10px}.workspace-ci-summary article>strong{font-size:18px}.workspace-ci-updated{align-items:flex-start;flex-direction:column}.workspace-ci-run{grid-template-columns:minmax(0,1fr)}.workspace-ci-state{grid-column:1;grid-row:auto}.workspace-ci-run-meta{grid-column:1}}

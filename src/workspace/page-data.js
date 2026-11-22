@@ -292,7 +292,7 @@ export const WORKSPACE_PAGE_CONTENT = Object.freeze({
   "ci-pipeline": {
     "eyebrow": "DELIVERY / AUTOMATED CHECKS",
     "title": "CI pipeline",
-    "description": "Review the repository's automated checks. A passing CI run validates the tested commit; it does not prove external runtime credentials or a live worker are configured.",
+    "description": "Review the latest public GitHub Actions run records and open the exact workflow result. A passing CI run validates the tested commit; it does not prove external runtime credentials or a live worker are configured.",
     "image": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1600&q=80",
     "sections": [
       {

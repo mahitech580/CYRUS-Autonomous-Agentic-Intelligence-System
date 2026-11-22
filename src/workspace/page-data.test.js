@@ -65,7 +65,7 @@ test("previously shared route kinds now render dedicated workspace experiences",
     ["access", "AccessPanel"],
     ["appearance", "AppearancePanel"],
     ["deployment", "workspace-deployment-note"],
-    ["ci", "workspace-ci-panel"],
+    ["ci", "CiPanel"],
   ];
   const pageBodyStart = source.indexOf("function PageBody(");
   const pageBodyEnd = source.indexOf("function PageSection(", pageBodyStart);
@@ -145,4 +145,28 @@ test("activity stream uses retained per-run events with bounded loading and acti
   assert.ok(source.includes('aria-label="Filter activity by status"'));
   assert.ok(source.includes('onClick={()=>openRun({id:event.runId,goal:event.goal,status:event.runStatus})}'));
   assert.ok(pageData.includes("persisted stage events across up to eight of the latest loaded workflows"));
+});
+
+
+test("CI destination renders live, read-only GitHub Actions run evidence", async () => {
+  const source = await readFile(new URL("./WorkspacePage.jsx", import.meta.url), "utf8");
+  const helper = await readFile(new URL("../lib/github-actions.js", import.meta.url), "utf8");
+  assert.ok(source.includes('if(route.kind==="ci")return <CiPanel/>'));
+  assert.ok(source.includes("GITHUB_ACTIONS_API"));
+  assert.ok(source.includes("normalizeWorkflowRuns(await response.json())"));
+  assert.ok(source.includes("signal:controller.signal"));
+  assert.ok(source.includes('aria-label="Search workflow runs"'));
+  assert.ok(source.includes('aria-label="Filter workflow runs by status"'));
+  assert.ok(source.includes("response.status===403"));
+  assert.ok(helper.includes("actions/runs/"));
+  assert.ok(!source.includes("workspace-ci-step-state"), "configured checks must not be presented as live pass/fail results");
+});
+
+test("live CI layout exposes responsive controls and visible keyboard focus", async () => {
+  const styles = await readFile(new URL("../redesign/workspace-pages.css", import.meta.url), "utf8");
+  assert.ok(styles.includes(".workspace-ci-summary"));
+  assert.ok(styles.includes(".workspace-ci-toolbar"));
+  assert.ok(styles.includes(".workspace-ci-run a:focus-visible"));
+  assert.ok(styles.includes("@media(max-width:740px)"));
+  assert.ok(styles.includes("@media(max-width:420px)"));
 });
