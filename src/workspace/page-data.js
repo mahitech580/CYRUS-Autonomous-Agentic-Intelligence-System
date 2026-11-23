@@ -188,7 +188,7 @@ export const WORKSPACE_PAGE_CONTENT = Object.freeze({
   "review-history": {
     "eyebrow": "QUALITY / DECISION RECORDS",
     "title": "Review history",
-    "description": "See approved and rejected workflow decisions. Reviewer notes and complete artifacts remain attached to each saved run and can be inspected in its detail drawer.",
+    "description": "Browse every saved approved or rejected workflow decision from the protected API. Search and filter loaded decisions, paginate older records, and open a run to inspect its retained review event and artifacts.",
     "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=85",
     "sections": [
       {

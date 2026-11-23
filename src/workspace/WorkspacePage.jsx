@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { filterWorkflowRuns, formatWorkflowDuration, getWorkflowRunStatus, getWorkflowRunsErrorMessage, normalizeWorkflowRuns, summarizeWorkflowRuns } from "../lib/github-actions.js";
+import { getRunPageOffset, mapRunRecord } from "../lib/runs.js";
+import { filterReviewHistory, getReviewDecision, mergeReviewHistoryRecords, normalizeReviewHistoryPage } from "../lib/review-history.js";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
 import { filterRunEvents, getCurrentRunActivity, getRunEventStatuses, isRunCompleted, isRunEventPage, mergeRunActivity, summarizeRunUsage } from "../lib/runs.js";
@@ -14,6 +16,8 @@ import { filterRunEvents, getCurrentRunActivity, getRunEventStatuses, isRunCompl
 const iconMap={Activity,Bot,Boxes,Braces,CheckCircle2,CircleDot,Clock3,Code2,Command,Cpu,Database,FileCode2,GitBranch,GitPullRequest,Globe2,LayoutDashboard,LockKeyhole,Network,Radio,Rocket,Search,Settings2,ShieldCheck,Sparkles,Terminal,Timer,Workflow};
 const iconFor=(name)=>iconMap[name]||Activity;
 const statusText={queued:"Queued",running:"Running",review:"Needs review",approved:"Approved",rejected:"Rejected",completed:"Completed",failed:"Failed",cancelled:"Cancelled"};
+const REVIEW_HISTORY_PAGE_SIZE=15;
+const REVIEW_HISTORY_STATUSES=["approved","rejected"];
 
 function Metric({label,value,note,icon:Icon,tone="cyan"}){
  return <article className={"workspace-page-metric metric-tone-"+tone}><span className="workspace-page-metric-icon"><Icon size={17}/></span><div><span className="workspace-page-metric-label">{label}</span><strong>{value}</strong><small>{note}</small></div></article>;
@@ -39,6 +43,206 @@ function AgentPanel({route,agents}){
  const Icon=iconFor(route.icon);
  return <div className="workspace-agent-detail"><div className="workspace-agent-profile"><span className={"workspace-agent-avatar tone-"+agent.color}><Icon size={25}/></span><div><div className="eyebrow">SPECIALIST / STAGE {String(stage).padStart(2,"0")} OF 07</div><h2>{agent.name}</h2><p>{agent.role}</p></div><span className="tag-soft">FIXED PIPELINE ROLE</span></div><div className="workspace-agent-mission"><span className="eyebrow">MISSION</span><p>{agent.mission||agent.desc}</p></div><div className="workspace-page-section-heading"><div><div className="eyebrow">CAPABILITY SCOPE</div><h2>What this specialist contributes</h2><p>Capabilities describe the intended artifact, not a promise that external tools are connected.</p></div></div><div className="workspace-capability-grid">{(agent.capabilities||[]).map((item)=><div className="workspace-capability" key={item}><CheckCircle2 size={15}/><span>{item}</span></div>)}</div><div className="workspace-agent-footer"><a href={getWorkspaceHref("agents")} className="button-outline">All specialists <ArrowRight size={13}/></a><a href={getWorkspaceHref("runs")} className="button-primary">Open workflow history <ArrowRight size={13}/></a></div></div>;
 }
+
+function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
+ const [records,setRecords]=React.useState([]);
+ const [totals,setTotals]=React.useState({approved:null,rejected:null});
+ const [offsets,setOffsets]=React.useState({approved:0,rejected:0});
+ const [query,setQuery]=React.useState("");
+ const [decisionFilter,setDecisionFilter]=React.useState("all");
+ const [loading,setLoading]=React.useState(true);
+ const [loadingMore,setLoadingMore]=React.useState(false);
+ const [error,setError]=React.useState("");
+ const [moreError,setMoreError]=React.useState("");
+ const [refreshKey,setRefreshKey]=React.useState(0);
+ const pageController=React.useRef(null);
+
+ React.useEffect(()=>{
+  pageController.current?.abort();
+  const controller=new AbortController();
+  pageController.current=controller;
+  let active=true;
+  if(apiState!=="connected"){
+   setRecords([]);
+   setTotals({approved:null,rejected:null});
+   setOffsets({approved:0,rejected:0});
+   setLoading(apiState==="checking");
+   setError(apiState==="unavailable"?"The CYRUS API is unavailable. Reconnect the workspace to load saved review decisions.":"");
+   setMoreError("");
+   return ()=>{
+    active=false;
+    controller.abort();
+    if(pageController.current===controller)pageController.current=null;
+   };
+  }
+
+  setLoading(true);
+  setError("");
+  setMoreError("");
+  setRecords([]);
+  setTotals({approved:null,rejected:null});
+  setOffsets({approved:0,rejected:0});
+
+  async function loadInitial(){
+   const results=await Promise.allSettled(REVIEW_HISTORY_STATUSES.map((status)=>api.runs({
+    limit:REVIEW_HISTORY_PAGE_SIZE,
+    offset:0,
+    status,
+    signal:controller.signal
+   })));
+   if(!active||controller.signal.aborted)return;
+   const incoming=[];
+   const nextTotals={approved:null,rejected:null};
+   const nextOffsets={approved:0,rejected:0};
+   const failures=[];
+   results.forEach((result,index)=>{
+    const status=REVIEW_HISTORY_STATUSES[index];
+    if(result.status==="fulfilled"){
+     try{
+      const page=normalizeReviewHistoryPage(result.value,status);
+      incoming.push(...page.items.map(mapRunRecord));
+      nextTotals[status]=page.total;
+      nextOffsets[status]=getRunPageOffset(result.value,0,page.pageLength);
+     }catch(cause){failures.push({status,error:cause});}
+    }else if(result.reason?.name!=="AbortError"){
+     failures.push({status,error:result.reason});
+    }
+   });
+   setRecords(mergeReviewHistoryRecords([],incoming));
+   setTotals(nextTotals);
+   setOffsets(nextOffsets);
+   if(failures.length){
+    const unauthorized=failures.find((item)=>item.error?.status===401);
+    if(unauthorized)onUnauthorized?.(unauthorized.error);
+    setError(incoming.length
+     ?"Some review decisions could not be loaded. The history may be incomplete until the failed status query is retried."
+     :unauthorized
+      ?"Workspace access is required to inspect saved review decisions."
+      :failures[0].error?.message||"Could not load saved review decisions.");
+   }else setError("");
+   setLoading(false);
+  }
+
+  loadInitial().catch((cause)=>{
+   if(!active||cause?.name==="AbortError")return;
+   setError(cause?.message||"Could not load saved review decisions.");
+   setLoading(false);
+  });
+  return ()=>{
+   active=false;
+   controller.abort();
+   if(pageController.current===controller)pageController.current=null;
+  };
+ },[apiState,refreshToken,refreshKey]);
+
+ async function loadMore(){
+  if(loading||loadingMore||apiState!=="connected")return;
+  const statuses=REVIEW_HISTORY_STATUSES.filter((status)=>
+   Number.isSafeInteger(totals[status])&&offsets[status]<totals[status]
+  );
+  if(!statuses.length)return;
+  const controller=new AbortController();
+  pageController.current?.abort();
+  pageController.current=controller;
+  setLoadingMore(true);
+  setMoreError("");
+  try{
+   const results=await Promise.allSettled(statuses.map((status)=>api.runs({
+    limit:REVIEW_HISTORY_PAGE_SIZE,
+    offset:offsets[status],
+    status,
+    signal:controller.signal
+   })));
+   if(controller.signal.aborted)return;
+   const incoming=[];
+   const nextTotals={...totals};
+   const nextOffsets={...offsets};
+   const failures=[];
+   results.forEach((result,index)=>{
+    const status=statuses[index];
+    if(result.status==="fulfilled"){
+     try{
+      const page=normalizeReviewHistoryPage(result.value,status);
+      incoming.push(...page.items.map(mapRunRecord));
+      nextTotals[status]=page.total;
+      nextOffsets[status]=getRunPageOffset(result.value,offsets[status],page.pageLength);
+     }catch(cause){failures.push({status,error:cause});}
+    }else if(result.reason?.name!=="AbortError"){
+     failures.push({status,error:result.reason});
+    }
+   });
+   setRecords((current)=>mergeReviewHistoryRecords(current,incoming));
+   setTotals(nextTotals);
+   setOffsets(nextOffsets);
+   if(failures.length){
+    const unauthorized=failures.find((item)=>item.error?.status===401);
+    if(unauthorized)onUnauthorized?.(unauthorized.error);
+    setMoreError("Could not load older "+failures.map((item)=>item.status).join(" and ")+" decisions. Retry to continue.");
+   }else setMoreError("");
+  }catch(cause){
+   if(cause?.name!=="AbortError")setMoreError(cause?.message||"Could not load older review decisions.");
+  }finally{
+   if(pageController.current===controller){
+    pageController.current=null;
+    setLoadingMore(false);
+   }
+  }
+ }
+
+ const filtered=filterReviewHistory(records,query,decisionFilter);
+ const hasMore=REVIEW_HISTORY_STATUSES.some((status)=>
+  Number.isSafeInteger(totals[status])&&offsets[status]<totals[status]
+ );
+ const totalDecisions=REVIEW_HISTORY_STATUSES.every((status)=>Number.isSafeInteger(totals[status]))
+  ?totals.approved+totals.rejected
+  :null;
+ return <section className="workspace-review-history" aria-busy={loading||loadingMore}>
+  <div className="workspace-review-history-summary">
+   <article><span>APPROVED</span><strong>{totals.approved??"—"}</strong><small>Persisted decisions</small></article>
+   <article><span>REJECTED</span><strong>{totals.rejected??"—"}</strong><small>Persisted decisions</small></article>
+   <article><span>ALL DECISIONS</span><strong>{totalDecisions??"—"}</strong><small>Backend-reported total</small></article>
+  </div>
+  <div className="workspace-review-history-toolbar">
+   <label className="workspace-review-history-search"><Search size={15} aria-hidden="true"/><input type="search" value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="Search run ID or engineering goal" aria-label="Search review decisions"/></label>
+   <label className="workspace-review-history-filter"><span className="workspace-sr-only">Filter review decisions</span><select value={decisionFilter} onChange={(event)=>setDecisionFilter(event.target.value)} aria-label="Filter review decisions"><option value="all">All decisions</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></label>
+   <button type="button" className="workspace-review-history-refresh" onClick={()=>setRefreshKey((value)=>value+1)} disabled={loading||loadingMore||apiState!=="connected"}><RefreshCw size={13} className={loading?"spin-icon":""}/>{loading?"Loading":"Refresh history"}</button>
+   <a className="workspace-review-history-queue" href={getWorkspaceHref("review")}>Open pending queue <ArrowRight size={13}/></a>
+  </div>
+  <div className="workspace-review-history-meta" role="status" aria-live="polite">
+   <span>{loading?"Loading saved decisions…":"Showing "+filtered.length+" of "+records.length+" loaded decisions"}</span>
+   <span>{totalDecisions==null?"Complete decision total unavailable":"Backend reports "+totalDecisions+" approved and rejected decisions"}</span>
+  </div>
+  {error&&records.length?<div className="notice-strip" role="alert"><ShieldCheck size={15}/><span>{error} <a href={getWorkspaceHref("settings-access")}>Review workspace access</a></span></div>:null}
+  {loading&&!records.length?<div className="workspace-empty" role="status"><RefreshCw size={21} className="spin-icon"/><strong>Loading review history</strong><span>Reading approved and rejected decisions from the protected workflow API.</span></div>:null}
+  {!loading&&error&&!records.length?<div className="workspace-empty" role="alert"><ShieldCheck size={22}/><strong>Review history unavailable</strong><span>{error}</span><button type="button" className="button-outline" onClick={()=>setRefreshKey((value)=>value+1)}>Try again</button></div>:null}
+  {!loading&&!error&&!records.length?<div className="workspace-empty"><FileCode2 size={24}/><strong>No review decisions recorded</strong><span>Approved and rejected workflows will appear here after a human decision is saved.</span><a className="button-outline" href={getWorkspaceHref("review")}>Open pending review queue <ArrowRight size={13}/></a></div>:null}
+  {!loading&&records.length>0&&!filtered.length?<div className="workspace-empty"><Search size={22}/><strong>No decisions match these filters</strong><span>Search covers loaded decisions. Load older records to expand the searchable history.</span><button type="button" className="button-outline" onClick={()=>{setQuery("");setDecisionFilter("all");}}>Clear filters</button></div>:null}
+  {filtered.length?<div className="workspace-review-history-list">{filtered.map((run)=>{
+   const decision=getReviewDecision(run);
+   const DecisionIcon=decision==="approved"?CheckCircle2:CircleDot;
+   const dateValue=run.updated_at||run.created_at;
+   const parsedDate=Date.parse(dateValue||"");
+   const displayDate=Number.isFinite(parsedDate)?new Date(parsedDate).toLocaleString():run.time||"Time unavailable";
+   return <button type="button" className="workspace-review-history-row" key={run.id} onClick={()=>openRun(run)} aria-label={"Open workflow "+run.id+" and inspect its "+decision+" decision"}>
+    <span className={"workspace-review-history-icon decision-"+decision}><DecisionIcon size={17}/></span>
+    <span className="workspace-review-history-main">
+     <span className="workspace-review-history-run-id">{run.id}</span>
+     <strong>{run.goal||"Untitled workflow"}</strong>
+     <small>{Number(run.stage_count)||0} stages · {Number(run.event_count)||0} retained events</small>
+    </span>
+    <span className="workspace-review-history-row-meta">
+     <span className={"status-pill status-"+decision}>{decision==="approved"?"Approved":"Rejected"}</span>
+     <time dateTime={Number.isFinite(parsedDate)?new Date(parsedDate).toISOString():undefined}>{displayDate}</time>
+    </span>
+    <ArrowRight size={15} className="workspace-review-history-arrow"/>
+   </button>;
+  })}</div>:null}
+  {moreError?<p className="inline-help" role="alert">{moreError}</p>:null}
+  {hasMore?<div className="workspace-review-history-pagination" aria-live="polite"><span>Loaded {records.length} decision records{totalDecisions==null?"":" of "+totalDecisions}.</span><button type="button" className="button-outline" onClick={loadMore} disabled={loadingMore||loading}><RefreshCw size={13} className={loadingMore?"spin-icon":""}/>{loadingMore?"Loading older decisions":moreError?"Retry loading older decisions":"Load older decisions"}</button></div>:records.length&&!loading?<p className="workspace-review-history-complete">All currently reported decision records are loaded.</p>:null}
+  <p className="workspace-review-history-note">The list uses persisted workflow status, not a separate audit service. Open a decision to inspect its retained review event, reviewer note and saved artifacts. Approval never triggers a deployment.</p>
+ </section>;
+}
+
 function RunList({runs,route,openRun}){
  const isActive=route.filter==="active";
  const isAll=route.filter==="all";
@@ -454,14 +658,14 @@ function CiPanel(){
  </section>;
 }
 
-function PageBody({route,runs,runStats,config,apiState,agents,openRun,onSelectTemplate,onRefreshRuntime}){
+function PageBody({route,runs,runStats,config,apiState,agents,openRun,onSelectTemplate,onRefreshRuntime,onUnauthorized,refreshToken}){
  if(route.kind==="launchpad")return <TemplateGrid onSelectTemplate={onSelectTemplate}/>;
  if(route.kind==="prompt-library")return <PromptLibraryPanel onSelectTemplate={onSelectTemplate}/>;
  if(route.kind==="agent")return <AgentPanel route={route} agents={agents}/>;
  if(route.kind==="run-list")return <RunList route={route} runs={runs} openRun={openRun}/>;
  if(route.kind==="activity")return <ActivityPanel runs={runs} openRun={openRun} apiState={apiState} config={config}/>;
  if(route.kind==="observability")return <ObservabilityPanel runs={runs} config={config} apiState={apiState}/>;
- if(route.kind==="review-history")return <RunList route={{filter:"history"}} runs={runs.filter((run)=>["approved","rejected"].includes(run.approval_status)||["approved","rejected"].includes(run.status))} openRun={openRun}/>;
+ if(route.kind==="review-history")return <ReviewHistoryPanel apiState={apiState} openRun={openRun} onUnauthorized={onUnauthorized} refreshToken={refreshToken}/>;
  if(route.kind==="integration")return <IntegrationPanel route={route} config={config} apiState={apiState}/>;
  if(route.kind==="queue")return <QueuePanel config={config} apiState={apiState} onRefreshRuntime={onRefreshRuntime}/>;
  if(route.kind==="usage")return <UsagePanel runs={runs} openRun={openRun}/>;
@@ -478,7 +682,7 @@ function PageBody({route,runs,runStats,config,apiState,agents,openRun,onSelectTe
 function PageSection({section}){
  return <section className="workspace-page-section"><div className="workspace-page-section-heading"><div><div className="eyebrow">WORKSPACE GUIDE</div><h2>{section.title}</h2><p>{section.description}</p></div></div><div className="workspace-destination-grid">{section.cards.map((item)=><DestinationCard key={item.title} item={item}/>)}</div></section>;
 }
-export default function WorkspacePage({route,runs=[],runsTotal=0,runStats,workspaceConfig,apiState,agents=[],openRun,onSelectTemplate,onRefreshRuntime}){
+export default function WorkspacePage({route,runs=[],runsTotal=0,runStats,workspaceConfig,apiState,agents=[],openRun,onSelectTemplate,onRefreshRuntime,onUnauthorized,refreshToken}){
  const content=WORKSPACE_PAGE_CONTENT[route.id];
  const Icon=iconFor(route.icon);
  const agent=agents.find((item)=>item.id===route.agentId);
@@ -492,7 +696,9 @@ export default function WorkspacePage({route,runs=[],runsTotal=0,runStats,worksp
  const accessLabel=workspaceAccessLabel(workspaceConfig,apiState);
  const averageProgress=runStats&&runStats.average_progress!=null&&Number.isFinite(Number(runStats.average_progress))?Number(runStats.average_progress).toFixed(1)+"%":"—";
  const promptCategoryCount=new Set(TASK_TEMPLATES.map((item)=>item.category)).size;
- const stats=route.kind==="observability"
+ const stats=route.kind==="review-history"
+  ?[{label:"Decision records",value:"API-backed",note:"Approved and rejected states",icon:FileCode2,tone:"blue"},{label:"Decision types",value:"02",note:"Approved · rejected",icon:CheckCircle2,tone:"mint"},{label:"History",value:"Paginated",note:"Separate server queries",icon:Timer,tone:"cyan"},{label:"Release action",value:"Separate",note:"No deployment on approval",icon:ShieldCheck,tone:"violet"}]
+  :route.kind==="observability"
   ?[{label:"Total workflows",value:total,note:"API aggregate",icon:Workflow,tone:"blue"},{label:"Active / queued",value:active,note:"API aggregate",icon:Activity,tone:"cyan"},{label:"Completed",value:completed,note:"API aggregate",icon:CheckCircle2,tone:"mint"},{label:"Average progress",value:averageProgress,note:"API aggregate",icon:Radio,tone:"violet"}]
   :route.kind==="prompt-library"
    ?[{label:"Reusable briefs",value:TASK_TEMPLATES.length,note:"Curated engineering briefs",icon:FileCode2,tone:"blue"},{label:"Categories",value:promptCategoryCount,note:"Distinct brief categories",icon:Database,tone:"violet"},{label:"Search",value:"Multi-term",note:"Title, category and goal",icon:Search,tone:"cyan"},{label:"Execution",value:"Prefill only",note:"No automatic workflow start",icon:ShieldCheck,tone:"mint"}]
@@ -515,7 +721,7 @@ export default function WorkspacePage({route,runs=[],runsTotal=0,runStats,worksp
  return <div className="view-stack subpage workspace-page">
   <section className="workspace-page-hero"><img src={image} alt="" loading="eager" fetchPriority="high" decoding="async"/><div className="workspace-page-hero-shade"/><div className="workspace-page-hero-copy"><div className="eyebrow"><span className="eyebrow-square"/> {eyebrow}</div><span className="workspace-page-icon"><Icon size={23}/></span><h1>{title}</h1><p>{desc}</p><div className="workspace-page-breadcrumb"><a href={getWorkspaceHref("overview")}>Workspace</a><span>/</span><span>{route.group}</span><span>/</span><strong>{route.label}</strong></div></div><div className="workspace-page-hero-actions"><a className="button-primary" href={getWorkspaceHref("runs",{focusTask:true})}><Sparkles size={14}/> New task</a><a className="button-outline" href={getWorkspaceHref("overview")}>Overview <ArrowUpRight size={13}/></a></div></section>
   <div className="workspace-page-metrics">{stats.map((metric)=><Metric key={metric.label} {...metric}/>)}</div>
-  <div className="workspace-page-layout"><main className="workspace-page-main"><section className="panel-card workspace-page-primary"><div className="workspace-page-primary-heading"><div><div className="eyebrow">{route.group.toUpperCase()} / {route.kind.toUpperCase()}</div><h2>{route.kind==="agent"?"Role scope and hand-off":"Workspace view"}</h2><p>{route.kind==="agent"?"Inspect the specialist's mission and artifact contribution.":"This destination combines current workspace evidence with direct paths to the next useful action."}</p></div><Icon size={19}/></div><PageBody route={route} runs={runs} runStats={runStats} config={workspaceConfig} apiState={apiState} agents={agents} openRun={openRun} onSelectTemplate={onSelectTemplate} onRefreshRuntime={onRefreshRuntime}/></section>{content?.sections?.map((section)=><PageSection key={section.title} section={section}/>)}</main>
+  <div className="workspace-page-layout"><main className="workspace-page-main"><section className="panel-card workspace-page-primary"><div className="workspace-page-primary-heading"><div><div className="eyebrow">{route.group.toUpperCase()} / {route.kind.toUpperCase()}</div><h2>{route.kind==="agent"?"Role scope and hand-off":"Workspace view"}</h2><p>{route.kind==="agent"?"Inspect the specialist's mission and artifact contribution.":"This destination combines current workspace evidence with direct paths to the next useful action."}</p></div><Icon size={19}/></div><PageBody route={route} runs={runs} runStats={runStats} config={workspaceConfig} apiState={apiState} agents={agents} openRun={openRun} onSelectTemplate={onSelectTemplate} onRefreshRuntime={onRefreshRuntime} onUnauthorized={onUnauthorized} refreshToken={refreshToken}/></section>{content?.sections?.map((section)=><PageSection key={section.title} section={section}/>)}</main>
    <aside className="workspace-page-rail"><section className="panel-card workspace-page-rail-card"><div className="eyebrow">NEXT DESTINATIONS</div><h2>Keep moving</h2><p>Open a related page without returning to the dashboard.</p>{related.map((item)=><DestinationCard key={item.title} item={item}/>)}</section><section className="panel-card workspace-page-rail-card"><div className="eyebrow">RUNTIME READINESS</div><h2>{workspaceConfig?.can_start_runs?"Ready to launch":apiState==="connected"?"Setup required":"Connection unknown"}</h2><p>{workspaceConfig?.can_start_runs?"The API currently reports that workflow launch is enabled.":"Check provider, database, access and worker requirements before starting live work."}</p><a className="button-outline full-button" href={getWorkspaceHref("settings-runtime")}>Inspect runtime <ArrowRight size={13}/></a></section></aside>
   </div>
  </div>;

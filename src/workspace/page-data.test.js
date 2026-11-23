@@ -54,7 +54,7 @@ test("previously shared route kinds now render dedicated workspace experiences",
     ["prompt-library", "PromptLibraryPanel"],
     ["activity", "ActivityPanel"],
     ["observability", "ObservabilityPanel"],
-    ["review-history", "RunList"],
+    ["review-history", "ReviewHistoryPanel"],
     ["integration", "IntegrationPanel"],
     ["queue", "QueuePanel"],
     ["usage", "UsagePanel"],
@@ -172,4 +172,22 @@ test("live CI layout exposes responsive controls and visible keyboard focus", as
   assert.ok(styles.includes(".workspace-ci-run a:focus-visible"));
   assert.ok(styles.includes("@media(max-width:740px)"));
   assert.ok(styles.includes("@media(max-width:420px)"));
+});
+
+
+test("review history is a dedicated paginated API-backed decision workspace", async () => {
+  const source = await readFile(new URL("./WorkspacePage.jsx", import.meta.url), "utf8");
+  const app = await readFile(new URL("../App.jsx", import.meta.url), "utf8");
+  assert.ok(source.includes('if(route.kind==="review-history")return <ReviewHistoryPanel'));
+  assert.ok(source.includes("REVIEW_HISTORY_STATUSES.map((status)=>api.runs"));
+  assert.ok(source.includes("Promise.allSettled"));
+  assert.ok(source.includes("normalizeReviewHistoryPage(result.value,status)"));
+  assert.ok(source.includes("getRunPageOffset(result.value"));
+  assert.ok(source.includes("filterReviewHistory(records,query,decisionFilter)"));
+  assert.ok(source.includes("Load older decisions"));
+  assert.ok(source.includes("openRun(run)"));
+  assert.ok(source.includes("refreshToken"));
+  assert.ok(source.includes("onUnauthorized"));
+  assert.ok(app.includes("refreshToken={reviewRefreshToken}"));
+  assert.ok(app.includes("onUnauthorized={redirectToSettingsOnUnauthorized}"));
 });

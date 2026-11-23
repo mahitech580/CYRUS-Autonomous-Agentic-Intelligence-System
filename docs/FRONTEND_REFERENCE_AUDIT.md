@@ -34,7 +34,7 @@
 - Repository: https://github.com/temporalio/ui
 - Source inspected: [workflow detail component](https://github.com/temporalio/ui/blob/main/src/lib/components/workflow/workflow-detail.svelte), [workflow table](https://github.com/temporalio/ui/blob/main/src/lib/components/workflow/workflows-summary-configurable-table.svelte), [workflow action controls](https://github.com/temporalio/ui/blob/main/src/lib/components/workflow-actions.svelte)
 - Pattern: workflow lists support filtering/sorting; individual executions expose structured event history and deliberate controls such as pause/cancel/reset with confirmation where appropriate.
-- CYRUS application: use persisted events and saved outputs as the source of truth; retain status filters, manual refresh, cancel, and explicit human decisions. Telemetry should be computed from saved runs only.
+- CYRUS application: use persisted events and saved outputs as the source of truth; retain status filters, manual refresh, cancel, and explicit human decisions. Telemetry should be computed from saved runs only. Review history queries approved and rejected records separately with server-side pagination, then opens the original run for its decision event and artifacts rather than treating the dashboard's current page as complete.
 
 ### 6. n8n — readable, expandable AI activity steps
 - Repository: https://github.com/n8n-io/n8n

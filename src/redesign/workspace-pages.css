@@ -243,3 +243,43 @@
 @media(max-width:900px){.workspace-ci-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.workspace-ci-toolbar{grid-template-columns:minmax(0,1fr) 160px auto}.workspace-ci-actions-link{grid-column:1/-1;justify-self:start}}
 @media(max-width:740px){.workspace-ci-toolbar{grid-template-columns:minmax(0,1fr) minmax(120px,.65fr)}.workspace-ci-search{grid-column:1/-1}.workspace-ci-filter{grid-column:1/-1}.workspace-ci-refresh{grid-column:1/-1}.workspace-ci-actions-link{grid-column:1/-1}.workspace-ci-run{grid-template-columns:minmax(0,1fr) auto;align-items:start}.workspace-ci-run-meta{grid-column:1/-1;display:flex;justify-content:space-between;flex-wrap:wrap}.workspace-ci-state{grid-column:2;grid-row:1;align-self:start}}
 @media(max-width:420px){.workspace-ci-summary article{padding:10px}.workspace-ci-summary article>strong{font-size:18px}.workspace-ci-updated{align-items:flex-start;flex-direction:column}.workspace-ci-run{grid-template-columns:minmax(0,1fr)}.workspace-ci-state{grid-column:1;grid-row:auto}.workspace-ci-run-meta{grid-column:1}}
+
+
+/* Dedicated, paginated review-decision history backed by saved workflow records. */
+.workspace-review-history{display:grid;gap:12px;min-width:0}
+.workspace-review-history-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.workspace-review-history-summary article{display:grid;gap:5px;min-width:0;padding:12px;border:1px solid rgba(126,158,219,.15);border-radius:11px;background:rgba(9,20,40,.56)}
+.workspace-review-history-summary article>span{color:#91a7c8;font-size:9px;letter-spacing:.65px}
+.workspace-review-history-summary article>strong{color:#e8f2ff;font:600 20px var(--mono);font-variant-numeric:tabular-nums}
+.workspace-review-history-summary article>small{color:#7f95b7;font-size:8px;line-height:1.45}
+.workspace-review-history-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 160px auto auto;align-items:center;gap:8px}
+.workspace-review-history-search,.workspace-review-history-filter{display:flex;align-items:center;gap:8px;min-width:0;min-height:38px;padding:0 10px;border:1px solid rgba(126,158,219,.2);border-radius:10px;background:rgba(8,18,36,.7);color:#8ea6ca}
+.workspace-review-history-search:focus-within,.workspace-review-history-filter:focus-within{border-color:rgba(103,232,249,.55);box-shadow:0 0 0 3px rgba(103,232,249,.09)}
+.workspace-review-history-search input,.workspace-review-history-filter select{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#dceaff;font:10px var(--mono)}
+.workspace-review-history-search input::placeholder{color:#7186a9}
+.workspace-review-history-filter select option{background:#0d1528;color:#e6f0ff}
+.workspace-review-history-refresh{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 11px;border:1px solid rgba(103,232,249,.24);border-radius:10px;background:rgba(103,232,249,.07);color:#a8efff;font-size:10px;white-space:nowrap}
+.workspace-review-history-refresh:disabled{opacity:.48;cursor:not-allowed}
+.workspace-review-history-refresh:focus-visible,.workspace-review-history-queue:focus-visible,.workspace-review-history-row:focus-visible{outline:2px solid var(--accent-cyan);outline-offset:3px}
+.workspace-review-history-queue{display:inline-flex;align-items:center;justify-content:center;gap:6px;color:#a8efff;font-size:10px;text-decoration:none;white-space:nowrap}
+.workspace-review-history-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;color:#8ea4c6;font-size:9px}
+.workspace-review-history-list{display:grid;gap:7px;min-width:0}
+.workspace-review-history-row{display:grid;grid-template-columns:32px minmax(0,1fr) minmax(140px,auto) 15px;align-items:center;gap:11px;width:100%;min-width:0;padding:12px;border:1px solid rgba(126,158,219,.15);border-radius:11px;background:rgba(9,20,40,.5);color:inherit;text-align:left;cursor:pointer;transition:border-color .16s ease,background .16s ease}
+.workspace-review-history-row:hover{border-color:rgba(103,232,249,.3);background:rgba(15,34,58,.72)}
+.workspace-review-history-icon{display:grid;place-items:center;width:30px;height:30px;border:1px solid rgba(126,158,219,.18);border-radius:9px;color:#9fb6d8;background:rgba(126,158,219,.07)}
+.workspace-review-history-icon.decision-approved{border-color:rgba(98,242,210,.2);color:#8cf2d9;background:rgba(98,242,210,.06)}
+.workspace-review-history-icon.decision-rejected{border-color:rgba(251,113,133,.23);color:#ff9aaa;background:rgba(251,113,133,.06)}
+.workspace-review-history-main{display:grid;gap:4px;min-width:0}
+.workspace-review-history-run-id{color:#a8efff;font:10px var(--mono);overflow-wrap:anywhere}
+.workspace-review-history-main>strong{display:-webkit-box;overflow:hidden;overflow-wrap:anywhere;-webkit-box-orient:vertical;-webkit-line-clamp:2;color:#e5efff;font-size:11px;line-height:1.5}
+.workspace-review-history-main>small{color:#91a7c8;font-size:9px;line-height:1.45}
+.workspace-review-history-row-meta{display:grid;justify-items:end;gap:6px;min-width:0}
+.workspace-review-history-row-meta time{color:#9aafd0;font-size:9px;text-align:right;font-variant-numeric:tabular-nums}
+.workspace-review-history-arrow{color:#91a7c8}
+.workspace-review-history .notice-strip a{color:#a7efff;text-decoration:underline;text-underline-offset:3px}
+.workspace-review-history-pagination{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-top:8px;border-top:1px solid rgba(126,158,219,.13);color:#91a7c8;font-size:9px}
+.workspace-review-history-complete,.workspace-review-history-note{margin:0;color:#8399bb;font-size:9px;line-height:1.6}
+.workspace-review-history-note{padding-top:3px}
+@media(max-width:900px){.workspace-review-history-toolbar{grid-template-columns:minmax(0,1fr) 160px auto}.workspace-review-history-queue{grid-column:1/-1;justify-self:start}}
+@media(max-width:740px){.workspace-review-history-toolbar{grid-template-columns:minmax(0,1fr)}.workspace-review-history-search,.workspace-review-history-filter,.workspace-review-history-refresh,.workspace-review-history-queue{grid-column:1}.workspace-review-history-row{grid-template-columns:30px minmax(0,1fr);align-items:start}.workspace-review-history-row-meta{grid-column:2;display:flex;align-items:center;justify-content:space-between;justify-items:stretch;flex-wrap:wrap}.workspace-review-history-arrow{display:none}}
+@media(max-width:420px){.workspace-review-history-summary article{padding:10px}.workspace-review-history-summary article>strong{font-size:18px}.workspace-review-history-meta{align-items:flex-start;flex-direction:column}.workspace-review-history-row{gap:8px;padding:10px}}
