@@ -52,7 +52,10 @@ test("rejected workflow decisions remain visible in run and review history", asy
   assert.ok(app.includes('rejected: "Rejected"'));
   assert.ok(pages.includes('rejected:"Rejected"'));
   assert.ok(pages.includes('["completed","approved","rejected","failed","cancelled"]'));
-  assert.ok(pages.includes('["approved","rejected"].includes(run.approval_status)'));
+  assert.ok(pages.includes('if(route.kind==="review-history")return <ReviewHistoryPanel'));
+  assert.ok(pages.includes('const REVIEW_HISTORY_STATUSES=["approved","rejected"]'));
+  assert.ok(pages.includes("getReviewDecision(run)"));
+  assert.ok(pages.includes("filterReviewHistory(records,query,decisionFilter)"));
   assert.ok(backend.includes('pattern="^(queued|running|review|approved|rejected|completed|failed|cancelled)$"'));
 });
 
@@ -392,7 +395,7 @@ test("activity stream and observability expose separate saved-record and telemet
   assert.ok(pages.includes("getCurrentRunActivity(events,loadedRunKey,runKey,recentRuns)"));
   assert.ok(pages.includes('if(route.kind==="observability")return <ObservabilityPanel'));
   assert.ok(pages.includes('isAll?"Latest saved workflow records"'));
-  assert.ok(data.includes("approved and rejected workflow decisions"));
+  assert.ok(data.includes("approved or rejected workflow decision"));
   assert.ok(data.includes("persisted stage events across up to eight of the latest loaded workflows"));
 });
 
