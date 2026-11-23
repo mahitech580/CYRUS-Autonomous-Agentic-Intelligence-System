@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { filterWorkflowRuns, formatWorkflowDuration, getWorkflowRunStatus, getWorkflowRunsErrorMessage, normalizeWorkflowRuns, summarizeWorkflowRuns } from "../lib/github-actions.js";
-import { getRunPageOffset, mapRunRecord } from "../lib/runs.js";
+import { getRunPageOffset, getRunRecordCount, mapRunRecord } from "../lib/runs.js";
 import { filterReviewHistory, getReviewDecision, mergeReviewHistoryRecords, normalizeReviewHistoryPage } from "../lib/review-history.js";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
@@ -223,12 +223,16 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
    const dateValue=run.updated_at||run.created_at;
    const parsedDate=Date.parse(dateValue||"");
    const displayDate=Number.isFinite(parsedDate)?new Date(parsedDate).toLocaleString():run.time||"Time unavailable";
+   const stageCount=getRunRecordCount(run.stage_count);
+   const eventCount=getRunRecordCount(run.event_count);
+   const stageLabel=stageCount===null?"Stages unavailable":stageCount+" stages";
+   const eventLabel=eventCount===null?"Events unavailable":eventCount+" retained events";
    return <button type="button" className="workspace-review-history-row" key={run.id} onClick={()=>openRun(run)} aria-label={"Open workflow "+run.id+" and inspect its "+decision+" decision"}>
     <span className={"workspace-review-history-icon decision-"+decision}><DecisionIcon size={17}/></span>
     <span className="workspace-review-history-main">
      <span className="workspace-review-history-run-id">{run.id}</span>
      <strong>{run.goal||"Untitled workflow"}</strong>
-     <small>{Number(run.stage_count)||0} stages · {Number(run.event_count)||0} retained events</small>
+     <small>{stageLabel} · {eventLabel}</small>
     </span>
     <span className="workspace-review-history-row-meta">
      <span className={"status-pill status-"+decision}>{decision==="approved"?"Approved":"Rejected"}</span>

@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, mergeRunPollResult, buildRunsCsv, filterRuns, filterRunEvents, getRunEventStatuses, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, mergeRunPollResult, buildRunsCsv, filterRuns, filterRunEvents, getRunEventStatuses, getRunRecordCount, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
@@ -97,7 +97,9 @@ function AgentLine({ agent, state = "registered" }) {
 }
 function RunRow({ run, onOpen }) {
   const progress = Math.max(0, Math.min(100, Number(run.progress) || 0));
-  return <button className="run-row" onClick={() => onOpen(run)}><span className="run-id">{run.id}</span><span className="run-description"><strong>{run.goal}</strong><small>{run.kind || "Workflow"} <span>·</span> {run.agents ?? 4} agents <span>·</span> {run.time || "Just now"}</small></span><span className="run-progress-wrap"><span className="run-progress" role="progressbar" aria-label={`Workflow ${run.id} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><i style={{ width: progress + "%" }} /></span><small>{progress}%</small></span><StatusPill status={run.status} /><ArrowRight className="run-arrow" size={15} /></button>;
+  const stageCount = getRunRecordCount(run.stage_count);
+  const stageLabel = stageCount === null ? "Stages unavailable" : `${stageCount} stages`;
+  return <button className="run-row" onClick={() => onOpen(run)}><span className="run-id">{run.id}</span><span className="run-description"><strong>{run.goal}</strong><small>{run.kind || "Workflow"} <span>·</span> {stageLabel} <span>·</span> {run.time || "Time unavailable"}</small></span><span className="run-progress-wrap"><span className="run-progress" role="progressbar" aria-label={`Workflow ${run.id} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><i style={{ width: progress + "%" }} /></span><small>{progress}%</small></span><StatusPill status={run.status} /><ArrowRight className="run-arrow" size={15} /></button>;
 }
 
 export default function App() {

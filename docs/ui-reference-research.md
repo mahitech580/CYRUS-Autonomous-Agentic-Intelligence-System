@@ -41,6 +41,10 @@ The Delivery / CI pipeline destination reads the public repository's latest GitH
 
 Unauthenticated public API requests are subject to GitHub's rate limits. If the API is unavailable, the page keeps the last successfully loaded snapshot and links to the repository's Actions history.
 
+## Run-record metadata semantics (23 November 2026)
+
+The backend's `agent_count` field is currently the size of the configured specialist registry (`len(AGENTS)`), not evidence that every specialist executed in a particular workflow. Run-list rows therefore use the persisted per-run `stage_count` instead of presenting the registry size as agents used. Review history uses validated persisted `stage_count` and `event_count` values. Missing or malformed counts and timestamps are shown as unavailable rather than inferred as zero or “Just now”.
+
 ## Next product-quality priorities
 
 - Add a first-run walkthrough after production readiness is configured, including one small example run with user consent and real provider output.

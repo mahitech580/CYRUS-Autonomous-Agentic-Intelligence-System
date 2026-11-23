@@ -228,9 +228,17 @@ export function buildRunsCsv(runs) {
   return "\uFEFF" + lines.join("\r\n") + "\r\n";
 }
 
+export function getRunRecordCount(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (typeof value === "string" && !value.trim()) return null;
+  const count = Number(value);
+  return Number.isSafeInteger(count) && count >= 0 ? count : null;
+}
+
 export function mapRunRecord(run) {
   const dateValue = run?.updated_at || run?.created_at;
-  let time = "Just now";
+  let time = "Time unavailable";
   if (dateValue) {
     try {
       const parsed = new Date(dateValue);
@@ -242,9 +250,6 @@ export function mapRunRecord(run) {
   return {
     ...run,
     time,
-    agents: Number.isFinite(Number(run?.agent_count)) && run?.agent_count != null
-      ? Math.max(0, Math.floor(Number(run.agent_count)))
-      : 7,
     kind: run?.execution_mode === "live-model"
       ? "Live AI workflow"
       : run?.execution_mode || "Workflow",

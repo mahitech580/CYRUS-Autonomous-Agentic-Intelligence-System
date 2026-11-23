@@ -180,10 +180,21 @@ test("mobile navigation traps keyboard focus and locks background scrolling", as
 });
 
 
-test("run drawer progress announces a human-readable completion value", async () => {
+test("run rows show persisted stage counts instead of inferred per-run agent usage", async () => {
   const app = await read("../src/App.jsx");
   assert.ok(app.includes('aria-valuetext={`${progressValue}% complete`}'));
-  assert.ok(app.includes('{run.agents ?? 4} agents'));
+  assert.ok(app.includes("getRunRecordCount(run.stage_count)"));
+  assert.ok(app.includes("Stages unavailable"));
+  assert.ok(app.includes('run.time || "Time unavailable"'));
+  assert.ok(!app.includes("{run.agents ?? 4} agents"));
+});
+
+test("review history labels only validated persisted stage and event counts", async () => {
+  const pages = await read("../src/workspace/WorkspacePage.jsx");
+  assert.ok(pages.includes("getRunRecordCount(run.stage_count)"));
+  assert.ok(pages.includes("getRunRecordCount(run.event_count)"));
+  assert.ok(pages.includes("Stages unavailable"));
+  assert.ok(pages.includes("Events unavailable"));
 });
 
 

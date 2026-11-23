@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, buildRunActivity, mergeRunActivity, getCurrentRunActivity, isRunEventPage, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
+import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, buildRunActivity, mergeRunActivity, getCurrentRunActivity, isRunEventPage, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, getRunRecordCount, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -82,11 +82,12 @@ test("CSV export has a header even for an empty workflow list", () => {
   assert.equal(csv.split("\r\n").length, 2);
 });
 
-test("run mapping labels live AI and handles invalid timestamps", () => {
+test("run mapping labels live AI and preserves invalid timestamps without inventing recency", () => {
   const mapped = mapRunRecord({ id: "RUN-006", execution_mode: "live-model", created_at: "not-a-date" });
   assert.equal(mapped.kind, "Live AI workflow");
   assert.equal(mapped.time, "not-a-date");
-  assert.equal(mapped.agents, 7);
+  assert.equal(mapped.agents, undefined);
+  assert.equal(mapRunRecord({ id: "RUN-007" }).time, "Time unavailable");
 });
 
 test("incremental event merge deduplicates IDs and preserves event order", () => {
@@ -410,11 +411,24 @@ test("token summaries use only loaded details and reject invalid or negative cou
 });
 
 
-test("run mapping preserves a real zero-agent count and normalizes numeric counts", () => {
-  assert.equal(mapRunRecord({ agent_count: 0 }).agents, 0);
-  assert.equal(mapRunRecord({ agent_count: "3.9" }).agents, 3);
-  assert.equal(mapRunRecord({ agent_count: null }).agents, 7);
-  assert.equal(mapRunRecord({ agent_count: "unknown" }).agents, 7);
+test("run mapping does not mislabel the configured specialist roster as per-run agent usage", () => {
+  assert.equal(mapRunRecord({ agent_count: 0 }).agents, undefined);
+  assert.equal(mapRunRecord({ agent_count: "3.9" }).agents, undefined);
+  assert.equal(mapRunRecord({ agent_count: null }).agents, undefined);
+  assert.equal(mapRunRecord({ agent_count: "unknown" }).agents, undefined);
+});
+
+test("run record counts accept only non-negative safe integers", () => {
+  assert.equal(getRunRecordCount(0), 0);
+  assert.equal(getRunRecordCount("3"), 3);
+  assert.equal(getRunRecordCount(3.0), 3);
+  assert.equal(getRunRecordCount(3.2), null);
+  assert.equal(getRunRecordCount(-1), null);
+  assert.equal(getRunRecordCount("unknown"), null);
+  assert.equal(getRunRecordCount(" "), null);
+  assert.equal(getRunRecordCount(null), null);
+  assert.equal(getRunRecordCount(undefined), null);
+  assert.equal(getRunRecordCount(true), null);
 });
 
 
