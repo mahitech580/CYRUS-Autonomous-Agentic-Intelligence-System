@@ -15,26 +15,70 @@ export function getReviewDecision(record) {
   return DECISION_STATES.has(status) ? status : null;
 }
 
-/** Validate a status-filtered API page without treating malformed responses as empty history. */
-export function normalizeReviewHistoryPage(response, expectedDecision) {
+/** Validate the complete API envelope before a decision-history page advances its cursor. */
+export function normalizeReviewHistoryPage(
+  response,
+  expectedDecision,
+  expectedOffset,
+  expectedLimit,
+  expectedSnapshotAt = null,
+) {
   if (!DECISION_STATES.has(expectedDecision)) {
     throw new TypeError("A review-history page requires an approved or rejected decision filter.");
+  }
+  if (!Number.isSafeInteger(expectedOffset) || expectedOffset < 0
+    || !Number.isSafeInteger(expectedLimit) || expectedLimit < 1 || expectedLimit > 100) {
+    throw new TypeError("The review-history request has invalid pagination parameters.");
   }
   if (!response || typeof response !== "object" || Array.isArray(response) || !Array.isArray(response.items)) {
     throw new TypeError("The review-history endpoint returned an invalid page.");
   }
-  const total = Number(response.total);
-  if (!Number.isSafeInteger(total) || total < 0) {
-    throw new TypeError("The review-history endpoint returned an invalid total.");
+  if (!Number.isSafeInteger(response.total) || response.total < 0
+    || !Number.isSafeInteger(response.offset) || response.offset !== expectedOffset
+    || !Number.isSafeInteger(response.limit) || response.limit !== expectedLimit
+    || response.offset > response.total
+    || response.items.length > expectedLimit) {
+    throw new TypeError("The review-history endpoint returned inconsistent pagination metadata.");
+  }
+  if (response.items.some((record) => (
+    !record || typeof record !== "object" || Array.isArray(record)
+    || typeof record.id !== "string" || !record.id.trim()
+    || getReviewDecision(record) !== expectedDecision
+  ))) {
+    throw new TypeError("The review-history endpoint returned a record outside the requested decision set.");
+  }
+  if (typeof response.has_more !== "boolean") {
+    throw new TypeError("The review-history endpoint returned an invalid continuation flag.");
+  }
+  const expectedNextOffset = expectedOffset + response.items.length;
+  const expectedHasMore = expectedNextOffset < response.total;
+  if (response.has_more !== expectedHasMore
+    || response.next_offset !== (expectedHasMore ? expectedNextOffset : null)) {
+    throw new TypeError("The review-history endpoint returned an inconsistent next-page cursor.");
+  }
+  const snapshotAt = response.snapshot_at;
+  if (typeof snapshotAt !== "string" || !snapshotAt.trim() || !Number.isFinite(Date.parse(snapshotAt))) {
+    throw new TypeError("The review-history endpoint returned an invalid snapshot timestamp.");
+  }
+  if (expectedSnapshotAt != null && snapshotAt !== expectedSnapshotAt) {
+    throw new TypeError("The review-history endpoint changed the decision-history snapshot between pages.");
   }
   return {
-    items: response.items.filter((record) => getReviewDecision(record) === expectedDecision),
-    total,
+    items: response.items,
+    total: response.total,
     pageLength: response.items.length,
+    snapshotAt,
+    hasMore: response.has_more,
+    nextOffset: response.next_offset,
   };
 }
 
-/** Merge server pages by stable run ID and order decisions by their persisted update time. */
+function reviewRecordTime(record) {
+  const timestamp = Date.parse(record?.updated_at || record?.created_at || "");
+  return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
+
+/** Merge server pages by stable run ID, preferring the newest persisted version. */
 export function mergeReviewHistoryRecords(existing, incoming) {
   const records = new Map();
   const previous = Array.isArray(existing) ? existing : [];
@@ -43,15 +87,22 @@ export function mergeReviewHistoryRecords(existing, incoming) {
     if (!record || typeof record !== "object" || Array.isArray(record)) continue;
     const id = typeof record.id === "string" ? record.id.trim() : "";
     if (!id || !getReviewDecision(record)) continue;
-    records.set(id, record);
+    const current = records.get(id);
+    if (!current || reviewRecordTime(record) >= reviewRecordTime(current)) records.set(id, record);
   }
-  return [...records.values()].sort((left, right) => {
-    const leftTime = Date.parse(left.updated_at || left.created_at || "");
-    const rightTime = Date.parse(right.updated_at || right.created_at || "");
-    const leftValue = Number.isFinite(leftTime) ? leftTime : 0;
-    const rightValue = Number.isFinite(rightTime) ? rightTime : 0;
-    return rightValue - leftValue || String(left.id).localeCompare(String(right.id));
-  });
+  return [...records.values()].sort((left, right) => (
+    reviewRecordTime(right) - reviewRecordTime(left)
+    || String(left.id).localeCompare(String(right.id))
+  ));
+}
+
+/** Replace only decision sets that refreshed successfully; retain last-known-good failed sets. */
+export function mergeReviewHistoryRefresh(existing, incoming, successfulDecisions) {
+  const replaced = new Set((Array.isArray(successfulDecisions) ? successfulDecisions : [])
+    .filter((decision) => DECISION_STATES.has(decision)));
+  const preserved = (Array.isArray(existing) ? existing : [])
+    .filter((record) => !replaced.has(getReviewDecision(record)));
+  return mergeReviewHistoryRecords(preserved, incoming);
 }
 
 /** Search only persisted decision metadata; reviewer notes remain in the run detail event history. */

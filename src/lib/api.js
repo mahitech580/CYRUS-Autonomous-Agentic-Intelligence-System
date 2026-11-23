@@ -187,9 +187,10 @@ export const api = {
     }
   },
   agents: () => request("/api/agents"),
-  runs: ({ limit = 30, offset = 0, status, signal } = {}) => {
+  runs: ({ limit = 30, offset = 0, status, snapshotAt, signal } = {}) => {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     if (status) params.set("status", String(status));
+    if (snapshotAt) params.set("snapshot_at", String(snapshotAt));
     return request("/api/runs?" + params.toString(), { signal });
   },
   getRun: (runId, options = {}) => request("/api/runs/" + encodeURIComponent(runId), options),

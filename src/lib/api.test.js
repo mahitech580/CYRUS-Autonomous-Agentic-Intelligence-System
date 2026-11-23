@@ -492,6 +492,31 @@ test("run history API helper supports status filters and abortable requests", as
   assert.ok(captured.options.signal instanceof AbortSignal);
 });
 
+test("run history API helper carries a stable decision snapshot into later pages", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let capturedUrl = "";
+  globalThis.fetch = async (url) => {
+    capturedUrl = url;
+    return new Response(JSON.stringify({ items: [], total: 0, has_more: false }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  await api.runs({
+    limit: 15,
+    offset: 30,
+    status: "approved",
+    snapshotAt: "2026-11-23T12:00:00+00:00",
+  });
+  assert.equal(
+    capturedUrl,
+    "http://localhost:8000/api/runs?limit=15&offset=30&status=approved&snapshot_at=2026-11-23T12%3A00%3A00%2B00%3A00",
+  );
+});
+
+
 test("invalid request headers fail before allocating a network request", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
