@@ -181,7 +181,11 @@ test("review history is a dedicated paginated API-backed decision workspace", as
   assert.ok(source.includes('if(route.kind==="review-history")return <ReviewHistoryPanel'));
   assert.ok(source.includes("REVIEW_HISTORY_STATUSES.map((status)=>api.runs"));
   assert.ok(source.includes("Promise.allSettled"));
-  assert.ok(source.includes("normalizeReviewHistoryPage(result.value,status)"));
+  assert.ok(source.includes("normalizeReviewHistoryPage(result.value,status,0,REVIEW_HISTORY_PAGE_SIZE)"));
+  assert.ok(source.includes("snapshotAt:snapshots[status]"));
+  assert.ok(source.includes("mergeReviewHistoryRefresh(current,incoming,successfulStatuses)"));
+  assert.ok(source.includes("staleStatuses.includes(\"approved\")"));
+  assert.ok(source.includes("staleStatuses.includes(\"rejected\")"));
   assert.ok(source.includes("getRunPageOffset(result.value"));
   assert.ok(source.includes("filterReviewHistory(records,query,decisionFilter)"));
   assert.ok(source.includes("Load older decisions"));

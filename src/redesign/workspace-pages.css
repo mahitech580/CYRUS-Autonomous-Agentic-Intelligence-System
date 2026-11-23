@@ -252,6 +252,7 @@
 .workspace-review-history-summary article>span{color:#91a7c8;font-size:9px;letter-spacing:.65px}
 .workspace-review-history-summary article>strong{color:#e8f2ff;font:600 20px var(--mono);font-variant-numeric:tabular-nums}
 .workspace-review-history-summary article>small{color:#7f95b7;font-size:8px;line-height:1.45}
+.workspace-review-history-summary article>small.workspace-review-history-stale{color:#e8c47c}
 .workspace-review-history-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 160px auto auto;align-items:center;gap:8px}
 .workspace-review-history-search,.workspace-review-history-filter{display:flex;align-items:center;gap:8px;min-width:0;min-height:38px;padding:0 10px;border:1px solid rgba(126,158,219,.2);border-radius:10px;background:rgba(8,18,36,.7);color:#8ea6ca}
 .workspace-review-history-search:focus-within,.workspace-review-history-filter:focus-within{border-color:rgba(103,232,249,.55);box-shadow:0 0 0 3px rgba(103,232,249,.09)}

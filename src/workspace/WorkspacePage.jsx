@@ -8,7 +8,7 @@ import {
 import { api } from "../lib/api.js";
 import { filterWorkflowRuns, formatWorkflowDuration, getWorkflowRunStatus, getWorkflowRunsErrorMessage, normalizeWorkflowRuns, summarizeWorkflowRuns } from "../lib/github-actions.js";
 import { getRunPageOffset, getRunRecordCount, mapRunRecord } from "../lib/runs.js";
-import { filterReviewHistory, getReviewDecision, mergeReviewHistoryRecords, normalizeReviewHistoryPage } from "../lib/review-history.js";
+import { filterReviewHistory, getReviewDecision, mergeReviewHistoryRecords, mergeReviewHistoryRefresh, normalizeReviewHistoryPage } from "../lib/review-history.js";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
 import { filterRunEvents, getCurrentRunActivity, getRunEventStatuses, isRunCompleted, isRunEventPage, mergeRunActivity, summarizeRunUsage } from "../lib/runs.js";
@@ -48,11 +48,14 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
  const [records,setRecords]=React.useState([]);
  const [totals,setTotals]=React.useState({approved:null,rejected:null});
  const [offsets,setOffsets]=React.useState({approved:0,rejected:0});
+ const [snapshots,setSnapshots]=React.useState({approved:null,rejected:null});
+ const [staleStatuses,setStaleStatuses]=React.useState([]);
  const [query,setQuery]=React.useState("");
  const [decisionFilter,setDecisionFilter]=React.useState("all");
  const [loading,setLoading]=React.useState(true);
  const [loadingMore,setLoadingMore]=React.useState(false);
  const [error,setError]=React.useState("");
+ const [accessError,setAccessError]=React.useState(false);
  const [moreError,setMoreError]=React.useState("");
  const [refreshKey,setRefreshKey]=React.useState(0);
  const pageController=React.useRef(null);
@@ -66,8 +69,11 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
    setRecords([]);
    setTotals({approved:null,rejected:null});
    setOffsets({approved:0,rejected:0});
+   setSnapshots({approved:null,rejected:null});
+   setStaleStatuses([]);
    setLoading(apiState==="checking");
    setError(apiState==="unavailable"?"The CYRUS API is unavailable. Reconnect the workspace to load saved review decisions.":"");
+   setAccessError(false);
    setMoreError("");
    return ()=>{
     active=false;
@@ -78,10 +84,8 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
 
   setLoading(true);
   setError("");
+  setAccessError(false);
   setMoreError("");
-  setRecords([]);
-  setTotals({approved:null,rejected:null});
-  setOffsets({approved:0,rejected:0});
 
   async function loadInitial(){
    const results=await Promise.allSettled(REVIEW_HISTORY_STATUSES.map((status)=>api.runs({
@@ -92,40 +96,57 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
    })));
    if(!active||controller.signal.aborted)return;
    const incoming=[];
-   const nextTotals={approved:null,rejected:null};
-   const nextOffsets={approved:0,rejected:0};
+   const nextTotals={};
+   const nextOffsets={};
+   const nextSnapshots={};
+   const successfulStatuses=[];
    const failures=[];
    results.forEach((result,index)=>{
     const status=REVIEW_HISTORY_STATUSES[index];
     if(result.status==="fulfilled"){
      try{
-      const page=normalizeReviewHistoryPage(result.value,status);
+      const page=normalizeReviewHistoryPage(result.value,status,0,REVIEW_HISTORY_PAGE_SIZE);
       incoming.push(...page.items.map(mapRunRecord));
       nextTotals[status]=page.total;
       nextOffsets[status]=getRunPageOffset(result.value,0,page.pageLength);
+      nextSnapshots[status]=page.snapshotAt;
+      successfulStatuses.push(status);
      }catch(cause){failures.push({status,error:cause});}
     }else if(result.reason?.name!=="AbortError"){
      failures.push({status,error:result.reason});
     }
    });
-   setRecords(mergeReviewHistoryRecords([],incoming));
-   setTotals(nextTotals);
-   setOffsets(nextOffsets);
-   if(failures.length){
-    const unauthorized=failures.find((item)=>item.error?.status===401);
-    if(unauthorized)onUnauthorized?.(unauthorized.error);
-    setError(incoming.length
-     ?"Some review decisions could not be loaded. The history may be incomplete until the failed status query is retried."
-     :unauthorized
-      ?"Workspace access is required to inspect saved review decisions."
-      :failures[0].error?.message||"Could not load saved review decisions.");
-   }else setError("");
+   const unauthorized=failures.find((item)=>item.error?.status===401);
+   if(unauthorized){
+    setRecords([]);
+    setTotals({approved:null,rejected:null});
+    setOffsets({approved:0,rejected:0});
+    setSnapshots({approved:null,rejected:null});
+    setStaleStatuses([]);
+    setAccessError(true);
+    setError("Workspace access is required to inspect saved review decisions.");
+    onUnauthorized?.(unauthorized.error);
+   }else{
+    setRecords((current)=>mergeReviewHistoryRefresh(current,incoming,successfulStatuses));
+    setTotals((current)=>({...current,...nextTotals}));
+    setOffsets((current)=>({...current,...nextOffsets}));
+    setSnapshots((current)=>({...current,...nextSnapshots}));
+    const failedStatuses=failures.map((item)=>item.status);
+    const preservedStatuses=failedStatuses.filter((status)=>records.some((record)=>getReviewDecision(record)===status));
+    setStaleStatuses(preservedStatuses);
+    setError(failures.length
+     ?preservedStatuses.length
+      ?"Could not refresh "+failedStatuses.join(" and ")+" decisions. Showing the last saved snapshot for "+preservedStatuses.join(" and ")+"."
+      :"Could not load "+failedStatuses.join(" and ")+" decisions. Retry to continue."
+     :"");
+   }
    setLoading(false);
   }
 
   loadInitial().catch((cause)=>{
    if(!active||cause?.name==="AbortError")return;
-   setError(cause?.message||"Could not load saved review decisions.");
+   setError(cause?.message||"Could not refresh saved review decisions.");
+   setStaleStatuses(records.length?REVIEW_HISTORY_STATUSES.filter((status)=>records.some((record)=>getReviewDecision(record)===status)):[]);
    setLoading(false);
   });
   return ()=>{
@@ -138,7 +159,9 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
  async function loadMore(){
   if(loading||loadingMore||apiState!=="connected")return;
   const statuses=REVIEW_HISTORY_STATUSES.filter((status)=>
-   Number.isSafeInteger(totals[status])&&offsets[status]<totals[status]
+   Number.isSafeInteger(totals[status])
+   &&offsets[status]<totals[status]
+   &&typeof snapshots[status]==="string"
   );
   if(!statuses.length)return;
   const controller=new AbortController();
@@ -151,6 +174,7 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
     limit:REVIEW_HISTORY_PAGE_SIZE,
     offset:offsets[status],
     status,
+    snapshotAt:snapshots[status],
     signal:controller.signal
    })));
    if(controller.signal.aborted)return;
@@ -162,7 +186,9 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
     const status=statuses[index];
     if(result.status==="fulfilled"){
      try{
-      const page=normalizeReviewHistoryPage(result.value,status);
+      const page=normalizeReviewHistoryPage(
+       result.value,status,offsets[status],REVIEW_HISTORY_PAGE_SIZE,snapshots[status]
+      );
       incoming.push(...page.items.map(mapRunRecord));
       nextTotals[status]=page.total;
       nextOffsets[status]=getRunPageOffset(result.value,offsets[status],page.pageLength);
@@ -171,14 +197,25 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
      failures.push({status,error:result.reason});
     }
    });
-   setRecords((current)=>mergeReviewHistoryRecords(current,incoming));
-   setTotals(nextTotals);
-   setOffsets(nextOffsets);
-   if(failures.length){
-    const unauthorized=failures.find((item)=>item.error?.status===401);
-    if(unauthorized)onUnauthorized?.(unauthorized.error);
-    setMoreError("Could not load older "+failures.map((item)=>item.status).join(" and ")+" decisions. Retry to continue.");
-   }else setMoreError("");
+   const unauthorized=failures.find((item)=>item.error?.status===401);
+   if(unauthorized){
+    setRecords([]);
+    setTotals({approved:null,rejected:null});
+    setOffsets({approved:0,rejected:0});
+    setSnapshots({approved:null,rejected:null});
+    setStaleStatuses([]);
+    setAccessError(true);
+    setError("Workspace access is required to inspect saved review decisions.");
+    setMoreError("");
+    onUnauthorized?.(unauthorized.error);
+   }else{
+    setRecords((current)=>mergeReviewHistoryRecords(current,incoming));
+    setTotals(nextTotals);
+    setOffsets(nextOffsets);
+    if(failures.length){
+     setMoreError("Could not load older "+failures.map((item)=>item.status).join(" and ")+" decisions. Retry to continue.");
+    }else setMoreError("");
+   }
   }catch(cause){
    if(cause?.name!=="AbortError")setMoreError(cause?.message||"Could not load older review decisions.");
   }finally{
@@ -191,28 +228,30 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
 
  const filtered=filterReviewHistory(records,query,decisionFilter);
  const hasMore=REVIEW_HISTORY_STATUSES.some((status)=>
-  Number.isSafeInteger(totals[status])&&offsets[status]<totals[status]
+  Number.isSafeInteger(totals[status])
+  &&offsets[status]<totals[status]
+  &&typeof snapshots[status]==="string"
  );
  const totalDecisions=REVIEW_HISTORY_STATUSES.every((status)=>Number.isSafeInteger(totals[status]))
   ?totals.approved+totals.rejected
   :null;
  return <section className="workspace-review-history" aria-busy={loading||loadingMore}>
   <div className="workspace-review-history-summary">
-   <article><span>APPROVED</span><strong>{totals.approved??"—"}</strong><small>Persisted decisions</small></article>
-   <article><span>REJECTED</span><strong>{totals.rejected??"—"}</strong><small>Persisted decisions</small></article>
+   <article><span>APPROVED</span><strong>{totals.approved??"—"}</strong><small className={staleStatuses.includes("approved")?"workspace-review-history-stale":undefined}>{staleStatuses.includes("approved")?"Last saved snapshot · refresh failed":"Persisted decisions"}</small></article>
+   <article><span>REJECTED</span><strong>{totals.rejected??"—"}</strong><small className={staleStatuses.includes("rejected")?"workspace-review-history-stale":undefined}>{staleStatuses.includes("rejected")?"Last saved snapshot · refresh failed":"Persisted decisions"}</small></article>
    <article><span>ALL DECISIONS</span><strong>{totalDecisions??"—"}</strong><small>Backend-reported total</small></article>
   </div>
   <div className="workspace-review-history-toolbar">
    <label className="workspace-review-history-search"><Search size={15} aria-hidden="true"/><input type="search" value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="Search run ID or engineering goal" aria-label="Search review decisions"/></label>
    <label className="workspace-review-history-filter"><span className="workspace-sr-only">Filter review decisions</span><select value={decisionFilter} onChange={(event)=>setDecisionFilter(event.target.value)} aria-label="Filter review decisions"><option value="all">All decisions</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></label>
-   <button type="button" className="workspace-review-history-refresh" onClick={()=>setRefreshKey((value)=>value+1)} disabled={loading||loadingMore||apiState!=="connected"}><RefreshCw size={13} className={loading?"spin-icon":""}/>{loading?"Loading":"Refresh history"}</button>
+   <button type="button" className="workspace-review-history-refresh" onClick={()=>setRefreshKey((value)=>value+1)} disabled={loading||loadingMore||apiState!=="connected"}><RefreshCw size={13} className={loading?"spin-icon":""}/>{loading?"Refreshing":"Refresh history"}</button>
    <a className="workspace-review-history-queue" href={getWorkspaceHref("review")}>Open pending queue <ArrowRight size={13}/></a>
   </div>
   <div className="workspace-review-history-meta" role="status" aria-live="polite">
-   <span>{loading?"Loading saved decisions…":"Showing "+filtered.length+" of "+records.length+" loaded decisions"}</span>
+   <span>{loading?(records.length?"Refreshing saved decisions…":"Loading saved decisions…"):"Showing "+filtered.length+" of "+records.length+" loaded decisions"}</span>
    <span>{totalDecisions==null?"Complete decision total unavailable":"Backend reports "+totalDecisions+" approved and rejected decisions"}</span>
   </div>
-  {error&&records.length?<div className="notice-strip" role="alert"><ShieldCheck size={15}/><span>{error} <a href={getWorkspaceHref("settings-access")}>Review workspace access</a></span></div>:null}
+  {error&&records.length?<div className="notice-strip" role="alert"><ShieldCheck size={15}/><span>{error}{accessError?<> <a href={getWorkspaceHref("settings-access")}>Review workspace access</a></>:null}</span></div>:null}
   {loading&&!records.length?<div className="workspace-empty" role="status"><RefreshCw size={21} className="spin-icon"/><strong>Loading review history</strong><span>Reading approved and rejected decisions from the protected workflow API.</span></div>:null}
   {!loading&&error&&!records.length?<div className="workspace-empty" role="alert"><ShieldCheck size={22}/><strong>Review history unavailable</strong><span>{error}</span><button type="button" className="button-outline" onClick={()=>setRefreshKey((value)=>value+1)}>Try again</button></div>:null}
   {!loading&&!error&&!records.length?<div className="workspace-empty"><FileCode2 size={24}/><strong>No review decisions recorded</strong><span>Approved and rejected workflows will appear here after a human decision is saved.</span><a className="button-outline" href={getWorkspaceHref("review")}>Open pending review queue <ArrowRight size={13}/></a></div>:null}
