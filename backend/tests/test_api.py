@@ -772,6 +772,86 @@ def test_run_list_filters_status_and_counts_only_matching_records(client):
     assert invalid.status_code == 422
 
 
+def test_decision_history_uses_persisted_approval_and_stable_snapshot(client):
+    now = main.utcnow()
+    newest_id = "RUN-DECISION-SNAPSHOT-NEW-" + main.uuid4().hex[:8].upper()
+    legacy_id = "RUN-DECISION-SNAPSHOT-LEGACY-" + main.uuid4().hex[:8].upper()
+    late_id = "RUN-DECISION-SNAPSHOT-LATE-" + main.uuid4().hex[:8].upper()
+    with main.SessionLocal() as db:
+        db.add_all([
+            main.WorkflowRun(
+                id=newest_id,
+                goal="Persist a recent approved decision",
+                status="approved",
+                progress=100,
+                created_at=now - main.timedelta(days=2),
+                updated_at=now - main.timedelta(minutes=1),
+                stages=[],
+                events=[],
+                execution_mode="live-model",
+                approval_status="approved",
+            ),
+            # Older releases could persist the approval field before the
+            # workflow status was normalized to the terminal decision value.
+            main.WorkflowRun(
+                id=legacy_id,
+                goal="Recover a legacy approved decision",
+                status="completed",
+                progress=100,
+                created_at=now - main.timedelta(days=3),
+                updated_at=now - main.timedelta(minutes=2),
+                stages=[],
+                events=[],
+                execution_mode="live-model",
+                approval_status="approved",
+            ),
+        ])
+        db.commit()
+
+    first = client.get("/api/runs?status=approved&limit=1&offset=0")
+    assert first.status_code == 200
+    first_body = first.json()
+    assert first_body["total"] == 2
+    assert first_body["snapshot_at"]
+    assert first_body["items"][0]["id"] == newest_id
+    assert first_body["has_more"] is True
+    assert first_body["next_offset"] == 1
+
+    snapshot = main.datetime.fromisoformat(first_body["snapshot_at"])
+    if snapshot.tzinfo is None:
+        snapshot = snapshot.replace(tzinfo=main.timezone.utc)
+    late_time = snapshot + main.timedelta(seconds=10)
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=late_id,
+            goal="Do not shift an already opened decision-history snapshot",
+            status="approved",
+            progress=100,
+            created_at=late_time,
+            updated_at=late_time,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            approval_status="approved",
+        ))
+        db.commit()
+
+    second = client.get("/api/runs", params={
+        "status": "approved",
+        "limit": 1,
+        "offset": 1,
+        "snapshot_at": first_body["snapshot_at"],
+    })
+    assert second.status_code == 200
+    second_body = second.json()
+    assert second_body["snapshot_at"] == first_body["snapshot_at"]
+    assert second_body["total"] == first_body["total"] == 2
+    assert [item["id"] for item in second_body["items"]] == [legacy_id]
+    assert late_id not in str(first_body) + str(second_body)
+    assert second_body["has_more"] is False
+    assert second_body["next_offset"] is None
+
+
 def test_run_list_returns_workspace_metrics_even_when_history_is_filtered(client):
     before_all = client.get("/api/runs").json()["stats"]
     before_review = client.get("/api/runs?status=review").json()["total"]

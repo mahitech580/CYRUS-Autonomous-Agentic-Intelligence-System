@@ -1217,20 +1217,32 @@ def list_runs(
         default=None,
         pattern="^(queued|running|review|approved|rejected|completed|failed|cancelled)$",
     ),
+    snapshot_at: datetime | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     statement = select(WorkflowRun)
     count_statement = select(func.count()).select_from(WorkflowRun)
-    if status is not None:
-        status_filter = WorkflowRun.status == status
+    decision_snapshot = None
+    if status in {"approved", "rejected"}:
+        # A decision is persisted in approval_status as well as status. Include
+        # legacy rows where those fields drifted, and pin pages to one immutable
+        # decision-time snapshot so later approvals cannot shift offset pages.
+        decision_snapshot = snapshot_at or utcnow()
+        status_filter = or_(
+            WorkflowRun.status == status,
+            WorkflowRun.approval_status == status,
+        )
+        status_filter = and_(status_filter, WorkflowRun.updated_at <= decision_snapshot)
         statement = statement.where(status_filter)
         count_statement = count_statement.where(status_filter)
-    statement = (
-        statement
-        .order_by(WorkflowRun.created_at.desc(), WorkflowRun.id.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+        ordering = (WorkflowRun.updated_at.desc(), WorkflowRun.id.desc())
+    else:
+        if status is not None:
+            status_filter = WorkflowRun.status == status
+            statement = statement.where(status_filter)
+            count_statement = count_statement.where(status_filter)
+        ordering = (WorkflowRun.created_at.desc(), WorkflowRun.id.desc())
+    statement = statement.order_by(*ordering).offset(offset).limit(limit)
     items = db.scalars(statement).all()
     total = db.scalar(count_statement) or 0
     aggregate = db.execute(
@@ -1262,6 +1274,7 @@ def list_runs(
         "offset": offset,
         "has_more": has_more,
         "next_offset": next_offset if has_more else None,
+        "snapshot_at": utc_iso(decision_snapshot) if decision_snapshot is not None else None,
         "stats": stats,
     }
 
