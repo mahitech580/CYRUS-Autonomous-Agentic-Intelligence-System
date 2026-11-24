@@ -41,6 +41,7 @@ test("review-history pages validate the complete status, offset, cursor and snap
   assert.throws(() => normalizeReviewHistoryPage(response, "approved", 0, 2, null, 4), /changed the total within the snapshot/);
   assert.throws(() => normalizeReviewHistoryPage({ ...response, snapshot_at: "invalid" }, "approved", 0, 2), /invalid snapshot/);
   assert.throws(() => normalizeReviewHistoryPage(response, "approved", 2, 2), /inconsistent pagination/);
+  assert.throws(() => normalizeReviewHistoryPage({ ...response, items: [], has_more: true, next_offset: 0 }, "approved", 0, 2), /empty non-terminal page/);
   assert.throws(() => normalizeReviewHistoryPage(response, "all", 0, 2), /approved or rejected/);
   assert.throws(() => normalizeReviewHistoryPage({
     ...response,

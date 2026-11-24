@@ -59,6 +59,9 @@ export function normalizeReviewHistoryPage(
   if (typeof response.has_more !== "boolean") {
     throw new TypeError("The review-history endpoint returned an invalid continuation flag.");
   }
+  if (response.has_more && response.items.length === 0) {
+    throw new TypeError("The review-history endpoint returned an empty non-terminal page.");
+  }
   const expectedNextOffset = expectedOffset + response.items.length;
   if (expectedNextOffset > response.total) {
     throw new TypeError("The review-history endpoint returned inconsistent pagination metadata.");
