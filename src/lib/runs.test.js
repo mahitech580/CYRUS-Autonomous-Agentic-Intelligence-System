@@ -102,6 +102,20 @@ test("expired event cursor replaces stale history instead of duplicating it", ()
   assert.deepEqual(merged, [{ id: "fresh" }]);
 });
 
+test("late event pages preserve newer records and restore persisted chronology", () => {
+  const current = [{ id: "event-newer", at: "2026-11-24T10:02:00Z" }];
+  const late = [{ id: "event-older", at: "2026-11-24T10:01:00Z" }];
+  assert.deepEqual(
+    mergeRunEvents(current, late).map((event) => event.id),
+    ["event-older", "event-newer"],
+  );
+  assert.deepEqual(
+    mergeRunEvents(current, late, true).map((event) => event.id),
+    ["event-older", "event-newer"],
+  );
+  assert.deepEqual(mergeRunEvents(current, [], true), current);
+});
+
 test("incremental event history remains within the backend retention window", () => {
   const existing = Array.from({ length: 249 }, (_, index) => ({ id: "event-" + index }));
   const merged = mergeRunEvents(existing, [{ id: "event-249" }, { id: "event-250" }]);
@@ -179,6 +193,73 @@ test("run polling merges successful events when status polling fails", async () 
   assert.equal(mergeRunPollResult(current, {
     status: null, statusOk: false, events: null, eventsOk: false,
   }), null);
+});
+
+test("late run polls cannot regress newer decisions or replace newer artifacts", () => {
+  const current = {
+    id: "RUN-STALE-POLL",
+    status: "approved",
+    approval_status: "approved",
+    progress: 100,
+    updated_at: "2026-11-24T10:02:00Z",
+    stages: [{ id: "plan", output: "Latest saved artifact" }],
+    events: [
+      { id: "event-start", at: "2026-11-24T10:00:00Z" },
+      { id: "event-approval", at: "2026-11-24T10:02:00Z" },
+    ],
+  };
+  const poll = settleRunPoll(
+    {
+      status: "fulfilled",
+      value: { item: {
+        id: current.id,
+        status: "review",
+        progress: 100,
+        updated_at: "2026-11-24T10:01:00Z",
+      } },
+    },
+    {
+      status: "fulfilled",
+      value: {
+        items: [{ id: "event-review", at: "2026-11-24T10:01:00Z" }],
+        next_after: "event-review",
+        cursor_expired: true,
+      },
+    },
+    current.id,
+  );
+  const merged = mergeRunPollResult(current, poll, {
+    id: current.id,
+    status: "review",
+    updated_at: "2026-11-24T10:01:00Z",
+    stages: [{ id: "plan", output: "Stale artifact" }],
+  });
+
+  assert.equal(merged.status, "approved");
+  assert.equal(merged.approval_status, "approved");
+  assert.equal(merged.progress, 100);
+  assert.deepEqual(merged.stages, current.stages);
+  assert.deepEqual(merged.events.map((event) => event.id), [
+    "event-start",
+    "event-review",
+    "event-approval",
+  ]);
+});
+
+test("terminal run states win equal-timestamp polls without a newer persisted version", () => {
+  const current = {
+    id: "RUN-TERMINAL-POLL",
+    status: "cancelled",
+    updated_at: "2026-11-24T10:02:00Z",
+  };
+  const poll = settleRunPoll(
+    { status: "fulfilled", value: { item: {
+      id: current.id, status: "running", updated_at: current.updated_at,
+    } } },
+    { status: "rejected", reason: new Error("event history unavailable") },
+    current.id,
+  );
+  assert.equal(mergeRunPollResult(current, poll).status, "cancelled");
 });
 
 test("run polling rejects fulfilled but malformed status and event payloads", () => {

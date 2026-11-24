@@ -257,17 +257,43 @@ export function mapRunRecord(run) {
 }
 
 /**
- * Merge incremental event pages without replaying duplicate IDs. The backend
- * retains a bounded event window, so callers may request a full reset.
+ * Merge incremental event pages without replaying duplicate IDs. A late
+ * response must not replace a newer retained window, and persisted timestamps
+ * keep events chronological when requests finish out of order.
  */
-export function mergeRunEvents(existing, incoming, replace = false) {
-  const merged = new Map();
-  const base = replace ? [] : (Array.isArray(existing) ? existing : []);
-  const additions = Array.isArray(incoming) ? incoming : [];
-  for (const event of [...base, ...additions]) {
-    if (event && typeof event.id === "string" && event.id) merged.set(event.id, event);
+function latestRunEventTimestamp(events) {
+  let latest = Number.NEGATIVE_INFINITY;
+  for (const event of Array.isArray(events) ? events : []) {
+    const timestamp = Date.parse(event?.at || "");
+    if (Number.isFinite(timestamp)) latest = Math.max(latest, timestamp);
   }
-  return [...merged.values()].slice(-250);
+  return latest;
+}
+
+export function mergeRunEvents(existing, incoming, replace = false) {
+  const previous = Array.isArray(existing) ? existing : [];
+  const additions = Array.isArray(incoming) ? incoming : [];
+  const previousLatest = latestRunEventTimestamp(previous);
+  const incomingLatest = latestRunEventTimestamp(additions);
+  const preserveExisting = replace && previous.length > 0 && (
+    additions.length === 0
+    || (Number.isFinite(previousLatest)
+      && (!Number.isFinite(incomingLatest) || incomingLatest < previousLatest))
+  );
+  const base = replace && !preserveExisting ? [] : previous;
+  const merged = new Map();
+  for (const event of [...base, ...additions]) {
+    if (event && typeof event.id === "string" && event.id.trim()) merged.set(event.id, event);
+  }
+  return [...merged.values()]
+    .map((event, index) => ({ event, index, timestamp: Date.parse(event?.at || "") }))
+    .sort((left, right) => {
+      const leftTime = Number.isFinite(left.timestamp) ? left.timestamp : Number.NEGATIVE_INFINITY;
+      const rightTime = Number.isFinite(right.timestamp) ? right.timestamp : Number.NEGATIVE_INFINITY;
+      return leftTime - rightTime || left.index - right.index;
+    })
+    .slice(-250)
+    .map(({ event }) => event);
 }
 
 /** Advance a polling cursor, clearing it when an expired empty window has no replacement ID. */
@@ -323,18 +349,55 @@ export function nextRunPollDelay(failures) {
   return Math.min(2500 * (2 ** count), 30000);
 }
 
+const RUN_STATUS_ORDER = Object.freeze({
+  queued: 0,
+  running: 1,
+  review: 2,
+  completed: 2,
+  approved: 3,
+  rejected: 3,
+  failed: 3,
+  cancelled: 3,
+});
+const TERMINAL_RUN_STATUSES = new Set(["completed", "approved", "rejected", "failed", "cancelled"]);
+
+/** Reject a late status/detail snapshot that predates the record already in the UI. */
+function isOlderRunSnapshot(current, incoming) {
+  if (!current || !incoming || typeof current !== "object" || typeof incoming !== "object") return false;
+  const currentTime = Date.parse(current.updated_at || "");
+  const incomingTime = Date.parse(incoming.updated_at || "");
+  if (Number.isFinite(currentTime) && Number.isFinite(incomingTime) && currentTime !== incomingTime) {
+    return incomingTime < currentTime;
+  }
+  if (Number.isFinite(currentTime) && !Number.isFinite(incomingTime)) return true;
+  if (!Number.isFinite(currentTime) && Number.isFinite(incomingTime)) return false;
+
+  const currentStatus = String(current.status || "").trim().toLowerCase();
+  const incomingStatus = String(incoming.status || "").trim().toLowerCase();
+  const currentOrder = RUN_STATUS_ORDER[currentStatus] ?? -1;
+  const incomingOrder = RUN_STATUS_ORDER[incomingStatus] ?? -1;
+  if (incomingOrder < currentOrder) return true;
+  return TERMINAL_RUN_STATUSES.has(currentStatus)
+    && TERMINAL_RUN_STATUSES.has(incomingStatus)
+    && incomingStatus !== currentStatus;
+}
+
 /** Keep successful status and event responses independent during polling. */
 export function mergeRunPollResult(current, poll, detailItem = null) {
   if (!current || typeof current !== "object" || !poll) return null;
 
   // A successful HTTP response is not enough: never let a mismatched run ID
   // replace the selected record or attach another run's saved artifacts.
-  const status = poll.statusOk && poll.status?.id === current.id ? poll.status : null;
+  const statusCandidate = poll.statusOk && poll.status?.id === current.id ? poll.status : null;
+  const statusIsStale = !!statusCandidate && isOlderRunSnapshot(current, statusCandidate);
+  const status = statusCandidate && !statusIsStale ? statusCandidate : null;
   const eventPayload = poll.eventsOk ? poll.events : null;
-  const detailStages = detailItem?.id === current.id && Array.isArray(detailItem.stages)
+  const detailStages = detailItem?.id === current.id
+    && Array.isArray(detailItem.stages)
+    && !isOlderRunSnapshot(current, detailItem)
     ? detailItem.stages
     : null;
-  if (!status && !eventPayload) return null;
+  if (!status && !eventPayload && !detailStages) return null;
 
   return {
     ...current,
@@ -345,7 +408,7 @@ export function mergeRunPollResult(current, poll, detailItem = null) {
           events: mergeRunEvents(
             current.events,
             eventPayload.items,
-            eventPayload.cursor_expired === true,
+            eventPayload.cursor_expired === true && !statusIsStale,
           ),
         }
       : {}),
