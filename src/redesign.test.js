@@ -243,10 +243,11 @@ test("run drawer selects the latest saved stage after asynchronous detail loadin
 test("unauthorized workspace responses return the operator to settings", async () => {
   const app = await read("../src/App.jsx");
   assert.ok(app.includes("function redirectToSettingsOnUnauthorized(error)"));
-  assert.ok(app.includes("if (error?.status !== 401) return false;"));
+  assert.ok(app.includes("if (!isWorkspaceAccessDenied(error)) return false;"));
+  assert.ok(app.includes("clearProtectedWorkspaceData();"));
   assert.ok(app.includes("setSelectedRun(null);"));
   assert.ok(app.includes("setView(\"Settings\");"));
-  assert.ok(app.includes("Workspace access key is missing or incorrect. Update it in Settings."));
+  assert.ok(app.includes("Workspace access was denied."));
 });
 
 test("run event history announces only the latest event to assistive technology", async () => {
