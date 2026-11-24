@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, normalizeActivityRunPage, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, buildRunActivity, mergeRunActivity, getCurrentRunActivity, isRunEventPage, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, getRunRecordCount, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
+import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, normalizeActivityRunPage, normalizeRunHistoryPage, assertNoRunPageOverlap, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, buildRunActivity, mergeRunActivity, getCurrentRunActivity, isRunEventPage, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, getRunRecordCount, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -671,6 +671,27 @@ test("activity workflow pages validate offset, continuation and a stable server 
     items: [], total: 3, limit: 2, offset: 0,
     has_more: true, next_offset: 0, snapshot_at: snapshotAt,
   }, 0, 2), /empty non-terminal page/);
+});
+
+test("generic history pages reject snapshot total drift and offsets beyond the total", () => {
+  const snapshotAt = "2026-11-24T03:00:00+00:00";
+  const first = {
+    items: [{ id: "RUN-1" }, { id: "RUN-2" }], total: 3, limit: 2, offset: 0,
+    has_more: true, next_offset: 2, snapshot_at: snapshotAt,
+  };
+  assert.equal(normalizeRunHistoryPage(first, 0, 2).nextOffset, 2);
+  const last = { ...first, items: [{ id: "RUN-3" }], offset: 2, has_more: false, next_offset: null };
+  assert.equal(normalizeRunHistoryPage(last, 2, 2, snapshotAt, 3).hasMore, false);
+  assert.throws(() => normalizeRunHistoryPage(last, 2, 2, snapshotAt, 4), /changed the total within the snapshot/);
+  assert.throws(() => normalizeRunHistoryPage({ ...last, offset: 4, items: [] }, 4, 2, snapshotAt, 3), /inconsistent page metadata/);
+  assert.throws(() => normalizeRunHistoryPage({ ...first, items: [] }, 0, 2), /empty non-terminal page/);
+});
+
+test("adjacent workflow pages reject duplicate identities instead of silently skipping records", () => {
+  const incoming = [{ id: "RUN-2" }];
+  assert.equal(assertNoRunPageOverlap([{ id: "RUN-1" }], incoming), incoming);
+  assert.throws(() => assertNoRunPageOverlap([{ id: "RUN-1" }, { id: "RUN-2" }], incoming), /previously loaded workflow ID/);
+  assert.throws(() => assertNoRunPageOverlap([], [{ id: " " }]), /previously loaded workflow ID/);
 });
 
 test("history pagination rejects stale and forward-skipping cursors", () => {

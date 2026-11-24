@@ -22,12 +22,14 @@ export function normalizeReviewHistoryPage(
   expectedOffset,
   expectedLimit,
   expectedSnapshotAt = null,
+  expectedTotal = null,
 ) {
   if (!DECISION_STATES.has(expectedDecision)) {
     throw new TypeError("A review-history page requires an approved or rejected decision filter.");
   }
   if (!Number.isSafeInteger(expectedOffset) || expectedOffset < 0
-    || !Number.isSafeInteger(expectedLimit) || expectedLimit < 1 || expectedLimit > 100) {
+    || !Number.isSafeInteger(expectedLimit) || expectedLimit < 1 || expectedLimit > 100
+    || (expectedTotal != null && (!Number.isSafeInteger(expectedTotal) || expectedTotal < 0))) {
     throw new TypeError("The review-history request has invalid pagination parameters.");
   }
   if (!response || typeof response !== "object" || Array.isArray(response) || !Array.isArray(response.items)) {
@@ -40,6 +42,9 @@ export function normalizeReviewHistoryPage(
     || response.items.length > expectedLimit) {
     throw new TypeError("The review-history endpoint returned inconsistent pagination metadata.");
   }
+  if (expectedTotal != null && response.total !== expectedTotal) {
+    throw new TypeError("The review-history endpoint changed the total within the snapshot.");
+  }
   if (response.items.some((record) => (
     !record || typeof record !== "object" || Array.isArray(record)
     || typeof record.id !== "string" || !record.id.trim()
@@ -47,10 +52,17 @@ export function normalizeReviewHistoryPage(
   ))) {
     throw new TypeError("The review-history endpoint returned a record outside the requested decision set.");
   }
+  const ids = response.items.map((record) => record.id.trim());
+  if (new Set(ids).size !== ids.length) {
+    throw new TypeError("The review-history endpoint returned duplicate decision IDs.");
+  }
   if (typeof response.has_more !== "boolean") {
     throw new TypeError("The review-history endpoint returned an invalid continuation flag.");
   }
   const expectedNextOffset = expectedOffset + response.items.length;
+  if (expectedNextOffset > response.total) {
+    throw new TypeError("The review-history endpoint returned inconsistent pagination metadata.");
+  }
   const expectedHasMore = expectedNextOffset < response.total;
   if (response.has_more !== expectedHasMore
     || response.next_offset !== (expectedHasMore ? expectedNextOffset : null)) {

@@ -434,47 +434,61 @@ export function getOrCreateRunRequestKey(holder, goal, createKey = () => {
 }
 
 
-/** Validate a snapshot-pinned workflow page before the activity stream advances. */
-export function normalizeActivityRunPage(response, expectedOffset, expectedLimit, expectedSnapshotAt = null) {
+/** Validate a snapshot-pinned workflow page before any client advances its offset. */
+export function normalizeRunHistoryPage(
+  response,
+  expectedOffset,
+  expectedLimit,
+  expectedSnapshotAt = null,
+  expectedTotal = null,
+) {
   if (!Number.isSafeInteger(expectedOffset) || expectedOffset < 0
-    || !Number.isSafeInteger(expectedLimit) || expectedLimit < 1 || expectedLimit > 100) {
-    throw new TypeError("The activity workflow request has invalid pagination parameters.");
+    || !Number.isSafeInteger(expectedLimit) || expectedLimit < 1 || expectedLimit > 100
+    || (expectedTotal != null && (!Number.isSafeInteger(expectedTotal) || expectedTotal < 0))) {
+    throw new TypeError("The workflow history request has invalid pagination parameters.");
   }
   if (!response || typeof response !== "object" || Array.isArray(response) || !Array.isArray(response.items)) {
-    throw new TypeError("The activity workflow endpoint returned an invalid page.");
+    throw new TypeError("The workflow history endpoint returned an invalid page.");
   }
   if (!Number.isSafeInteger(response.total) || response.total < 0
     || !Number.isSafeInteger(response.offset) || response.offset !== expectedOffset
     || !Number.isSafeInteger(response.limit) || response.limit !== expectedLimit
+    || response.offset > response.total
     || response.items.length > expectedLimit
     || response.items.some((run) => (
       !run || typeof run !== "object" || Array.isArray(run)
       || typeof run.id !== "string" || !run.id.trim()
     ))) {
-    throw new TypeError("The activity workflow endpoint returned inconsistent page metadata.");
+    throw new TypeError("The workflow history endpoint returned inconsistent page metadata.");
+  }
+  if (expectedTotal != null && response.total !== expectedTotal) {
+    throw new TypeError("The workflow history endpoint changed the total within the snapshot.");
   }
   const ids = response.items.map((run) => run.id.trim());
   if (new Set(ids).size !== ids.length) {
-    throw new TypeError("The activity workflow endpoint returned duplicate workflow IDs.");
+    throw new TypeError("The workflow history endpoint returned duplicate workflow IDs.");
   }
   if (typeof response.has_more !== "boolean") {
-    throw new TypeError("The activity workflow endpoint returned an invalid continuation flag.");
+    throw new TypeError("The workflow history endpoint returned an invalid continuation flag.");
   }
   if (response.has_more && response.items.length === 0) {
-    throw new TypeError("The activity workflow endpoint returned an empty non-terminal page.");
+    throw new TypeError("The workflow history endpoint returned an empty non-terminal page.");
   }
   const expectedNextOffset = expectedOffset + response.items.length;
+  if (expectedNextOffset > response.total) {
+    throw new TypeError("The workflow history endpoint returned inconsistent page metadata.");
+  }
   const expectedHasMore = expectedNextOffset < response.total;
   if (response.has_more !== expectedHasMore
     || response.next_offset !== (expectedHasMore ? expectedNextOffset : null)) {
-    throw new TypeError("The activity workflow endpoint returned an inconsistent next-page cursor.");
+    throw new TypeError("The workflow history endpoint returned an inconsistent next-page cursor.");
   }
   const snapshotAt = response.snapshot_at;
   if (typeof snapshotAt !== "string" || !snapshotAt.trim() || !Number.isFinite(Date.parse(snapshotAt))) {
-    throw new TypeError("The activity workflow endpoint returned an invalid snapshot timestamp.");
+    throw new TypeError("The workflow history endpoint returned an invalid snapshot timestamp.");
   }
   if (expectedSnapshotAt != null && snapshotAt !== expectedSnapshotAt) {
-    throw new TypeError("The activity workflow endpoint changed the snapshot between pages.");
+    throw new TypeError("The workflow history endpoint changed the snapshot between pages.");
   }
   return {
     items: response.items,
@@ -484,6 +498,31 @@ export function normalizeActivityRunPage(response, expectedOffset, expectedLimit
     hasMore: response.has_more,
     nextOffset: response.next_offset,
   };
+}
+
+/** Keep the activity-specific name while sharing the strict history contract. */
+export function normalizeActivityRunPage(response, expectedOffset, expectedLimit, expectedSnapshotAt = null, expectedTotal = null) {
+  return normalizeRunHistoryPage(response, expectedOffset, expectedLimit, expectedSnapshotAt, expectedTotal);
+}
+
+/** Reject a page that repeats any workflow already present in earlier pages. */
+export function assertNoRunPageOverlap(existingRuns, incomingRuns) {
+  if (!Array.isArray(existingRuns) || !Array.isArray(incomingRuns)) {
+    throw new TypeError("Workflow history pages must be arrays.");
+  }
+  const known = new Set();
+  for (const run of existingRuns) {
+    const id = typeof run?.id === "string" ? run.id.trim() : "";
+    if (id) known.add(id);
+  }
+  for (const run of incomingRuns) {
+    const id = typeof run?.id === "string" ? run.id.trim() : "";
+    if (!id || known.has(id)) {
+      throw new TypeError("The workflow history page repeated a previously loaded workflow ID.");
+    }
+    known.add(id);
+  }
+  return incomingRuns;
 }
 
 /** Advance history pagination without treating a null terminal cursor as zero. */
