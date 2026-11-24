@@ -487,7 +487,7 @@ export function normalizeActivityRunPage(response, expectedOffset, expectedLimit
 }
 
 /** Advance history pagination without treating a null terminal cursor as zero. */
-export function getRunPageOffset(response, currentOffset = 0, pageLength = 0)
+export function getRunPageOffset(response, currentOffset = 0, pageLength = 0) {
   const offset = Math.max(0, Math.floor(Number.isFinite(Number(currentOffset)) ? Number(currentOffset) : 0));
   const count = Math.max(0, Math.floor(Number.isFinite(Number(pageLength)) ? Number(pageLength) : 0));
   const minimumNextOffset = offset + count;
