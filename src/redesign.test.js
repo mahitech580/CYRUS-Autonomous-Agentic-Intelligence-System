@@ -401,13 +401,18 @@ test("activity stream and observability expose separate saved-record and telemet
   assert.ok(pages.includes('const isAll=route.filter==="all"'));
   assert.ok(pages.includes('isAll?runs:'));
   assert.ok(pages.includes('if(route.kind==="activity")return <ActivityPanel'));
-  assert.ok(pages.includes("api.runEvents(run.id,null,{signal:controller.signal})"));
-  assert.ok(pages.includes("mergeRunActivity(events,sources,recentRuns.map((run)=>run.id),50)"));
-  assert.ok(pages.includes("getCurrentRunActivity(events,loadedRunKey,runKey,recentRuns)"));
+  assert.ok(pages.includes("api.runEvents(run.id,null,{signal})"));
+  assert.ok(pages.includes("api.runs({limit:ACTIVITY_RUN_PAGE_SIZE,offset:0,signal:controller.signal})"));
+  assert.ok(pages.includes("normalizeActivityRunPage"));
+  assert.ok(pages.includes("snapshotAt"));
+  assert.ok(pages.includes("mergeRunActivity(current,result.sources,ids,ACTIVITY_EVENT_LIMIT)"));
+  assert.ok(pages.includes("getCurrentRunActivity(events,loadedRunKey,runKey,workflowRuns)"));
+  assert.ok(pages.includes("Load older workflows"));
+  assert.ok(!pages.includes("recentRuns=(Array.isArray(runs)?runs:[]).filter"));
   assert.ok(pages.includes('if(route.kind==="observability")return <ObservabilityPanel'));
   assert.ok(pages.includes('isAll?"Latest saved workflow records"'));
   assert.ok(data.includes("approved or rejected workflow decision"));
-  assert.ok(data.includes("persisted stage events across up to eight of the latest loaded workflows"));
+  assert.ok(data.includes("paginated set of saved workflows"));
 });
 
 
