@@ -256,7 +256,7 @@ test("terminal run states win equal-timestamp polls without a newer persisted ve
     { status: "fulfilled", value: { item: {
       id: current.id, status: "running", updated_at: current.updated_at,
     } } },
-    { status: "rejected", reason: new Error("event history unavailable") },
+    { status: "fulfilled", value: { items: [], next_after: null } },
     current.id,
   );
   assert.equal(mergeRunPollResult(current, poll).status, "cancelled");
