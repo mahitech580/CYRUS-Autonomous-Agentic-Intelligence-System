@@ -121,6 +121,8 @@ For Vercel, configure server-only variables in the cyrus-api project's Environme
 | POST | /api/runs/{run_id}/approval | Record approve/reject decision; does not deploy |
 | POST | /api/runs/{run_id}/cancel | Request cancellation of queued/running work |
 
+For unfiltered `GET /api/runs` history, the first page returns `snapshot_at`. Reuse that exact value with later `offset` requests; the API keeps the creation-time boundary and total stable for that page sequence. Refresh to start a new snapshot. Creating or retrying a workflow invalidates the browser's older-page cursor until history is refreshed.
+
 Example request:
 
     curl -X POST http://localhost:8000/api/runs -H "Content-Type: application/json" -d '{"goal":"Design a secure profile API with validation and tests"}'

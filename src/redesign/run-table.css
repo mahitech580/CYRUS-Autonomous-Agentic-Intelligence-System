@@ -19,7 +19,8 @@
   font-size:11px;
   line-height:1.6;
 }
-.runs-pagination > span { max-width:64ch; }
+.runs-pagination-copy { display:grid; gap:2px; max-width:64ch; min-width:0; }
+.runs-pagination-copy small { color:#7f94b8; font-size:10px; line-height:1.5; }
 .runs-pagination .button-outline { flex-shrink:0; }
 @media (max-width:640px) {
   .runs-pagination { align-items:stretch; flex-direction:column; }

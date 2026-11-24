@@ -272,7 +272,7 @@ test("keyboard users can skip workspace navigation and focus the main content", 
 test("workflow history refresh and pagination requests cannot overlap", async () => {
   const app = await read("../src/App.jsx");
   assert.ok(app.includes("if (refreshingRuns || loadingMoreRuns) return;"));
-  assert.ok(app.includes("if (loadingMoreRuns || refreshingRuns || runsOffset >= runsTotal) return;"));
+  assert.ok(app.includes("if (loadingMoreRuns || refreshingRuns || runsOffset >= runsTotal || !runsSnapshotAt) return;"));
   assert.ok(app.includes("disabled={loadingMoreRuns || refreshingRuns}"));
   assert.ok(app.includes("disabled={refreshingRuns || loadingMoreRuns}"));
 });
@@ -739,4 +739,24 @@ test("protected workspace data is cleared for both unauthorized and forbidden re
   assert.ok(app.includes("config.runtime_access_denied || (config.auth_required && !getAccessKey())"));
   assert.ok(pages.includes("failures.find((item)=>isWorkspaceAccessDenied(item.error))"));
   assert.ok(pages.includes("isWorkspaceAccessDenied(result.reason)"));
+});
+
+
+test("main run history reuses a validated server snapshot and invalidates it after new writes", async () => {
+  const app = await read("../src/App.jsx");
+  const styles = await read("redesign/run-table.css");
+  const docs = await read("../README.md");
+  assert.ok(app.includes('const [runsSnapshotAt, setRunsSnapshotAt] = useState("");'));
+  assert.ok(app.includes("normalizeRunHistoryPage(data, offset, RUNS_PAGE_SIZE, snapshotAt, runsTotal)"));
+  assert.ok(app.includes("api.runs({ limit: RUNS_PAGE_SIZE, offset, snapshotAt })"));
+  assert.ok(app.includes("runsPageGeneration.current += 1;"));
+  assert.ok(app.includes('setRunsSnapshotAt("");'));
+  assert.ok(app.includes("runsSnapshotAt={runsSnapshotAt}"));
+  assert.ok(app.includes("Snapshot captured"));
+  const statsStart = app.indexOf("async function refreshRunStats");
+  const statsEnd = app.indexOf("function clearProtectedWorkspaceData", statsStart);
+  assert.ok(statsStart >= 0 && statsEnd > statsStart);
+  assert.ok(!app.slice(statsStart, statsEnd).includes("setRunsTotal"), "aggregate refresh must not mutate the pinned history total");
+  assert.ok(styles.includes(".runs-pagination-copy"));
+  assert.ok(docs.includes("snapshot_at"));
 });

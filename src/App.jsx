@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
 import { api, getAccessKey, isWorkspaceAccessDenied, setAccessKey } from "./lib/api.js";
-import { nextRunPollDelay, settleRunPoll, mergeRunPollResult, buildRunsCsv, filterRuns, filterRunEvents, getRunEventStatuses, getRunRecordCount, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
+import { nextRunPollDelay, settleRunPoll, mergeRunPollResult, buildRunsCsv, filterRuns, filterRunEvents, getRunEventStatuses, getRunRecordCount, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, normalizeRunHistoryPage, assertNoRunPageOverlap, getNextRunEventCursor, applyRunEventCursor, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
 import WorkspacePage from "./workspace/WorkspacePage.jsx";
@@ -117,6 +117,7 @@ export default function App() {
   const [runsTotal, setRunsTotal] = useState(0);
   const [runStats, setRunStats] = useState(null);
   const [runsOffset, setRunsOffset] = useState(0);
+  const [runsSnapshotAt, setRunsSnapshotAt] = useState("");
   const [loadingMoreRuns, setLoadingMoreRuns] = useState(false);
   const [goal, setGoal] = useState("");
   const [query, setQuery] = useState("");
@@ -138,6 +139,7 @@ export default function App() {
   const loadedStageCount = useRef({});
   const createRunRequest = useRef(null);
   const retryRunRequests = useRef(new Map());
+  const runsPageGeneration = useRef(0);
 
   useEffect(() => () => {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
@@ -279,13 +281,15 @@ export default function App() {
           return;
         }
         try {
+          const generation = runsPageGeneration.current;
           const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset: 0 });
-          if (alive && Array.isArray(data.items)) {
-            const items = data.items.map(mapRunRecord);
-            const total = Number(data.total);
+          if (alive && generation === runsPageGeneration.current) {
+            const page = normalizeRunHistoryPage(data, 0, RUNS_PAGE_SIZE);
+            const items = page.items.map(mapRunRecord);
             setRuns(items);
-            setRunsTotal(Number.isFinite(total) ? Math.max(items.length, total) : items.length);
-            setRunsOffset(getRunPageOffset(data, 0, items.length));
+            setRunsTotal(page.total);
+            setRunsOffset(page.nextOffset ?? page.pageLength);
+            setRunsSnapshotAt(page.snapshotAt);
             setRunStats(data.stats && typeof data.stats === "object" ? data.stats : null);
           }
         } catch (error) {
@@ -331,17 +335,17 @@ export default function App() {
   async function refreshRunStats() {
     try {
       const snapshot = await api.runs({ limit: 1, offset: 0 });
-      const total = Number(snapshot?.total);
-      if (Number.isFinite(total)) setRunsTotal(Math.max(0, Math.floor(total)));
       if (snapshot?.stats && typeof snapshot.stats === "object") setRunStats(snapshot.stats);
     } catch (error) {
       if (isWorkspaceAccessDenied(error)) redirectToSettingsOnUnauthorized(error);
     }
   }
   function clearProtectedWorkspaceData() {
+    runsPageGeneration.current += 1;
     setRuns([]);
     setRunsTotal(0);
     setRunsOffset(0);
+    setRunsSnapshotAt("");
     setRunStats(null);
     setSelectedRun(null);
   }
@@ -390,6 +394,8 @@ export default function App() {
       const created = mapRunRecord(result.item || result);
       loadedStageCount.current[created.id] = Array.isArray(created.stages) ? created.stages.length : 0;
       const insertion = getRunInsertionChanges(runs, created, result.replayed);
+      runsPageGeneration.current += 1;
+      setRunsSnapshotAt("");
       setRuns(insertion.items);
       if (insertion.totalDelta) setRunsTotal((current) => current + insertion.totalDelta);
       if (insertion.offsetDelta) setRunsOffset((current) => current + insertion.offsetDelta);
@@ -425,21 +431,24 @@ export default function App() {
   }
   async function refreshRuns() {
     if (refreshingRuns || loadingMoreRuns) return;
+    const generation = runsPageGeneration.current;
     setRefreshingRuns(true);
     try {
       const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset: 0 });
-      const items = Array.isArray(data.items) ? data.items.map(mapRunRecord) : [];
-      const total = Number(data.total);
+      const page = normalizeRunHistoryPage(data, 0, RUNS_PAGE_SIZE);
+      if (generation !== runsPageGeneration.current) return;
+      const items = page.items.map(mapRunRecord);
       setRuns(items);
       setSelectedRun((current) => {
         if (!current) return current;
         const summary = items.find((item) => item.id === current.id);
         return summary ? mergeRunSummaryIntoDetail(current, summary) : current;
       });
-      setRunsTotal(Number.isFinite(total) ? Math.max(items.length, total) : items.length);
-      setRunsOffset(items.length);
+      setRunsTotal(page.total);
+      setRunsOffset(page.nextOffset ?? page.pageLength);
+      setRunsSnapshotAt(page.snapshotAt);
       setRunStats(data.stats && typeof data.stats === "object" ? data.stats : null);
-      notify("Refreshed the latest " + items.length + " of " + (Number.isFinite(total) ? total : items.length) + " saved workflows.");
+      notify("Refreshed the latest " + items.length + " of " + page.total + " saved workflows.");
     } catch (error) {
       if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not refresh workflow history.");
     } finally {
@@ -447,27 +456,26 @@ export default function App() {
     }
   }
   async function loadMoreRuns() {
-    if (loadingMoreRuns || refreshingRuns || runsOffset >= runsTotal) return;
+    if (loadingMoreRuns || refreshingRuns || runsOffset >= runsTotal || !runsSnapshotAt) return;
     const offset = runsOffset;
+    const snapshotAt = runsSnapshotAt;
+    const generation = runsPageGeneration.current;
     setLoadingMoreRuns(true);
     try {
-      const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset });
-      const items = Array.isArray(data.items) ? data.items.map(mapRunRecord) : [];
+      const data = await api.runs({ limit: RUNS_PAGE_SIZE, offset, snapshotAt });
+      if (generation !== runsPageGeneration.current) return;
+      const page = normalizeRunHistoryPage(data, offset, RUNS_PAGE_SIZE, snapshotAt, runsTotal);
+      assertNoRunPageOverlap(runs, page.items);
+      const items = page.items.map(mapRunRecord);
       if (!items.length) {
-        // A concurrent deletion or stale count can leave an empty page before
-        // the previous total. Stop offering a load-more action instead of looping.
         setRunsOffset(offset);
-        setRunsTotal((current) => Math.min(current, offset));
-        notify("No older workflow records were returned. History is up to date.");
+        setRunsTotal(page.total);
+        notify("No older workflow records were returned. Refresh history to start a new snapshot.");
         return;
       }
-      setRuns((current) => {
-        const known = new Set(current.map((item) => item.id));
-        return [...current, ...items.filter((item) => !known.has(item.id))];
-      });
-      const total = Number(data.total);
-      if (Number.isFinite(total)) setRunsTotal((current) => Math.max(current, total));
-      setRunsOffset(getRunPageOffset(data, offset, items.length));
+      setRuns((current) => [...current, ...items]);
+      setRunsTotal(page.total);
+      setRunsOffset(page.nextOffset ?? offset + items.length);
       notify("Loaded " + items.length + " older workflow" + (items.length === 1 ? "." : "s."));
     } catch (error) {
       if (!redirectToSettingsOnUnauthorized(error)) notify(error.message || "Could not load older workflows.");
@@ -550,6 +558,8 @@ export default function App() {
       const retried = mapRunRecord(response.item || response);
       loadedStageCount.current[retried.id] = Array.isArray(retried.stages) ? retried.stages.length : 0;
       const insertion = getRunInsertionChanges(runs, retried, response.replayed);
+      runsPageGeneration.current += 1;
+      setRunsSnapshotAt("");
       setRuns(insertion.items);
       if (insertion.totalDelta) setRunsTotal((current) => current + insertion.totalDelta);
       if (insertion.offsetDelta) setRunsOffset((current) => current + insertion.offsetDelta);
@@ -748,7 +758,7 @@ export default function App() {
             setQuery={setQuery} setStatusFilter={setStatusFilter}
           /> : null}
           {view === "Agent fleet" ? <FleetView notify={notify} apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
-          {view === "Runs & tasks" ? <RunsView runs={visibleRuns} loadedRunCount={runs.length} totalRuns={runsTotal} hasMoreRuns={runsOffset < runsTotal} loadingMoreRuns={loadingMoreRuns} loadMoreRuns={loadMoreRuns} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} refreshRuns={refreshRuns} refreshingRuns={refreshingRuns} notify={notify} /> : null}
+          {view === "Runs & tasks" ? <RunsView runs={visibleRuns} loadedRunCount={runs.length} totalRuns={runsTotal} hasMoreRuns={!!runsSnapshotAt && runsOffset < runsTotal} loadingMoreRuns={loadingMoreRuns} loadMoreRuns={loadMoreRuns} runsSnapshotAt={runsSnapshotAt} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} openRun={openRun} goal={goal} setGoal={setGoal} startRun={startRun} isStarting={isStarting} canStart={!!workspaceConfig?.can_start_runs} refreshRuns={refreshRuns} refreshingRuns={refreshingRuns} notify={notify} /> : null}
           {view === "Code review" ? <ReviewView runs={runs} openRun={openRun} apiState={apiState} onUnauthorized={redirectToSettingsOnUnauthorized} refreshToken={reviewRefreshToken} /> : null}
           {view === "Deployments" ? <DeploymentsView apiState={apiState} workspaceConfig={workspaceConfig} /> : null}
           {view === "Integrations" ? <IntegrationsView notify={notify} /> : null}
@@ -954,7 +964,7 @@ function FleetView({ apiState, workspaceConfig }) {
     <div className="notice-strip"><ShieldCheck size={17} /><span><strong>Guardrail:</strong> agents prepare artifacts and recommendations; sensitive operations require explicit human approval. Role configuration is fixed in the backend and is not editable from this view.</span></div>
   </div>;
 }
-function RunsView({ runs, loadedRunCount, totalRuns, hasMoreRuns, loadingMoreRuns, loadMoreRuns, query, setQuery, statusFilter, setStatusFilter, openRun, goal, setGoal, startRun, isStarting, canStart, refreshRuns, refreshingRuns, notify }) {
+function RunsView({ runs, loadedRunCount, totalRuns, hasMoreRuns, loadingMoreRuns, loadMoreRuns, runsSnapshotAt, query, setQuery, statusFilter, setStatusFilter, openRun, goal, setGoal, startRun, isStarting, canStart, refreshRuns, refreshingRuns, notify }) {
   function exportRunsCsv() {
     const csv = buildRunsCsv(runs);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -974,9 +984,14 @@ function RunsView({ runs, loadedRunCount, totalRuns, hasMoreRuns, loadingMoreRun
     <div className="list-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search workflows" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search goals, stages, decisions, or errors…" /></div><label className="filter-select-wrap"><CircleDot size={13} /><select aria-label="Filter workflow status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option><option value="queued">Queued</option><option value="running">In progress</option><option value="review">Needs review</option><option value="approved">Approved</option><option value="completed">Completed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option><option value="rejected">Rejected</option></select><ChevronDown size={13} /></label><button className="button-outline" type="button" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Clear filters <X size={13} /></button><button className="button-outline" type="button" onClick={refreshRuns} disabled={refreshingRuns || loadingMoreRuns}><RefreshCw size={13} className={refreshingRuns ? "spin-icon" : ""} />{refreshingRuns ? "Refreshing" : "Refresh"}</button><button className="button-outline" type="button" onClick={exportRunsCsv} disabled={!runs.length}><Download size={13} /> Export CSV</button></div>
     <section className="panel-card"><div className="table-head"><span>RUN / GOAL</span><span>PROGRESS</span><span>STATUS</span><span /></div><div className="runs-table large-runs">{runs.map((run) => <RunRow key={run.id} run={run} onOpen={openRun} />)}</div>{runs.length === 0 ? <div className="empty-state"><Search size={22} /><strong>No matching runs</strong><span>Try a different search or clear the filters.</span></div> : null}</section>
     <div className="runs-pagination" aria-live="polite">
-      <span>{hasMoreRuns
-        ? "Showing " + loadedRunCount + " of " + totalRuns + " saved workflows. Search and filters apply to loaded records."
-        : "All " + loadedRunCount + " saved workflows are loaded."}</span>
+      <div className="runs-pagination-copy">
+        <span>{!runsSnapshotAt && loadedRunCount
+          ? "A new workflow changed this history view. Refresh to establish a fresh snapshot before loading older runs."
+          : hasMoreRuns
+            ? "Showing " + loadedRunCount + " of " + totalRuns + " saved workflows. Search and filters apply to loaded records."
+            : "All " + loadedRunCount + " saved workflows are loaded."}</span>
+        {runsSnapshotAt ? <small>Snapshot captured <time dateTime={runsSnapshotAt}>{new Date(runsSnapshotAt).toLocaleString()}</time></small> : null}
+      </div>
       {hasMoreRuns ? <button className="button-outline" type="button" onClick={loadMoreRuns} disabled={loadingMoreRuns || refreshingRuns}>
         <RefreshCw size={13} className={loadingMoreRuns ? "spin-icon" : ""} />
         {loadingMoreRuns ? "Loading older runs" : "Load older runs"}
