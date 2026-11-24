@@ -105,10 +105,14 @@ export function mergeReviewHistoryRecords(existing, incoming) {
     const current = records.get(id);
     if (!current || reviewRecordTime(record) >= reviewRecordTime(current)) records.set(id, record);
   }
-  return [...records.values()].sort((left, right) => (
-    reviewRecordTime(right) - reviewRecordTime(left)
-    || String(left.id).localeCompare(String(right.id))
-  ));
+  return [...records.values()].sort((left, right) => {
+    const timeOrder = reviewRecordTime(right) - reviewRecordTime(left);
+    if (timeOrder) return timeOrder;
+    const leftId = String(left.id);
+    const rightId = String(right.id);
+    // Match the API's updated_at DESC, id DESC ordering without locale-dependent collation.
+    return leftId === rightId ? 0 : leftId < rightId ? 1 : -1;
+  });
 }
 
 /** Replace only decision sets that refreshed successfully; retain last-known-good failed sets. */

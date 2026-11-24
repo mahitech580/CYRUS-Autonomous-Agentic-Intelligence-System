@@ -84,6 +84,18 @@ test("review-history pages merge by run ID and sort by persisted decision time",
   assert.deepEqual(mergeReviewHistoryRecords(null, "invalid"), []);
 });
 
+test("review-history ties match the API's deterministic descending ID order", () => {
+  const timestamp = "2026-11-24T10:00:00Z";
+  const records = [
+    { id: "RUN-A", status: "approved", updated_at: timestamp },
+    { id: "RUN-Z", status: "approved", updated_at: timestamp },
+    { id: "RUN-M", status: "approved", updated_at: timestamp },
+  ];
+  const expected = ["RUN-Z", "RUN-M", "RUN-A"];
+  assert.deepEqual(mergeReviewHistoryRecords(records, []).map((item) => item.id), expected);
+  assert.deepEqual(mergeReviewHistoryRecords([...records].reverse(), []).map((item) => item.id), expected);
+});
+
 test("review-history merge never replaces a newer persisted decision with an older duplicate", () => {
   const newer = { id: "RUN-1", status: "approved", updated_at: "2026-11-23T10:00:00Z", goal: "Latest" };
   const older = { id: "RUN-1", status: "approved", updated_at: "2026-11-22T10:00:00Z", goal: "Stale" };
