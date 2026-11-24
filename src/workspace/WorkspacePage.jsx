@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { api, isWorkspaceAccessDenied } from "../lib/api.js";
 import { filterWorkflowRuns, formatWorkflowDuration, getWorkflowRunStatus, getWorkflowRunsErrorMessage, normalizeWorkflowRuns, summarizeWorkflowRuns } from "../lib/github-actions.js";
-import { getRunPageOffset, getRunRecordCount, mapRunRecord } from "../lib/runs.js";
+import { assertNoRunPageOverlap, getRunPageOffset, getRunRecordCount, mapRunRecord } from "../lib/runs.js";
 import { filterReviewHistory, getReviewDecision, mergeReviewHistoryRecords, mergeReviewHistoryRefresh, normalizeReviewHistoryPage } from "../lib/review-history.js";
 import { getWorkspaceHref } from "../lib/routes.js";
 import { filterTaskTemplates, TASK_TEMPLATES, WORKSPACE_PAGE_CONTENT } from "./page-data.js";
@@ -189,9 +189,11 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
     if(result.status==="fulfilled"){
      try{
       const page=normalizeReviewHistoryPage(
-       result.value,status,offsets[status],REVIEW_HISTORY_PAGE_SIZE,snapshots[status]
+       result.value,status,offsets[status],REVIEW_HISTORY_PAGE_SIZE,snapshots[status],totals[status]
       );
-      incoming.push(...page.items.map(mapRunRecord));
+      const pageRecords=page.items.map(mapRunRecord);
+      assertNoRunPageOverlap([...records,...incoming],pageRecords);
+      incoming.push(...pageRecords);
       nextTotals[status]=page.total;
       nextOffsets[status]=getRunPageOffset(result.value,offsets[status],page.pageLength);
      }catch(cause){failures.push({status,error:cause});}
@@ -428,7 +430,7 @@ function ActivityPanel({openRun,apiState,config,onUnauthorized}){
     snapshotAt,
     signal:controller.signal
    });
-   const page=normalizeActivityRunPage(response,nextOffset,ACTIVITY_RUN_PAGE_SIZE,snapshotAt);
+   const page=normalizeActivityRunPage(response,nextOffset,ACTIVITY_RUN_PAGE_SIZE,snapshotAt,totalRuns);
    if(controller.signal.aborted)return;
    if(!page.items.length){
     setTotalRuns(Math.max(workflowRuns.length,page.total));
@@ -437,6 +439,7 @@ function ActivityPanel({openRun,apiState,config,onUnauthorized}){
     return;
    }
    const incoming=page.items.map(mapRunRecord);
+   assertNoRunPageOverlap(workflowRuns,incoming);
    const result=await fetchActivityEvents(incoming,controller.signal);
    if(controller.signal.aborted)return;
    if(result.failures){
@@ -446,8 +449,7 @@ function ActivityPanel({openRun,apiState,config,onUnauthorized}){
      :"Retained events could not be loaded for "+result.failures+" of "+incoming.length+" older workflows. Retry this page.");
     return;
    }
-   const known=new Set(workflowRuns.map((run)=>run.id));
-   const mergedRuns=[...workflowRuns,...incoming.filter((run)=>!known.has(run.id))];
+   const mergedRuns=[...workflowRuns,...incoming];
    const ids=mergedRuns.map((run)=>run.id);
    const key=JSON.stringify(ids);
    setWorkflowRuns(mergedRuns);

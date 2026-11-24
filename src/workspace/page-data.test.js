@@ -136,6 +136,10 @@ test("activity stream uses retained per-run events with bounded loading and acti
   assert.ok(source.includes("api.runs({"));
   assert.ok(source.includes("snapshotAt"));
   assert.ok(source.includes("normalizeActivityRunPage"));
+  assert.ok(source.includes("normalizeActivityRunPage(response,nextOffset,ACTIVITY_RUN_PAGE_SIZE,snapshotAt,totalRuns)"));
+  assert.ok(source.includes("assertNoRunPageOverlap(workflowRuns,incoming)"));
+  assert.ok(source.includes("assertNoRunPageOverlap([...records,...incoming],pageRecords)"));
+  assert.ok(source.includes("totals[status]"));
   assert.ok(source.includes("fetchActivityEvents"));
   assert.ok(source.includes("Promise.allSettled"));
   assert.ok(source.includes("offset+=4"));
