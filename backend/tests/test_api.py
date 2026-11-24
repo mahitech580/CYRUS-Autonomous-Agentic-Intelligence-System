@@ -692,10 +692,16 @@ def test_run_list_supports_stable_offset_pages(client):
             ))
         db.commit()
 
-    first = client.get("/api/runs?limit=2&offset=0")
-    second = client.get("/api/runs?limit=2&offset=2")
-    assert first.status_code == second.status_code == 200
+    snapshot_bound = shared_timestamp + main.timedelta(days=1)
+    first = client.get("/api/runs", params={
+        "limit": 2, "offset": 0, "snapshot_at": snapshot_bound.isoformat(),
+    })
+    assert first.status_code == 200
     first_body = first.json()
+    second = client.get("/api/runs", params={
+        "limit": 2, "offset": 2, "snapshot_at": first_body["snapshot_at"],
+    })
+    assert second.status_code == 200
     second_body = second.json()
     expected = sorted(run_ids, reverse=True)
     assert [item["id"] for item in first_body["items"]] == expected[:2]
@@ -705,6 +711,74 @@ def test_run_list_supports_stable_offset_pages(client):
     assert first_body["has_more"] is True
     assert first_body["next_offset"] == 2
     assert second_body["offset"] == 2
+
+
+def test_unfiltered_run_history_keeps_offset_pages_on_the_first_snapshot(client):
+    first_snapshot = client.get("/api/runs?limit=1&offset=0")
+    assert first_snapshot.status_code == 200
+    snapshot_at = first_snapshot.json()["snapshot_at"]
+    assert isinstance(snapshot_at, str)
+    snapshot = main.datetime.fromisoformat(snapshot_at)
+    baseline = first_snapshot.json()["total"]
+    shared_timestamp = snapshot - main.timedelta(microseconds=1)
+    run_ids = [
+        "RUN-ACTIVITY-SNAPSHOT-A-" + main.uuid4().hex[:8].upper(),
+        "RUN-ACTIVITY-SNAPSHOT-B-" + main.uuid4().hex[:8].upper(),
+    ]
+    with main.SessionLocal() as db:
+        for run_id in run_ids:
+            db.add(main.WorkflowRun(
+                id=run_id,
+                goal="Keep activity pagination stable while new workflows arrive",
+                status="completed",
+                progress=100,
+                created_at=shared_timestamp,
+                updated_at=shared_timestamp,
+                stages=[],
+                events=[],
+                execution_mode="live-model",
+                approval_status="approved",
+            ))
+        db.commit()
+
+    first = client.get("/api/runs", params={
+        "limit": 1, "offset": 0, "snapshot_at": snapshot_at,
+    })
+    assert first.status_code == 200
+    first_body = first.json()
+    expected = sorted(run_ids, reverse=True)
+    assert first_body["snapshot_at"] == snapshot_at
+    assert first_body["total"] == baseline + 2
+    assert first_body["items"][0]["id"] == expected[0]
+
+    late_id = "RUN-ACTIVITY-SNAPSHOT-LATE-" + main.uuid4().hex[:8].upper()
+    late_time = snapshot + main.timedelta(seconds=5)
+    with main.SessionLocal() as db:
+        db.add(main.WorkflowRun(
+            id=late_id,
+            goal="Do not shift an already opened activity snapshot",
+            status="completed",
+            progress=100,
+            created_at=late_time,
+            updated_at=late_time,
+            stages=[],
+            events=[],
+            execution_mode="live-model",
+            approval_status="approved",
+        ))
+        db.commit()
+
+    second = client.get("/api/runs", params={
+        "limit": 1,
+        "offset": 1,
+        "snapshot_at": first_body["snapshot_at"],
+    })
+    assert second.status_code == 200
+    second_body = second.json()
+    assert second_body["snapshot_at"] == first_body["snapshot_at"]
+    assert second_body["total"] == first_body["total"] == baseline + 2
+    assert second_body["items"][0]["id"] == expected[1]
+    assert late_id not in str(first_body) + str(second_body)
 
 
 def test_run_list_filters_status_and_counts_only_matching_records(client):

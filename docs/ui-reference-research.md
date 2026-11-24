@@ -33,11 +33,11 @@ Reviewed on 2026-10-28 to guide interface improvements for the CYRUS Engineering
 The Delivery / CI pipeline destination reads the public repository's latest GitHub Actions workflow-run records instead of presenting configured checks as though they were current results.
 
 - Data source: [GitHub REST API — list workflow runs for a repository](https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-repository).
-- Request: \`GET /repos/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs?per_page=12\`.
+- Request: `GET /repos/mahitech580/CYRUS-Autonomous-Agentic-Intelligence-System/actions/runs?per_page=12`.
 - The repository is public, so this read-only endpoint can be queried without a browser token. No GitHub credential or write permission is stored in the frontend.
-- The view labels the latest returned window separately from the repository-wide \`total_count\`, links each result to its exact Actions run, and links valid commit SHAs to the corresponding commit.
+- The view labels the latest returned window separately from the repository-wide `total_count`, links each result to its exact Actions run, and links valid commit SHAs to the corresponding commit.
 - Search and status filters operate only on the returned records. Refresh, loading, empty, malformed-response, network-error and unauthenticated rate-limit states are explicit.
-- The UI does not rerun or cancel workflows, and it does not claim a configured workflow is passing. A result is marked passed only when GitHub returns a completed run with a \`success\` conclusion.
+- The UI does not rerun or cancel workflows, and it does not claim a configured workflow is passing. A result is marked passed only when GitHub returns a completed run with a `success` conclusion.
 
 Unauthenticated public API requests are subject to GitHub's rate limits. If the API is unavailable, the page keeps the last successfully loaded snapshot and links to the repository's Actions history.
 
@@ -52,3 +52,12 @@ The backend's `agent_count` field is currently the size of the configured specia
 - Continue using persisted API data for counts and telemetry; show skeleton/loading, empty, error, and ready states explicitly.
 - Introduce a light theme only as a deliberate design-system feature with tested contrast, not as a quick inversion of dark-mode colors.
 - Validate the overview and setup flow at common viewport widths and with keyboard-only navigation before adding further visual decoration.
+
+
+## Activity stream history pagination (24 November 2026)
+
+The Activity Stream now pages saved workflow summaries in batches of eight. The first unfiltered `GET /api/runs` response captures a server-side `snapshot_at`; later pages pass that exact value so newly created workflows cannot shift offset-based results or duplicate/skip a row. The UI loads retained events only for the selected page, keeps the search window explicit (newest 200 merged events), and lets the operator load older workflow summaries deliberately. This remains a read-only aggregation of per-run event records, not a global tracing or audit service.
+
+Engineering references:
+- [FastAPI query parameters](https://fastapi.tiangolo.com/tutorial/query-params/) — typed, bounded pagination and snapshot query inputs.
+- [SQLAlchemy 2.0 SELECT statements](https://docs.sqlalchemy.org/en/20/core/selectable.html) — deterministic ordering and filtering before applying offsets and limits.

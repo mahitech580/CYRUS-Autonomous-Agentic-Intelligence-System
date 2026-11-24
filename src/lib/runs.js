@@ -434,8 +434,60 @@ export function getOrCreateRunRequestKey(holder, goal, createKey = () => {
 }
 
 
+/** Validate a snapshot-pinned workflow page before the activity stream advances. */
+export function normalizeActivityRunPage(response, expectedOffset, expectedLimit, expectedSnapshotAt = null) {
+  if (!Number.isSafeInteger(expectedOffset) || expectedOffset < 0
+    || !Number.isSafeInteger(expectedLimit) || expectedLimit < 1 || expectedLimit > 100) {
+    throw new TypeError("The activity workflow request has invalid pagination parameters.");
+  }
+  if (!response || typeof response !== "object" || Array.isArray(response) || !Array.isArray(response.items)) {
+    throw new TypeError("The activity workflow endpoint returned an invalid page.");
+  }
+  if (!Number.isSafeInteger(response.total) || response.total < 0
+    || !Number.isSafeInteger(response.offset) || response.offset !== expectedOffset
+    || !Number.isSafeInteger(response.limit) || response.limit !== expectedLimit
+    || response.items.length > expectedLimit
+    || response.items.some((run) => (
+      !run || typeof run !== "object" || Array.isArray(run)
+      || typeof run.id !== "string" || !run.id.trim()
+    ))) {
+    throw new TypeError("The activity workflow endpoint returned inconsistent page metadata.");
+  }
+  const ids = response.items.map((run) => run.id.trim());
+  if (new Set(ids).size !== ids.length) {
+    throw new TypeError("The activity workflow endpoint returned duplicate workflow IDs.");
+  }
+  if (typeof response.has_more !== "boolean") {
+    throw new TypeError("The activity workflow endpoint returned an invalid continuation flag.");
+  }
+  if (response.has_more && response.items.length === 0) {
+    throw new TypeError("The activity workflow endpoint returned an empty non-terminal page.");
+  }
+  const expectedNextOffset = expectedOffset + response.items.length;
+  const expectedHasMore = expectedNextOffset < response.total;
+  if (response.has_more !== expectedHasMore
+    || response.next_offset !== (expectedHasMore ? expectedNextOffset : null)) {
+    throw new TypeError("The activity workflow endpoint returned an inconsistent next-page cursor.");
+  }
+  const snapshotAt = response.snapshot_at;
+  if (typeof snapshotAt !== "string" || !snapshotAt.trim() || !Number.isFinite(Date.parse(snapshotAt))) {
+    throw new TypeError("The activity workflow endpoint returned an invalid snapshot timestamp.");
+  }
+  if (expectedSnapshotAt != null && snapshotAt !== expectedSnapshotAt) {
+    throw new TypeError("The activity workflow endpoint changed the snapshot between pages.");
+  }
+  return {
+    items: response.items,
+    total: response.total,
+    pageLength: response.items.length,
+    snapshotAt,
+    hasMore: response.has_more,
+    nextOffset: response.next_offset,
+  };
+}
+
 /** Advance history pagination without treating a null terminal cursor as zero. */
-export function getRunPageOffset(response, currentOffset = 0, pageLength = 0) {
+export function getRunPageOffset(response, currentOffset = 0, pageLength = 0)
   const offset = Math.max(0, Math.floor(Number.isFinite(Number(currentOffset)) ? Number(currentOffset) : 0));
   const count = Math.max(0, Math.floor(Number.isFinite(Number(pageLength)) ? Number(pageLength) : 0));
   const minimumNextOffset = offset + count;

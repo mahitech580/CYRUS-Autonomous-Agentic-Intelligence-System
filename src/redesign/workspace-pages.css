@@ -284,3 +284,14 @@
 @media(max-width:900px){.workspace-review-history-toolbar{grid-template-columns:minmax(0,1fr) 160px auto}.workspace-review-history-queue{grid-column:1/-1;justify-self:start}}
 @media(max-width:740px){.workspace-review-history-toolbar{grid-template-columns:minmax(0,1fr)}.workspace-review-history-search,.workspace-review-history-filter,.workspace-review-history-refresh,.workspace-review-history-queue{grid-column:1}.workspace-review-history-row{grid-template-columns:30px minmax(0,1fr);align-items:start}.workspace-review-history-row-meta{grid-column:2;display:flex;align-items:center;justify-content:space-between;justify-items:stretch;flex-wrap:wrap}.workspace-review-history-arrow{display:none}}
 @media(max-width:420px){.workspace-review-history-summary article{padding:10px}.workspace-review-history-summary article>strong{font-size:18px}.workspace-review-history-meta{align-items:flex-start;flex-direction:column}.workspace-review-history-row{gap:8px;padding:10px}}
+
+
+/* Snapshot-pinned workflow pagination for the retained Activity Stream. */
+.workspace-activity-pagination{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-top:10px;border-top:1px solid rgba(126,158,219,.14);color:#91a7c8;font-size:10px}
+.workspace-activity-pagination button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:0 12px;border:1px solid rgba(103,232,249,.24);border-radius:9px;background:rgba(103,232,249,.07);color:#a8efff;font-size:10px}
+.workspace-activity-pagination button:hover:not(:disabled){border-color:rgba(103,232,249,.45);background:rgba(103,232,249,.12)}
+.workspace-activity-pagination button:disabled{opacity:.48;cursor:not-allowed}
+.workspace-activity-pagination button:focus-visible{outline:2px solid var(--accent-cyan);outline-offset:3px}
+.workspace-activity-pagination-complete{color:#7f95b7}
+.workspace-activity-pagination-error{padding:9px 11px;border:1px solid rgba(251,191,36,.2);border-radius:9px;background:rgba(251,191,36,.05);color:#e8c47c;font-size:10px;line-height:1.55}
+@media(max-width:560px){.workspace-activity-pagination{align-items:stretch;flex-direction:column}.workspace-activity-pagination button{width:100%}}

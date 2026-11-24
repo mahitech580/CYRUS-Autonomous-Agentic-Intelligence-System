@@ -132,21 +132,35 @@ test("activity stream uses retained per-run events with bounded loading and acti
   const source = await readFile(new URL("./WorkspacePage.jsx", import.meta.url), "utf8");
   const pageData = await readFile(new URL("./page-data.js", import.meta.url), "utf8");
   assert.ok(source.includes('if(route.kind==="activity")return <ActivityPanel'));
-  assert.ok(source.includes("api.runEvents(run.id,null,{signal:controller.signal})"));
+  assert.ok(source.includes("api.runs({limit:ACTIVITY_RUN_PAGE_SIZE,offset:0,signal:controller.signal})"));
+  assert.ok(source.includes("api.runs({"));
+  assert.ok(source.includes("snapshotAt"));
+  assert.ok(source.includes("normalizeActivityRunPage"));
+  assert.ok(source.includes("fetchActivityEvents"));
   assert.ok(source.includes("Promise.allSettled"));
   assert.ok(source.includes("offset+=4"));
-  assert.ok(source.includes(".slice(0,8)"));
-  assert.ok(source.includes("mergeRunActivity(events,sources,recentRuns.map((run)=>run.id),50)"));
+  assert.ok(source.includes("mergeRunActivity(current,result.sources,ids,ACTIVITY_EVENT_LIMIT)"));
   assert.ok(source.includes("isRunEventPage(result.value)"));
-  assert.ok(source.includes("waitingForSnapshot=canReadActivity&&recentRuns.length>0&&!snapshotCurrent"));
-  assert.ok(source.includes("getCurrentRunActivity(events,loadedRunKey,runKey,recentRuns)"));
+  assert.ok(source.includes("waitingForSnapshot=canReadActivity&&workflowRuns.length>0&&!snapshotCurrent"));
+  assert.ok(source.includes("getCurrentRunActivity(events,loadedRunKey,runKey,workflowRuns)"));
+  assert.ok(source.includes("Load older workflows"));
+  assert.ok(!source.includes(".slice(0,8)"));
   assert.ok(source.includes("filterRunEvents(currentEvents,query,statusFilter)"));
   assert.ok(source.includes('aria-label="Search retained activity"'));
   assert.ok(source.includes('aria-label="Filter activity by status"'));
   assert.ok(source.includes('onClick={()=>openRun({id:event.runId,goal:event.goal,status:event.runStatus})}'));
-  assert.ok(pageData.includes("persisted stage events across up to eight of the latest loaded workflows"));
+  assert.ok(pageData.includes("paginated set of saved workflows"));
+  assert.ok(pageData.includes("load older workflow pages"));
 });
 
+
+test("activity pagination controls remain responsive and keyboard accessible", async () => {
+  const styles = await readFile(new URL("../redesign/workspace-pages.css", import.meta.url), "utf8");
+  assert.ok(styles.includes(".workspace-activity-pagination"));
+  assert.ok(styles.includes(".workspace-activity-pagination button:focus-visible"));
+  assert.ok(styles.includes(".workspace-activity-pagination-error"));
+  assert.ok(styles.includes("@media(max-width:560px)"));
+});
 
 test("CI destination renders live, read-only GitHub Actions run evidence", async () => {
   const source = await readFile(new URL("./WorkspacePage.jsx", import.meta.url), "utf8");

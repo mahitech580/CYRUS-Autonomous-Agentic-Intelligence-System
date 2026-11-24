@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, buildRunActivity, mergeRunActivity, getCurrentRunActivity, isRunEventPage, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, getRunRecordCount, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
+import { isRunCompleted, getRunStageState, getRunStageTiming, getRunPageOffset, normalizeActivityRunPage, getNextRunEventCursor, applyRunEventCursor, hasRunArtifacts, buildRunsCsv, buildRunActivity, mergeRunActivity, getCurrentRunActivity, isRunEventPage, filterRuns, getOrCreateRetryRequestKey, getOrCreateRunRequestKey, getRunRecordCount, mapRunRecord, mergeRunEvents, mergeRunPollResult, needsRunDetailRefresh, nextRunPollDelay, settleRunPoll, summarizeRunUsage, filterRunEvents, getRunEventStatuses } from "./runs.js";
 
 const sample = [
   { id: "RUN-001", goal: "Build secure login", status: "review", progress: 100, execution_mode: "live-model", created_at: "2026-10-28T09:00:00Z" },
@@ -619,6 +619,59 @@ test("persisted stage status takes precedence over artifact presence", () => {
   assert.equal(getRunStageState(run, "review"), "failed");
 });
 
+
+test("activity workflow pages validate offset, continuation and a stable server snapshot", () => {
+  const snapshotAt = "2026-11-24T03:00:00+00:00";
+  const first = normalizeActivityRunPage({
+    items: [{ id: "RUN-1", status: "completed" }, { id: "RUN-2", status: "failed" }],
+    total: 3,
+    limit: 2,
+    offset: 0,
+    has_more: true,
+    next_offset: 2,
+    snapshot_at: snapshotAt,
+  }, 0, 2);
+  assert.equal(first.snapshotAt, snapshotAt);
+  assert.equal(first.nextOffset, 2);
+  assert.equal(first.hasMore, true);
+
+  const last = normalizeActivityRunPage({
+    items: [{ id: "RUN-3", status: "review" }],
+    total: 3,
+    limit: 2,
+    offset: 2,
+    has_more: false,
+    next_offset: null,
+    snapshot_at: snapshotAt,
+  }, 2, 2, snapshotAt);
+  assert.equal(last.hasMore, false);
+  assert.equal(last.nextOffset, null);
+
+  assert.throws(() => normalizeActivityRunPage({
+    items: [{ id: "RUN-3" }], total: 3, limit: 2, offset: 1,
+    has_more: true, next_offset: 2, snapshot_at: snapshotAt,
+  }, 2, 2), /inconsistent page metadata/);
+  assert.throws(() => normalizeActivityRunPage({
+    items: [{ id: "RUN-3" }], total: 3, limit: 2, offset: 2,
+    has_more: true, next_offset: 3, snapshot_at: snapshotAt,
+  }, 2, 2), /inconsistent next-page cursor/);
+  assert.throws(() => normalizeActivityRunPage({
+    items: [{ id: "RUN-3" }], total: 3, limit: 2, offset: 2,
+    has_more: false, next_offset: null, snapshot_at: "invalid",
+  }, 2, 2), /invalid snapshot timestamp/);
+  assert.throws(() => normalizeActivityRunPage({
+    items: [{ id: "RUN-3" }], total: 3, limit: 2, offset: 2,
+    has_more: false, next_offset: null, snapshot_at: "2026-11-24T03:00:01+00:00",
+  }, 2, 2, snapshotAt), /changed the snapshot/);
+  assert.throws(() => normalizeActivityRunPage({
+    items: [{ id: "RUN-3" }, { id: "RUN-3" }], total: 3, limit: 2, offset: 0,
+    has_more: true, next_offset: 2, snapshot_at: snapshotAt,
+  }, 0, 2), /duplicate workflow IDs/);
+  assert.throws(() => normalizeActivityRunPage({
+    items: [], total: 3, limit: 2, offset: 0,
+    has_more: true, next_offset: 0, snapshot_at: snapshotAt,
+  }, 0, 2), /empty non-terminal page/);
+});
 
 test("history pagination rejects stale and forward-skipping cursors", () => {
   assert.equal(getRunPageOffset({ next_offset: 0 }, 30, 15), 45);

@@ -511,12 +511,12 @@ export const WORKSPACE_PAGE_CONTENT = Object.freeze({
   "observability-activity": {
     "eyebrow": "OBSERVABILITY / EVENT CONTEXT",
     "title": "Activity stream",
-    "description": "Inspect persisted stage events across up to eight of the latest loaded workflows. The stream is assembled from each run's retained event endpoint; it is not a global trace or a separate audit service.",
+    "description": "Inspect persisted stage events across a paginated set of saved workflows. The stream pins each workflow page to one server snapshot and merges each run's retained event endpoint; it is not a global trace or a separate audit service.",
     "image": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1600&q=80",
     "sections": [
       {
-        "title": "Search the latest retained events",
-        "description": "Filter the merged event window, then open any event's workflow to inspect its full saved artifacts and history.",
+        "title": "Search retained events across workflow history",
+        "description": "Filter the newest 200 merged events, load older workflow pages when needed, and open any event's workflow to inspect its saved artifacts and history.",
         "cards": [
           {
             "title": "Run history",

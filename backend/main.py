@@ -1223,6 +1223,7 @@ def list_runs(
     statement = select(WorkflowRun)
     count_statement = select(func.count()).select_from(WorkflowRun)
     decision_snapshot = None
+    run_snapshot = None
     if status in {"approved", "rejected"}:
         # A decision is persisted in approval_status as well as status. Include
         # legacy rows where those fields drifted, and pin pages to one immutable
@@ -1237,7 +1238,14 @@ def list_runs(
         count_statement = count_statement.where(status_filter)
         ordering = (WorkflowRun.updated_at.desc(), WorkflowRun.id.desc())
     else:
-        if status is not None:
+        if status is None:
+            # Keep unfiltered history pages stable when new workflows arrive
+            # between requests. Clients pass this exact timestamp on later pages.
+            run_snapshot = snapshot_at or utcnow()
+            created_filter = WorkflowRun.created_at <= run_snapshot
+            statement = statement.where(created_filter)
+            count_statement = count_statement.where(created_filter)
+        else:
             status_filter = WorkflowRun.status == status
             statement = statement.where(status_filter)
             count_statement = count_statement.where(status_filter)
@@ -1274,7 +1282,7 @@ def list_runs(
         "offset": offset,
         "has_more": has_more,
         "next_offset": next_offset if has_more else None,
-        "snapshot_at": utc_iso(decision_snapshot) if decision_snapshot is not None else None,
+        "snapshot_at": utc_iso(decision_snapshot or run_snapshot) if decision_snapshot is not None or run_snapshot is not None else None,
         "stats": stats,
     }
 
