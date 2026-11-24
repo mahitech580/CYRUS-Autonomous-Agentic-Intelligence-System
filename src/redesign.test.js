@@ -651,6 +651,17 @@ test("legacy stylesheet fallback accents stay in the cyan and mint palette", asy
   assert.ok(styles.includes("background: #72f1c4"));
 });
 
+test("workspace and API Vercel deployments enforce host-scoped HSTS", async () => {
+  const workspace = JSON.parse(await read("../vercel.json"));
+  const api = JSON.parse(await read("../backend/vercel.json"));
+  for (const config of [workspace, api]) {
+    const rule = config.headers?.find((item) => item.source === "/(.*)");
+    const headers = rule?.headers || [];
+    const hsts = headers.find((item) => item.key === "Strict-Transport-Security");
+    assert.equal(hsts?.value, "max-age=31536000");
+  }
+});
+
 test("Vercel applies browser security headers to every workspace response", async () => {
   const config = JSON.parse(await read("../vercel.json"));
   const rule = config.headers?.find((item) => item.source === "/(.*)");

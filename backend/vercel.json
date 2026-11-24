@@ -3,5 +3,13 @@
     "main.py": {
       "maxDuration": 300
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Strict-Transport-Security", "value": "max-age=31536000" }
+      ]
+    }
+  ]
 }
