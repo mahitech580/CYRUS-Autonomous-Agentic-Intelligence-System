@@ -65,6 +65,10 @@ export function parseRetryAfterSeconds(value, now = Date.now()) {
   return Math.max(0, Math.ceil((retryAt - currentTime) / 1000));
 }
 
+export function isWorkspaceAccessDenied(error) {
+  return error?.status === 401 || error?.status === 403;
+}
+
 export async function request(path, options = {}) {
   const key = getAccessKey();
   const {
@@ -157,9 +161,10 @@ export const api = {
     try {
       return await request("/api/config");
     } catch (error) {
+      const accessDenied = isWorkspaceAccessDenied(error);
       const accessControlMissing = error?.status === 503
         && /workspace access control is not configured/i.test(error.message || "");
-      if (error?.status !== 401 && !accessControlMissing) throw error;
+      if (!accessDenied && !accessControlMissing) throw error;
       // Health stays public for uptime probes; detailed queue and provider
       // configuration remains behind the workspace access key.
       return {
@@ -174,7 +179,7 @@ export const api = {
         worker_ready: !!health?.worker_ready,
         execution_mode: health?.mode || "unknown",
         can_start_runs: false,
-        runtime_access_denied: error?.status === 401,
+        runtime_access_denied: accessDenied,
         runtime_configuration_missing: accessControlMissing,
         queued_workflows: null,
         running_workflows: null,

@@ -5,7 +5,7 @@ import {
  Globe2, LayoutDashboard, LockKeyhole, Network, Radio, RefreshCw, Rocket, Search,
  Settings2, ShieldCheck, Sparkles, Terminal, Timer, Workflow
 } from "lucide-react";
-import { api } from "../lib/api.js";
+import { api, isWorkspaceAccessDenied } from "../lib/api.js";
 import { filterWorkflowRuns, formatWorkflowDuration, getWorkflowRunStatus, getWorkflowRunsErrorMessage, normalizeWorkflowRuns, summarizeWorkflowRuns } from "../lib/github-actions.js";
 import { getRunPageOffset, getRunRecordCount, mapRunRecord } from "../lib/runs.js";
 import { filterReviewHistory, getReviewDecision, mergeReviewHistoryRecords, mergeReviewHistoryRefresh, normalizeReviewHistoryPage } from "../lib/review-history.js";
@@ -118,7 +118,7 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
      failures.push({status,error:result.reason});
     }
    });
-   const unauthorized=failures.find((item)=>item.error?.status===401);
+   const unauthorized=failures.find((item)=>isWorkspaceAccessDenied(item.error));
    if(unauthorized){
     setRecords([]);
     setTotals({approved:null,rejected:null});
@@ -199,7 +199,7 @@ function ReviewHistoryPanel({apiState,openRun,onUnauthorized,refreshToken}){
      failures.push({status,error:result.reason});
     }
    });
-   const unauthorized=failures.find((item)=>item.error?.status===401);
+   const unauthorized=failures.find((item)=>isWorkspaceAccessDenied(item.error));
    if(unauthorized){
     setRecords([]);
     setTotals({approved:null,rejected:null});
@@ -313,7 +313,7 @@ async function fetchActivityEvents(targetRuns, signal) {
   }else{
    if(result.status==="rejected"&&result.reason?.name==="AbortError")return;
    failures+=1;
-   if(result.status==="rejected"&&[401,403].includes(result.reason?.status))unauthorized=unauthorized||result.reason;
+   if(result.status==="rejected"&&isWorkspaceAccessDenied(result.reason))unauthorized=unauthorized||result.reason;
   }
  });
  return {sources,failures,unauthorized};
@@ -403,7 +403,7 @@ function ActivityPanel({openRun,apiState,config,onUnauthorized}){
       :"");
    }catch(cause){
     if(!active||cause?.name==="AbortError")return;
-    if([401,403].includes(cause?.status))onUnauthorized?.(cause);
+    if(isWorkspaceAccessDenied(cause))onUnauthorized?.(cause);
     setError(cause?.message||"Could not load workflow activity.");
    }finally{
     if(active)setLoading(false);
@@ -460,7 +460,7 @@ function ActivityPanel({openRun,apiState,config,onUnauthorized}){
    setLoadedAt({key,value:new Date().toISOString()});
   }catch(cause){
    if(cause?.name==="AbortError")return;
-   if([401,403].includes(cause?.status))onUnauthorized?.(cause);
+   if(isWorkspaceAccessDenied(cause))onUnauthorized?.(cause);
    setMoreError(cause?.message||"Could not load older workflow activity.");
   }finally{
    if(pageController.current===controller){

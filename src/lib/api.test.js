@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { api, getAccessKey, parseRetryAfterSeconds, request, setAccessKey } from "./api.js";
+import { api, getAccessKey, isWorkspaceAccessDenied, parseRetryAfterSeconds, request, setAccessKey } from "./api.js";
 
 test("access key storage verifies trimmed writes and clears", async (t) => {
   const originalWindow = globalThis.window;
@@ -373,6 +373,13 @@ test("runtime snapshot verifies API health before returning configuration", asyn
   ]);
 });
 
+test("workspace access failures include unauthorized and forbidden responses", () => {
+  assert.equal(isWorkspaceAccessDenied({ status: 401 }), true);
+  assert.equal(isWorkspaceAccessDenied({ status: 403 }), true);
+  assert.equal(isWorkspaceAccessDenied({ status: 404 }), false);
+  assert.equal(isWorkspaceAccessDenied(null), false);
+});
+
 test("runtime snapshot keeps API liveness while marking protected configuration as unavailable", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
@@ -411,6 +418,35 @@ test("runtime snapshot keeps API liveness while marking protected configuration 
     "http://localhost:8000/api/health",
     "http://localhost:8000/api/config",
   ]);
+});
+
+test("runtime snapshot treats forbidden configuration as protected rather than an API outage", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async (url) => url.endsWith("/api/health")
+    ? new Response(JSON.stringify({ service: "cyrus-api", status: "ok", database: "reachable", persistent_storage: true, provider_configured: true, worker_required: true, worker_ready: true, mode: "live-model" }), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response(JSON.stringify({ detail: "Workspace access denied." }), { status: 403, headers: { "content-type": "application/json" } });
+  const snapshot = await api.runtime();
+  assert.equal(snapshot.runtime_access_denied, true);
+  assert.equal(snapshot.auth_required, true);
+  assert.equal(snapshot.can_start_runs, false);
+  assert.equal(snapshot.queued_workflows, null);
+  assert.equal(snapshot.running_workflows, null);
+});
+
+test("run history requests preserve the exact snapshot timestamp", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let capturedUrl = "";
+  globalThis.fetch = async (url) => {
+    capturedUrl = String(url);
+    return new Response(JSON.stringify({ items: [], total: 30, limit: 30, offset: 30, has_more: false, next_offset: null, snapshot_at: "2026-11-24T03:00:00+00:00" }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  const snapshotAt = "2026-11-24T03:00:00+00:00";
+  await api.runs({ limit: 30, offset: 30, snapshotAt });
+  const url = new URL(capturedUrl);
+  assert.equal(url.searchParams.get("snapshot_at"), snapshotAt);
+  assert.equal(url.searchParams.get("offset"), "30");
 });
 
 test("runtime snapshot explains missing production access configuration without reporting API outage", async (t) => {

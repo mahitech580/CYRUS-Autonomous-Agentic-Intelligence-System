@@ -726,3 +726,17 @@ test("activity stream typography is readable and long messages stay bounded on m
   const mobile = styles.slice(mobileStart, mobileEnd < 0 ? undefined : mobileEnd);
   assert.ok(mobile.includes(".workspace-activity-filter{grid-column:1/-1}"), "mobile status filter must use the full toolbar width");
 });
+
+
+test("protected workspace data is cleared for both unauthorized and forbidden responses", async () => {
+  const api = await read("../src/lib/api.js");
+  const app = await read("../src/App.jsx");
+  const pages = await read("workspace/WorkspacePage.jsx");
+  assert.ok(api.includes("export function isWorkspaceAccessDenied(error)"));
+  assert.ok(api.includes("runtime_access_denied: accessDenied"));
+  assert.ok(app.includes("if (!isWorkspaceAccessDenied(error)) return false;"));
+  assert.ok(app.includes("function clearProtectedWorkspaceData()"));
+  assert.ok(app.includes("config.runtime_access_denied || (config.auth_required && !getAccessKey())"));
+  assert.ok(pages.includes("failures.find((item)=>isWorkspaceAccessDenied(item.error))"));
+  assert.ok(pages.includes("isWorkspaceAccessDenied(result.reason)"));
+});

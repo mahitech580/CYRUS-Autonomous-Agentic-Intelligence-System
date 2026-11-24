@@ -7,7 +7,7 @@ import {
   Network, Play, Plus, Radio, RefreshCw, Rocket, Search, Settings2, ShieldCheck,
   Sparkles, Terminal, Timer, Workflow, X, Zap
 } from "lucide-react";
-import { api, getAccessKey, setAccessKey } from "./lib/api.js";
+import { api, getAccessKey, isWorkspaceAccessDenied, setAccessKey } from "./lib/api.js";
 import { nextRunPollDelay, settleRunPoll, mergeRunPollResult, buildRunsCsv, filterRuns, filterRunEvents, getRunEventStatuses, getRunRecordCount, mapRunRecord, mergeRunEvents, needsRunDetailRefresh, getOrCreateRunRequestKey, getOrCreateRetryRequestKey, getRunStageState, getRunStageTiming, countCompletedRunStages, hasRunArtifacts, getRunPageOffset, getNextRunEventCursor, applyRunEventCursor, getRunInsertionChanges, shouldRefreshRunAggregates, validateRunGoal, mergeRunSummaryIntoDetail, isRunCompleted } from "./lib/runs.js";
 import { getRouteIntent, getWorkspaceHref, getWorkspaceRoute, WORKSPACE_NAV_GROUPS } from "./lib/routes.js";
 import { shouldOpenWorkspaceCommand } from "./lib/navigation.js";
@@ -268,12 +268,14 @@ export default function App() {
         if (!alive) return;
         setApiState("connected");
         setWorkspaceConfig(config);
-        if (config.auth_required && !getAccessKey()) {
-          setRuns([]);
-          setRunsTotal(0);
-          setRunsOffset(0);
-          setRunStats(null);
-          redirectToSettingsOnUnauthorized({ status: 401 });
+        if (config.runtime_access_denied || (config.auth_required && !getAccessKey())) {
+          redirectToSettingsOnUnauthorized({ status: config.runtime_access_denied ? 403 : 401 });
+          return;
+        }
+        if (config.runtime_configuration_missing) {
+          clearProtectedWorkspaceData();
+          setView("Settings");
+          notify("Server-side workspace access control is not configured. Protected workflow history was cleared.");
           return;
         }
         try {
@@ -314,6 +316,12 @@ export default function App() {
       const config = await api.runtime();
       setWorkspaceConfig(config);
       setApiState("connected");
+      if (config.runtime_access_denied) redirectToSettingsOnUnauthorized({ status: 403 });
+      else if (config.runtime_configuration_missing) {
+        clearProtectedWorkspaceData();
+        setView("Settings");
+        notify("Server-side workspace access control is not configured. Protected workflow history was cleared.");
+      }
       return config;
     } catch (error) {
       setApiState("unavailable");
@@ -327,14 +335,21 @@ export default function App() {
       if (Number.isFinite(total)) setRunsTotal(Math.max(0, Math.floor(total)));
       if (snapshot?.stats && typeof snapshot.stats === "object") setRunStats(snapshot.stats);
     } catch (error) {
-      if (error?.status === 401) redirectToSettingsOnUnauthorized(error);
+      if (isWorkspaceAccessDenied(error)) redirectToSettingsOnUnauthorized(error);
     }
   }
-  function redirectToSettingsOnUnauthorized(error) {
-    if (error?.status !== 401) return false;
+  function clearProtectedWorkspaceData() {
+    setRuns([]);
+    setRunsTotal(0);
+    setRunsOffset(0);
+    setRunStats(null);
     setSelectedRun(null);
+  }
+  function redirectToSettingsOnUnauthorized(error) {
+    if (!isWorkspaceAccessDenied(error)) return false;
+    clearProtectedWorkspaceData();
     setView("Settings");
-    notify("Workspace access key is missing or incorrect. Update it in Settings.");
+    notify("Workspace access was denied. Verify the key or server authorization policy in Settings.");
     return true;
   }
   async function startRun(event) {
@@ -468,8 +483,8 @@ export default function App() {
     const poll = settleRunPoll(statusResult, eventResult, runId);
     const statusError = statusResult.status === "rejected" ? statusResult.reason : null;
     const eventError = eventResult.status === "rejected" ? eventResult.reason : null;
-    if (statusError?.status === 401 || eventError?.status === 401) {
-      redirectToSettingsOnUnauthorized(statusError?.status === 401 ? statusError : eventError);
+    if (isWorkspaceAccessDenied(statusError) || isWorkspaceAccessDenied(eventError)) {
+      redirectToSettingsOnUnauthorized(isWorkspaceAccessDenied(statusError) ? statusError : eventError);
       return { cursor: after || "", ok: false, status: null };
     }
     if (!poll.statusOk && !poll.eventsOk) {
@@ -492,7 +507,7 @@ export default function App() {
             : knownStageCount;
         }
       } catch (detailError) {
-        if (detailError.status === 401) redirectToSettingsOnUnauthorized(detailError);
+        if (isWorkspaceAccessDenied(detailError)) redirectToSettingsOnUnauthorized(detailError);
       }
     }
     setSelectedRun((current) => current?.id === runId
@@ -1010,7 +1025,7 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
       })
       .catch((error) => {
         if (!active || error?.name === "AbortError") return;
-        if (error?.status === 401) onUnauthorized?.(error);
+        if (isWorkspaceAccessDenied(error)) onUnauthorized?.(error);
         else setPendingError(error?.message || "Could not load pending reviews.");
       })
       .finally(() => {
@@ -1045,7 +1060,7 @@ function ReviewView({ runs = [], openRun, apiState, onUnauthorized, refreshToken
       setPendingOffset(getRunPageOffset(data, offset, items.length));
     } catch (error) {
       if (error?.name === "AbortError") return;
-      if (error?.status === 401) onUnauthorized?.(error);
+      if (isWorkspaceAccessDenied(error)) onUnauthorized?.(error);
       else setPendingMoreError(error?.message || "Could not load older pending reviews.");
     } finally {
       if (pendingPageController.current === controller) {
